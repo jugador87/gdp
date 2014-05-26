@@ -1,0 +1,392 @@
+/***********************************************************************
+**	Copyright (c) 2008, Eric P. Allman.  All rights reserved.
+**	$Id: ep_string.c 252 2008-09-16 21:24:42Z eric $
+***********************************************************************/
+
+#include <ep.h>
+#include <ep_stat.h>
+#include <ep_string.h>
+#include <ep_pcvt.h>
+#include <unistd.h>
+#include <stdarg.h>
+
+EP_SRC_ID("@(#)$Id: ep_string.c 252 2008-09-16 21:24:42Z eric $");
+
+
+/***********************************************************************
+**
+**  STRLCPY, STRLCAT -- string copy/concatenate with buffer size
+**
+**	Some systems (e.g., Linux) still don't provide these.
+*/
+
+#if !EP_OSCF_HAS_STRLCPY
+
+size_t
+strlcpy(
+	char *dst,
+	const char *src,
+	size_t n)
+{
+	size_t i = 0;
+
+	while (--n > 0 && *src != '\0')
+	{
+		*dst++ = *src++;
+		i++;
+	}
+	if (n >= 0)
+	{
+		*dst++ = '\0';
+		i++;
+	}
+	if (*src != '\0')
+		i += strlen(src);
+	return i;
+}
+
+
+size_t
+strlcat(
+	char *dst,
+	const char *src,
+	size_t n)
+{
+	size_t i = strlen(dst);
+
+	while (n > 0 && *dst++ != '\0')
+		n--;
+	while (*src != '\0' && --n > 0)
+	{
+		*dst++ = *src++;
+		i++;
+	}
+	if (*src != '\0')
+		i += strlen(src);
+	if (n >= 0)
+	{
+		*dst++ = '\0';
+		i++;
+	}
+	return i;
+}
+
+#endif /* EP_OSCF_HAS_STRLCPY */
+
+
+/***********************************************************************
+**
+**  EP_STR_LCPYN -- copy and concatenate N strings
+**
+**	Parameters:
+**		dst -- destination pointer.
+**		siz -- size of space available at dst.
+**		... -- a EP_NULL terminated list of strings to copy to dst.
+**
+**	Returns:
+**		The number of bytes that would have been copied if dst
+**		were large enough.
+*/
+
+// helper routine really for internal use only.  Could be exposed if needed.
+size_t
+ep_str_vlcpyn(
+	char *dst,
+	size_t siz,
+	va_list av)
+{
+	size_t asize = 0;		// actual size
+	char *p = EP_NULL;
+
+	if (siz <= 0)
+		return siz;		// no room for anything
+
+	siz--;				// allow for EP_NULL byte at end
+	while (siz > 0 && (p = va_arg(av, char *)) != EP_NULL)
+	{
+		while (siz-- > 0 && (*dst = *p++) != '\0')
+			dst++, asize++;
+	}
+	*dst = '\0';
+
+	// see if we fit
+	if (p != EP_NULL)
+	{
+		// buffer has overflowed; just count the rest
+
+		// first any residual in the current string
+		while (*p++ != '\0')
+			asize++;
+
+		// then future strings
+		while ((p = va_arg(av, char *)) != EP_NULL)
+			asize += strlen(p);
+	}
+
+	return asize;
+}
+
+size_t
+ep_str_lcpyn(
+	char *dst,
+	size_t siz,
+	...)
+{
+	va_list av;
+	size_t asize;			// actual size
+
+	va_start(av, siz);
+	asize = ep_str_vlcpyn(dst, siz, av);
+	va_end(av);
+
+	return asize;
+}
+
+
+/***********************************************************************
+**
+**  EP_STR_LCATN -- copy and concatenate N strings to existing string
+**
+**	Parameters:
+**		dst -- destination pointer.
+**		siz -- size of space available at dst.
+**		... -- a EP_NULL terminated list of strings to copy to dst.
+**
+**	Returns:
+**		The number of bytes that would have been copied if dst
+**		were large enough.
+*/
+
+size_t
+ep_str_lcatn(
+	char *dst,
+	size_t siz,
+	...)
+{
+	va_list av;
+	size_t i = strlen(dst);
+
+	va_start(av, siz);
+	i += ep_str_vlcpyn(dst + i, siz - i, av);
+	va_end(av);
+
+	return i;
+}
+
+
+/***********************************************************************
+**
+**  Video escape sequences.  Should be setable.
+*/
+
+// ANSI X3.64
+struct epVidSequences	EpVidANSI_X3_64 =
+{
+	.vidnorm =	"\033[0m",	// video normal
+	.vidbold =	"\033[1m",	// video bold
+	.vidfaint =	"\033[2m",	// video faint
+	.vidstout =	"\033[3m",	// video standout
+	.viduline =	"\033[4m",	// video underline
+	.vidblink =	"\033[5m",	// video blink (ugh)
+	.vidinv =	"\033[7m",	// video invert
+	.vidfgblack =	"\033[30m",	// video foreground black
+	.vidfgred =	"\033[31m",	// video foreground red
+	.vidfggreen =	"\033[32m",	// video foreground green
+	.vidfgyellow =	"\033[33m",	// video foreground yellow
+	.vidfgblue =	"\033[34m",	// video foreground blue
+	.vidfgmagenta =	"\033[35m",	// video foreground magenta
+	.vidfgcyan =	"\033[36m",	// video foreground cyan
+	.vidfgwhite =	"\033[37m",	// video foreground white
+	.vidbgblack =	"\033[40m",	// video background black
+	.vidbgred =	"\033[41m",	// video background red
+	.vidbggreen =	"\033[42m",	// video background green
+	.vidbgyellow =	"\033[43m",	// video background yellow
+	.vidbgblue =	"\033[44m",	// video background blue
+	.vidbgmagenta =	"\033[45m",	// video background magenta
+	.vidbgcyan =	"\033[46m",	// video background cyan
+	.vidbgwhite =	"\033[47m",	// video background white
+};
+
+// none
+struct epVidSequences	EpVidNull =
+{
+	.vidnorm =	"",		// video normal
+	.vidbold =	"",		// video bold
+	.vidfaint =	"",		// video faint
+	.vidstout =	"",		// video standout
+	.viduline =	"",		// video underline
+	.vidblink =	"",		// video blink (ugh)
+	.vidinv =	"",		// video invert
+	.vidfgblack =	"",		// video foreground black
+	.vidfgred =	"",		// video foreground red
+	.vidfggreen =	"",		// video foreground green
+	.vidfgyellow =	"",		// video foreground yellow
+	.vidfgblue =	"",		// video foreground blue
+	.vidfgmagenta =	"",		// video foreground magenta
+	.vidfgcyan =	"",		// video foreground cyan
+	.vidfgwhite =	"",		// video foreground white
+	.vidbgblack =	"",		// video background black
+	.vidbgred =	"",		// video background red
+	.vidbggreen =	"",		// video background green
+	.vidbgyellow =	"",		// video background yellow
+	.vidbgblue =	"",		// video background blue
+	.vidbgmagenta =	"",		// video background magenta
+	.vidbgcyan =	"",		// video background cyan
+	.vidbgwhite =	"",		// video background white
+};
+
+struct epVidSequences	*EpVid = &EpVidANSI_X3_64;
+
+
+/***********************************************************************
+**
+**  EP_STR_VID_SET -- set the desired video sequence
+**
+**	Parameters:
+**		type -- the type of sequence to use, either "ansi" or
+**			"none"
+**
+**	Returns:
+**		status code
+**
+**	Side Effects:
+**		Updates the binding of 'EpVid'
+*/
+
+EP_STAT
+ep_str_vid_set(
+	const char *type)
+{
+	if (type == NULL)
+	{
+		// try to guess based on environment
+		EpVid = &EpVidNull;		// if all else fails
+		if (isatty(1))
+		{
+			if (strncmp(getenv("TERM"), "xterm", 5) == 0)
+				EpVid = &EpVidANSI_X3_64;
+		}
+		return EP_STAT_OK;
+	}
+
+	if (strcasecmp(type, "none") == 0)
+	{
+		EpVid = &EpVidNull;
+	}
+	else if (strcasecmp(type, "ansi") == 0)
+	{
+		EpVid = &EpVidANSI_X3_64;
+	}
+	else
+	{
+		char e1buf[64];
+
+		fprintf(stderr, "ep_str_char_set: character set type `%s' not valid\n",
+			ep_pcvt_str(e1buf, sizeof e1buf, type));
+		return EP_STAT_ERROR;
+	}
+	return EP_STAT_OK;
+}
+
+
+
+/***********************************************************************
+**
+**  Special characters used internally that may vary by locale.
+**  This is not intended to be complete; it's really for internal
+**  use only.
+*/
+
+// US-ASCII
+struct epCharSequences	EpCharASCII =
+{
+	.lquote =	"`",		// lquote
+	.rquote =	"'",		// rquote
+	.copyright =	"(c)",		// copyright
+	.degree =	"deg",		// degree
+	.micro =	"u",		// micro
+};
+
+// ISO 8859-1:1987
+struct epCharSequences	EpCharISO_8859_1 =
+{
+	.lquote =	"\253",		// lquote, '<<' character 0xAB
+	.rquote =	"\273",		// rquote, '>>' character 0xBB
+	.copyright =	"\251",		// copyright, 0xA9
+	.degree =	"\260",		// degree, 0xB0
+	.micro =	"\265",		// micro, 0xB5
+};
+
+// Unicode UTF-8 (US conventions)
+struct epCharSequences	EpCharUTF_8 =
+{
+	"\302\253",	// lquote, '<<' character U+00AB, 0xC2 AB
+	"\302\273",	// rquote, '>>' character U+00BB, 0xC2 BB
+	"\302\251",	// copyright, U+00A9, 0xC2 A9
+	"\302\260",	// degree, 0xB0
+	"\302\265",	// micro, 0xB5
+};
+
+struct epCharSequences	*EpChar = &EpCharUTF_8;
+
+
+/***********************************************************************
+**
+**  EP_STR_CHAR_SET -- set the desired character set sequences
+**
+**	Parameters:
+**		type -- the type of sequence to use, one of
+**			"ascii", "iso-8859-1", or "utf-8"
+**
+**	Returns:
+**		status code
+**
+**	Side Effects:
+**		Updates the binding of 'EpChar'
+*/
+
+EP_STAT
+ep_str_char_set(
+	const char *type)
+{
+	if (type == NULL)
+	{
+		// try to guess based on environment
+		char *p;
+		EpChar = &EpCharASCII;		// fallback default
+
+		if (!isatty(1))
+			return EP_STAT_OK;
+
+		type = getenv("LANG");
+		if (type == NULL)
+			return EP_STAT_OK;
+		p = strrchr(type, '.');
+		if (p != NULL)
+			type = ++p;
+	}
+
+	if (strcasecmp(type, "ascii") == 0)
+	{
+		EpChar = &EpCharASCII;
+	}
+	else if (strcasecmp(type, "iso-8859-1") == 0 ||
+		 strcasecmp(type, "iso-latin-1") == 0)
+	{
+		EpChar = &EpCharISO_8859_1;
+	}
+	else if (strcasecmp(type, "utf-8") == 0 ||
+		 strcasecmp(type, "utf8") == 0)
+	{
+		EpChar = &EpCharUTF_8;
+	}
+	else
+	{
+		char e1buf[64];
+
+		fprintf(stderr, "ep_str_char_set: character set type `%s' not valid\n",
+			ep_pcvt_str(e1buf, sizeof e1buf, type));
+		return EP_STAT_ERROR;
+	}
+	return EP_STAT_OK;
+}

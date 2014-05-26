@@ -1,0 +1,645 @@
+/***********************************************************************
+**	Copyright (c) 2008-2014, Eric P. Allman.  All rights reserved.
+**	$Id: ep_rpool.c 286 2014-04-29 18:15:22Z eric $
+***********************************************************************/
+
+#include <ep.h>
+#include <ep_rpool.h>
+#include <ep_mem.h>
+#include <ep_stat.h>
+#include <ep_assert.h>
+#include <ep_pcvt.h>
+#include <ep_dbg.h>
+#include <ep_funclist.h>
+#include <unistd.h>
+#include <string.h>
+
+EP_SRC_ID("@(#)$Id: ep_rpool.c 286 2014-04-29 18:15:22Z eric $");
+
+/***********************************************************************
+**
+**  RESOURCE POOLS
+**
+***********************************************************************/
+
+/**************************  BEGIN PRIVATE  **************************/
+
+// make memory _after_ MEMALIGN(s) bytes be on proper generic alignment
+#ifndef EP_OSCF_MEM_ALIGNMENT
+# define EP_OSCF_MEM_ALIGNMENT	4
+#endif
+
+// physical memory page size (OS dependent)
+#ifndef EP_OSCF_MEM_PAGESIZE
+# define EP_OSCF_MEM_PAGESIZE	getpagesize()
+#endif
+
+// return the address rounded up to the next EP_OSCF_MEM_ALIGNMENT boundary
+#define MEMALIGN(s)		(((s) + (EP_OSCF_MEM_ALIGNMENT - 1)) & ~(EP_OSCF_MEM_ALIGNMENT - 1))
+
+// system malloc and free functions
+//	A valloc function can also be defined if available.
+//	Note that memory allocated by valloc can't always be realloc'ed.
+#ifndef EP_OSCF_SYSTEM_MALLOC
+# define EP_OSCF_SYSTEM_MALLOC(s)	(malloc(s))
+#endif
+
+#ifndef EP_OSCF_SYSTEM_VALLOC
+//# define EP_OSCF_SYSTEM_VALLOC(s)	(valloc(s))
+//# define EP_OSCF_SYSTEM_VALLOC(s)	(memalign(s, EP_OSCF_MEM_PAGESIZE))
+#endif
+
+#ifndef EP_OSCF_SYSTEM_REALLOC
+# define EP_OSCF_SYSTEM_REALLOC(p, s)	(realloc(p, s))
+#endif
+
+#ifndef EP_OSCF_SYSTEM_MFREE
+# define EP_OSCF_SYSTEM_MFREE(p)	(free(p))
+#endif
+
+// number of tries to get more memory (XXX runtime?)
+#ifndef N_MALLOC_TRIES
+# define N_MALLOC_TRIES		3
+#endif
+
+
+/*
+**  A segment in the memory part of a resource pool.
+*/
+
+struct rpseg
+{
+	// administrative pointers
+	struct rpseg	*next;		// next segment in list
+
+	// the actual memory
+	size_t		segsize;	// size of this segment
+	void *		segfree;	// free pointer
+	void *		segbase;	// base of memory
+};
+
+
+/*
+**  The user handle on resource pool (opaque)
+*/
+
+struct EP_RPOOL
+{
+	// administrative information
+	const char	*name;		// for debugging
+	size_t		qsize;		// quantum size
+	uint32_t	flags;		// various flags, see below
+	EP_MUTEX	mutex;		// to avoid being tromped upon
+
+	// pointers to the segment list
+	struct rpseg	*head;		// pointer to allocatable memory
+
+	// other resources
+	EP_FUNCLIST	*ffuncs;	// list of free functions
+};
+
+// flag bits
+#define BEING_FREED	0x00000001	// currently being freed
+#define PRE_LOCKED	0x00000002	// we've already locked the struct
+
+
+
+/***********************************************************************
+**
+**  RPOOL IMPLEMENTATION
+**
+***********************************************************************/
+
+
+/*
+**  EP_RPOOL_NEW -- create new resource pool
+**
+**	We tweak with the quantum size to get allocations that will be
+**	approximately aligned, but then we don't use an explicitly aligned
+**	malloc to get them.  Does this make any sense?
+**
+**	The default quantum size is the system I/O page size.  On some
+**	architectures this might be large (65k and up), which could be a
+**	waste.  Perhaps the default should be something like 2k?
+**
+**	Parameters:
+**		name -- a pool name (optional, for debugging)
+**		qsize -- quantum size, that is, suggested minimum
+**			amount of memory to allocate in each segment.
+**			This is a "hint" and can be ignored.
+**
+**	Returns:
+**		A pointer to the new pool
+*/
+
+EP_RPOOL *
+ep_rpool_new(const char *name,
+	size_t qsize)
+{
+	EP_RPOOL *rp;
+	int pagesize = EP_OSCF_MEM_PAGESIZE;		// XXX too large on some machines?
+
+	if (name == EP_NULL)
+		name = "anonymous rpool";
+	rp = ep_mem_zalloc(sizeof *rp);
+	rp->name = name;
+
+	if (qsize == 0)
+	{
+		// get a default quantum that seems reasonable
+		qsize = ep_adm_getintparam("libep.rpool.quantum", 0);
+		if (qsize > sizeof (struct rpseg))
+			qsize -= sizeof (struct rpseg);
+	}
+
+	// tweak qsize to allow for malloc and segment headers,
+	// so the physical memory actually fits on even pages
+	qsize = ((qsize + sizeof (struct rpseg) + pagesize - 1) &
+			~(pagesize - 1)) - sizeof (struct rpseg);
+
+	rp->qsize = qsize;
+
+	return rp;
+}
+
+
+/*
+**  EP_RPOOL_FREE -- free a resource pool
+**
+**	Parameters:
+**		rp -- the pool to free
+**
+**	Returns:
+**		void
+*/
+
+void
+ep_rpool_free(EP_RPOOL *rp)
+{
+	struct rpseg *sp;
+	struct rpseg *newsp;
+
+	EP_ASSERT_POINTER_VALID(rp);
+
+	// if already in process of freeing, ignore this request
+	if (EP_UT_BITSET(BEING_FREED, rp->flags))
+		return;
+
+	// mark this as in process of being freed
+	rp->flags |= BEING_FREED;
+
+	// free any related resources
+	if (rp->ffuncs != EP_NULL)
+	{
+		ep_funclist_invoke(rp->ffuncs);
+		ep_funclist_free(rp->ffuncs);
+	}
+
+	// free up all memory segments associated with this pool
+	for (sp = rp->head; sp != EP_NULL; sp = newsp)
+	{
+		newsp = sp->next;
+		if (sp->segbase != ((void *) sp) + sizeof *sp)
+			ep_mem_free(sp->segbase);
+		ep_mem_free(sp);
+	}
+}
+
+
+/*
+**  EP_RPOOL_[MZ]ALLOC -- allocate memory from a resource pool
+**
+**	Allocate memory from an rpool.  If compile-time memory
+**	debugging is turned on, these are implemented as macros
+**	that call ep_rpool_ialloc, but these still exist in the
+**	event that a module that is compiled without debugging
+**	is linked into another application that does have
+**	memory debugging compiled in.
+**
+**	Parameters:
+**		rp -- the resource pool to allocate from.  If
+**			EP_NULL, allocates from the heap
+**		nbytes -- how much memory to return
+**
+**	Returns:
+**		The allocated memory
+*/
+
+#undef ep_rpool_malloc
+
+void *
+ep_rpool_malloc(EP_RPOOL *rp,
+	size_t nbytes)
+{
+	return ep_rpool_ialloc(rp, nbytes, 0, EP_NULL, 0);
+}
+
+#undef ep_rpool_zalloc
+
+void *
+ep_rpool_zalloc(EP_RPOOL *rp,
+	size_t nbytes)
+{
+	return ep_rpool_ialloc(rp, nbytes, EP_MEM_F_ZERO, EP_NULL, 0);
+}
+
+void *
+ep_rpool_ralloc(EP_RPOOL *rp,
+	size_t nbytes)
+{
+	return ep_rpool_ialloc(rp, nbytes, EP_MEM_F_TRASH, EP_NULL, 0);
+}
+
+
+/*
+**  EP_RPOOL_IALLOC -- allocate memory from a resource pool (internal)
+**
+**	Allocate memory from an rpool.  This is the underlying
+**	routine that everyone else uses.
+**
+**	Parameters:
+**		rp -- the resource pool to allocate from.  If
+**			EP_NULL, allocates from the heap
+**		nbytes -- how much memory to return
+**		flags -- flags updating semantics
+**		grp -- an arbitrary group number (for debugging)
+**		file -- file name where we were called (may be null)
+**		line -- line number from file
+**
+**	Returns:
+**		The allocated memory
+*/
+
+static EP_DBG	Dbg = EP_DBG_INIT("libep.rpool", "Resource pools");
+
+void *
+ep_rpool_ialloc(EP_RPOOL *rp,
+	size_t nbytes,
+	uint32_t flags,
+	const char *file,
+	int line)
+{
+	struct rpseg *sp;
+	ssize_t spaceleft;
+	void *p;
+	bool aligned;
+
+	if (ep_dbg_test(&Dbg, 50))
+	{
+		ep_dbg_printf("ep_rpool_ialloc(%p, %zu)", rp, nbytes);
+		if (rp != EP_NULL)
+			ep_dbg_printf(" [%s]", rp->name);
+		ep_dbg_printf("\n");
+	}
+
+	// if no pool, treat this as a heap malloc
+	if (rp == EP_NULL)
+		return ep_mem_ialloc(nbytes, EP_NULL, flags, file, line);
+
+	EP_ASSERT_POINTER_VALID(rp);
+	if (!EP_UT_BITSET(PRE_LOCKED, rp->flags))
+		EP_MUTEX_LOCK(rp->mutex);
+
+	// round the size up so allocations will be even
+	nbytes = MEMALIGN(nbytes);
+
+	// see if this request wants page alignment
+	aligned = (nbytes & (EP_OSCF_MEM_PAGESIZE - 1)) == 0;
+
+	// see if there is enough space in the current segment
+	sp = rp->head;
+	if (sp == EP_NULL)
+		spaceleft = 0;
+	else
+		spaceleft = sp->segsize - (sp->segfree - sp->segbase);
+
+	ep_dbg_cprintf(&Dbg, 51,
+			"rpool=%p, sp=%p, spaceleft=%zu, nbytes=%zu, aligned=%d\n",
+			rp, sp, spaceleft, nbytes, aligned);
+	if (sp == EP_NULL)
+	{
+		ep_dbg_cprintf(&Dbg, 52,
+			"    (no current segment)\n");
+	}
+	else
+	{
+		ep_dbg_cprintf(&Dbg, 52,
+			"    segfree=%p, segbase=%p, segfree=%zu\n",
+			sp->segfree, sp->segbase, sp->segsize);
+	}
+
+	// if there is no room, allocate a new segment
+	if (sp == EP_NULL || spaceleft < nbytes ||
+	    (aligned && (((uintptr_t) sp->segfree & (EP_OSCF_MEM_PAGESIZE - 1)) != 0)))
+	{
+		size_t segsize;
+
+		if (aligned)
+		{
+			/*
+			**  This space is a multiple of a page size.
+			**
+			**	To keep it page aligned we allocate it
+			**	separately from the segment descriptor.
+			**	Unfortunately this may mean that the
+			**	segment descriptors fragment memory.
+			**	This might be fixed by keeping a free list
+			**	of segment descriptors (ugh).
+			**
+			**	Note the assumption that ep_mem_ialloc
+			**	will keep large blocks page aligned.  Our
+			**	system_malloc will try to use valloc
+			**	if available to ensure this.  Also,
+			**	modern BSD systems do this automatically
+			**	in malloc.
+			*/
+
+			sp = ep_mem_ialloc(sizeof *sp,
+					EP_NULL,
+					0,
+					file,
+					line);
+			sp->segbase = ep_mem_ialloc(nbytes,
+					EP_NULL,
+					0,
+					file,
+					line);
+			segsize = nbytes;
+		}
+		else
+		{
+			// figure out how big this needs to be
+			segsize = nbytes;
+			if (segsize < rp->qsize)
+				segsize = rp->qsize;
+
+			// do the physical allocation
+			sp = p = ep_mem_ialloc(segsize + sizeof *sp,
+					EP_NULL,
+					0,
+					file,
+					line);
+			sp->segbase = p + sizeof *sp;
+		}
+		sp->segsize = segsize;
+
+		/*
+		**  Keep the segment with more free space at the head of the
+		**  list.
+		**
+		**	This prevents alternate allocations of short and long
+		**	buffers from wasting huge amounts of physical memory
+		**	by clustering the short allocates together.
+		*/
+
+		if (rp->head != EP_NULL && spaceleft > (segsize - nbytes))
+		{
+			// more space in old segment
+			sp->next = rp->head->next;
+			rp->head->next = sp;
+		}
+		else
+		{
+			// no, just put new block on head of list
+			sp->next = rp->head;
+			rp->head = sp;
+		}
+
+		// fill in other good info
+		sp->segfree = sp->segbase;
+	}
+
+	// we have room -- now allocate and return the memory
+	p = sp->segfree;
+	sp->segfree += nbytes;
+
+	if (!EP_UT_BITSET(PRE_LOCKED, rp->flags))
+		EP_MUTEX_UNLOCK(rp->mutex);
+
+	// zero or trash memory as requested
+	if (EP_UT_BITSET(EP_MEM_F_ZERO, flags))
+		memset(p, 0, nbytes);
+	else if (EP_UT_BITSET(EP_MEM_F_TRASH, flags))
+		ep_mem_trash(p, nbytes);
+
+	return p;
+}
+
+
+/*
+**  EP_RPOOL_REALLOC -- expand a buffer located in an rpool
+**
+**	Can only extend the most recently allocated memory in the rpool.
+**	Anything else will cause a memory leak (but only until the rpool
+**		is freed).
+*/
+
+void *
+ep_rpool_realloc(EP_RPOOL *rp,
+	void *emem,
+	size_t oldsize,
+	size_t newsize)
+{
+	void *p;
+	struct rpseg *sp;
+	ssize_t spaceleft;
+
+        if (ep_dbg_test(&Dbg, 50))
+        {
+                ep_st_fprintf(EpStStddbg, "ep_rpool_realloc(%p, %p, %zu, %zu)",
+                        rp, emem, oldsize, newsize);
+                if (rp != EP_NULL)
+                        ep_st_fprintf(EpStStddbg, " [%s]", rp->name);
+                ep_st_fprintf(EpStStddbg, "\n");
+        }
+
+	// easy case --- no rpool, so we can treat it as a heap
+	if (rp == EP_NULL)
+	{
+		p = ep_mem_realloc(emem, newsize);
+		return p;
+	}
+
+	// dup code from ep_rpool_ialloc
+	EP_ASSERT_POINTER_VALID(rp);
+	if (!EP_UT_BITSET(PRE_LOCKED, rp->flags))
+		EP_MUTEX_LOCK(rp->mutex);
+
+	// round the size up so allocations will be even
+	oldsize = MEMALIGN(oldsize);
+	newsize = MEMALIGN(newsize);
+
+	// see if there is enough space in the current segment
+	sp = rp->head;
+	if (sp == EP_NULL)
+		spaceleft = 0;
+	else
+		spaceleft = sp->segsize - (sp->segfree - sp->segbase);
+
+	ep_dbg_cprintf(&Dbg, 51,
+			"rpool=%p, sp=%p, spaceleft=%zu\n",
+			rp, sp, spaceleft);
+
+	/*
+	**  See if (a) we know where the old memory is coming from;
+	**  (b) the old block is contained in the last segment;
+	**  (c) the old block is the last one in the segment; and
+	**  (d) there is enough room in the segment to hold the new
+	**  allocation.
+	*/
+
+	if (emem != EP_NULL && sp != EP_NULL && spaceleft > 0 &&
+	    (emem > sp->segbase && emem < sp->segfree) &&
+	    emem + oldsize == sp->segfree &&
+	    newsize - oldsize <= spaceleft)
+	{
+		// excellent; just increase the allocation
+		sp->segfree += newsize - oldsize;
+		p = emem;
+
+		if (!EP_UT_BITSET(PRE_LOCKED, rp->flags))
+			EP_MUTEX_UNLOCK(rp->mutex);
+	}
+	else
+	{
+		// can't do it the easy way, so just find new space
+		if (!EP_UT_BITSET(PRE_LOCKED, rp->flags))
+			EP_MUTEX_UNLOCK(rp->mutex);
+
+		p = ep_rpool_malloc(rp, newsize);
+		if (emem != EP_NULL)
+		{
+			memcpy(p, emem, oldsize);
+			ep_rpool_mfree(rp, emem);
+		}
+	}
+	return p;
+}
+
+
+/*
+**  EP_RPOOL_STRDUP, EP_RPOOL_TSTRDUP -- save a string into a resource pool
+*/
+
+#undef ep_rpool_strdup
+
+char *
+ep_rpool_strdup(
+	EP_RPOOL *rp,
+	const char *s)
+{
+	return ep_rpool_istrdup(rp, s, -1, 0, EP_NULL, 0);
+}
+
+char *
+ep_rpool_istrdup(
+	EP_RPOOL *rp,
+	const char *s,
+	int slen,
+	uint32_t flags,
+	const char *file,
+	int line)
+{
+	size_t l;
+	char *p;
+
+	if (s == EP_NULL)
+		return EP_NULL;
+	l = strlen(s);
+	if (slen >= 0 && l > slen)
+		l = slen;
+	p = ep_rpool_ialloc(rp, l + 1, flags, file, line);
+	memcpy(p, s, l);
+	p[l] = '\0';
+	return p;
+}
+
+
+/*
+**
+**  EP_RPOOL_MFREE -- free memory from a resource pool
+**
+**	Generally, this will only release memory if it is the most
+**	recent memory allocated.  Can be ignored.
+**
+**	Long term: if all the allocations in a given segment are
+**	freed, the segment can be freed back to the heap (or added
+**	to the free list).  That requires more bookkeeping, which
+**	might not be worth the cost.
+**
+**	Parameters:
+**		rp -- pool from which this memory was allocated.
+**			If EP_NULL, free this to the heap.
+**		p -- pointer to the actual memory
+**
+**	Returns:
+**		void
+*/
+
+void
+ep_rpool_mfree(EP_RPOOL *rp,
+	void *p)
+{
+	// if no pool, treat this as a heap free
+	if (rp == EP_NULL)
+	{
+		ep_mem_free(p);
+		return;
+	}
+
+	EP_ASSERT_POINTER_VALID(rp);
+
+	// throw in some garbage at the beginning in case of reuse
+	(*(void **)p) = EP_GEN_DEADBEEF;
+
+	// not necessary to reclaim space, at least right now
+	// (might someday prune from end)
+}
+
+
+
+#if 0
+/***********************************************************************
+**
+** EP_RPOOL_ATTACH -- attach a resource to a pool
+**
+**	Parameters:
+**		rp -- the pool to attach the resource to.
+**		freefunc -- the function to call when the pool is
+**			freed
+**		arg -- an argument to freefunc
+**
+**	Returns:
+**		void
+*/
+
+void
+ep_rpool_attach(EP_RPOOL *rp,
+	EP_RPOOL_FREEFUNC *freefunc,
+	void *arg)
+{
+	EP_ASSERT_POINTER_VALID(rp);
+
+	EP_MUTEX_LOCK(rp->mutex);
+
+	// if no function list associated with this pool, create one
+	if (rp->ffuncs == EP_NULL)
+	{
+		EP_FUNCLIST *fl;
+
+		rp->flags |= PRE_LOCKED;
+		EP_MUTEX_UNLOCK(rp->mutex);
+		fl = ep_funclist_new(rp->name);
+		EP_MUTEX_LOCK(rp->mutex);
+		rp->ffuncs = fl;
+		rp->flags &= ~PRE_LOCKED;
+	}
+	EP_MUTEX_UNLOCK(rp->mutex);
+
+	// add this function to the function list
+	ep_funclist_push(rp->ffuncs, freefunc, arg);
+}
+
+#endif
+
+/***********************************************************************/

@@ -1,0 +1,10 @@
+Required Packages:
+
+	uuid (default on many systems)
+	lighttpd (for RESTful interface)
+	scgilib (C binding for Simple Common Gateway Interface: to connect
+		lighttpd with GDP; from http://www.xamuel.com/scgilib/;
+		slightly modified and included with this distribution)
+	cJSON (JSON library from http://sourceforge.net/projects/cjson/.
+		It's possible that Jansson http://www.digip.org/jansson/
+		is a better choice)

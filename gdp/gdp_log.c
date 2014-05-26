@@ -1,0 +1,158 @@
+/* vim: set ai sw=8 sts=8 : */
+
+/***********************************************************************
+**	Copyright (c) 2008-2014, Eric P. Allman.  All rights reserved.
+**	$Id: unix_syslog.c 288 2014-05-11 04:49:26Z eric $
+***********************************************************************/
+
+/*
+**  Message logging for GDP.
+*/
+
+#include <ep/ep.h>
+#include <ep/ep_stat.h>
+#include <syslog.h>
+#include <stdio.h>
+#include <time.h>
+#include <sys/time.h>
+
+static const char	*LogTag = NULL;
+static int		LogFac = LOG_LOCAL4;
+static FILE		*LogFile1 = NULL;
+static FILE		*LogFile2 = NULL;
+static bool		LogInitialized = false;
+
+void
+gdp_log_set(const char *tag,	// NULL => use program name
+	int logfac,		// -1 => don't use syslog
+	FILE *logfile,		// NULL => don't print to open file
+	const char *fname)	// NULL => don't log to disk file
+{
+	LogTag = tag;
+	LogFac = logfac;
+	LogFile1 = logfile;
+	if (fname == NULL)
+		LogFile2 = NULL;
+	else
+		LogFile2 = fopen(fname, "a");
+	LogInitialized = true;
+}
+
+
+void
+gdp_log_file(EP_STAT estat,
+		char *fmt,
+		va_list ap,
+		struct timeval *tv,
+		FILE *fp)
+{
+	char tbuf[40];
+	char ebuf[100];
+	struct tm *tm;
+
+	ep_stat_tostr(estat, ebuf, sizeof ebuf);
+	if ((tm = localtime(&tv->tv_sec)) == NULL)
+		snprintf(tbuf, sizeof tbuf, "%ld.%06u", tv->tv_sec, tv->tv_usec);
+	else
+	{
+		char lbuf[40];
+
+		snprintf(lbuf, sizeof lbuf, "%%Y-%%m-%%d %%H:%%M:%%S.%06u %%z",
+				tv->tv_usec);
+		strftime(tbuf, sizeof tbuf, lbuf, tm);
+	}
+
+	fprintf(fp, "%s %s: ", tbuf, LogTag);
+	vfprintf(fp, fmt, ap);
+	fprintf(fp, "\n");
+}
+
+
+static void
+gdp_log_syslog(EP_STAT estat, char *fmt, va_list ap)
+{
+	char ebuf[100];
+	char mbuf[500];
+	int sev = EP_STAT_SEVERITY(estat);
+	int logsev;
+	static bool inited = false;
+
+	// initialize log if necessary
+	if (!inited)
+	{
+		openlog(LogTag, LOG_PID, LogFac);
+		inited = true;
+	}
+
+	// map estat severity to syslog priority
+	switch (sev)
+	{
+	  case EP_STAT_SEV_OK:
+		logsev = LOG_INFO;
+		break;
+
+	  case EP_STAT_SEV_WARN:
+		logsev = LOG_WARNING;
+		break;
+
+	  case EP_STAT_SEV_ERROR:
+		logsev = LOG_ERR;
+		break;
+
+	  case EP_STAT_SEV_SEVERE:
+		logsev = LOG_CRIT;
+		break;
+
+	  case EP_STAT_SEV_ABORT:
+		logsev = LOG_ALERT;
+		break;
+
+	  default:
+		// %%% for lack of anything better
+		logsev = LOG_ERR;
+		break;
+
+	}
+
+	ep_stat_tostr(estat, ebuf, sizeof ebuf);
+	vsnprintf(mbuf, sizeof mbuf, fmt, ap);
+	syslog(logsev, "%s: %s", ebuf, mbuf);
+	fprintf(stderr, "%s: %s\n", ebuf, mbuf);
+}
+
+
+void
+gdp_log(EP_STAT estat, char *fmt, ...)
+{
+	va_list ap;
+	struct timeval tv;
+
+	gettimeofday(&tv, NULL);
+
+	if (!LogInitialized)
+	{
+		LogFile1 = stderr;
+		LogInitialized = true;
+	}
+	if (LogTag == NULL)
+		LogTag = getprogname();
+
+	if (LogFac >= 0)
+	{
+		va_start(ap, fmt);
+		gdp_log_syslog(estat, fmt, ap);
+		va_end(ap);
+	}
+	if (LogFile1 != NULL)
+	{
+		va_start(ap, fmt);
+		gdp_log_file(estat, fmt, ap, &tv, LogFile1);
+		va_end(ap);
+	}
+	if (LogFile2 != NULL)
+	{
+		va_start(ap, fmt);
+		gdp_log_file(estat, fmt, ap, &tv, LogFile2);
+		va_end(ap);
+	}
+}
