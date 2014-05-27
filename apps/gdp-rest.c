@@ -103,7 +103,7 @@ EP_STAT
 gdp_failure(scgi_request *req, char *code, char *msg, char *fmt, ...)
 {
     char buf[200];
-    FILE *fp = ep_st_openmem(buf, sizeof buf, "w");
+    FILE *fp = ep_fopensmem(buf, sizeof buf, "w");
     va_list av;
     char c;
 
@@ -192,7 +192,7 @@ read_msg(char *nexpname, long msgno, scgi_request *req)
 	FILE *fp;
 	char rbuf[1024];
 
-	fp = ep_st_openmem(rbuf, sizeof rbuf, "w");
+	fp = ep_fopensmem(rbuf, sizeof rbuf, "w");
 	if (fp == NULL)
 	{
 	    ep_app_abort("Cannot open memory for nexus read response: %s",

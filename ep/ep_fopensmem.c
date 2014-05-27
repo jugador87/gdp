@@ -1,7 +1,7 @@
 /* vim: set ai sw=8 sts=8 :*/
 
 /*
-**  Open up a stream backed by memory.
+**  Open up a stream backed by (static) memory.
 **
 ** 	This is a wrapper around funopen (on BSD and MacOS) or
 ** 	fopencookie (on Linux).  These two routimes do substantially
@@ -68,7 +68,7 @@ memclose(void *cookie)
 
 
 FILE *
-ep_st_openmem(void *buf,
+ep_fopensmem(void *buf,
 	size_t size,
 	const char *mode)
 {

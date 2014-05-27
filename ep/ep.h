@@ -46,6 +46,6 @@ extern int		ep_adm_getintparam(const char *name, int def);
 extern bool		ep_adm_getboolparam(const char *name, bool def);
 extern const char	*ep_adm_getstrparam(const char *name, const char *def);
 
-extern FILE		*ep_st_openmem(void *buf, size_t bufsz, const char *mode);
+extern FILE		*ep_fopensmem(void *buf, size_t bufsz, const char *mode);
 
 #endif // _EP_H_

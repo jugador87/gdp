@@ -29,7 +29,7 @@ EP_SRC_ID("@(#)$Id: ep_st_pprint.c 252 2008-09-16 21:24:42Z eric $");
 */
 
 void
-ep_st_pprint(FILE *fp,
+ep_pprint(FILE *fp,
 	const char *fmt,
 	int argc,
 	const char *const *argv)

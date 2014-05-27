@@ -13,13 +13,13 @@ OBJS=	\
 	ep_app.o \
 	ep_assert.o \
 	ep_dbg.o \
+	ep_fopensmem.o \
 	ep_funclist.o \
 	ep_hash.o \
 	ep_mem.o \
 	ep_pcvt.o \
+	ep_pprint.o \
 	ep_rpool.o \
-	ep_st_openmem.o \
-	ep_st_pprint.o \
 	ep_stat.o \
 	ep_string.o \
 	ep_xlate.o \
