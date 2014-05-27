@@ -6,9 +6,10 @@ ALL=		helloworld
 
 all:		${ALL}
 
-helloworld:	helloworld.c scgilib.o
+helloworld:	helloworld.o scgilib.o
+	${CC} -o helloworld helloworld.o scgilib.o
 
 scgilib.o:	scgilib.h
 
 clean:
-	rm ${ALL} *.o
+	-rm ${ALL} *.o
