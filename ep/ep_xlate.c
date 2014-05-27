@@ -229,7 +229,7 @@ int
 ep_xlate_out(
 	const char *tval,
 	size_t tlen,
-	EP_STREAM *osp,
+	FILE *osp,
 	const char *forbid,
 	uint32_t how)
 {
@@ -259,21 +259,21 @@ ep_xlate_out(
 		    c == encode_char ||
 		    c == '\0' ||
 		    (EP_UT_BITSET(EP_XLATE_NPRINT, how) && !isprint(c)) ||
-		    strchr(forbid, c) != EP_NULL)
+		    strchr(forbid, c) != NULL)
 		{
 			// the character must be encoded
-			ep_st_putc(osp, encode_char);
+			putc(encode_char, osp);
 			if (encode_char == '\\')
-				ep_st_putc(osp, 'x');
-			ep_st_putc(osp, HexCharMap[(c >> 4) & 0xf]);
-			ep_st_putc(osp, HexCharMap[c & 0xf]);
+				putc('x', osp);
+			putc(HexCharMap[(c >> 4) & 0xf], osp);
+			putc(HexCharMap[c & 0xf], osp);
 
 			osize += 3 + (encode_char == '\\');
 		}
 		else
 		{
 			// can be passed through without encoding
-			ep_st_putc(osp, c);
+			putc(c, osp);
 
 			osize += 1;
 		}

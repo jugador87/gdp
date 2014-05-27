@@ -64,27 +64,27 @@ ep_stat_register(EP_STAT stat,
 	EP_MUTEX_LOCK(StatMutex);
 
 	// make sure we have a resource pool (this will never be freed)
-	if (StatRpool == EP_NULL)
+	if (StatRpool == NULL)
 		StatRpool = ep_rpool_new("status list", 0);
 
 	// search the current list to find a possible match
-	for (c = StatFuncList; c != EP_NULL; c = c->next)
+	for (c = StatFuncList; c != NULL; c = c->next)
 	{
 		if (EP_STAT_IS_SAME(c->stat, stat) &&
 		    EP_STAT_IS_SAME(c->mask, mask))
 		{
 			// exact match -- eliminate this slot
 			ep_stat_unregister(c);
-			c = EP_NULL;
+			c = NULL;
 			break;
 		}
 	}
 
-	if (func == EP_NULL)
+	if (func == NULL)
 	{
-		c = EP_NULL;
+		c = NULL;
 	}
-	else if (c == EP_NULL)
+	else if (c == NULL)
 	{
 		// no slots -- allocate a new one
 		c = ep_rpool_malloc(StatRpool, sizeof *c);
@@ -93,7 +93,7 @@ ep_stat_register(EP_STAT stat,
 		StatFuncList = c;
 	}
 
-	if (c != EP_NULL)
+	if (c != NULL)
 	{
 		c->stat = stat;
 		c->mask = mask;
@@ -130,17 +130,17 @@ ep_stat_unregister(EP_STAT_HANDLE *h)
 	EP_MUTEX_LOCK(StatMutex);
 
 	// search for the matching handle
-	for (pc = &StatFuncList; (c = *pc) != EP_NULL && c != h; pc = &c->next)
+	for (pc = &StatFuncList; (c = *pc) != NULL && c != h; pc = &c->next)
 		continue;
 
-	if (c == EP_NULL)
+	if (c == NULL)
 	{
 		char e1buf[40];
 
 		stat = ep_stat_post(EP_STAT_STAT_NOTREGISTERED,
 				"Unregistering unregistered status handler @0x%1",
 				ep_pcvt_int(e1buf, sizeof e1buf, 16, (long) h),
-				EP_NULL);
+				NULL);
 	}
 	else
 	{
@@ -200,14 +200,14 @@ ep_stat_vpost(EP_STAT stat,
 
 	EP_MUTEX_LOCK(StatMutex);
 
-	for (c = StatFuncList; c != EP_NULL; c = c->next)
+	for (c = StatFuncList; c != NULL; c = c->next)
 	{
 		if (((EP_STAT_TO_INT(stat) ^ EP_STAT_TO_INT(c->stat)) &
 		     EP_STAT_TO_INT(c->mask)) == 0)
 			break;
 	}
 
-	if (c != EP_NULL)
+	if (c != NULL)
 	{
 		// found -- call the function
 		stat = (*c->func)(stat, defmsg, av);
@@ -220,7 +220,7 @@ ep_stat_vpost(EP_STAT stat,
 		if (EP_STAT_SEVERITY(stat) >
 		    ep_adm_getintparam("libep.stat.post.warnsev",
 					EP_STAT_SEV_WARN))
-			ep_stat_vprint(stat, defmsg, EpStStderr, av);
+			ep_stat_vprint(stat, defmsg, stderr, av);
 	}
 
 	if (EP_STAT_SEVERITY(stat) >=
@@ -245,7 +245,7 @@ ep_stat_vpost(EP_STAT stat,
 **		defmsg -- the default message to use if nothing
 **			found in catalog
 **		av -- list of parameters to bind to the message
-**		sp -- the stream on which to print
+**		fp -- the stream on which to print
 **
 **	Returns:
 **		none
@@ -256,20 +256,20 @@ ep_stat_vpost(EP_STAT stat,
 void
 ep_stat_print(EP_STAT stat,
 	const char *defmsg,
-	EP_STREAM *sp,
+	FILE *fp,
 	...)
 {
 	va_list av;
 
-	va_start(av, sp);
-	ep_stat_vprint(stat, defmsg, sp, av);
+	va_start(av, fp);
+	ep_stat_vprint(stat, defmsg, fp, av);
 	va_end(av);
 }
 
 void
 ep_stat_vprint(EP_STAT stat,
 	const char *defmsg,
-	EP_STREAM *sp,
+	FILE *fp,
 	va_list av)
 {
 	int i;
@@ -278,31 +278,31 @@ ep_stat_vprint(EP_STAT stat,
 	char sbuf[100];
 
 	i = 0;
-	while (i < MAXARGS && (ap = va_arg(av, const char *)) != EP_NULL)
+	while (i < MAXARGS && (ap = va_arg(av, const char *)) != NULL)
 	{
 		arglist[i++] = ap;
 	}
 
-	ep_st_fprintf(sp, "Status %s: ",
+	fprintf(fp, "Status %s: ",
 			ep_stat_tostr(stat, sbuf, sizeof sbuf));
 
-	if (defmsg != EP_NULL)
-		ep_st_pprint(sp, defmsg, i, arglist);
+	if (defmsg != NULL)
+		ep_st_pprint(fp, defmsg, i, arglist);
 	else if (EP_STAT_IS_SAME(stat, EP_STAT_OK))
 	{
-		ep_st_fprintf(sp, "EP_ST_OK");
+		fprintf(fp, "EP_ST_OK");
 	}
 	else
 	{
 		int j;
 
-		ep_st_fprintf(sp, "Unknown stat message, args = ");
+		fprintf(fp, "Unknown stat message, args = ");
 		if (i <= 0)
-			ep_st_fprintf(sp, " <none>");
+			fprintf(fp, " <none>");
 		for (j = 0; j < i; j++)
-			ep_st_fprintf(sp, " %s", arglist[j]);
+			fprintf(fp, " %s", arglist[j]);
 	}
-	ep_st_putc(sp, '\n');
+	putc('\n', fp);
 }
 
 #endif // 0
@@ -326,7 +326,7 @@ ep_stat_abort(EP_STAT stat)
 {
 	char sbuf[100];
 
-	ep_st_fprintf(stderr,
+	fprintf(stderr,
 		"Process aborted due to severe status: %s",
 		ep_stat_tostr(stat, sbuf, sizeof sbuf));
 	ep_assert_abort("Severe status");
@@ -429,26 +429,26 @@ ep_stat_tostr(EP_STAT stat,
 			pfx = "VND";
 		else
 			pfx = "RSV";
-		ep_st_sprintf(rbuf, sizeof rbuf, "%s-%d", pfx, reg);
+		snprintf(rbuf, sizeof rbuf, "%s-%d", pfx, reg);
 		rname = rbuf;
 		break;
 	}
 
 	if (EP_STAT_ISOK(stat))
 	{
-		ep_st_sprintf(buf, blen, "OK [%ld = 0x%lx]",
+		snprintf(buf, blen, "OK [%ld = 0x%lx]",
 				EP_STAT_TO_INT(stat),
 				EP_STAT_TO_INT(stat));
 	}
 	else if (detail != NULL)
 	{
-		ep_st_sprintf(buf, blen, "%s: %s",
+		snprintf(buf, blen, "%s: %s",
 				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
 				detail);
 	}
 	else
 	{
-		ep_st_sprintf(buf, blen, "%s: [%s.%ld.%ld]",
+		snprintf(buf, blen, "%s: [%s.%ld.%ld]",
 				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
 				rname,
 				EP_STAT_MODULE(stat),

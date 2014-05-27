@@ -41,13 +41,13 @@ extern int	ep_dbg_flaglevel(EP_DBG *f);
 
 // creating a flag
 #define EP_DBG_INIT(name, desc)						\
-		{ name, 0, "@(#)$Debug: " desc " $", -1, EP_NULL }
+		{ name, 0, "@(#)$Debug: " desc " $", -1, NULL }
 
 // initialization
 extern void	ep_dbg_init(void);
 
 // selecting debug output
-extern void	ep_dbg_setstream(EP_STREAM *sp);
+extern void	ep_dbg_setstream(FILE *fp);
 
 // setting debug flags
 extern void	ep_dbg_set(const char *s);

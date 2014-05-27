@@ -139,7 +139,7 @@ ep_rpool_new(const char *name,
 	EP_RPOOL *rp;
 	int pagesize = EP_OSCF_MEM_PAGESIZE;		// XXX too large on some machines?
 
-	if (name == EP_NULL)
+	if (name == NULL)
 		name = "anonymous rpool";
 	rp = ep_mem_zalloc(sizeof *rp);
 	rp->name = name;
@@ -189,14 +189,14 @@ ep_rpool_free(EP_RPOOL *rp)
 	rp->flags |= BEING_FREED;
 
 	// free any related resources
-	if (rp->ffuncs != EP_NULL)
+	if (rp->ffuncs != NULL)
 	{
 		ep_funclist_invoke(rp->ffuncs);
 		ep_funclist_free(rp->ffuncs);
 	}
 
 	// free up all memory segments associated with this pool
-	for (sp = rp->head; sp != EP_NULL; sp = newsp)
+	for (sp = rp->head; sp != NULL; sp = newsp)
 	{
 		newsp = sp->next;
 		if (sp->segbase != ((void *) sp) + sizeof *sp)
@@ -218,7 +218,7 @@ ep_rpool_free(EP_RPOOL *rp)
 **
 **	Parameters:
 **		rp -- the resource pool to allocate from.  If
-**			EP_NULL, allocates from the heap
+**			NULL, allocates from the heap
 **		nbytes -- how much memory to return
 **
 **	Returns:
@@ -231,7 +231,7 @@ void *
 ep_rpool_malloc(EP_RPOOL *rp,
 	size_t nbytes)
 {
-	return ep_rpool_ialloc(rp, nbytes, 0, EP_NULL, 0);
+	return ep_rpool_ialloc(rp, nbytes, 0, NULL, 0);
 }
 
 #undef ep_rpool_zalloc
@@ -240,14 +240,14 @@ void *
 ep_rpool_zalloc(EP_RPOOL *rp,
 	size_t nbytes)
 {
-	return ep_rpool_ialloc(rp, nbytes, EP_MEM_F_ZERO, EP_NULL, 0);
+	return ep_rpool_ialloc(rp, nbytes, EP_MEM_F_ZERO, NULL, 0);
 }
 
 void *
 ep_rpool_ralloc(EP_RPOOL *rp,
 	size_t nbytes)
 {
-	return ep_rpool_ialloc(rp, nbytes, EP_MEM_F_TRASH, EP_NULL, 0);
+	return ep_rpool_ialloc(rp, nbytes, EP_MEM_F_TRASH, NULL, 0);
 }
 
 
@@ -259,7 +259,7 @@ ep_rpool_ralloc(EP_RPOOL *rp,
 **
 **	Parameters:
 **		rp -- the resource pool to allocate from.  If
-**			EP_NULL, allocates from the heap
+**			NULL, allocates from the heap
 **		nbytes -- how much memory to return
 **		flags -- flags updating semantics
 **		grp -- an arbitrary group number (for debugging)
@@ -287,14 +287,14 @@ ep_rpool_ialloc(EP_RPOOL *rp,
 	if (ep_dbg_test(&Dbg, 50))
 	{
 		ep_dbg_printf("ep_rpool_ialloc(%p, %zu)", rp, nbytes);
-		if (rp != EP_NULL)
+		if (rp != NULL)
 			ep_dbg_printf(" [%s]", rp->name);
 		ep_dbg_printf("\n");
 	}
 
 	// if no pool, treat this as a heap malloc
-	if (rp == EP_NULL)
-		return ep_mem_ialloc(nbytes, EP_NULL, flags, file, line);
+	if (rp == NULL)
+		return ep_mem_ialloc(nbytes, NULL, flags, file, line);
 
 	EP_ASSERT_POINTER_VALID(rp);
 	if (!EP_UT_BITSET(PRE_LOCKED, rp->flags))
@@ -308,7 +308,7 @@ ep_rpool_ialloc(EP_RPOOL *rp,
 
 	// see if there is enough space in the current segment
 	sp = rp->head;
-	if (sp == EP_NULL)
+	if (sp == NULL)
 		spaceleft = 0;
 	else
 		spaceleft = sp->segsize - (sp->segfree - sp->segbase);
@@ -316,7 +316,7 @@ ep_rpool_ialloc(EP_RPOOL *rp,
 	ep_dbg_cprintf(&Dbg, 51,
 			"rpool=%p, sp=%p, spaceleft=%zu, nbytes=%zu, aligned=%d\n",
 			rp, sp, spaceleft, nbytes, aligned);
-	if (sp == EP_NULL)
+	if (sp == NULL)
 	{
 		ep_dbg_cprintf(&Dbg, 52,
 			"    (no current segment)\n");
@@ -329,7 +329,7 @@ ep_rpool_ialloc(EP_RPOOL *rp,
 	}
 
 	// if there is no room, allocate a new segment
-	if (sp == EP_NULL || spaceleft < nbytes ||
+	if (sp == NULL || spaceleft < nbytes ||
 	    (aligned && (((uintptr_t) sp->segfree & (EP_OSCF_MEM_PAGESIZE - 1)) != 0)))
 	{
 		size_t segsize;
@@ -355,12 +355,12 @@ ep_rpool_ialloc(EP_RPOOL *rp,
 			*/
 
 			sp = ep_mem_ialloc(sizeof *sp,
-					EP_NULL,
+					NULL,
 					0,
 					file,
 					line);
 			sp->segbase = ep_mem_ialloc(nbytes,
-					EP_NULL,
+					NULL,
 					0,
 					file,
 					line);
@@ -375,7 +375,7 @@ ep_rpool_ialloc(EP_RPOOL *rp,
 
 			// do the physical allocation
 			sp = p = ep_mem_ialloc(segsize + sizeof *sp,
-					EP_NULL,
+					NULL,
 					0,
 					file,
 					line);
@@ -392,7 +392,7 @@ ep_rpool_ialloc(EP_RPOOL *rp,
 		**	by clustering the short allocates together.
 		*/
 
-		if (rp->head != EP_NULL && spaceleft > (segsize - nbytes))
+		if (rp->head != NULL && spaceleft > (segsize - nbytes))
 		{
 			// more space in old segment
 			sp->next = rp->head->next;
@@ -446,15 +446,15 @@ ep_rpool_realloc(EP_RPOOL *rp,
 
         if (ep_dbg_test(&Dbg, 50))
         {
-                ep_st_fprintf(EpStStddbg, "ep_rpool_realloc(%p, %p, %zu, %zu)",
+                ep_dbg_printf("ep_rpool_realloc(%p, %p, %zu, %zu)",
                         rp, emem, oldsize, newsize);
-                if (rp != EP_NULL)
-                        ep_st_fprintf(EpStStddbg, " [%s]", rp->name);
-                ep_st_fprintf(EpStStddbg, "\n");
+                if (rp != NULL)
+                        ep_dbg_printf(" [%s]", rp->name);
+                ep_dbg_printf("\n");
         }
 
 	// easy case --- no rpool, so we can treat it as a heap
-	if (rp == EP_NULL)
+	if (rp == NULL)
 	{
 		p = ep_mem_realloc(emem, newsize);
 		return p;
@@ -471,7 +471,7 @@ ep_rpool_realloc(EP_RPOOL *rp,
 
 	// see if there is enough space in the current segment
 	sp = rp->head;
-	if (sp == EP_NULL)
+	if (sp == NULL)
 		spaceleft = 0;
 	else
 		spaceleft = sp->segsize - (sp->segfree - sp->segbase);
@@ -488,7 +488,7 @@ ep_rpool_realloc(EP_RPOOL *rp,
 	**  allocation.
 	*/
 
-	if (emem != EP_NULL && sp != EP_NULL && spaceleft > 0 &&
+	if (emem != NULL && sp != NULL && spaceleft > 0 &&
 	    (emem > sp->segbase && emem < sp->segfree) &&
 	    emem + oldsize == sp->segfree &&
 	    newsize - oldsize <= spaceleft)
@@ -507,7 +507,7 @@ ep_rpool_realloc(EP_RPOOL *rp,
 			EP_MUTEX_UNLOCK(rp->mutex);
 
 		p = ep_rpool_malloc(rp, newsize);
-		if (emem != EP_NULL)
+		if (emem != NULL)
 		{
 			memcpy(p, emem, oldsize);
 			ep_rpool_mfree(rp, emem);
@@ -528,7 +528,7 @@ ep_rpool_strdup(
 	EP_RPOOL *rp,
 	const char *s)
 {
-	return ep_rpool_istrdup(rp, s, -1, 0, EP_NULL, 0);
+	return ep_rpool_istrdup(rp, s, -1, 0, NULL, 0);
 }
 
 char *
@@ -543,8 +543,8 @@ ep_rpool_istrdup(
 	size_t l;
 	char *p;
 
-	if (s == EP_NULL)
-		return EP_NULL;
+	if (s == NULL)
+		return NULL;
 	l = strlen(s);
 	if (slen >= 0 && l > slen)
 		l = slen;
@@ -569,7 +569,7 @@ ep_rpool_istrdup(
 **
 **	Parameters:
 **		rp -- pool from which this memory was allocated.
-**			If EP_NULL, free this to the heap.
+**			If NULL, free this to the heap.
 **		p -- pointer to the actual memory
 **
 **	Returns:
@@ -581,7 +581,7 @@ ep_rpool_mfree(EP_RPOOL *rp,
 	void *p)
 {
 	// if no pool, treat this as a heap free
-	if (rp == EP_NULL)
+	if (rp == NULL)
 	{
 		ep_mem_free(p);
 		return;
@@ -623,7 +623,7 @@ ep_rpool_attach(EP_RPOOL *rp,
 	EP_MUTEX_LOCK(rp->mutex);
 
 	// if no function list associated with this pool, create one
-	if (rp->ffuncs == EP_NULL)
+	if (rp->ffuncs == NULL)
 	{
 		EP_FUNCLIST *fl;
 

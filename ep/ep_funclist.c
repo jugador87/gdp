@@ -133,7 +133,7 @@ ep_funclist_invoke(EP_FUNCLIST *flp)
 
 	EP_MUTEX_LOCK(flp->mutex);
 
-	for (fsp = flp->list; fsp != EP_NULL; fsp = fsp->next)
+	for (fsp = flp->list; fsp != NULL; fsp = fsp->next)
 	{
 		(*fsp->func)(fsp->arg);
 	}

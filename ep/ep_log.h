@@ -78,7 +78,7 @@ extern void	ep_log_propv(
 			const char *msgid,
 			va_list av);
 extern void	ep_log_tostr(
-			EP_STREAM *logsp,		// stream to write
+			FILE *logsp,		// stream to write
 			int sev,			// message severity
 			const char *msgid,		// message code
 			va_list av);			// tag=value pairs

@@ -17,24 +17,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <fnmatch.h>
-#define EP_STREAM		FILE
 #include <ep/ep_assert.h>
 #include <ep/ep_stat.h>
 
 //XXX hacks for non-libep settings
-#define EP_NULL			NULL
-
 #define EP_SRC_ID(x)
-#define ep_st_close		fclose
-#define ep_st_fprintf		fprintf
-#define ep_st_vprintf		vfprintf
-#define ep_st_putc(s, c)	fputc(c, s)
-#define ep_st_sprintf		snprintf
-#define ep_pat_match(p, s)	(!fnmatch(p, s, 0))
 
-#define EpStStddbg		stderr
-#define EpStStderr		stderr
 
 // yes, I know this doesn't work; give me a break
 typedef int			EP_MUTEX;

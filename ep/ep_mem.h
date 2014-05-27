@@ -25,7 +25,7 @@ struct ep_malloc_functions
 };
 
 // flag bits for allocation
-#define EP_MEM_F_FAILOK		0x00000001	// return EP_NULL on error
+#define EP_MEM_F_FAILOK		0x00000001	// return NULL on error
 #define EP_MEM_F_ZERO		0x00000004	// zero memory before return
 #define EP_MEM_F_TRASH		0x00000008	// return random-filled memory
 #define EP_MEM_F_ALIGN		0x00000010	// return aligned memory (maybe)
@@ -34,26 +34,26 @@ struct ep_malloc_functions
 #if EP_MEM_DEBUG
 #  define _EP_MEM_FILE_LINE_	__FILE__, __LINE__
 #else
-#  define _EP_MEM_FILE_LINE_	EP_NULL, 0
+#  define _EP_MEM_FILE_LINE_	NULL, 0
 #endif
 
-# define ep_mem_malloc(size)	ep_mem_ialloc((size), EP_NULL, \
+# define ep_mem_malloc(size)	ep_mem_ialloc((size), NULL, \
 					0, \
 					_EP_MEM_FILE_LINE_)
-# define ep_mem_zalloc(size)	ep_mem_ialloc((size), EP_NULL, \
+# define ep_mem_zalloc(size)	ep_mem_ialloc((size), NULL, \
 					EP_MEM_F_ZERO, \
 					_EP_MEM_FILE_LINE_)
-# define ep_mem_ralloc(size)	ep_mem_ialloc((size), EP_NULL, \
+# define ep_mem_ralloc(size)	ep_mem_ialloc((size), NULL, \
 					EP_MEM_F_TRASH, \
 					_EP_MEM_FILE_LINE_)
-# define ep_mem_ealloc(size)	ep_mem_ialloc((size), EP_NULL, \
+# define ep_mem_ealloc(size)	ep_mem_ialloc((size), NULL, \
 					EP_MEM_F_FAILOK, \
 					_EP_MEM_FILE_LINE_)
-# define ep_mem_palloc(size)	ep_mem_ialloc((size), EP_NULL, \
+# define ep_mem_palloc(size)	ep_mem_ialloc((size), NULL, \
 					EP_MEM_F_ALTMEM, \
 					_EP_MEM_FILE_LINE_)
 # define ep_mem_falloc(size, flags) \
-				ep_mem_ialloc((size), EP_NULL, (flags), \
+				ep_mem_ialloc((size), NULL, (flags), \
 					_EP_MEM_FILE_LINE_)
 # define ep_mem_erealloc(curmem, size) \
 				ep_mem_ialloc((size), \

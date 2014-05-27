@@ -74,9 +74,9 @@ ep_hash_new(
 
 	if (tabsize == 0)
 		tabsize = ep_adm_getintparam("libep.hash.tabsize", 2003);
-	if (name == EP_NULL)
+	if (name == NULL)
 		name = "<hash>";
-	if (hfunc == EP_NULL)
+	if (hfunc == NULL)
 		hfunc = def_hfunc;
 
 	EP_ASSERT(tabsize >= 2);
@@ -117,7 +117,7 @@ ep_hash_search(
 
 	indx = hp->hfunc(hp, keylen, key);
 
-	for (n = hp->tab[indx]; n != EP_NULL; n = n->next)
+	for (n = hp->tab[indx]; n != NULL; n = n->next)
 	{
 		if (keylen == n->keylen &&
 		    memcmp(key, n->key, keylen) == 0)
@@ -126,7 +126,7 @@ ep_hash_search(
 			return n->val;
 		}
 	}
-	return EP_NULL;
+	return NULL;
 }
 
 
@@ -145,7 +145,7 @@ ep_hash_insert(
 
 	indx = hp->hfunc(hp, keylen, key);
 
-	for (n = hp->tab[indx]; n != EP_NULL; n = n->next)
+	for (n = hp->tab[indx]; n != NULL; n = n->next)
 	{
 		if (keylen == n->keylen &&
 		    memcmp(key, n->key, keylen) == 0)
@@ -168,7 +168,7 @@ ep_hash_insert(
 	n->val = val;
 	n->next = hp->tab[indx];
 	hp->tab[indx] = n;
-	return EP_NULL;
+	return NULL;
 }
 
 
@@ -192,7 +192,7 @@ ep_hash_forall(
 
 	for (i = 0; i < hp->tabsize; i++)
 	{
-		for (n = hp->tab[i]; n != EP_NULL; n = n->next)
+		for (n = hp->tab[i]; n != NULL; n = n->next)
 		{
 			va_list lav;
 

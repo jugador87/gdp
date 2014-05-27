@@ -43,12 +43,12 @@ ep_assert_failure(
 		ep_assert_abort("Nested assertion failure");
 
 	// should log something here
-//	ep_log_propl(EP_NULL, EP_STAT_SEV_ABORT, "Assert Failure",
+//	ep_log_propl(NULL, EP_STAT_SEV_ABORT, "Assert Failure",
 //			"file",		file,
 //			"line",		buf,
 //			"type",		type,
 //			"expr",		expr,
-//			EP_NULL,	EP_NULL);
+//			NULL,	NULL);
 
 	fprintf(stderr, "Assertion failed at %s:%d: %s: %s",
 			file, line, type, expr);

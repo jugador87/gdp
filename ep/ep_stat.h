@@ -197,11 +197,11 @@ EP_STAT		ep_stat_vpost(
 void		ep_stat_print(
 			EP_STAT c,
 			const char *defmsg,
-			EP_STREAM *sp, ...);
+			FILE *fp, ...);
 void		ep_stat_vprint(
 			EP_STAT c,
 			const char *defmsg,
-			EP_STREAM *sp,
+			FILE *fp,
 			va_list av);
 // print and abort (never returns)
 void		ep_stat_abort(

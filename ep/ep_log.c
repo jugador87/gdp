@@ -35,13 +35,13 @@ static EP_LOG	*EpDefaultLog;		// default log if none specified
 static EP_LOG *
 ep_log_get_default(void)
 {
-	if (EpDefaultLog == EP_NULL)
+	if (EpDefaultLog == NULL)
 		EpDefaultLog = ep_log_open(&EpLogTypeSyslog,
 					"{System Default Log}",
 					EpLibProgname,
 					EP_LOG_NORMAL,
 					"user",
-					EP_NULL);
+					NULL);
 	return EpDefaultLog;
 }
 
@@ -73,7 +73,7 @@ ep_log_get_default(void)
 **
 **	Returns:
 **		a pointer to the log object
-**		EP_NULL on failure, see *pstat
+**		NULL on failure, see *pstat
 */
 
 EP_LOG *
@@ -89,7 +89,7 @@ ep_log_open(const EP_LOG_TYPE *ltype,
 	EP_RPOOL *rp;
 
 	EP_ASSERT_POINTER_VALID(ltype);
-	EP_ASSERT(app != EP_NULL);
+	EP_ASSERT(app != NULL);
 
 	rp = ep_rpool_new(app, 0);
 	log = EP_OBJ_CREATE(EP_LOG, &EpClassLog, app, rp, 0);
@@ -103,20 +103,20 @@ ep_log_open(const EP_LOG_TYPE *ltype,
 	if (EP_STAT_SEV_ISFAIL(stat))
 	{
 		EP_OBJ_DROPREF(log);
-		log = EP_NULL;
+		log = NULL;
 		stat = ep_stat_post(EP_STAT_LOG_CANTOPEN,
 				"Cannot open log: type %1 name %2",
 				ltype->obj_name,
 				lname,
-				EP_NULL);
+				NULL);
 	}
 
-	if (EpDefaultLog == EP_NULL &&
+	if (EpDefaultLog == NULL &&
 	    !EP_UT_BITSET(EP_LOG_NODEFAULT, flags) &&
 	    EP_STAT_SEV_ISOK(stat))
 		EpDefaultLog = log;
 
-	if (pstat != EP_NULL)
+	if (pstat != NULL)
 		*pstat = stat;
 	return log;
 }
@@ -141,7 +141,7 @@ ep_log_close(
 	if (log->obj_refcount-- > 0)
 		return;
 
-	if (log->ltype->close != EP_NULL)
+	if (log->ltype->close != NULL)
 		log->ltype->close(log);
 }
 
@@ -161,8 +161,8 @@ ep_log_close(
 **			application, as identified by the tag presented
 **			to ep_log_open.
 **		av, ... -- the list of alternative tags and values,
-**			terminated by two EP_NULL pointers.
-**			Tags may be EP_NULL to indicate positional
+**			terminated by two NULL pointers.
+**			Tags may be NULL to indicate positional
 **			values.
 **
 **	Returns:
@@ -191,11 +191,11 @@ ep_log_propv(
 	const char *msgid,
 	va_list av)
 {
-	if (log == EP_NULL)
+	if (log == NULL)
 		log = ep_log_get_default();
 	EP_ASSERT_POINTER_VALID(log);
-	EP_ASSERT(log->ltype != EP_NULL);
-	EP_ASSERT(msgid != EP_NULL);
+	EP_ASSERT(log->ltype != NULL);
+	EP_ASSERT(msgid != NULL);
 
 	log->ltype->log(log, sev, msgid, av);
 }
@@ -220,7 +220,7 @@ ep_log_set_default(
 	EP_LOG *log)
 {
 	EP_ASSERT_POINTER_VALID(log);
-	EP_ASSERT(log->ltype != EP_NULL);
+	EP_ASSERT(log->ltype != NULL);
 
 	ep_log_close(EpDefaultLog);
 
@@ -244,7 +244,7 @@ ep_log_set_default(
 static EP_STAT
 stream_log_open(EP_LOG *log)
 {
-	((EP_STREAM *) log->priv)->obj_refcount++;
+	((FILE *) log->priv)->obj_refcount++;
 	return EP_STAT_OK;
 }
 
@@ -258,7 +258,7 @@ stream_log_open(EP_LOG *log)
 static EP_STAT
 stream_log_close(EP_LOG *log)
 {
-	ep_st_close((EP_STREAM *) log->priv);
+	fclose((FILE *) log->priv);
 
 	// any error will have already been posted
 	return EP_STAT_OK;
@@ -276,7 +276,7 @@ stream_log_log(
 	const char *msgid,
 	va_list av)
 {
-	EP_STREAM *sp = (EP_STREAM *) log->priv;
+	FILE *fp = (FILE *) log->priv;
 	const char *app;
 	struct tm tm;
 	struct timeval now;
@@ -288,12 +288,12 @@ stream_log_log(
 	(void) gettimeofday(&now, NULL);
 	(void) localtime_r((time_t *) &now.tv_sec, &tm);
 
-	ep_st_fprintf(sp, "%04d-%02d-%02d %02d:%02d:%02d.%03d %s[%d] ",
+	fprintf(fp, "%04d-%02d-%02d %02d:%02d:%02d.%03d %s[%d] ",
 		tm.tm_year + 1900, tm.tm_mon, tm.tm_mday,
 		tm.tm_hour, tm.tm_min, tm.tm_sec, now.tv_usec / 1000,
 		log->app, getpid());
-	ep_log_tostr(sp, sev, msgid, av);
-	ep_st_puts(sp, ep_st_eolstring(sp));
+	ep_log_tostr(fp, sev, msgid, av);
+	ep_st_puts(fp, ep_st_eolstring(fp));
 
 	return EP_STAT_OK;
 }
@@ -336,7 +336,7 @@ const EP_LOG_TYPE	EpLogTypeStream =
 
 void
 ep_log_tostr(
-	EP_STREAM *logsp,
+	FILE *logsp,
 	int sev,
 	const char *msgid,
 	va_list av)
@@ -345,7 +345,7 @@ ep_log_tostr(
 	char const *sevname;
 	bool firstparam = true;
 	int xlatemode = EP_XLATE_PLUS | EP_XLATE_NPRINT;
-	static const char *forbidchars = EP_NULL;
+	static const char *forbidchars = NULL;
 
 	if (forbidchars == NULL)
 		forbidchars = ep_adm_getstrparam("eplib.log.forbidchars", "=;");
@@ -375,15 +375,15 @@ ep_log_tostr(
 
 		argno++;
 		apn = va_arg(av, const char *);
-		if ((apv = va_arg(av, const char *)) == EP_NULL)
+		if ((apv = va_arg(av, const char *)) == NULL)
 			break;
 
 		if (!firstparam)
-			ep_st_putc(logsp, ';');
-		ep_st_putc(logsp, ' ');
+			putc(';', logsp);
+		putc(' ', logsp);
 		firstparam = false;
 
-		if (apn != EP_NULL)
+		if (apn != NULL)
 		{
 			(void) ep_xlate_out(apn,
 					strlen(apn),
@@ -391,7 +391,7 @@ ep_log_tostr(
 					forbidchars,
 					xlatemode);
 
-			ep_st_putc(logsp, '=');
+			putc('=', logsp);
 		}
 
 		(void) ep_xlate_out(apv,
@@ -413,9 +413,9 @@ ep_log_text(
 	const char *text)
 {
 	EP_STAT rstat = EP_STAT_OK;
-	EP_STREAM *vbuf;		// result buffer
-	char *msgid = EP_NULL;
-	char *msgtag = EP_NULL;
+	FILE *vbuf;		// result buffer
+	char *msgid = NULL;
+	char *msgtag = NULL;
 	int pass;
 	char kbuf[1024];		// should be dynamic
 	char msgidbuf[1024];		// probably dynamic
@@ -425,12 +425,12 @@ ep_log_text(
 			EP_ST_MODE_WR,
 			&rstat,
 			0,
-			EP_NULL);
+			NULL);
 	if (EP_STAT_SEV_ISFAIL(rstat))
 	{
 		rstat = ep_stat_post(rstat,
 			"ep_log_text:no-dmem Cannot open dynamic memory",
-			EP_NULL);
+			NULL);
 		ep_assert_abort("ep_log_text: cannot create dynamic sorytring");
 	}
 
@@ -444,14 +444,14 @@ ep_log_text(
 		switch (pass)
 		{
 		  case 0:
-			ep_st_sprintf(kbuf, sizeof kbuf,
+			snprintf(kbuf, sizeof kbuf,
 				"STAT:%d:%d",
 				EP_STAT_MODULE(stat),
 				EP_STAT_DETAIL(stat));
 			break;
 
 		  case 1:
-			ep_st_sprintf(kbuf, sizeof kbuf,
+			snprintf(kbuf, sizeof kbuf,
 				"STAT:%d",
 				EP_STAT_MODULE(stat));
 			break;
@@ -460,12 +460,12 @@ ep_log_text(
 			ep_assert_abort("ep_log_text: illegal pass");
 		}
 
-		if (!EP_STAT_SEV_ISFAIL(ep_mcat_get(kbuf, EP_NULL, vbuf)) &&
+		if (!EP_STAT_SEV_ISFAIL(ep_mcat_get(kbuf, NULL, vbuf)) &&
 		    !EP_STAT_SEV_ISFAIL(ep_st_getknob(kbuf, EP_ST_KNOB_GETBUF, &msgid)))
 			break;
 	}
 
-	if (msgid == EP_NULL)
+	if (msgid == NULL)
 	{
 		msgid = defmsgid;
 	}
@@ -481,13 +481,13 @@ ep_log_text(
 	**  Given the message-id, find the tag associated with it.
 	*/
 
-	ep_st_sprintf(kbuf, sizeof kbuf,
+	snprintf(kbuf, sizeof kbuf,
 		"MSGID:TAG:%s:%s",
 		"",				// XXX language code
 		msgid);
 
-	(void) ep_st_setknob(vbuf, EP_ST_KNOB_REWIND, EP_NULL);
-	if (EP_STAT_SEV_ISFAIL(ep_mcat_get(kbuf, EP_NULL, vbuf)) ||
+	(void) ep_st_setknob(vbuf, EP_ST_KNOB_REWIND, NULL);
+	if (EP_STAT_SEV_ISFAIL(ep_mcat_get(kbuf, NULL, vbuf)) ||
 	    EP_STAT_SEV_ISFAIL(ep_st_getknob(kbuf, EP_ST_KNOB_GETBUF, &msgtag)))
 	{
 		// no tag: use the id as the tag
@@ -498,7 +498,7 @@ ep_log_text(
 	**  Done with vbuf.
 	*/
 
-	ep_st_close(vbuf);
+	fclose(vbuf);
 
 	/*
 	**  Now do the actual logging.
@@ -512,7 +512,7 @@ ep_log_text(
 		msgid,
 		"tag",		msgtag,
 		"text",		text,
-		EP_NULL);
+		NULL);
 }
 
 

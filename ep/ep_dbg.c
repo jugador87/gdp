@@ -9,6 +9,7 @@
 #include <ep_dbg.h>
 #include <ep_string.h>
 #include <ep_assert.h>
+#include <fnmatch.h>
 
 EP_SRC_ID("@(#)$Id: ep_dbg.c 287 2014-04-29 18:18:23Z eric $");
 
@@ -23,6 +24,7 @@ struct FLAGPAT
 
 static EP_MUTEX	FlagListMutex;
 static FLAGPAT	*FlagList;
+FILE		*EpStStddbg;
 
 
 /*
@@ -32,9 +34,9 @@ static FLAGPAT	*FlagList;
 void
 ep_dbg_init(void)
 {
-	if (EpStStddbg == EP_NULL)
-		ep_dbg_setstream(EP_NULL);
-	EP_ASSERT(EpStStddbg != EP_NULL);
+	if (EpStStddbg == NULL)
+		ep_dbg_setstream(NULL);
+	EP_ASSERT(EpStStddbg != NULL);
 }
 
 /*
@@ -52,7 +54,7 @@ ep_dbg_set(const char *fspec)
 
 	ep_dbg_init();
 
-	if (f == EP_NULL)
+	if (f == NULL)
 		return;
 	while (*f != '\0' && *f != '=')
 	{
@@ -63,7 +65,7 @@ ep_dbg_set(const char *fspec)
 	pbuf[i] = '\0';
 	if (*f == '=')
 		f++;
-	ep_dbg_setto(pbuf, strtol(f, EP_NULL, 10));
+	ep_dbg_setto(pbuf, strtol(f, NULL, 10));
 }
 
 /*
@@ -113,9 +115,9 @@ ep_dbg_flaglevel(EP_DBG *flag)
 
 	EP_MUTEX_LOCK(FlagListMutex);
 	flag->gen = __EpDbgCurGen;
-	for (fp = FlagList; fp != EP_NULL; fp = fp->next)
+	for (fp = FlagList; fp != NULL; fp = fp->next)
 	{
-		if (ep_pat_match(fp->pat, flag->name))
+		if (fnmatch(fp->pat, flag->name, 0))
 			break;
 	}
 	if (fp == NULL)
@@ -148,18 +150,18 @@ ep_dbg_cprintf(
 	const char *fmt,
 	...)
 {
-	if (EpStStddbg == EP_NULL)
+	if (EpStStddbg == NULL)
 		ep_dbg_init();
 
 	if (ep_dbg_test(flag, level))
 	{
 		va_list av;
 
-		ep_st_fprintf(EpStStddbg, "%s", EpVid->vidfgyellow);
+		fprintf(EpStStddbg, "%s", EpVid->vidfgyellow);
 		va_start(av, fmt);
-		ep_st_vprintf(EpStStddbg, fmt, av);
+		vfprintf(EpStStddbg, fmt, av);
 		va_end(av);
-		ep_st_fprintf(EpStStddbg, "%s", EpVid->vidnorm);
+		fprintf(EpStStddbg, "%s", EpVid->vidnorm);
 		return true;
 	}
 	return false;
@@ -182,14 +184,14 @@ ep_dbg_printf(const char *fmt, ...)
 {
 	va_list av;
 
-	if (EpStStddbg == EP_NULL)
+	if (EpStStddbg == NULL)
 		ep_dbg_init();
 
-	ep_st_fprintf(EpStStddbg, "%s", EpVid->vidfgyellow);
+	fprintf(EpStStddbg, "%s", EpVid->vidfgyellow);
 	va_start(av, fmt);
-	ep_st_vprintf(EpStStddbg, fmt, av);
+	vfprintf(EpStStddbg, fmt, av);
 	va_end(av);
-	ep_st_fprintf(EpStStddbg, "%s", EpVid->vidnorm);
+	fprintf(EpStStddbg, "%s", EpVid->vidnorm);
 }
 
 
@@ -197,7 +199,7 @@ ep_dbg_printf(const char *fmt, ...)
 **  EP_DBG_SETSTREAM -- set output stream for debugging
 **
 **	Parameters:
-**		sp -- the stream to use for debugging
+**		fp -- the stream to use for debugging
 **
 **	Returns:
 **		none
@@ -205,20 +207,20 @@ ep_dbg_printf(const char *fmt, ...)
 
 void
 ep_dbg_setstream(
-	EP_STREAM *sp)
+	FILE *fp)
 {
-	if (sp != EP_NULL && sp == EpStStddbg)
+	if (fp != NULL && fp == EpStStddbg)
 		return;
 
 	// close the old stream
-//	if (EpStStddbg != EP_NULL)
-//		(void) ep_st_close(EpStStddbg);
+//	if (EpStStddbg != NULL)
+//		(void) fclose(EpStStddbg);
 
-	// if sp is EP_NULL, switch to the default
-	if (sp == EP_NULL)
-		EpStStddbg = EpStStderr;
+	// if fp is NULL, switch to the default
+	if (fp == NULL)
+		EpStStddbg = stderr;
 	else
-		EpStStddbg = sp;
+		EpStStddbg = fp;
 }
 
 EP_STAT

@@ -161,7 +161,7 @@ fail1:
 EP_STAT
 gdp_nexus_print(
 	    const nexdle_t *nexdle,
-	    FILE *sp,
+	    FILE *fp,
 	    int detail,
 	    int indent)
 {
@@ -170,7 +170,7 @@ gdp_nexus_print(
     EP_ASSERT_POINTER_VALID(nexdle);
 
     gdp_nexus_printable_name(nexdle->nname, nbuf);
-    fprintf(sp, "NEXDLE: %s\n", nbuf);
+    fprintf(fp, "NEXDLE: %s\n", nbuf);
     return EP_STAT_OK;
 }
 

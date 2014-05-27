@@ -81,7 +81,7 @@ strlcat(
 **	Parameters:
 **		dst -- destination pointer.
 **		siz -- size of space available at dst.
-**		... -- a EP_NULL terminated list of strings to copy to dst.
+**		... -- a NULL terminated list of strings to copy to dst.
 **
 **	Returns:
 **		The number of bytes that would have been copied if dst
@@ -96,13 +96,13 @@ ep_str_vlcpyn(
 	va_list av)
 {
 	size_t asize = 0;		// actual size
-	char *p = EP_NULL;
+	char *p = NULL;
 
 	if (siz <= 0)
 		return siz;		// no room for anything
 
-	siz--;				// allow for EP_NULL byte at end
-	while (siz > 0 && (p = va_arg(av, char *)) != EP_NULL)
+	siz--;				// allow for NULL byte at end
+	while (siz > 0 && (p = va_arg(av, char *)) != NULL)
 	{
 		while (siz-- > 0 && (*dst = *p++) != '\0')
 			dst++, asize++;
@@ -110,7 +110,7 @@ ep_str_vlcpyn(
 	*dst = '\0';
 
 	// see if we fit
-	if (p != EP_NULL)
+	if (p != NULL)
 	{
 		// buffer has overflowed; just count the rest
 
@@ -119,7 +119,7 @@ ep_str_vlcpyn(
 			asize++;
 
 		// then future strings
-		while ((p = va_arg(av, char *)) != EP_NULL)
+		while ((p = va_arg(av, char *)) != NULL)
 			asize += strlen(p);
 	}
 
@@ -150,7 +150,7 @@ ep_str_lcpyn(
 **	Parameters:
 **		dst -- destination pointer.
 **		siz -- size of space available at dst.
-**		... -- a EP_NULL terminated list of strings to copy to dst.
+**		... -- a NULL terminated list of strings to copy to dst.
 **
 **	Returns:
 **		The number of bytes that would have been copied if dst

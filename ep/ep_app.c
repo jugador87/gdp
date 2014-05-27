@@ -52,16 +52,16 @@ ep_app_warn(
 	const char *progname;
 
 	va_start(av, fmt);
-	ep_st_fprintf(EpStStderr, "%sAPPLICATION WARNING:%s ",
+	fprintf(stderr, "%sAPPLICATION WARNING:%s ",
 		EpVid->vidinv,
 		EpVid->vidnorm);
 	if ((progname = ep_app_getprogname()) != NULL)
-		ep_st_fprintf(EpStStderr, "%s: ", progname);
-	if (fmt != EP_NULL)
-		ep_st_vprintf(EpStStderr, fmt, av);
+		fprintf(stderr, "%s: ", progname);
+	if (fmt != NULL)
+		vfprintf(stderr, fmt, av);
 	else
-		ep_st_fprintf(EpStStderr, "unknown warning");
-	ep_st_fprintf(EpStStderr, "\n");
+		fprintf(stderr, "unknown warning");
+	fprintf(stderr, "\n");
 	va_end(av);
 }
 
@@ -87,16 +87,16 @@ ep_app_error(
 	const char *progname;
 
 	va_start(av, fmt);
-	ep_st_fprintf(EpStStderr, "%sAPPLICATION ERROR:%s ",
+	fprintf(stderr, "%sAPPLICATION ERROR:%s ",
 		EpVid->vidinv,
 		EpVid->vidnorm);
 	if ((progname = ep_app_getprogname()) != NULL)
-		ep_st_fprintf(EpStStderr, "%s: ", progname);
-	if (fmt != EP_NULL)
-		ep_st_vprintf(EpStStderr, fmt, av);
+		fprintf(stderr, "%s: ", progname);
+	if (fmt != NULL)
+		vfprintf(stderr, fmt, av);
 	else
-		ep_st_fprintf(EpStStderr, "unknown error");
-	ep_st_fprintf(EpStStderr, "\n");
+		fprintf(stderr, "unknown error");
+	fprintf(stderr, "\n");
 	va_end(av);
 }
 
@@ -122,16 +122,16 @@ ep_app_abort(
 	const char *progname;
 
 	va_start(av, fmt);
-	ep_st_fprintf(EpStStderr, "%sAPPLICATION ABORT:%s ",
+	fprintf(stderr, "%sAPPLICATION ABORT:%s ",
 		EpVid->vidinv,
 		EpVid->vidnorm);
 	if ((progname = ep_app_getprogname()) != NULL)
-		ep_st_fprintf(EpStStderr, "%s: ", progname);
-	if (fmt != EP_NULL)
-		ep_st_vprintf(EpStStderr, fmt, av);
+		fprintf(stderr, "%s: ", progname);
+	if (fmt != NULL)
+		vfprintf(stderr, fmt, av);
 	else
-		ep_st_fprintf(EpStStderr, "exiting");
-	ep_st_fprintf(EpStStderr, "\n");
+		fprintf(stderr, "exiting");
+	fprintf(stderr, "\n");
 	va_end(av);
 
 	ep_assert_abort("Application Abort");

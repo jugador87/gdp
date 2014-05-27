@@ -27,7 +27,7 @@ extern int	ep_xlate_in(
 extern int	ep_xlate_out(
 			const char *in,
 			size_t ilen,
-			EP_STREAM *osp,
+			FILE *osp,
 			const char *forbid,
 			uint32_t how);
 #endif // _EP_XLATE_H_

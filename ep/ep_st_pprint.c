@@ -19,7 +19,7 @@ EP_SRC_ID("@(#)$Id: ep_st_pprint.c 252 2008-09-16 21:24:42Z eric $");
 **	the Nth argument.
 **
 **	Parameters:
-**		sp -- the stream to print to
+**		fp -- the stream to print to
 **		fmt -- the format string
 **		argc -- the number of arguments
 **		argv -- the actual arguments
@@ -29,7 +29,7 @@ EP_SRC_ID("@(#)$Id: ep_st_pprint.c 252 2008-09-16 21:24:42Z eric $");
 */
 
 void
-ep_st_pprint(EP_STREAM *sp,
+ep_st_pprint(FILE *fp,
 	const char *fmt,
 	int argc,
 	const char *const *argv)
@@ -43,7 +43,7 @@ ep_st_pprint(EP_STREAM *sp,
 		// if it's not a percent, just copy through
 		if (c != '%')
 		{
-			ep_st_putc(sp, c);
+			putc(c, fp);
 			continue;
 		}
 
@@ -51,16 +51,16 @@ ep_st_pprint(EP_STREAM *sp,
 		if ((c = *fmt++) == '\0')
 		{
 			// hack for percent at end of string
-			ep_st_putc(sp, '%');
+			putc('%', fp);
 			break;
 		}
 
 		if (!isdigit(c))
 		{
 			// bogus character, unless %%
-			ep_st_putc(sp, '%');
+			putc('%', fp);
 			if (c != '%')
-				ep_st_putc(sp, c);
+				putc(c, fp);
 			continue;
 		}
 
@@ -68,12 +68,12 @@ ep_st_pprint(EP_STREAM *sp,
 		i = c - '0';
 		if (i <= 0 || i > argc)
 			ap = "(unknown)";
-		else if (argv[i - 1] == EP_NULL)
+		else if (argv[i - 1] == NULL)
 			ap = "(null)";
 		else
 			ap = argv[i - 1];
 
 		while ((c = *ap++) != '\0')
-			ep_st_putc(sp, c);
+			putc(c, fp);
 	}
 }

@@ -39,7 +39,7 @@ ep_set_malloc_functions(struct ep_malloc_functions *mf)
 **		aligned -- set if we want page-aligned memory
 **
 **	Returns:
-**		A pointer to that memory; EP_NULL if not available
+**		A pointer to that memory; NULL if not available
 */
 
 static void *
@@ -50,7 +50,7 @@ system_malloc(
 {
 	void *p;
 
-	if (curmem != EP_NULL)
+	if (curmem != NULL)
 		p = (SystemMallocFunctions->m_realloc)(curmem, nbytes);
 #ifdef EP_OSCF_SYSTEM_VALLOC
 	else if (aligned)
@@ -90,7 +90,7 @@ system_mfree(void *p)
 **		flags -- behavior modifier bits
 **
 **	Returns:
-**		A pointer to memory (cannot return EP_NULL).
+**		A pointer to memory (cannot return NULL).
 */
 
 static void *
@@ -112,7 +112,7 @@ bunny_malloc(
 		p = system_malloc(nbytes, curmem, aligned);
 
 		// did it work?
-		if (p != EP_NULL)
+		if (p != NULL)
 		{
 			// yep, return that memory
 			return p;
@@ -124,7 +124,7 @@ bunny_malloc(
 				"ep_mem_malloc: out of memory: %1",
 				ep_unix_errno_to_str(errno,
 						e1buf, sizeof e1buf),
-				EP_NULL);
+				NULL);
 
 		// if we did some recovery, try again
 		if (!EP_STAT_IS_SAME(stat, EP_STAT_MEM_TRYAGAIN))
@@ -135,7 +135,7 @@ bunny_malloc(
 	if (!EP_UT_BITSET(EP_MEM_F_FAILOK, flags))
 		ep_assert_abort("ep_mem_malloc: Out of memory: aborting");
 
-	return EP_NULL;
+	return NULL;
 }
 
 #endif
@@ -189,7 +189,7 @@ ep_mem_ialloc(
 	// get the memory itself
 	p = system_malloc(nbytes, curmem, flags);
 
-	if (p == EP_NULL)
+	if (p == NULL)
 	{
 		char e1buf[80];
 
@@ -226,26 +226,26 @@ done:
 void *
 ep_mem_malloc_f(size_t nbytes)
 {
-	return ep_mem_ialloc(nbytes, EP_NULL, 0, EP_NULL, 0);
+	return ep_mem_ialloc(nbytes, NULL, 0, NULL, 0);
 }
 
 void *
 ep_mem_zalloc_f(size_t nbytes)
 {
-	return ep_mem_ialloc(nbytes, EP_NULL, EP_MEM_F_ZERO, EP_NULL, 0);
+	return ep_mem_ialloc(nbytes, NULL, EP_MEM_F_ZERO, NULL, 0);
 }
 
 void *
 ep_mem_ralloc_f(size_t nbytes)
 {
-	return ep_mem_ialloc(nbytes, EP_NULL, EP_MEM_F_TRASH, EP_NULL, 0);
+	return ep_mem_ialloc(nbytes, NULL, EP_MEM_F_TRASH, NULL, 0);
 }
 
 void *
 ep_mem_realloc_f(size_t nbytes,
 	void *curmem)
 {
-	return ep_mem_ialloc(nbytes, curmem, 0, EP_NULL, 0);
+	return ep_mem_ialloc(nbytes, curmem, 0, NULL, 0);
 }
 
 
@@ -258,7 +258,7 @@ ep_mem_realloc_f(size_t nbytes,
 void *
 ep_mem_malloc(size_t nbytes)
 {
-	return ep_mem_ialloc(nbytes, EP_NULL, 0, EP_NULL, 0);
+	return ep_mem_ialloc(nbytes, NULL, 0, NULL, 0);
 }
 
 #undef ep_mem_zalloc
@@ -268,7 +268,7 @@ ep_mem_zalloc(size_t nbytes)
 {
 	void *p;
 
-	p = ep_mem_ialloc(nbytes, EP_NULL, EP_MEM_F_ZERO, EP_NULL, 0);
+	p = ep_mem_ialloc(nbytes, NULL, EP_MEM_F_ZERO, NULL, 0);
 	return p;
 }
 
@@ -279,7 +279,7 @@ ep_mem_ralloc(size_t nbytes)
 {
 	void *p;
 
-	p = ep_mem_ialloc(nbytes, EP_NULL, EP_MEM_F_TRASH, EP_NULL, 0);
+	p = ep_mem_ialloc(nbytes, NULL, EP_MEM_F_TRASH, NULL, 0);
 	return p;
 }
 
@@ -290,7 +290,7 @@ ep_mem_realloc(
 	void *curmem,
 	size_t nbytes)
 {
-	return ep_mem_ialloc(nbytes, curmem, 0, EP_NULL, 0);
+	return ep_mem_ialloc(nbytes, curmem, 0, NULL, 0);
 }
 
 
@@ -317,14 +317,14 @@ ep_mem_istrdup(
 	size_t l;
 	char *p;
 
-	if (s == EP_NULL)
-		return EP_NULL;
+	if (s == NULL)
+		return NULL;
 	l = strlen(s);
 	if (slen >= 0 && l > slen)
 		l = slen;
 	EP_ASSERT_REQUIRE(l + 1 > l);
-	p = ep_mem_ialloc(l + 1, EP_NULL, flags, file, line);
-	if (p != EP_NULL)
+	p = ep_mem_ialloc(l + 1, NULL, flags, file, line);
+	if (p != NULL)
 	{
 		memcpy(p, s, l);
 		p[l] = '\0';
@@ -341,7 +341,7 @@ ep_mem_istrdup(
 char *
 ep_mem_strdup(const char *s)
 {
-	return ep_mem_istrdup(s, -1, 0, EP_NULL, 0);
+	return ep_mem_istrdup(s, -1, 0, NULL, 0);
 }
 
 /*

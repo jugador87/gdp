@@ -25,7 +25,7 @@ ep_pcvt_str(
 {
 	int vl;
 
-	if (val == EP_NULL)
+	if (val == NULL)
 	{
 		strlcpy(obuf, "<NULL>", osize);
 		return obuf;
@@ -72,6 +72,6 @@ ep_pcvt_int(
 		break;
 	}
 
-	ep_st_sprintf(obuf, osize, fmtstr, val);
+	snprintf(obuf, osize, fmtstr, val);
 	return obuf;
 }

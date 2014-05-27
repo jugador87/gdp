@@ -46,7 +46,7 @@ extern void	ep_hash_forall(
 			EP_HASH_FORALL_FUNCP func,
 			...);
 
-#define EP_HASH_DEFHFUNC	((EP_HASH_HASH_FUNCP) EP_NULL)
+#define EP_HASH_DEFHFUNC	((EP_HASH_HASH_FUNCP) NULL)
 #define EP_HASH_DEFHSIZE	0
 
 #endif //_EP_HASH_H_
