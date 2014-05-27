@@ -52,7 +52,7 @@ getparamval(
 	if (phash == NULL)
 	{
 		FILE *fp = NULL;
-		char *paramfile = getenv("LIBEP_PARAMS");
+		char *paramfile = getenv("APPLICATION_PARAMS");
 		char lbuf[200];
 
 		if (paramfile == NULL ||

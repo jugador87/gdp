@@ -29,8 +29,9 @@
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.rest", "RESTful interface to GDP");
 
-char	*NexusUriPrefix = "/gdp/v1/nexus";  // prefix on all REST calls
-EP_HASH	*OpenNexusCache;		    // cache of open nexuses
+#define DEF_URI_PREFIX	"/gdp/v1/nexus"
+const char	*NexusUriPrefix;	// prefix on all REST calls
+EP_HASH		*OpenNexusCache;	// cache of open nexuses
 
 // used in SCGI callbacks to pass around state
 struct sockstate
@@ -275,6 +276,8 @@ process_scgi_req(scgi_request *req,
     }
 
     // strip off leading "/gdp/v1/nexus/" prefix
+    if (NexusUriPrefix == NULL)
+	NexusUriPrefix = ep_adm_getstrparam("gdp.rest.prefix", DEF_URI_PREFIX);
     uri = req->request_uri;
     if (strncmp(uri, NexusUriPrefix, strlen(NexusUriPrefix)) != 0)
 	goto error404;

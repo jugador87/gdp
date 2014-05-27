@@ -49,6 +49,8 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.nexus", "Nexus interface to GDP");
 #define NEXUS_MAGIC		"#!GDP-Nexus "
 #define MSG_MAGIC		"\n#!MSG "
 
+static const char	*NexusDir;	// the nexus data directory
+
 
 /*
 **  A handle on an open nexus.
@@ -183,8 +185,11 @@ get_nexus_path(nexdle_t *nexdle, char *pbuf, int pbufsiz)
     int i;
 
     EP_ASSERT_POINTER_VALID(nexdle);
+
+    if (NexusDir == NULL)
+	NexusDir = ep_adm_getstrparam("gdp.nexus.dir", NEXUS_DIR);
     uuid_unparse(nexdle->nname, pname);
-    i = snprintf(pbuf, pbufsiz, "%s/%s", NEXUS_DIR, pname);
+    i = snprintf(pbuf, pbufsiz, "%s/%s", NexusDir, pname);
     if (i < pbufsiz)
 	return EP_STAT_OK;
     else
@@ -343,17 +348,26 @@ gdp_nexus_open(nname_t nname,
     EP_STAT_CHECK(estat, goto fail1);
     memcpy(nexdle->nname, nname, sizeof nexdle->nname);
     nexdle->iomode = mode;
-    estat = get_nexus_path(nexdle, pbuf, sizeof pbuf);
-    EP_STAT_CHECK(estat, goto fail0);
-    if ((fp = fopen(pbuf, "r")) == NULL ||
-        (flock(fileno(fp), LOCK_SH) < 0))
     {
-	estat = ep_stat_from_errno(errno);
-	goto fail0;
+	const char *openmode;
+
+	estat = get_nexus_path(nexdle, pbuf, sizeof pbuf);
+	EP_STAT_CHECK(estat, goto fail0);
+	if (mode == GDP_MODE_RO)
+	    openmode = "r";
+	else
+	    openmode = "a+";
+	if ((fp = fopen(pbuf, openmode)) == NULL ||
+	    (flock(fileno(fp), LOCK_SH) < 0))
+	{
+	    estat = ep_stat_from_errno(errno);
+	    goto fail0;
+	}
     }
     nexdle->fp = fp;
 
     // check nexus header
+    rewind(fp);
     if (fgets(nbuf, sizeof nbuf, fp) == NULL)
     {
 	if (ferror(fp))
@@ -481,8 +495,13 @@ gdp_nexus_append(nexdle_t *nexdle,
     fprintf(stdout, "Back from locking for message %ld, cachesize %ld\n",
 	    msg->msgno, nexdle->cachesize);
 
-    // XXX: should see what the actual new msgno and offset are.
-    // XXX: without this you can't have multiple simultaneous writers
+    // read any messages that may have been added by another writer
+    {
+	nexmsg_t xmsg;
+	char xbuf[1000];
+
+	gdp_nexus_read(nexdle, INT32_MAX, &xmsg, xbuf, sizeof xbuf);
+    }
 
     // see what the offset is and cache that
     estat = nexdle_save_offset(nexdle, ++nexdle->msgno, ftell(nexdle->fp));
