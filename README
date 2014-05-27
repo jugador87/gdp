@@ -1,10 +1,152 @@
+		GLOBAL DATAPLANE INTERFACES
+
+This directory contains a very poor prototype of the Global Dataplane
+(GDP) with two bindings.  The first is for C, and the second is a
+HTTP-based RESTful interface.  The first is used to implement the
+second.  All of these are likely to change in the future.
+
+
 Required Packages:
 
-	uuid (default on many systems)
-	lighttpd (for RESTful interface)
-	scgilib (C binding for Simple Common Gateway Interface: to connect
+	uuid --- To create Universally Unique IDentifiers default on
+		many systems)
+	lighttpd --- Web server for RESTful interface.
+	scgilib --- C binding for Simple Common Gateway Interface: to connect
 		lighttpd with GDP; from http://www.xamuel.com/scgilib/;
 		slightly modified and included with this distribution)
-	cJSON (JSON library from http://sourceforge.net/projects/cjson/.
-		It's possible that Jansson http://www.digip.org/jansson/
-		is a better choice)
+	Jansson --- JSON library from http://www.digip.org/jansson/.
+	libevent2 --- Event handling library available from ___XXX___.
+
+
+Directory Structure:
+	ep --- A library of C utility functions.  This is a stripped
+		down version of a library I wrote several years ago.
+		If you look at the code you'll see vestiges of some
+		of the stripped out functions.  I plan on cleaning
+		this version up and releasing it again.
+	gdp --- A library for GDP manipulation.  This is not complete,
+		and this implementation is simplistic, working only on
+		a single host.  One important piece of functionality,
+		subscribe, is not yet complete.
+	scgilib --- An updated version of the SCGI code from
+		http://www.xamuel.com/scgilib/.  SCGI permits a
+		web server to access outside programs by opening
+		a socket in a manner much more efficient than basic
+		CGI fork/exec.
+	apps --- Application programs, including tests.
+	doc --- Some documentation, woefully incomplete.
+
+Compiling:
+	Should just be a matter of typing "make all" in the root.
+
+Running the GDP RESTful Interface:
+   1.	The instructions for SCGI configuration for lighttpd are totally
+	wrong.  The configuration file you actually need is:
+
+		server.modules += ( "mod_scgi" )
+
+		#scgi.debug = 10
+		scgi.server = (
+		    "/gdp/v1/" =>
+			( "gdp" =>
+			    ( "host"  => "127.0.0.1",
+			      "port" => 8001,
+			      "check-local" => "disable",
+			    )
+			)
+		    )
+
+	This will tell lighttpd to connect to an SCGI server on the
+	local machine, port 8001.  The rest of the lighttpd setup is
+	off the shelf.  I've set up mine to listen on port 8080,
+	and the rest of these instructions will reflect that.
+
+   2.	Compile the code if you haven't already.
+
+   3.	Create the directory /var/tmp/nexus.  This will hold the data
+	for nexuses that get created.
+
+   4.	[Optional] Test the nexus code using apps/writer-test and
+	apps/reader-test.
+
+	First run writer-test without arguments.  This will create a
+	new nexus in the temporary directory and print its name.  Each
+	line of text you type is added to the nexus as a separate
+	message.  Control-D will terminate the program.
+
+	Second run reader-test with the nexus name printed by
+	writer-test as the argument.  This should dump the nexus.  At
+	the moment it will terminate when it reaches the end of the
+	nexus; there is no "subscribe" interface yet.
+
+	If you're curious you can view the file in /var/tmp/nexus;
+	it is text.
+
+   5.	Start up the GDP RESTful interface server in apps/gdp-rest.
+	It will run in foreground and spit out some debugging
+	information.  For even more, use -D\*=20 on the command
+	line.  This sets all debug flags to level 20.  The backslash
+	is just to keep the Unix shell from trying to glob the
+	asterisk.
+
+   6.	Start the lighttpd server, for example using:
+	"lighttpd -f /usr/local/etc/lighttpd/lighttpd.conf -D".
+	This assumes that your configuration is in
+	/usr/local/etc/lighttpd.  The -D says to run in foreground
+	and you can skip it if you want.  You may want to turn on
+	some debugging inside the daemon to help you understand the
+	interactions.  See .../etc/lighttpd/conf.d/debug.conf.
+
+   7.	All of your URIs will start with http://localhost:8080/gdp/v1/nexus,
+	so I'll just abbreviate this part as "...".  Your options are:
+
+	* GET .../<nexus-id>/<msg-no>
+		Returns a JSON object with three fields: nexus_name,
+		message_number, and value.  Value will have 8-bit
+		characters and those that would break JSON syntax
+		encoded as %XX, where XX is the hex code for the
+		byte.
+	* POST .../<nexus-id>
+		Adds a new message to the given <nexus-id>.  The
+		value is a JSON object which must at least have a
+		"value" field, which must be encoded as a string.
+		The return value includes the message number in
+		the "msgno" field.
+	* POST ...
+		Creates a new nexus.  The return value will include
+		the name.
+
+	You can do GETs from inside a browser such as Firefox, but not
+	POSTs.  For this you'll need to create a message to send
+	directly to the HTTP server.  For example:
+
+		POST /gdp/v1/nexus/45EAEEB3-A41B-4FD4-8B65-61C858180F58 HTTP/1.0
+		Host: localhost:8080
+		Accept: application/json
+		Accept-Language: en-US,en;q=0.5
+		Accept-Encoding: gzip, deflate
+		DNT: 1
+		Connection: keep-alive
+		Content-Length: 34
+
+		{
+			"value": "test001"
+		}
+
+	Some of the headers are probably unnecessary, but I've tested
+	this query in particular.
+
+Changing Parameters:
+	If you want to change parameters such as socket numbers or the
+	nexus directory you can do so without recompiling.  Create
+	a file with "name=value" pairs, one per line.  Set the
+	environment variable "APPLICATION_PARAMS" to point at that
+	file (use the full pathname).
+
+	Parameters you can change in that file include:
+
+	gdp.nexus.dir --- the data directory (e.g., /var/tmp/nexus).
+	gdp.rest.scgiport --- the port number for the SCGI server to
+		listen on.  If you change this you'll also have to
+		change the lighttpd configuration.
+	gdp.rest.prefix --- the REST prefix (e.g., /gdp/v1/nexus).
