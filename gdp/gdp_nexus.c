@@ -271,7 +271,7 @@ gdp_nexus_create(nexus_t *nexus_type,
     // XXX: this is where we start to seriously cheat
     estat = get_nexus_path(nexdle, pbuf, sizeof pbuf);
     EP_STAT_CHECK(estat, goto fail1);
-    if ((fd = open(pbuf, O_WRONLY|O_CREAT|O_APPEND|O_EXCL, 0644)) < 0 ||
+    if ((fd = open(pbuf, O_RDWR|O_CREAT|O_APPEND|O_EXCL, 0644)) < 0 ||
 	(flock(fd, LOCK_EX) < 0))
     {
 	estat = ep_stat_from_errno(errno);
@@ -518,7 +518,7 @@ gdp_nexus_append(nexdle_t *nexdle,
     // TODO: check for errors
     fprintf(nexdle->fp, "%s%ld ", MSG_MAGIC, nexdle->msgno);
     if (msg->ts_valid)
-	tt_print_interval(&msg->ts, nexdle->fp);
+	tt_print_interval(&msg->ts, nexdle->fp, false);
     else
 	fprintf(nexdle->fp, "-");
     fprintf(nexdle->fp, " %zu\n", msg->len);
@@ -549,6 +549,7 @@ get_nexus_rec(FILE *fp,
 	    size_t buflen)
 {
     long offset;
+    EP_STAT estat = EP_STAT_OK;
 
     /*
     **  Part 1: find the message magic string
@@ -595,9 +596,11 @@ get_nexus_rec(FILE *fp,
 	{
 	    // at end of file or I/O error
 	    if (ferror(fp))
-		return ep_stat_from_errno(errno);
+		estat = ep_stat_from_errno(errno);
 	    else
-		return EP_STAT_END_OF_FILE;
+		estat = EP_STAT_END_OF_FILE;
+	    ep_dbg_cprintf(Dbg, 4, "get_nexus_rec: no msg magic\n");
+	    goto fail0;
 	}
     }
 
@@ -617,7 +620,10 @@ get_nexus_rec(FILE *fp,
 	if (i < 3)
 	{
 	    // apparently we can't read the metadata
-	    return GDP_STAT_MSGFMT;
+	    ep_dbg_cprintf(Dbg, 4, "get_nexus_rec: missing msg metadata (%d)\n",
+		    i);
+	    estat = GDP_STAT_MSGFMT;
+	    goto fail0;
 	}
 	memset(msg, 0, sizeof *msg);
 	msg->msgno = msgno;
@@ -626,8 +632,13 @@ get_nexus_rec(FILE *fp,
 	msg->offset = offset;
 	if (tsbuf[0] != '-')
 	{
-	    EP_STAT estat = tt_parse_interval(tsbuf, &msg->ts);
-	    EP_STAT_CHECK(estat, return estat);
+	    estat = tt_parse_interval(tsbuf, &msg->ts);
+	    if (!EP_STAT_ISOK(estat))
+	    {
+		ep_dbg_cprintf(Dbg, 4, "get_nexus_rec: cannot parse timestamp\n");
+		goto fail0;
+	    }
+
 	    msg->ts_valid = true;
 	}
 
@@ -639,7 +650,9 @@ get_nexus_rec(FILE *fp,
 	{
 	    // short read
 	    msg->len = sz;
-	    return GDP_STAT_SHORTMSG;
+	    ep_dbg_cprintf(Dbg, 4, "get_nexus_rec: short read\n");
+	    estat = GDP_STAT_SHORTMSG;
+	    goto fail0;
 	}
 
 	// if we have more data to read do so now to keep stream in sync
@@ -647,7 +660,15 @@ get_nexus_rec(FILE *fp,
 	    (void) fgetc(fp);
     }
 
-    return EP_STAT_OK;
+fail0:
+    if (ep_dbg_test(Dbg, 4))
+    {
+	char ebuf[100];
+
+	ep_dbg_printf("get_nexus_rec => %s\n",
+		ep_stat_tostr(estat, ebuf, sizeof ebuf));
+    }
+    return estat;
 }
 
 
@@ -755,7 +776,7 @@ fail0:
     {
 	char sbuf[100];
 
-	ep_dbg_printf("gdp_nexus_read: %s\n",
+	ep_dbg_printf("gdp_nexus_read => %s\n",
 		ep_stat_tostr(estat, sbuf, sizeof sbuf));
     }
     return estat;
@@ -862,7 +883,7 @@ gdp_nexus_msg_print(const nexmsg_t *msg,
     if (msg->ts_valid)
     {
 	fprintf(fp, ", timestamp ");
-	tt_print_interval(&msg->ts, fp);
+	tt_print_interval(&msg->ts, fp, true);
     }
     else
     {

@@ -2,6 +2,7 @@
 
 #include <gdp/gdp_nexus.h>
 #include <ep/ep_dbg.h>
+#include <ep/ep_string.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -53,7 +54,8 @@ main(int argc, char **argv)
 	if (p != NULL)
 	    *p++ = '\0';
 
-	fprintf(stdout, "Got input :%s:\n", buf);
+	fprintf(stdout, "Got input %s%s%s\n", EpChar->lquote, buf,
+		EpChar->rquote);
 	memset(&msg, '\0', sizeof msg);
 	msg.data = buf;
 	msg.len = strlen(buf);
