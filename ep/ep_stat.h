@@ -23,7 +23,7 @@
 **	+-----+---------------------+----------+-------------+
 **	| sev |      registry       |  module  |   detail    |
 **	+-----+---------------------+----------+-------------+
-**	 3 bit        13 bits          6 bits     10/42 bits
+**	 3 bit        11 bits          8 bits     10/42 bits
 **
 **	Severities with the top bit being zero indicate success, and
 **	the rest of the word can convey arbitary information.  If the
@@ -63,8 +63,8 @@ typedef struct _ep_stat
 } EP_STAT;
 
 #define _EP_STAT_SEVBITS	3
-#define _EP_STAT_REGBITS	13
-#define _EP_STAT_MODBITS	6
+#define _EP_STAT_REGBITS	11
+#define _EP_STAT_MODBITS	8
 
 #if INT_MAX == INT32_MAX
 # define _EP_STAT_DETBITS	10
