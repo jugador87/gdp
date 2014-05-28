@@ -395,20 +395,25 @@ ep_stat_tostr(EP_STAT stat,
 	switch (reg)
 	{
 	  case 0:
-		rname = "INT-OK";
+		rname = "GENERIC";
 		break;
 
 	  case EP_REGISTRY_NEOPHILIC:
-		rname = "VND-neophilic";
+		rname = "VND$neophilic";
+		break;
+
+	  case EP_REGISTRY_UCB:
+		rname = "VND$berkeley";
 		break;
 
 	  case EP_REGISTRY_EPLIB:
-		rname = "INT-eplib";
+		rname = "EPLIB";
 		switch (EP_STAT_MODULE(stat))
 		{
 		  case EP_STAT_MOD_ERRNO:
 			detail = strerror(EP_STAT_DETAIL(stat));
 			break;
+
 		  case EP_STAT_MOD_GENERIC:
 			if (EP_STAT_DETAIL(stat) <
 			    (sizeof GenericErrors / sizeof *GenericErrors))
@@ -417,19 +422,19 @@ ep_stat_tostr(EP_STAT stat,
 		break;
 
 	  case EP_REGISTRY_USER:
-		rname = "LOC-user";
+		rname = "LOCAL-USER";
 		break;
 
 	  default:
 		if (reg <= 0x07f)
-			pfx = "LOC";
-		else if (reg <= 0x1ff)
-			pfx = "ENT";
-		else if (reg <= 0xeff)
+			pfx = "LOCAL";
+		else if (reg <= 0x0ff)
+			pfx = "ENTERPRISE";
+		else if (reg <= 0x6ff)
 			pfx = "VND";
 		else
-			pfx = "RSV";
-		snprintf(rbuf, sizeof rbuf, "%s-%d", pfx, reg);
+			pfx = "RESERVED";
+		snprintf(rbuf, sizeof rbuf, "%s$%d", pfx, reg);
 		rname = rbuf;
 		break;
 	}
@@ -448,7 +453,7 @@ ep_stat_tostr(EP_STAT stat,
 	}
 	else
 	{
-		snprintf(buf, blen, "%s: [%s.%ld.%ld]",
+		snprintf(buf, blen, "%s: [%s:%ld:%ld]",
 				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
 				rname,
 				EP_STAT_MODULE(stat),

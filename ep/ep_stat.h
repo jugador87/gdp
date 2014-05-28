@@ -127,24 +127,17 @@ extern char	*ep_stat_tostr(EP_STAT, char *, size_t);
 
 /**********************************************************************
 **
-**  Registries
-**  	Should probably be in a separate header file
+**  Modules specific to EPLIB registry
 */
 
-#define EP_STAT_REG_LOCAL	0x03FE	// for local use
-#define EP_STAT_REG_EP		0x1F00	// libep internal use
-
-/**********************************************************************
-**
-**  Modules specific to EP_STAT_REG_EP
-*/
+#include <ep/ep_registry.h>
 
 #define EP_STAT_MOD_GENERIC	0	// basic multi-use errors
 #define EP_STAT_MOD_ERRNO	0x0FE	// corresponds to errno codes
 
 // common status code definitions
 #define _EP_STAT_INTERNAL(sev, mod, code) \
-		EP_STAT_NEW(EP_STAT_SEV_ ## sev, EP_STAT_REG_EP, mod, code)
+		EP_STAT_NEW(EP_STAT_SEV_ ## sev, EP_REGISTRY_EPLIB, mod, code)
 
 // generic status codes
 #define EP_STAT_OK		EP_STAT_NEW(EP_STAT_SEV_OK, 0, 0, 0)
