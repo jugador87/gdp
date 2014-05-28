@@ -189,7 +189,7 @@ ep_stat_vpost(EP_STAT stat,
 {
 	EP_STAT_HANDLE *c;
 
-	if (ep_dbg_test(&Dbg, 1))
+	if (ep_dbg_test(Dbg, 1))
 	{
 		char sbuf[100];
 
@@ -481,7 +481,7 @@ ep_stat_sev_tostr(int sev)
 		"OK",			// 1
 		"OK",			// 2
 		"OK",			// 3
-		"WARN",			// 4
+		"WARNING",		// 4
 		"ERROR",		// 5
 		"SEVERE",		// 6
 		"ABORT",		// 7

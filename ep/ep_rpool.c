@@ -284,7 +284,7 @@ ep_rpool_ialloc(EP_RPOOL *rp,
 	void *p;
 	bool aligned;
 
-	if (ep_dbg_test(&Dbg, 50))
+	if (ep_dbg_test(Dbg, 50))
 	{
 		ep_dbg_printf("ep_rpool_ialloc(%p, %zu)", rp, nbytes);
 		if (rp != NULL)
@@ -313,17 +313,17 @@ ep_rpool_ialloc(EP_RPOOL *rp,
 	else
 		spaceleft = sp->segsize - (sp->segfree - sp->segbase);
 
-	ep_dbg_cprintf(&Dbg, 51,
+	ep_dbg_cprintf(Dbg, 51,
 			"rpool=%p, sp=%p, spaceleft=%zu, nbytes=%zu, aligned=%d\n",
 			rp, sp, spaceleft, nbytes, aligned);
 	if (sp == NULL)
 	{
-		ep_dbg_cprintf(&Dbg, 52,
+		ep_dbg_cprintf(Dbg, 52,
 			"    (no current segment)\n");
 	}
 	else
 	{
-		ep_dbg_cprintf(&Dbg, 52,
+		ep_dbg_cprintf(Dbg, 52,
 			"    segfree=%p, segbase=%p, segfree=%zu\n",
 			sp->segfree, sp->segbase, sp->segsize);
 	}
@@ -444,7 +444,7 @@ ep_rpool_realloc(EP_RPOOL *rp,
 	struct rpseg *sp;
 	ssize_t spaceleft;
 
-        if (ep_dbg_test(&Dbg, 50))
+        if (ep_dbg_test(Dbg, 50))
         {
                 ep_dbg_printf("ep_rpool_realloc(%p, %p, %zu, %zu)",
                         rp, emem, oldsize, newsize);
@@ -476,7 +476,7 @@ ep_rpool_realloc(EP_RPOOL *rp,
 	else
 		spaceleft = sp->segsize - (sp->segfree - sp->segbase);
 
-	ep_dbg_cprintf(&Dbg, 51,
+	ep_dbg_cprintf(Dbg, 51,
 			"rpool=%p, sp=%p, spaceleft=%zu\n",
 			rp, sp, spaceleft);
 

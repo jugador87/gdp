@@ -43,6 +43,7 @@ void	ep_mem_free(void *);
 #define EP_UT_BITSET(bit, word)	(((bit) & (word)) != 0)
 
 extern int		ep_adm_getintparam(const char *name, int def);
+extern long		ep_adm_getlongparam(const char *name, long def);
 extern bool		ep_adm_getboolparam(const char *name, bool def);
 extern const char	*ep_adm_getstrparam(const char *name, const char *def);
 

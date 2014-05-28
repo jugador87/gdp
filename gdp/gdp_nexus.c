@@ -6,6 +6,7 @@
 #include <ep/ep.h>
 #include <ep/ep_app.h>
 #include <ep/ep_dbg.h>
+#include <ep/ep_string.h>
 #include <unistd.h>
 #include <sys/file.h>
 #include <fcntl.h>
@@ -297,7 +298,7 @@ gdp_nexus_create(nexus_t *nexus_type,
     nexdle_save_offset(nexdle, 0, ftell(fp));
     flock(fd, LOCK_UN);
     *pnexdle = nexdle;
-    if (ep_dbg_test(&Dbg, 10))
+    if (ep_dbg_test(Dbg, 10))
     {
 	nexus_pname_t pname;
 
@@ -311,7 +312,7 @@ fail1:
 	    close(fd);
     ep_mem_free(nexdle);
 fail0:
-    if (ep_dbg_test(&Dbg, 8))
+    if (ep_dbg_test(Dbg, 8))
     {
 	char ebuf[100];
 
@@ -417,7 +418,7 @@ gdp_nexus_open(nname_t nname,
 
     // success!
     *pnexdle = nexdle;
-    if (ep_dbg_test(&Dbg, 10))
+    if (ep_dbg_test(Dbg, 10))
     {
 	nexus_pname_t pname;
 
@@ -440,7 +441,7 @@ fail0:
 	fprintf(stderr, "gdp_nexus_open: Couldn't open nexus: %s\n",
 		ep_stat_tostr(estat, ebuf, sizeof ebuf));
     }
-    if (ep_dbg_test(&Dbg, 10))
+    if (ep_dbg_test(Dbg, 10))
     {
 	nexus_pname_t pname;
 	char ebuf[100];
@@ -487,6 +488,11 @@ gdp_nexus_append(nexdle_t *nexdle,
     EP_STAT estat = EP_STAT_OK;
 
     EP_ASSERT_POINTER_VALID(nexdle);
+    EP_ASSERT_POINTER_VALID(msg);
+
+    // get a timestamp
+    if (EP_STAT_ISOK(tt_now(&msg->ts)))
+	msg->ts_valid = true;
 
     // XXX: check that nexdle is writable
 
@@ -510,7 +516,12 @@ gdp_nexus_append(nexdle_t *nexdle,
 
     // write the message out
     // TODO: check for errors
-    fprintf(nexdle->fp, "%s%ld %zu\n", MSG_MAGIC, nexdle->msgno, msg->len);
+    fprintf(nexdle->fp, "%s%ld ", MSG_MAGIC, nexdle->msgno);
+    if (msg->ts_valid)
+	tt_print_interval(&msg->ts, nexdle->fp);
+    else
+	fprintf(nexdle->fp, "-");
+    fprintf(nexdle->fp, " %zu\n", msg->len);
     fwrite(msg->data, msg->len, 1, nexdle->fp);
     msg->msgno = nexdle->msgno;
     fflush(nexdle->fp);
@@ -599,10 +610,11 @@ get_nexus_rec(FILE *fp,
 	long msgno;
 	long msglen;
 	size_t sz;
+	char tsbuf[80];
 
 	// read in the rest of the record header
-	i = fscanf(fp, "%ld %ld\n", &msgno, &msglen);
-	if (i < 2)
+	i = fscanf(fp, "%ld %79s %ld\n", &msgno, tsbuf, &msglen);
+	if (i < 3)
 	{
 	    // apparently we can't read the metadata
 	    return GDP_STAT_MSGFMT;
@@ -612,6 +624,12 @@ get_nexus_rec(FILE *fp,
 	msg->len = msglen;
 	msg->data = buf;
 	msg->offset = offset;
+	if (tsbuf[0] != '-')
+	{
+	    EP_STAT estat = tt_parse_interval(tsbuf, &msg->ts);
+	    EP_STAT_CHECK(estat, return estat);
+	    msg->ts_valid = true;
+	}
 
 	// be sure to not overflow buffer
 	if (msglen > buflen)
@@ -684,7 +702,7 @@ gdp_nexus_read(nexdle_t *nexdle,
     }
 
     // we may have to skip ahead, hence the do loop
-    ep_dbg_printf("Looking for msgno %ld\n", msgno);
+    ep_dbg_cprintf(Dbg, 7, "Looking for msgno %ld\n", msgno);
     do
     {
 	if (EP_UT_BITSET(NEXDLE_ASYNC, nexdle->flags))
@@ -733,6 +751,13 @@ gdp_nexus_read(nexdle_t *nexdle,
 fail0:
     flock(fileno(nexdle->fp), LOCK_UN);
 
+    if (ep_dbg_test(Dbg, 4))
+    {
+	char sbuf[100];
+
+	ep_dbg_printf("gdp_nexus_read: %s\n",
+		ep_stat_tostr(estat, sbuf, sizeof sbuf));
+    }
     return estat;
 }
 
@@ -835,13 +860,14 @@ gdp_nexus_msg_print(const nexmsg_t *msg,
 
     fprintf(fp, "Nexus Message %ld, len %zu", msg->msgno, msg->len);
     if (msg->ts_valid)
-	fprintf(fp, ", timestamp %ld.%09ld-%ld.%09ld\n",
-		msg->ts.earliest.tv_sec,
-		msg->ts.earliest.tv_nsec,
-		msg->ts.latest.tv_sec,
-		msg->ts.latest.tv_nsec);
+    {
+	fprintf(fp, ", timestamp ");
+	tt_print_interval(&msg->ts, fp);
+    }
     else
-	fprintf(fp, ", no timestamp\n");
+    {
+	fprintf(fp, ", no timestamp");
+    }
     i = msg->len;
-    fprintf(fp, "  <%.*s>\n", i, msg->data);
+    fprintf(fp, "\n  %s%.*s%s\n", EpChar->lquote, i, msg->data, EpChar->rquote);
 }

@@ -31,9 +31,9 @@ int	__EpDbgCurGen;		// current generation
 /***************************  END PRIVATE  ***************************/
 
 // macros for use in applications
-#define ep_dbg_level(f)		((f)->gen == __EpDbgCurGen ?		\
-				 (f)->level :				\
-				 ep_dbg_flaglevel(f))
+#define ep_dbg_level(f)		((f).gen == __EpDbgCurGen ?		\
+				 (f).level :				\
+				 ep_dbg_flaglevel(&f))
 #define ep_dbg_test(f, l)	(ep_dbg_level(f) >= (l))
 
 // support functions
@@ -41,13 +41,14 @@ extern int	ep_dbg_flaglevel(EP_DBG *f);
 
 // creating a flag
 #define EP_DBG_INIT(name, desc)						\
-		{ name, 0, "@(#)$Debug: " desc " $", -1, NULL }
+		{ name, -1, "@(#)$Debug: " name " = " desc " $", -1, NULL }
 
 // initialization
 extern void	ep_dbg_init(void);
 
-// selecting debug output
-extern void	ep_dbg_setstream(FILE *fp);
+// setting/fetching debug output file
+extern void	ep_dbg_setfile(FILE *fp);
+extern FILE	*ep_dbg_getfile(void);
 
 // setting debug flags
 extern void	ep_dbg_set(const char *s);
@@ -58,8 +59,8 @@ extern void EP_TYPE_PRINTFLIKE(1, 2)
 		ep_dbg_printf(const char *fmt, ...);
 
 // print only if flag set
-extern bool EP_TYPE_PRINTFLIKE(3, 4)
-		ep_dbg_cprintf(EP_DBG *f, int l, const char *fmt, ...);
+#define ep_dbg_cprintf(f, l, ...)	{if (ep_dbg_test(f, l)) \
+						ep_dbg_printf(__VA_ARGS__);}
 
 // crackarg parsing
 extern EP_STAT	epCavDebug(const char *vp, void *rp);

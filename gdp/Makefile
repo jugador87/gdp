@@ -2,6 +2,7 @@
 OBJS=	\
 	gdp_nexus.o \
 	gdp_log.o \
+	gdp_timestamp.o \
 
 ALL=	libnexus.a
 
@@ -17,9 +18,6 @@ all: ${ALL}
 libnexus.a: ${OBJS}
 	${AR} -r $@ ${OBJS}
 	${RANLIB} $@
-
-gdp_nexus: $(OBJS)
-	$(CC) $(OBJS) ../ep/libep.a
 
 clean:
 	-rm ${ALL} *.o *.core

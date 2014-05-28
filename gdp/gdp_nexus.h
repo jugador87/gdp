@@ -12,6 +12,7 @@
 #include <uuid/uuid.h>
 #include <ep/ep_stat.h>
 #include <event2/event.h>
+#include <gdp/gdp_timestamp.h>
 
 /**********************************************************************
 **  Opaque structures
@@ -39,30 +40,6 @@ typedef enum
     GDP_MODE_AO,	// append only
 } gdpiomode_t;
 
-/**********************************************************************
-**  Time intervals.  Shamelessly stolen from TrueTime.
-**
-**	See "Spanner: Google's Globally-Distributed Database", Proceedings
-**	    of OSDI 2012.
-**	Briefly, this abstraction explicitly acknowledges clock skew.  The
-**	    concept of "now" is actually a range indicating a confidence
-**	    interval.
-*/
-
-// a timestamp --- a single instant in time
-//	timespec has nanosecond resolution but may not be as portable as timeval
-typedef struct timespec	tt_stamp_t;
-
-// a time interval
-typedef struct
-{
-    tt_stamp_t earliest;	// beginning of interval
-    tt_stamp_t latest;		// end of interval
-} tt_interval_t;
-
-extern tt_interval_t	tt_now(void);		// return current time
-extern bool		tt_before(tt_stamp_t t); // true if t has passed
-extern bool		tt_after(tt_stamp_t t);	// true if t has not started
 
 /**********************************************************************
 **  Geographic locations

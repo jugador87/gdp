@@ -83,7 +83,7 @@ write_scgi(scgi_request *req,
     req->dead = &dead;
     i = scgi_write(req, sbuf);
 
-    ep_dbg_cprintf(&Dbg, 10, "scgi_write => %d, dead = %d\n", i, dead);
+    ep_dbg_cprintf(Dbg, 10, "scgi_write => %d, dead = %d\n", i, dead);
     if (i == 0)
     {
 	char obuf[40];
@@ -267,7 +267,7 @@ process_scgi_req(scgi_request *req,
     char *nexpname;	    // name of the nexus of interest
     EP_STAT estat = EP_STAT_OK;
 
-    if (ep_dbg_test(&Dbg, 3))
+    if (ep_dbg_test(Dbg, 3))
     {
 	ep_dbg_printf("Got connection on port %d from %s:\n",
 		req->descriptor->port->port, req->remote_addr);
@@ -293,7 +293,7 @@ process_scgi_req(scgi_request *req,
     else if (*uri != '\0')
 	*uri++ = '\0';
 
-    ep_dbg_cprintf(&Dbg, 3, "    nexus=%s, uri=%s\n", nexpname, uri);
+    ep_dbg_cprintf(Dbg, 3, "    nexus=%s, uri=%s\n", nexpname, uri);
 
     // XXX if no nexus name, should we print all nexuses?
     if (*nexpname == '\0')
@@ -301,7 +301,7 @@ process_scgi_req(scgi_request *req,
 	if (req->request_method == SCGI_METHOD_POST)
 	{
 	    // create a new nexus
-	    ep_dbg_cprintf(&Dbg, 5, "=== Create new nexus\n");
+	    ep_dbg_cprintf(Dbg, 5, "=== Create new nexus\n");
 	    nexdle_t *nexdle;
 	    EP_STAT estat = gdp_nexus_create(NULL, &nexdle);
 
@@ -343,7 +343,7 @@ process_scgi_req(scgi_request *req,
 	    json_error_t jerr;
 	    char *etext = NULL;
 
-	    ep_dbg_cprintf(&Dbg, 5, "=== Add value to nexus\n");
+	    ep_dbg_cprintf(Dbg, 5, "=== Add value to nexus\n");
 
 	    // first parse the JSON
 	    jroot = json_loadb(req->body, req->scgi_content_length, 0, &jerr);
@@ -547,7 +547,7 @@ main(int argc, char **argv, char **env)
     scgi_register_fd_callbacks(fd_newfd_cb, fd_freefd_cb);
     if (scgi_initialize(listenport))
     {
-	ep_dbg_cprintf(&Dbg, 1, "%s: listening for SCGI on port %d\n",
+	ep_dbg_cprintf(Dbg, 1, "%s: listening for SCGI on port %d\n",
 		getprogname(), listenport);
     }
     else

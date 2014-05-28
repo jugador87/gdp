@@ -24,7 +24,7 @@ struct FLAGPAT
 
 static EP_MUTEX	FlagListMutex;
 static FLAGPAT	*FlagList;
-FILE		*EpStStddbg;
+FILE		*DebugFile;
 
 
 /*
@@ -34,9 +34,9 @@ FILE		*EpStStddbg;
 void
 ep_dbg_init(void)
 {
-	if (EpStStddbg == NULL)
-		ep_dbg_setstream(NULL);
-	EP_ASSERT(EpStStddbg != NULL);
+	if (DebugFile == NULL)
+		ep_dbg_setfile(NULL);
+	EP_ASSERT(DebugFile != NULL);
 }
 
 /*
@@ -117,7 +117,7 @@ ep_dbg_flaglevel(EP_DBG *flag)
 	flag->gen = __EpDbgCurGen;
 	for (fp = FlagList; fp != NULL; fp = fp->next)
 	{
-		if (fnmatch(fp->pat, flag->name, 0))
+		if (fnmatch(fp->pat, flag->name, 0) == 0)
 			break;
 	}
 	if (fp == NULL)
@@ -130,6 +130,7 @@ ep_dbg_flaglevel(EP_DBG *flag)
 }
 
 
+#if 0
 /*
 **  EP_DBG_CPRINTF -- print debug info conditionally on flag match
 **
@@ -150,22 +151,23 @@ ep_dbg_cprintf(
 	const char *fmt,
 	...)
 {
-	if (EpStStddbg == NULL)
+	if (DebugFile == NULL)
 		ep_dbg_init();
 
 	if (ep_dbg_test(flag, level))
 	{
 		va_list av;
 
-		fprintf(EpStStddbg, "%s", EpVid->vidfgyellow);
+		fprintf(DebugFile, "%s", EpVid->vidfgyellow);
 		va_start(av, fmt);
-		vfprintf(EpStStddbg, fmt, av);
+		vfprintf(DebugFile, fmt, av);
 		va_end(av);
-		fprintf(EpStStddbg, "%s", EpVid->vidnorm);
+		fprintf(DebugFile, "%s", EpVid->vidnorm);
 		return true;
 	}
 	return false;
 }
+#endif
 
 
 /*
@@ -184,44 +186,55 @@ ep_dbg_printf(const char *fmt, ...)
 {
 	va_list av;
 
-	if (EpStStddbg == NULL)
+	if (DebugFile == NULL)
 		ep_dbg_init();
 
-	fprintf(EpStStddbg, "%s", EpVid->vidfgyellow);
+	fprintf(DebugFile, "%s", EpVid->vidfgyellow);
 	va_start(av, fmt);
-	vfprintf(EpStStddbg, fmt, av);
+	vfprintf(DebugFile, fmt, av);
 	va_end(av);
-	fprintf(EpStStddbg, "%s", EpVid->vidnorm);
+	fprintf(DebugFile, "%s", EpVid->vidnorm);
 }
 
 
 /*
-**  EP_DBG_SETSTREAM -- set output stream for debugging
+**  EP_DBG_SETFILE -- set output file for debugging
 **
 **	Parameters:
-**		fp -- the stream to use for debugging
+**		fp -- the file to use for debugging; if NULL it
+**			uses the default (stderr).
 **
 **	Returns:
 **		none
 */
 
 void
-ep_dbg_setstream(
+ep_dbg_setfile(
 	FILE *fp)
 {
-	if (fp != NULL && fp == EpStStddbg)
+	if (fp != NULL && fp == DebugFile)
 		return;
 
 	// close the old stream
-//	if (EpStStddbg != NULL)
-//		(void) fclose(EpStStddbg);
+//	if (DebugFile != NULL)
+//		(void) fclose(DebugFile);
 
 	// if fp is NULL, switch to the default
 	if (fp == NULL)
-		EpStStddbg = stderr;
+		DebugFile = stderr;
 	else
-		EpStStddbg = fp;
+		DebugFile = fp;
 }
+
+
+FILE *
+ep_dbg_getfile(void)
+{
+	if (DebugFile == NULL)
+		ep_dbg_init();
+	return DebugFile;
+}
+
 
 EP_STAT
 ep_cvt_txt_to_debug(

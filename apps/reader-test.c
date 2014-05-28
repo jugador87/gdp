@@ -2,6 +2,7 @@
 
 #include <gdp/gdp_nexus.h>
 #include <ep/ep_dbg.h>
+#include <ep/ep_app.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -20,7 +21,7 @@ main(int argc, char **argv)
 	switch (opt)
 	{
 	  case 'D':
-//	    ep_dbg_set(optarg);
+	    ep_dbg_set(optarg);
 	    break;
 	}
     }
@@ -43,8 +44,15 @@ main(int argc, char **argv)
     }
 
     estat = gdp_nexus_open(nname, GDP_MODE_RO, &nexdle);
-    EP_STAT_CHECK(estat, goto fail1);
     gdp_nexus_print(nexdle, stderr, 0, 0);
+    if (!EP_STAT_ISOK(estat))
+    {
+	char sbuf[100];
+
+	ep_app_error("Cannot open nexus: %s",
+		ep_stat_tostr(estat, sbuf, sizeof sbuf));
+	goto fail0;
+    }
 
     for (;;)
     {
@@ -58,7 +66,7 @@ main(int argc, char **argv)
 	// XXX should have some termination condition
     }
 
-fail1:
+fail0:
     fprintf(stderr, "exiting with status %s\n",
 	    ep_stat_tostr(estat, buf, sizeof buf));
     return !EP_STAT_ISOK(estat);

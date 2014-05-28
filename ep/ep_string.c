@@ -320,11 +320,11 @@ struct epCharSequences	EpCharISO_8859_1 =
 // Unicode UTF-8 (US conventions)
 struct epCharSequences	EpCharUTF_8 =
 {
-	"\302\253",	// lquote, '<<' character U+00AB, 0xC2 AB
-	"\302\273",	// rquote, '>>' character U+00BB, 0xC2 BB
-	"\302\251",	// copyright, U+00A9, 0xC2 A9
-	"\302\260",	// degree, 0xB0
-	"\302\265",	// micro, 0xB5
+	.lquote =	"\302\253",	// lquote, '<<' character U+00AB, 0xC2 AB
+	.rquote =	"\302\273",	// rquote, '>>' character U+00BB, 0xC2 BB
+	.copyright =	"\302\251",	// copyright, U+00A9, 0xC2 A9
+	.degree =	"\302\260",	// degree, 0xB0
+	.micro =	"\302\265",	// micro, 0xB5
 };
 
 struct epCharSequences	*EpChar = &EpCharUTF_8;
