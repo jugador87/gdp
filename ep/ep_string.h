@@ -58,6 +58,11 @@ extern struct epCharSequences
 	const char	*copyright;	// copyright symbol
 	const char	*degree;	// degree symbol
 	const char	*micro;		// micro symbol
+	const char	*plusminus;	// +/- symbol
+	const char	*times;		// times symbol
+	const char	*divide;	// divide symbol
+	const char	*null;		// null symbol
+	const char	*notequal;	// not equal symbol
 } *EpChar;
 
 // function to adjust alternate printing

@@ -305,26 +305,41 @@ struct epCharSequences	EpCharASCII =
 	.copyright =	"(c)",		// copyright
 	.degree =	"deg",		// degree
 	.micro =	"u",		// micro
+	.plusminus =	"+/-",		// plus-or-minus
+	.times =	"*",		// times
+	.divide =	"/",		// divide
+	.null =		"NULL",		// null
+	.notequal =	"!=",		// not equal
 };
 
 // ISO 8859-1:1987
 struct epCharSequences	EpCharISO_8859_1 =
 {
-	.lquote =	"\253",		// lquote, '<<' character 0xAB
-	.rquote =	"\273",		// rquote, '>>' character 0xBB
-	.copyright =	"\251",		// copyright, 0xA9
-	.degree =	"\260",		// degree, 0xB0
-	.micro =	"\265",		// micro, 0xB5
+	.lquote =	"\xAB",		// << character
+	.rquote =	"\xBB",		// >> character
+	.copyright =	"\xA9",
+	.degree =	"\xB0",
+	.micro =	"\xB5",
+	.plusminus =	"\xB1",
+	.times =	"\xD7",
+	.divide =	"\xF7",
+	.null =		"\xD8",
+	.notequal =	"!=",
 };
 
 // Unicode UTF-8 (US conventions)
 struct epCharSequences	EpCharUTF_8 =
 {
-	.lquote =	"\302\253",	// lquote, '<<' character U+00AB, 0xC2 AB
-	.rquote =	"\302\273",	// rquote, '>>' character U+00BB, 0xC2 BB
-	.copyright =	"\302\251",	// copyright, U+00A9, 0xC2 A9
-	.degree =	"\302\260",	// degree, 0xB0
-	.micro =	"\302\265",	// micro, 0xB5
+	.lquote =	"\xC2\xAB",	// '<<' character U+00AB, 0xC2 AB
+	.rquote =	"\xC2\xBB",	// '>>' character U+00BB, 0xC2 BB
+	.copyright =	"\xC2\xA9",	// U+00A9, 0xC2 A9
+	.degree =	"\xC2\xB0",	// U+00B0
+	.micro =	"\xC2\xB5",	// U+00B5
+	.plusminus = 	"\xC2\xB1",	// U+00B1, 0xC2 B1
+	.times =	"\xC3\x97",	// U+00D7
+	.divide =	"\xC3\xB7",	// U+00F7
+	.null =		"\xE2\x88\x85",	// U+2205
+	.notequal =	"\xE2\x89\xA0",	// U+2260
 };
 
 struct epCharSequences	*EpChar = &EpCharUTF_8;
