@@ -136,6 +136,12 @@
     metadata such as location and collection timestamp information (as
     distinct from commit timestamps), but this is not managed by the GDP
     itself.</para>
+
+    <para>Additionally, each USC can be associated with a content type which
+    is uninterpreted by the GDP. This can be useful for higher level
+    interpreters for decoding the data. For example, if a RESTful
+    representation is intended, this should be the MIME Content-Type for the
+    data.</para>
   </section>
 
   <section>
