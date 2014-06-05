@@ -1,28 +1,28 @@
 <?xml version="1.0" encoding="US-ASCII"?>
-<article version="5.0" xmlns="http://docbook.org/ns/docbook"
-         xmlns:xlink="http://www.w3.org/1999/xlink"
-         xmlns:xi="http://www.w3.org/2001/XInclude"
-         xmlns:svg="http://www.w3.org/2000/svg"
-         xmlns:m="http://www.w3.org/1998/Math/MathML"
-         xmlns:html="http://www.w3.org/1999/xhtml"
-         xmlns:db="http://docbook.org/ns/docbook">
-  <info>
-    <title>Global Data Plane API Proposal</title>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<article>
+  <articleinfo>
+    <title>Global Data Plane Programmatic API Proposal</title>
 
     <author>
-      <personname><firstname>Eric</firstname><surname>Allman</surname></personname>
+      <personname>
+        <firstname>Eric</firstname>
+
+        <surname>Allman</surname>
+      </personname>
 
       <affiliation>
-        <orgname>U.C. Berkeley</orgname>
+        <orgname>U.C. Berkeley Swarm Lab</orgname>
       </affiliation>
 
       <email>eric@cs.berkeley.edu</email>
     </author>
 
-    <releaseinfo>Version 0.1</releaseinfo>
+    <releaseinfo>Version 0.2</releaseinfo>
 
-    <pubdate>2014-05-08</pubdate>
-  </info>
+    <pubdate>2014-06-04</pubdate>
+  </articleinfo>
 
   <para>This is a strawman proposal. It is not complete. Note that this does
   not include the in-system representation except where that impacts the API,
@@ -50,6 +50,10 @@
 
   <para>I'm also being informed by the Antiquity and OceanStore papers.</para>
 
+  <para><remark>Note: there is code implementing most of this proposal. It
+  only operates on a single machine and isn't particularly
+  fast.</remark></para>
+
   <section>
     <title>Concepts</title>
 
@@ -60,7 +64,10 @@
       data plane. It is not directly tied to either a file or a network
       connection. On creation, a nexus is assigned a name, which is just a
       random UUID [maybe; see discussion]. A nexus is append-only to writers
-      (true or false?). Palmer called this an aardvark.</para>
+      (true or false?). Palmer called this an aardvark. <remark>Ken has nixed
+      the name nexus, so I'm now calling it USC (Unnameable Swarm Concept).
+      However, I haven't changed it in this document or in the
+      code.</remark></para>
     </formalpara>
   </section>
 
@@ -74,9 +81,107 @@
     of interest and then call <function>gdp_nexus_evloop</function>.</para>
 
     <section>
+      <title>Data Structures</title>
+
+      <para></para>
+
+      <refentry>
+        <refnamediv>
+          <refname>tt_interval_t</refname>
+
+          <refpurpose>TrueTime-style interval</refpurpose>
+        </refnamediv>
+
+        <refsynopsisdiv>
+          <programlisting>#include &lt;gdp/gdp_timestamp.h&gt;
+
+typedef struct timespec tt_stamp_t;
+
+typedef struct
+{
+    tt_stamp_t  stamp;     // center of interval
+    long        accuracy;  // clock accuracy in nanoseconds
+} tt_interval_t;</programlisting>
+        </refsynopsisdiv>
+
+        <refsect1>
+          <title>Notes</title>
+
+          <para><itemizedlist>
+              <listitem>
+                <para>A <code>struct timespec</code> contains fields
+                <varname>tv_sec</varname> (seconds since January 1, 1970) and
+                <varname>tv_nsec</varname> (nanoseconds).</para>
+              </listitem>
+
+              <listitem>
+                <para>The actual time range is the <varname>stamp</varname>
+                &plusmn; <varname>accuracy</varname> / 2.</para>
+              </listitem>
+            </itemizedlist></para>
+        </refsect1>
+      </refentry>
+
+      <refentry>
+        <refnamediv>
+          <refname>nexmsg_t</refname>
+
+          <refpurpose>A nexus message</refpurpose>
+        </refnamediv>
+
+        <refsynopsisdiv>
+          <para><programlisting>#include &lt;gdp/gdp_nexus.h&gt;
+
+typedef struct
+{
+    bool           ts_valid:1;  // set if ts is valid
+    tt_interval_t  ts;          // timestamp for this message
+    long           msgno;       // the message number
+    const void     *data;       // pointer to data
+    size_t         len;         // length of data
+    (private data omitted)
+} nexmsg_t;</programlisting></para>
+        </refsynopsisdiv>
+
+        <refsect1>
+          <title>Notes</title>
+
+          <para><itemizedlist>
+              <listitem>
+                <para>It isn't clear that <varname>msgno</varname> should be
+                public.</para>
+              </listitem>
+            </itemizedlist></para>
+        </refsect1>
+      </refentry>
+    </section>
+
+    <section>
       <title>Functions</title>
 
       <para></para>
+
+      <refentry>
+        <refnamediv>
+          <refname>gdp_init</refname>
+
+          <refpurpose>Initialize the GDP library</refpurpose>
+        </refnamediv>
+
+        <refsynopsisdiv>
+          <para><programlisting>stat = gdp_init(void)</programlisting></para>
+        </refsynopsisdiv>
+
+        <refsect1>
+          <title>Notes</title>
+
+          <itemizedlist>
+            <listitem>
+              <para>Initializes the GDP library.</para>
+            </listitem>
+          </itemizedlist>
+        </refsect1>
+      </refentry>
 
       <refentry>
         <refnamediv>
@@ -86,8 +191,7 @@
         </refnamediv>
 
         <refsynopsisdiv>
-          <para>stat = gdp_nexus_create(nexus_t *nexus_type, const char
-          *subtype, nexus_d *nexus_desc, &amp;nexdle)</para>
+          <programlisting>stat = gdp_nexus_create(nexus_t *nexus_type, const char *subtype, nexus_d *nexus_desc, &amp;nexdle)</programlisting>
         </refsynopsisdiv>
 
         <refsect1>
@@ -141,67 +245,13 @@
 
       <refentry>
         <refnamediv>
-          <refname>gdp_nexus_append</refname>
-
-          <refpurpose>Append a message to a writable nexus</refpurpose>
-        </refnamediv>
-
-        <refsynopsisdiv>
-          <para>stat = gdp_nexus_append(nexdle, msg)</para>
-        </refsynopsisdiv>
-
-        <refsect1>
-          <title>Notes</title>
-
-          <itemizedlist>
-            <listitem>
-              <para>Does this return before the data is actually committed or
-              after? If before it may be hard to correlate errors to appends.
-              If after there will probably be performance issues.</para>
-            </listitem>
-
-            <listitem>
-              <para>Should writes be asynchronous at this level? Could pass in
-              a message id which can be returned in something like a
-              gdp_nexus_sync() call. Easy to build synchronous on top of
-              asynchronous.</para>
-            </listitem>
-
-            <listitem>
-              <para>Corresponds to Palmer's <code>write</code>
-              <citation>Dab13a</citation> and <code>publish(name,
-              message)</code> <citation>Dab13b</citation>, where
-              <varname>name</varname> is the name of the nexus and
-              <varname>message</varname> is the data.</para>
-            </listitem>
-
-            <listitem>
-              <para>Messages written into a nexus become available to
-              <function>gdp_nexus_read</function> and to functions registered
-              with <function>gdp_nexus_subscribe</function>.</para>
-            </listitem>
-
-            <listitem>
-              <para>This definition assumes an octet-stream-based interface.
-              If a message-based interface is chosen then this obviously
-              changes. The correct abstraction under those assumptions
-              probably passes in a message, which is a structure including
-              time and location information as well as the data itself. See
-              the discussion in the next section.</para>
-            </listitem>
-          </itemizedlist>
-        </refsect1>
-      </refentry>
-
-      <refentry>
-        <refnamediv>
           <refname>gdp_nexus_open</refname>
 
           <refpurpose>Open an existing nexus</refpurpose>
         </refnamediv>
 
         <refsynopsisdiv>
-          <para>stat = gdp_nexus_open(name, rw, qos, ?, &amp;nexdle)</para>
+          <programlisting>stat = gdp_nexus_open(name, rw, qos, ?, &amp;nexdle)</programlisting>
         </refsynopsisdiv>
 
         <refsect1>
@@ -247,14 +297,90 @@
 
       <refentry>
         <refnamediv>
+          <refname>gdp_nexus_msg_new</refname>
+
+          <refpurpose>Create a new message</refpurpose>
+        </refnamediv>
+
+        <refsynopsisdiv>
+          <programlisting>stat = gdp_nexus_msg_new(nexdle, &amp;nexmsg)</programlisting>
+        </refsynopsisdiv>
+
+        <refsect1>
+          <title>Notes</title>
+
+          <itemizedlist>
+            <listitem>
+              <para>Creates a new nexus message. Actually initializes the data
+              structure being passed in.</para>
+            </listitem>
+          </itemizedlist>
+        </refsect1>
+      </refentry>
+
+      <refentry>
+        <refnamediv>
+          <refname>gdp_nexus_append</refname>
+
+          <refpurpose>Append a message to a writable nexus</refpurpose>
+        </refnamediv>
+
+        <refsynopsisdiv>
+          <programlisting>stat = gdp_nexus_append(nexdle, msg)</programlisting>
+        </refsynopsisdiv>
+
+        <refsect1>
+          <title>Notes</title>
+
+          <itemizedlist>
+            <listitem>
+              <para>Does this return before the data is actually committed or
+              after? If before it may be hard to correlate errors to appends.
+              If after there will probably be performance issues.</para>
+            </listitem>
+
+            <listitem>
+              <para>Should writes be asynchronous at this level? Could pass in
+              a message id which can be returned in something like a
+              <function>gdp_nexus_sync()</function> call. Easy to build
+              synchronous on top of asynchronous.</para>
+            </listitem>
+
+            <listitem>
+              <para>Corresponds to Palmer's <code>write</code>
+              <citation>Dab13a</citation> and <code>publish(name,
+              message)</code> <citation>Dab13b</citation>, where
+              <varname>name</varname> is the name of the nexus and
+              <varname>message</varname> is the data.</para>
+            </listitem>
+
+            <listitem>
+              <para>Messages written into a nexus become available to
+              <function>gdp_nexus_read</function> and to functions registered
+              with <function>gdp_nexus_subscribe</function>.</para>
+            </listitem>
+
+            <listitem>
+              <para>This definition assumes an octet-stream-based interface.
+              If a message-based interface is chosen then this obviously
+              changes. The correct abstraction under those assumptions
+              probably passes in a message, which is a structure including
+              time and location information as well as the data itself. See
+              the discussion in the next section.</para>
+            </listitem>
+          </itemizedlist>
+        </refsect1>
+      </refentry>
+
+      <refentry>
+        <refnamediv>
           <refname>gdp_nexus_read</refname>
 
           <refpurpose>Read from a readable nexus</refpurpose>
         </refnamediv>
 
         <refsynopsisdiv>
-          <para>stat = gdp_nexus_read(nexdle, offset, &amp;msg, buf,
-          buflen)</para>
+          <programlisting>stat = gdp_nexus_read(nexdle, offset, &amp;msg, buf, buflen)</programlisting>
         </refsynopsisdiv>
 
         <refsect1>
@@ -283,7 +409,7 @@
             <listitem>
               <para>The <varname>offset</varname> indicates a message number
               (sequential starting from zero). The value
-              <constant>&#8211;1</constant> indicates any new messages.</para>
+              <constant>&ndash;1</constant> indicates any new messages.</para>
             </listitem>
 
             <listitem>
@@ -310,10 +436,8 @@
         </refnamediv>
 
         <refsynopsisdiv>
-          <para>stat = gdp_nexus_subscribe(nexdle, callback, offset, buf,
-          bufsiz, cbdata)</para>
-
-          <para>(*callback)(nexdle, msg, cbdata)</para>
+          <programlisting>stat = gdp_nexus_subscribe(nexdle, callback, offset, buf, bufsiz, cbdata)
+(*callback)(nexdle, msg, cbdata)</programlisting>
         </refsynopsisdiv>
 
         <refsect1>
@@ -339,7 +463,7 @@
             <listitem>
               <para>The <varname>offset</varname> tells when to start the
               subscription. If <constant>0</constant> then all messages in the
-              nexus are returned. If <constant>&#8211;1</constant> then only
+              nexus are returned. If <constant>&ndash;1</constant> then only
               messages generated after the subscription are returned. Other
               values indicate a particular index into the existing nexus
               data.</para>
@@ -364,7 +488,7 @@
         </refnamediv>
 
         <refsynopsisdiv>
-          <para>stat = gdp_nexus_evloop(void)</para>
+          <programlisting>stat = gdp_nexus_evloop(void)</programlisting>
         </refsynopsisdiv>
 
         <refsect1>
@@ -382,7 +506,7 @@
         </refnamediv>
 
         <refsynopsisdiv>
-          <para>stat = gdp_nexus_close(nexdle, ?)</para>
+          <programlisting>stat = gdp_nexus_close(nexdle, ?)</programlisting>
         </refsynopsisdiv>
 
         <refsect1>
@@ -405,7 +529,7 @@
         </refnamediv>
 
         <refsynopsisdiv>
-          <para>stat = gdp_nexus_getname(nexdle, namebuf)</para>
+          <programlisting>stat = gdp_nexus_getname(nexdle, namebuf)</programlisting>
         </refsynopsisdiv>
 
         <refsect1>
@@ -437,7 +561,7 @@
         </refnamediv>
 
         <refsynopsisdiv>
-          <para>stat = gdp_nexus_getstat(nexdle, statbuf)</para>
+          <programlisting>stat = gdp_nexus_getstat(nexdle, statbuf)</programlisting>
         </refsynopsisdiv>
 
         <refsect1>
@@ -483,8 +607,8 @@
       <para>Libep is a library that I produced several years ago intended for
       use in sendmail. This uses a stripped down version of that library that
       excludes several things that would not be helpful here. For more details
-      of the original (full) library, see <link
-      linkend="???">http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtime</link>.</para>
+      of the original (full) library, see <ulink
+      url="http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtime">http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtime</ulink>.</para>
     </section>
   </section>
 
@@ -572,7 +696,7 @@
     </section>
 
     <section>
-      <title xml:id="oq-content">Nexus Content &#8212; Message vs. Byte
+      <title xml:id="oq-content">Nexus Content &mdash; Message vs. Byte
       Stream, Timestamping, Coordinates</title>
 
       <para>Is the data inside a nexus a Unix-style stream of bytes or a
@@ -626,7 +750,7 @@
       possibly jitter of the network connection (that is, how even the data
       flow will be). Delivery bandwidth depends on the entire path between the
       data source and the data sync, and may be higher or lower than the
-      bandwidth required to send a real-time version of the stream &#8212; for
+      bandwidth required to send a real-time version of the stream &mdash; for
       example, over a slow network link.</para>
     </section>
   </section>
@@ -639,7 +763,11 @@
         <abbrev>Dab13a</abbrev>
 
         <author>
-          <personname><firstname>Palmer</firstname><surname>Dabbelt</surname></personname>
+          <personname>
+            <firstname>Palmer</firstname>
+
+            <surname>Dabbelt</surname>
+          </personname>
         </author>
 
         <title>Swarm OS Universal Dataplane</title>
@@ -651,7 +779,11 @@
         <abbrev>Dab13b</abbrev>
 
         <author>
-          <personname><firstname>Palmer</firstname><surname>Dabbelt</surname></personname>
+          <personname>
+            <firstname>Palmer</firstname>
+
+            <surname>Dabbelt</surname>
+          </personname>
         </author>
 
         <title>What is the Universal Dataplane, Anyway?</title>
