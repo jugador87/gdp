@@ -42,21 +42,6 @@ typedef enum
 
 
 /**********************************************************************
-**  Geographic locations
-**
-**	XXX: I haven't really thought this through yet.
-**	XXX: Should locations also have a confidence interval?
-**	XXX: In any case, this only works for external addresses.
-*/
-
-typedef struct
-{
-    double	lat;	    // latitude in degrees
-    double	lon;	    // longitude in degrees
-    double	elev;	    // elevation in meters from mean sea level
-} geoloc_t;
-
-/**********************************************************************
 **   Messages
 **	These are the underlying unit that is passed through a nexus.
 **
@@ -70,9 +55,7 @@ typedef struct
 typedef struct
 {
     bool	    ts_valid:1;	    // set if ts is valid
-    bool	    loc_valid:1;    // set if loc is valid
     tt_interval_t   ts;		    // timestamp for this message
-    geoloc_t	    loc;	    // location of this sample
     long	    msgno;	    // the message number
     const char	    *data;	    // pointer to data
     size_t	    len;	    // length of data
