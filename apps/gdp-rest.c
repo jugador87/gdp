@@ -160,10 +160,17 @@ show_nexus(char *nexpname,
 
 
 const char *
-format_timestamp(tt_interval_t *ts, char *tsbuf, size_t tsbufsiz)
+format_timestamp(tt_interval_t *ts, char *tsbuf, size_t tsbufsiz, bool human)
 {
-    // for now just punt
-    return "XXX Add Timestamp Here XXX";
+    FILE *fp;
+
+    fp = ep_fopensmem(tsbuf, tsbufsiz, "w");
+    tt_print_interval(ts, fp, human);
+    fputc('\0', fp);
+    fclose(fp);
+    // null terminate even if tsbuf overflows
+    tsbuf[tsbufsiz - 1] = '\0';
+    return tsbuf;
 }
 
 
@@ -210,7 +217,7 @@ read_msg(char *nexpname, long msgno, scgi_request *req)
 	    char tsbuf[200];
 
 	    fprintf(fp, "    \"timestamp\": \"%s\"\r\n",
-		    format_timestamp(&msg.ts, tsbuf, sizeof tsbuf));
+		    format_timestamp(&msg.ts, tsbuf, sizeof tsbuf, false));
 	}
 	fprintf(fp, "    \"value\": \"");
 	ep_xlate_out(msg.data, msg.len, fp, "\"\r\n",
