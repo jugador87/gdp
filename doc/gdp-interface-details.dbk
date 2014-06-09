@@ -20,9 +20,9 @@
       <email>eric@cs.berkeley.edu</email>
     </author>
 
-    <pubdate>2014-06-04</pubdate>
+    <pubdate>2014-06-05</pubdate>
 
-    <releaseinfo>Incomplete Draft 2</releaseinfo>
+    <releaseinfo>Incomplete Draft 3</releaseinfo>
   </articleinfo>
 
   <para>These are my thoughts on a possible model for the Global Data Plane
@@ -30,64 +30,67 @@
   be in the initial implementation, but I want to start thinking about how it
   works now.</para>
 
-  <para>A USC is named with a 128-bit identifier that might be either a GUID
+  <para>A USC is named with a 256-bit identifier that might be either a GUID
   or a hash of the contents; the important point is that it be unique and, for
   performance reasons, reasonably evenly distributed (sequential integers
-  would be a very bad idea indeed). We might consider using 160 bit names (the
-  size of a SHA1 hash) or even 256-bit names (the size of a SHA256); that
-  seems to be the direction the crypto community is going.</para>
+  would be a very bad idea indeed).</para>
 
   <section>
     <title>GDP Daemons</title>
 
-    <para>There are at least four daemons in this model, probably more.
-    I&rsquor;m calling them &ldquo;daemon&rdquor; here because Ken
-    didn&rsquor;t like the word &ldquo;manager&rdquor; and suggested
-    &ldquo;service&rdquor; instead, but these are not the same as the Swarm
-    Services we have talked about in the past, so I think this is a very bad
-    name. Daemons is at least descriptive and accurate.</para>
+    <para>The GDP implementation will be broken up into a collection of
+    cooperating daemons.</para>
 
     <orderedlist>
       <listitem>
-        <para>The Authentication Daemon (AD) is the central entry point for
-        clients into the system and as such has to be discoverable.
-        It&rsquor;s main job is to authenticate clients and pass them to a
-        Layout Daemon. It will probably be necessary to allow
-        &ldquo;authentication&rdquor; as a guest user, for example so a
-        speaker can access a projector in the current room.</para>
+        <para>The GDP Access Daemon (GAD) is the central entry point for
+        clients into the system and as such has to be discoverable, probably
+        either by SLP or DNS-SD. It&rsquor;s main job is to help clients
+        bootstrap their interaction with the GDP.</para>
       </listitem>
 
       <listitem>
-        <para>The Layout Daemon (LD) controls how data is distributed among
-        the various host nodes. It doesn&rsquor;t need to have the entire
-        state of the world, but it does need to know how to communicate with
-        other Layout Daemons and with the Data Daemon. It also understands
-        about Quality of Service and can, for example, select a path that
-        supports AVB if that is the only protocol that works &mdash; or return
-        a failure to the client telling them that the requested QoS is not
-        possible. Once the Layout Daemon knows what the client wants to do, it
-        passes them to the Data Daemon. Ken correctly points out that there is
-        really too much for one daemon, so this needs to be further
-        decomposed. See below for Ken&rsquor;s model.</para>
+        <para>The Location/Replication Daemon (LRD) controls how data is
+        distributed among the various host nodes. It doesn&rsquor;t need to
+        have the entire state of the world, but it does need to know how to
+        communicate with other LRDs and with the Data Daemon (below). It also
+        understands about Quality of Service and can, for example, select a
+        path that supports AVB if that is the only protocol that works &mdash;
+        or return a failure to the client telling them that the requested QoS
+        is not possible.</para>
+
+        <note>
+          <para>For a first implementation this will be implemented using a
+          key-value store that maps USC IDs to physical location (a TCP host
+          and port number), without concern for migration and replication.
+          Nitesh will probably implement this since he needs it for his
+          micropayment work.</para>
+        </note>
       </listitem>
 
       <listitem>
         <para>The Data Daemon (DD) is the performance-critical piece that
-        needs to talk with clients and other data Daemons. It is the meat of
+        needs to talk with clients and other Data Daemons. It is the meat of
         the GDP. This is the piece that most likely needs to be implemented in
         C. Its raison d&rsquor;&ecirc;tre is solely to shovel data from where
-        it is to where it needs to be, but someone else (the LD, or whatever
-        that turns into) decides where that is. It can be thought of as pure
-        implementation; policy is handled elsewhere.</para>
+        it is to where it needs to be, but someone else (the LRD) decides
+        where that is. It can be thought of as pure implementation; policy is
+        handled elsewhere.</para>
+
+        <note>
+          <para>Eric already has a draft implemention of this code that runs
+          on one host only. It may be useful as a basis.</para>
+        </note>
       </listitem>
 
       <listitem>
-        <para>The RESTful Daemon (RD) translates REST calls into GDP calls. In
-        the description below the RD is in the role of a client.</para>
+        <para>The RESTful Interface Daemon (RID) translates REST calls into
+        GDP calls. This isn't actually part of the GDP proper, but it will be
+        the primary access path for many applications.</para>
       </listitem>
 
       <listitem>
-        <para>(Maybe) The GDP Daemon (GD). It is what gets started up,
+        <para>The GDP Startup Daemon (GSD). It is what gets started up,
         creating the other daemons and monitoring them. This will certainly be
         desirable during development and should probably be continued into
         deployment.</para>
@@ -95,78 +98,16 @@
 
       <listitem>
         <para>(Maybe) The Economics Daemon (ED). This manages micropayments as
-        necessary.</para>
+        necessary. Strictly speaking it is not part of the Data Plane proper.
+        This is Nitesh's domain.</para>
       </listitem>
     </orderedlist>
 
-    <para>Communication paths exist between the AD and ADs on other nodes as
-    necessary, ADs and some set of LDs (including the LD on the local node),
-    LDs and LDs on other nodes as necessary, LDs and some set of DDs
-    (including the DD on the local node), and DDs with other DDs as necessary.
-    All the internal communications between daemons are encrypted. Setting up
-    these connections and mutual authentication is TBD.</para>
-
-    <para>A sample session might proceed as follows:</para>
-
-    <orderedlist>
-      <listitem>
-        <para>The client locates an Authentication Daemon. This represents the
-        GDP Discovery phase.</para>
-      </listitem>
-
-      <listitem>
-        <para>The client contacts the AD and authenticates. They immediately
-        exchange a one-time session key and start encrypting the
-        connection.</para>
-      </listitem>
-
-      <listitem>
-        <para>The client informs the AD what it wants to do. This will most
-        likely be to create a USC, append to an existing USC, or read an
-        existing USC.</para>
-      </listitem>
-
-      <listitem>
-        <para>The AD locates a Layout Daemon that can satisfy the requests,
-        passes the session key to that LD, and points the client at that LD.
-        At this point the client and the AD can disconnect.</para>
-      </listitem>
-
-      <listitem>
-        <para>The client contacts the LD (encrypted and authenticated by the
-        session key), and says what it wants to do (the same information as
-        previously passed to the AD; alternatively the AD could pass this
-        information to the LD along with the session key)</para>
-      </listitem>
-
-      <listitem>
-        <para>The LD finds a Data Daemon that has the information necessary to
-        complete that request. It&rsquor;s quite likely that the LD creates
-        the USC if need be.</para>
-      </listitem>
-
-      <listitem>
-        <para>The LD transfers control to the DD in the same way as the
-        AD&rarr;LD handoff.</para>
-      </listitem>
-
-      <listitem>
-        <para>The client interacts with the DD as necessary to do I/O. If
-        necessary the DD forwards requests to other DDs. Normally the
-        client&harr;DD connection persists through the session.</para>
-      </listitem>
-
-      <listitem>
-        <para>When done, the client tells the DD to close. The DD informs the
-        LD, which does any cleanup necessary. [We have the DD contact the LD
-        directly so we don&rsquor;t have to special-case the case where a
-        client unexpectedly disconnects.]</para>
-      </listitem>
-    </orderedlist>
-
-    <para>If a client moves during the session, it is the responsibility of
-    the LD to communicate with other LDs to find an appropriate DD that can
-    continue the session.</para>
+    <note>
+      <para>The full implementation will also require key management, resource
+      brokerage, and more. These are not part of the GDP, but will be services
+      that the GDP will have to use.</para>
+    </note>
   </section>
 
   <section>
@@ -177,6 +118,10 @@
     protocol is designed for client to DD (and probably DD to DD)
     communication.</para>
 
+    <note>
+      <para>This is totally off the top of my head.</para>
+    </note>
+
     <para>Network packets are binary for performance. They are laid out
     as:</para>
 
@@ -185,7 +130,7 @@
 
       <col valign="top" width="2*" />
 
-      <col valign="top" width="15*" />
+      <col valign="top" width="12*" />
 
       <thead>
         <tr align="center">
@@ -220,7 +165,7 @@
         </tr>
 
         <tr>
-          <td>16 (20?)</td>
+          <td>32</td>
 
           <td>usc_id</td>
 
@@ -274,11 +219,11 @@
 
       <col valign="top" width="2*" />
 
-      <col valign="top" width="15*" />
+      <col valign="top" width="12*" />
 
       <thead>
         <tr align="center">
-          <th>Command</th>
+          <th>Cmd</th>
 
           <th>Name</th>
 
@@ -461,23 +406,19 @@
       </tbody>
     </informaltable>
 
-    <para> Strictly speaking there is no need for the
+    <para>Strictly speaking there is no need for the
     Open_<replaceable>X</replaceable> calls. It&rsquor;s my hunch that this
     will improve efficiency by allowing the system knowledge of intent. Close
     is necessary even without Open to flush subscriptions; it may also be
     useful for forcing commits. A spontaneously closed connection implies a
     Close.</para>
-
-    <para></para>
-
-    <para> </para>
   </section>
 
   <section>
     <title>On-Disk Representation</title>
 
-    <para>The actual representation on disk is likely to depend a lot on the
-    underlying structures, so this is pretty much a shot in the dark.
+    <para>The actual representation of a USC on disk is likely to depend a lot
+    on the underlying structures, so this is pretty much a shot in the dark.
     It&rsquor;s designed for representation in a regular Unix file.</para>
 
     <para>An on-disk representation of a USC has three parts: a USC Header
@@ -491,7 +432,7 @@
 
       <col valign="top" width="2*" />
 
-      <col valign="top" width="15*" />
+      <col valign="top" width="12*" />
 
       <thead>
         <tr align="center">
@@ -537,6 +478,16 @@
 
           <td>Probably other fields such as pointers to the index.</td>
         </tr>
+
+        <tr>
+          <td>var</td>
+
+          <td>content_type</td>
+
+          <td>The type of the contents. This is used solely for
+          client-to-client convenience, and is not interpreted in any way by
+          the Data Plane.</td>
+        </tr>
       </tbody>
     </informaltable>
 
@@ -553,7 +504,7 @@
 
       <col valign="top" width="2*" />
 
-      <col valign="top" width="15*" />
+      <col valign="top" width="12*" />
 
       <thead>
         <tr align="center">

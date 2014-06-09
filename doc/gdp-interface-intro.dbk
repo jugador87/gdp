@@ -19,15 +19,14 @@
       <email>eric@cs.berkeley.edu</email>
     </author>
 
-    <releaseinfo>Incomplete Draft 2</releaseinfo>
+    <releaseinfo>Draft 3</releaseinfo>
 
-    <pubdate>2014-06-04</pubdate>
+    <pubdate>2014-06-09</pubdate>
   </articleinfo>
 
   <para>These are my thoughts on a possible model for the Global Data Plane
-  interface and to a lesser extent the implementation. Much of this will not
-  be in the initial implementation, but I want to start thinking about how it
-  works now.</para>
+  interface. Much of this will not be in the initial implementation, but I
+  want to start thinking about how it works now.</para>
 
   <para>There is an important concept in the Global Data Plane which has so
   far defied attempts to give it a name. It is the thing applications and
@@ -44,13 +43,10 @@
   name. For the purposes of this document I&rsquor;m going to call it a
   &ldquo;USC&rdquor;.</para>
 
-  <para>A USC is named with a 128-bit Location Independent Name that might be
+  <para>A USC is named with a 256-bit Location Independent Name that might be
   either a GUID or a hash of the contents; the important point is that it be
   unique and, for performance reasons, reasonably evenly distributed
-  (sequential integers would be a very bad idea indeed). We might consider
-  using 160 bit names (the size of a SHA1 hash) or even 256-bit names (the
-  size of a SHA256); that seems to be the direction the crypto community is
-  going.</para>
+  (sequential integers would be a very bad idea indeed).</para>
 
   <para>My assumption is that there will be a single address space for all
   addressable objects in the Swarm, including USCs, services, perhaps even
@@ -74,8 +70,9 @@
       </listitem>
 
       <listitem>
-        <para>Knows how to how to find a path (route) to a Location Indepedent
-        Name. This might represent a service as well as a USC.</para>
+        <para>Knows how to how to find a path (route) to a Location
+        Independent Name. This might represent a service as well as a
+        USC.</para>
       </listitem>
     </itemizedlist>
 
@@ -86,26 +83,16 @@
 
     <itemizedlist>
       <listitem>
-        <para>A GDP Ingress Agent. This is primarily used to bootstrap contact
-        with the GDP.</para>
+        <para>A GDP Access Agent. This is primarily used to bootstrap client
+        contact with the GDP. This includes setting up communication between a
+        client and a USC, including any authorization and credential creation
+        necessary.</para>
       </listitem>
 
       <listitem>
         <para>A distributed Location/Replication Service that determines where
         data should be replicated and/or moved. It is one of the few non-core
         pieces that understands physical location.</para>
-      </listitem>
-
-      <listitem>
-        <para>An Authorization Service that that determines which agents
-        (clients, services, etc.) are permitted to access what data. It can
-        issue session keys to approved agents that serve both to encrypt and
-        authorize an interaction.</para>
-      </listitem>
-
-      <listitem>
-        <para>A RESTful interface that layers a REST-style interface onto the
-        services described here. See below for more information.</para>
       </listitem>
 
       <listitem>
@@ -124,14 +111,15 @@
       </listitem>
 
       <listitem>
-        <para>An Authentication Agent. The details of this are still to be
-        determined.</para>
+        <para>A RESTful interface that layers a REST-style interface onto the
+        services described here. See below for more information.</para>
       </listitem>
     </itemizedlist>
 
     <para>Data in the GDP is modeled as a series of records. These records
-    have a GDP commit timestamp but are otherwise opaque blobs; in fact, the
-    assumption is that the data are encrypted before presentation to the GDP.
+    have a GDP commit timestamp (generated when the record is committed to
+    long term storage) but are otherwise opaque blobs; in fact, the assumption
+    is that the data are encrypted before presentation to the GDP.
     Applications may impose structure on the (decrypted) data, including
     metadata such as location and collection timestamp information (as
     distinct from commit timestamps), but this is not managed by the GDP
@@ -153,74 +141,81 @@
 
     <orderedlist>
       <listitem>
-        <para>The client locates a GDP Ingress Agent. To do this it has to
-        have some form of discovery, the details of which haven't been worked
-        out, but it will probably be similar to existing systems like Service
+        <para>The client locates a GDP Access Agent. To do this it has to have
+        some form of discovery, the details of which haven't been worked out,
+        but it will probably be similar to existing systems like Service
         Location Protocol [RFC2608, RFC3224] or DNS-SD [RFC6762, RFC6763],
-        both of which are based on multicast. See below for the rationale
-        behind the Ingress Agent.</para>
+        both of which are based on IP multicast. See below for the rationale
+        behind the Access Agent.</para>
       </listitem>
 
       <listitem>
-        <para>The client asks the GDP Ingress Agent to initiate a connection
-        with an Authentication Agent. It isn't clear whether the Ingress Agent
-        forwards requests to the Authentication Agent or passes a physical
-        address of an Authentication Agent to the client which will then
-        authenticate directly. Since the location of Authentication Agents are
-        not secret, this exchange does not need to be encrypted. However,
-        since the upcoming authentication dialog does need to be encrypted,
-        the Ingress Agent might produce a one-time session key and exchange it
-        with the client using an algorithm such as Diffie-Hellman.</para>
+        <para>The GDP Access Agent and the client negotiate a session key and
+        switch to using it.</para>
       </listitem>
 
       <listitem>
-        <para>If the client is contacting an Authentication Agent directly
-        they start by producing a one-time session key and starting encryption
-        (not necessary if the dialog is being forwarded through an Ingress
-        Agent). The client does an authentication dialog with the
-        Authentication Agent. If the client represents an end user this might
-        be based on conventional techniques such as passwords or PINs, but if
-        the client is (for example) a service it might do so by proving that
-        it owns a secret key.</para>
-      </listitem>
-
-      <listitem>
-        <para>The Authentication Agent produces a signed ticket verifying the
-        fact that the authentication has succeeded and passes it back to the
-        client.</para>
-      </listitem>
-
-      <listitem>
-        <para>The client informs the Ingress Agent what it wants to do, in
-        this case, to create a USC with some specified Quality of Service
+        <para>The client informs the Access Agent what it wants to do, for
+        example, to create a USC with some specified Quality of Service
         guarantees. Other possible options might be to read an USC, append to
         an existing USC, or access a swarm service. This step is really a
         negotiation, since the client might be willing to trade off one sort
-        of resource for another. The Ingress Agent verifies that the client
-        has permission to perform this operation, probably by contacting an
-        Authorization Agent and possibly checking to make sure the client has
-        sufficient funds in a micropayment account to continue.</para>
+        of resource for another. Certain operations will require that the
+        client authenticate by signing the request. The Access Agent verifies
+        that the client has sufficient capabilities to perform this operation
+        or acquire the resources, possibly by contacting an Authorization
+        Agent and/or checking to make sure the client has sufficient funds in
+        a micropayment account to continue.</para>
+
+        <note>
+          <para>The mechanisms for key management, authorization to reserve
+          resources, possible authentication, and so forth are out of scope
+          for this document.</para>
+        </note>
       </listitem>
 
       <listitem>
-        <para>Assuming that the authorization succeeds, the Ingress Agent
-        first does any setup necessary to prime the USC (e.g., "create"
+        <para>Assuming that the client has adequate capabilities, the Access
+        Agent does any setup necessary to prime the USC (e.g., "create"
         operations, allocating resources for an AVB/TSN connection, etc. It
         then produces a signed authorization ticket that permits only that
         operation and shares it with the client, together with the physical
         address(es) of one or more GDP Data Agent nodes that can satisfy the
-        request.</para>
+        request. You can think of this authorization ticket as holding the
+        resource reservation. This ticket can be revoked if, say, the client
+        runs out of funds in their micropayment account.</para>
+
+        <note>
+          <para>If the client is creating a new USC the GDP will inform it of
+          the new Location Independent Name. If the client is accessing an
+          existing USC the client will have to supply the Location Independent
+          Name. Finding this name (i.e., directory services) is out of scope
+          for this document.</para>
+        </note>
       </listitem>
 
       <listitem>
         <para>The client contacts one of the specified GDP Data Agents
         directly, presents the authorization ticket, and begins the
         exchange.</para>
+
+        <note>
+          <para>The authorization ticket may not be necessary. If the client
+          signs all requests to the Data Agents and permission verification by
+          the Data Agents is sufficiently fast, it may be skipped. This is yet
+          to be determined.</para>
+        </note>
+
+        <note>
+          <para>The client contacts the Data Agent directly to enable load
+          balancing and so the Data Agent can be as "lean and mean" as
+          possible.</para>
+        </note>
       </listitem>
 
       <listitem>
         <para>When the client is complete it tells the Data Agent to close the
-        connection. The Data Agent then informs the Ingress Agent, which
+        connection. The Data Agent then informs the Access Agent, which
         releases any resources. The Data Agent does this rather than the
         client so that if the client unexpectedly disconnects the resources
         will still be released.</para>
@@ -228,12 +223,12 @@
     </orderedlist>
 
     <para>If the connection is broken, e.g., because a Data Agent has
-    withdrawn, the client negotiates with the Ingress Agent to find a new
+    withdrawn, the client negotiates with the Access Agent to find a new
     physical connection with another Data Agent.</para>
 
-    <para>The Ingress Agent clearly does a lot of work that is difficult to
+    <para>The Access Agent clearly does a lot of work that is difficult to
     characterize. The primary reason to encapsulate these functions in the GDP
-    Ingress Agent to offload the client, which may have limited processing
+    Access Agent is to offload the client, which may have limited processing
     capabilities (for example, an Arduino ethernet shield only supports a
     small number of simultaneous connections). It's "one stop shopping" for
     clients of the GDP.</para>
@@ -253,24 +248,5 @@
 
     <para>See <citation>RESTful Interface for the Global Data Plane</citation>
     for details.</para>
-  </section>
-
-  <section>
-    <title>Open Questions</title>
-
-    <itemizedlist>
-      <listitem>
-        <para>Is passing high performance data streams such as AVB through the
-        GDP Data Agent before it goes into the network going to give us
-        adequate performance? And do we have any choice?</para>
-      </listitem>
-
-      <listitem>
-        <para>Is there a sufficiently common structure that we can actually
-        implement a general purpose REST interface? It may be that simple
-        key-value pairs (where values are primitive types, arrays, and
-        structured objects) will be sufficient.</para>
-      </listitem>
-    </itemizedlist>
   </section>
 </article>

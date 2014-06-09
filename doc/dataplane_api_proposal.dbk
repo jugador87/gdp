@@ -430,6 +430,33 @@ typedef struct
 
       <refentry>
         <refnamediv>
+          <refname>gdp_nexus_watch</refname>
+
+          <refpurpose>Read from a readable nexus, waiting for a
+          result</refpurpose>
+        </refnamediv>
+
+        <refsynopsisdiv>
+          <programlisting>stat = gdp_nexus_watch(nexdle, offset, &amp;msg, buf, buflen, timeout)</programlisting>
+        </refsynopsisdiv>
+
+        <refsect1>
+          <title>Notes</title>
+
+          <para></para>
+
+          <itemizedlist>
+            <listitem>
+              <para>Behaves exactly like gdp_nexus_read, but if the message
+              doesn't yet exist it waits for it to appear for up to the
+              indicated timeout.</para>
+            </listitem>
+          </itemizedlist>
+        </refsect1>
+      </refentry>
+
+      <refentry>
+        <refnamediv>
           <refname>gdp_nexus_subscribe</refname>
 
           <refpurpose>Subscribe to a readable nexus</refpurpose>
@@ -475,6 +502,33 @@ typedef struct
               returned data. When the <function>callback</function> is
               invoked, the <varname>msg</varname> data will be somewhere in
               that buffer (not necessarily at the beginning).</para>
+            </listitem>
+
+            <listitem>
+              <para>Need a way to unsubscribe.</para>
+            </listitem>
+          </itemizedlist>
+        </refsect1>
+      </refentry>
+
+      <refentry>
+        <refnamediv>
+          <refname>gdp_nexus_unsubscribe</refname>
+
+          <refpurpose>Unsubscribe from a nexus</refpurpose>
+        </refnamediv>
+
+        <refsynopsisdiv>
+          <programlisting>stat = gdp_nexus_unsubscribe(nexdle, callback, cbdata)</programlisting>
+        </refsynopsisdiv>
+
+        <refsect1>
+          <title>Notes</title>
+
+          <itemizedlist>
+            <listitem>
+              <para>Unsubscribes to the given {nexdle, callback, cbdata}
+              tuple.</para>
             </listitem>
           </itemizedlist>
         </refsect1>
@@ -697,7 +751,7 @@ typedef struct
 
     <section>
       <title xml:id="oq-content">Nexus Content &mdash; Message vs. Byte
-      Stream, Timestamping, Coordinates</title>
+      Stream, Timestamping</title>
 
       <para>Is the data inside a nexus a Unix-style stream of bytes or a
       record/message abstraction?</para>
@@ -708,16 +762,6 @@ typedef struct
       indicates official entry into the dataplane and a "sample" timestamp
       that is inserted as close to the sensor as possible and is arguably an
       application-level concern.</para>
-
-      <para>How about location stamping (coordinates)? Is this fundamental to
-      sensor measurements? Is it strictly an application level issue that
-      shouldn't be exposed at this level? What is the representation of
-      coordinates? For example, indoor versus outdoor coordinates will
-      probably have different requirements. Outdoors is probably happy with
-      latitude/longitutde/elevation, but indoors would prefer
-      building/floor/room, probably with indication of which location within a
-      room. And if you consider sensors in space, does a geocentric system
-      make sense or should it be heliocentric or something else?</para>
     </section>
 
     <section>
