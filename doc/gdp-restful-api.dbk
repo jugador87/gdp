@@ -42,6 +42,13 @@
     <para>All RESTful calls have the prefix "/gdp/v1" to allow overloading
     with other services and to allow multiple versions of the protocol to run
     simultaneously on one node.</para>
+
+    <para>USCs are 256-bit values encoded in Base64url notation. <remark>In
+    the future we may wish to build some sort of human-friendly directory
+    structure on top of these, which probably precludes the use of "/watch" or
+    "/&lt;msgid&gt;" appended to the &lt;uscid&gt; because of overloading of
+    the "/" character. We might insert these as parameters instead of as part
+    of the URI.</remark></para>
   </section>
 
   <section>
@@ -117,6 +124,27 @@
 
     <refentry>
       <refnamediv>
+        <refname>POST /gdp/v1/usc</refname>
+
+        <refpurpose>Create a new USC</refpurpose>
+      </refnamediv>
+
+      <refsect1>
+        <title>Request Data</title>
+
+        <para>none</para>
+      </refsect1>
+
+      <refsect1>
+        <title>Response Data</title>
+
+        <para>Same as GET
+        /gdp/v1/usc/<replaceable>usc_id</replaceable>.</para>
+      </refsect1>
+    </refentry>
+
+    <refentry>
+      <refnamediv>
         <refname>POST /gdp/v1/usc/<replaceable>usc_id</replaceable></refname>
 
         <refpurpose>add a record to specified USC</refpurpose>
@@ -170,8 +198,8 @@ GDP-Commit-Timestamp: &lt;timestamp&gt;
         <para>If the indicated USC or message number does not exist, the GET
         returns immediately with a 404 error code. Note that the metadata is
         included in the response header, not in the data itself, in order to
-        maintain the opacity of that data. <remark>Should we move the metadata
-        into the header for other commands as well to maintain
+        maintain the opacity of that data. <remark>Question: should we move
+        the metadata into the header for other commands as well to maintain
         symmetry?</remark></para>
       </refsect1>
     </refentry>
