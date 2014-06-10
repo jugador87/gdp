@@ -12,6 +12,7 @@ OBJS=	\
 	ep_adm.o \
 	ep_app.o \
 	ep_assert.o \
+	ep_b64.o \
 	ep_dbg.o \
 	ep_fopensmem.o \
 	ep_funclist.o \
@@ -64,6 +65,7 @@ HFILES=	\
 	ep.h \
 	ep_app.h \
 	ep_assert.h \
+	ep_b64.h \
 	ep_conf.h \
 	ep_dbg.h \
 	ep_funclist.h \
