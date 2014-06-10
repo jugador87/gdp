@@ -62,6 +62,10 @@ memwrite(void *cookie, const char *buf, IOBLOCK_T size)
 static int
 memclose(void *cookie)
 {
+	struct meminfo *minf = cookie;
+
+	if (minf->bufs > minf->bufx)
+		minf->bufb[minf->bufx] = '\0';
 	ep_mem_free(cookie);
 	return 0;
 }
