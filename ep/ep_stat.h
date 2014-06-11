@@ -123,7 +123,6 @@ typedef struct _ep_stat
 
 // functions
 extern EP_STAT	ep_stat_from_errno(int uerrno);
-extern char	*ep_stat_tostr(EP_STAT, char *, size_t);
 
 /**********************************************************************
 **
@@ -167,14 +166,17 @@ char		*ep_stat_tostr(
 			EP_STAT estat,
 			char *buf,
 			size_t bsize);
+
 // return string representation of severity (in natural language)
 const char	*ep_stat_sev_tostr(
 			int sev);
+
 // register/deregister a status handler
 EP_STAT_HANDLE	*ep_stat_register(
 			EP_STAT estat,
 			EP_STAT mask,
 			EP_STAT_HANDLER_FUNCP f);
+
 EP_STAT		ep_stat_unregister(
 			EP_STAT_HANDLE *h);
 // post a status
@@ -196,6 +198,7 @@ void		ep_stat_vprint(
 			const char *defmsg,
 			FILE *fp,
 			va_list av);
+
 // print and abort (never returns)
 void		ep_stat_abort(
 			EP_STAT c);
