@@ -88,12 +88,12 @@ write_scgi(scgi_request *req,
     {
 	char obuf[40];
 
-	fprintf(stderr, "scgi_write (%s) failed: %s\n",
+	ep_app_error("scgi_write (%s) failed: %s",
 		ep_pcvt_str(obuf, sizeof obuf, sbuf), strerror(errno));
     }
     else if (dead)
     {
-	fprintf(stderr, "dead is set\n");
+	ep_dbg_cprintf(Dbg, 1, "dead is set\n");
     }
     req->dead = NULL;
 }
@@ -159,21 +159,6 @@ show_nexus(char *nexpname,
 }
 
 
-const char *
-format_timestamp(tt_interval_t *ts, char *tsbuf, size_t tsbufsiz, bool human)
-{
-    FILE *fp;
-
-    fp = ep_fopensmem(tsbuf, tsbufsiz, "w");
-    tt_print_interval(ts, fp, human);
-    fputc('\0', fp);
-    fclose(fp);
-    // null terminate even if tsbuf overflows
-    tsbuf[tsbufsiz - 1] = '\0';
-    return tsbuf;
-}
-
-
 EP_STAT
 read_msg(char *nexpname, long msgno, scgi_request *req)
 {
@@ -196,36 +181,49 @@ read_msg(char *nexpname, long msgno, scgi_request *req)
 
     // package up the results and send them back
     {
-	FILE *fp;
 	char rbuf[1024];
 
-	fp = ep_fopensmem(rbuf, sizeof rbuf, "w");
-	if (fp == NULL)
+	// figure out the response header
 	{
-	    ep_app_abort("Cannot open memory for nexus read response: %s",
-		    strerror(errno));
-	}
-	fprintf(fp, "HTTP/1.1 200 Nexus Message\r\n"
-		    "Content-Type: application/json\r\n"
-		    "\r\n"
-		    "{\r\n"
-		    "    \"nexus_name\": \"%s\"\r\n"
-		    "    \"message_number\": \"%ld\"\r\n",
-		    nexpname, msgno);
-	if (msg.ts_valid)
-	{
-	    char tsbuf[200];
+	    FILE *fp;
 
-	    fprintf(fp, "    \"timestamp\": \"%s\"\r\n",
-		    format_timestamp(&msg.ts, tsbuf, sizeof tsbuf, false));
+	    fp = ep_fopensmem(rbuf, sizeof rbuf, "w");
+	    if (fp == NULL)
+	    {
+		ep_app_abort("Cannot open memory for nexus read response: %s",
+			strerror(errno));
+	    }
+	    fprintf(fp, "HTTP/1.1 200 Nexus Message\r\n"
+			"Content-Type: application/json\r\n"
+			"GDP-USC-Name: %s\r\n"
+			"GDP-Message-Number: %ld\r\n",
+			nexpname,
+			msgno);
+	    if (msg.ts_valid)
+	    {
+		fprintf(fp, "GDP-Commit-Timestamp: ");
+		tt_print_interval(&msg.ts, fp, false);
+		fprintf(fp, "\r\n");
+	    }
+	    fprintf(fp, "\r\n");		// end of header
+	    fputc('\0', fp);
+	    fclose(fp);
 	}
-	fprintf(fp, "    \"value\": \"");
-	ep_xlate_out(msg.data, msg.len, fp, "\"\r\n",
-		EP_XLATE_PERCENT|EP_XLATE_8BIT|EP_XLATE_NPRINT);
-	fprintf(fp, "\"\r\n"
-		    "}\r\n");
-	fclose(fp);
-	scgi_write(req, rbuf);
+
+	// finish up sending the data out --- the extra copy is annoying
+	{
+	    size_t rlen = strlen(rbuf);
+	    char *obuf = ep_mem_malloc(rlen + msg.len);
+
+	    if (obuf == NULL)
+		ep_app_abort("Cannot allocate memory for nexus read response: %s",
+			strerror(errno));
+
+	    memcpy(obuf, rbuf, rlen);
+	    memcpy(obuf + rlen, msg.data, msg.len);
+	    scgi_send(req, obuf, rlen + msg.len);
+	    ep_mem_free(obuf);
+	}
     }
 
     // finished
@@ -345,76 +343,67 @@ process_scgi_req(scgi_request *req,
 	else if (req->request_method == SCGI_METHOD_POST)
 	{
 	    // append value to nexus
-	    json_t *jroot;
-	    json_t *jval;
-	    json_error_t jerr;
-	    char *etext = NULL;
+	    nexmsg_t msg;
+	    struct sockstate *ss = req->descriptor->cbdata;
 
 	    ep_dbg_cprintf(Dbg, 5, "=== Add value to nexus\n");
 
-	    // first parse the JSON
-	    jroot = json_loadb(req->body, req->scgi_content_length, 0, &jerr);
-	    if (jroot == NULL)
-		etext = jerr.text;
-	    else if (!json_is_object(jroot))
-		etext = "JSON root must be an object";
-	    else if ((jval = json_object_get(jroot, "value")) == NULL ||
-		    !json_is_string(jval))
-		etext = "JSON must have a string value";
-	    if (etext != NULL)
+	    // if we don't have an open nexus, get one
+	    estat = EP_STAT_OK;
+	    if (ss->nexdle == NULL)
 	    {
-		gdp_failure(req, "400", "Illegal JSON Content", "s",
-			"error_text", etext);
-		estat = EP_STAT_ERROR;
-		json_decref(jroot);
-		goto fail1;
+		nname_t nexiname;
+
+		gdp_nexus_internal_name(nexpname, nexiname);
+		estat = gdp_nexus_open(nexiname, GDP_MODE_AO, &ss->nexdle);
+	    }
+	    if (EP_STAT_ISOK(estat))
+	    {
+		memset(&msg, 0, sizeof msg);
+		msg.data = req->body;
+		msg.len = req->scgi_content_length;
+		estat = gdp_nexus_append(ss->nexdle, &msg);
+	    }
+	    if (!EP_STAT_ISOK(estat))
+	    {
+		char ebuf[200];
+
+		gdp_failure(req, "420" "Cannot append to nexus", "ss",
+			"nexus", nexpname,
+			"error", ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		goto error404;
 	    }
 
-	    // now send it to the dataplane
+	    // success: send a response
 	    {
-		nexmsg_t msg;
-		struct sockstate *ss = req->descriptor->cbdata;
+		char rbuf[1000];
+		FILE *fp;
 
-		// if we don't have an open nexus, get one
-		estat = EP_STAT_OK;
-		if (ss->nexdle == NULL)
+		fp = ep_fopensmem(rbuf, sizeof rbuf, "w");
+		if (fp == NULL)
 		{
-		    nname_t nexiname;
-
-		    gdp_nexus_internal_name(nexpname, nexiname);
-		    estat = gdp_nexus_open(nexiname, GDP_MODE_AO, &ss->nexdle);
+		    // well, maybe not so successful
+		    estat = ep_stat_from_errno(errno);
+		    goto error500;
 		}
-		if (EP_STAT_ISOK(estat))
+		fprintf(fp,
+			"HTTP/1.1 200 Successfully appended\r\n"
+			"Content-Type: application/json\r\n"
+			"\r\n"
+			"{\r\n"
+			"    \"msgno\": \"%ld\"",
+			msg.msgno);
+		if (msg.ts_valid)
 		{
-		    memset(&msg, 0, sizeof msg);
-		    msg.data = json_string_value(jval);
-		    msg.len = strlen(msg.data);
-		    estat = gdp_nexus_append(ss->nexdle, &msg);
+		    fprintf(fp,
+			    ",\r\n"
+			    "    \"timestamp\": ");
+		    tt_print_interval(&msg.ts, fp, false);
 		}
-		if (!EP_STAT_ISOK(estat))
-		{
-		    char ebuf[200];
-
-		    gdp_failure(req, "420" "Cannot append to nexus", "ss",
-			    "nexus", nexpname,
-			    "error", ep_stat_tostr(estat, ebuf, sizeof ebuf));
-		    goto error404;
-		}
-
-		// success: send a response
-		{
-		    char rbuf[1000];
-
-		    snprintf(rbuf, sizeof rbuf,
-			    "HTTP/1.1 200 Successfully appended\r\n"
-			    "Content-Type: application/json\r\n"
-			    "\r\n"
-			    "{\r\n"
-			    "    \"msgno\": \"%ld\"\r\n"
-			    "}\r\n",
-			    msg.msgno);
-		    scgi_send(req, rbuf, strlen(rbuf));
-		}
+		fprintf(fp, "\r\n}");
+		fputc('\0', fp);
+		fclose(fp);
+		scgi_send(req, rbuf, strlen(rbuf));
 	    }
 	}
 	else
@@ -446,8 +435,11 @@ process_scgi_req(scgi_request *req,
     estat = gdp_failure(req, "404", "Unknown URI or method", "ss",
 	    "uri", uri,
 	    "method", scgi_method_name(req->request_method));
+    return estat;
 
- fail1:
+ error500:
+    estat = gdp_failure(req, "500", "Internal Server Error", "s",
+	    "errno", strerror(errno));
     return estat;
 }
 
