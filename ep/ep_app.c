@@ -7,6 +7,7 @@
 #include <ep_string.h>
 #include <ep_app.h>
 #include <stdlib.h>
+#include <sys/errno.h>
 
 EP_SRC_ID("@(#)$Id: ep_app.c 252 2008-09-16 21:24:42Z eric $");
 
@@ -52,16 +53,14 @@ ep_app_warn(
 	const char *progname;
 
 	va_start(av, fmt);
-	fprintf(stderr, "%sAPPLICATION WARNING:%s ",
-		EpVid->vidinv,
-		EpVid->vidnorm);
+	fprintf(stderr, "%sWARNING: ", EpVid->vidinv);
 	if ((progname = ep_app_getprogname()) != NULL)
 		fprintf(stderr, "%s: ", progname);
 	if (fmt != NULL)
 		vfprintf(stderr, fmt, av);
 	else
 		fprintf(stderr, "unknown warning");
-	fprintf(stderr, "\n");
+	fprintf(stderr, "%s\n", EpVid->vidnorm);
 	va_end(av);
 }
 
@@ -72,6 +71,7 @@ ep_app_warn(
 //
 //	Parameters:
 //		fmt -- format for a message
+//			If NULL it prints errno.
 //		... -- arguments
 //
 //	Returns:
@@ -87,16 +87,14 @@ ep_app_error(
 	const char *progname;
 
 	va_start(av, fmt);
-	fprintf(stderr, "%sAPPLICATION ERROR:%s ",
-		EpVid->vidinv,
-		EpVid->vidnorm);
+	fprintf(stderr, "%sERROR: ", EpVid->vidinv);
 	if ((progname = ep_app_getprogname()) != NULL)
 		fprintf(stderr, "%s: ", progname);
 	if (fmt != NULL)
 		vfprintf(stderr, fmt, av);
 	else
-		fprintf(stderr, "unknown error");
-	fprintf(stderr, "\n");
+		fprintf(stderr, "%s", strerror(errno));
+	fprintf(stderr, "%s\n", EpVid->vidnorm);
 	va_end(av);
 }
 
@@ -122,18 +120,16 @@ ep_app_abort(
 	const char *progname;
 
 	va_start(av, fmt);
-	fprintf(stderr, "%sAPPLICATION ABORT:%s ",
-		EpVid->vidinv,
-		EpVid->vidnorm);
+	fprintf(stderr, "%sABORT: ", EpVid->vidinv);
 	if ((progname = ep_app_getprogname()) != NULL)
 		fprintf(stderr, "%s: ", progname);
 	if (fmt != NULL)
 		vfprintf(stderr, fmt, av);
 	else
 		fprintf(stderr, "exiting");
-	fprintf(stderr, "\n");
+	fprintf(stderr, "%s\n", EpVid->vidnorm);
 	va_end(av);
 
-	ep_assert_abort("Application Abort");
+	abort();
 	/*NOTREACHED*/
 }

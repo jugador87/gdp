@@ -50,9 +50,9 @@ ep_assert_failure(
 //			"expr",		expr,
 //			NULL,	NULL);
 
-	fprintf(stderr, "Assertion failed at %s:%d: %s: %s",
+	fprintf(stderr, "Assertion failed at %s:%d: %s: %s\n",
 			file, line, type, expr);
-	ep_assert_abort("Assertion failure");
+	abort();
 	/*NOTREACHED*/
 }
 
