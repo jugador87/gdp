@@ -93,6 +93,9 @@ tt_parse_stamp(const char *timestr, tt_stamp_t *ts)
 		timestr, i);
 	return GDP_STAT_STAMPFMT;
     }
+
+    tm.tm_year -= 1900;
+    tm.tm_mon -= 1;
     ts->tv_sec = timegm(&tm);
     return EP_STAT_FROM_INT(nbytes);	// OK status with detail
 }
@@ -111,6 +114,22 @@ tt_print_interval(const tt_interval_t *ti, FILE *fp, bool human)
     {
 	fprintf(fp, "/%ld", ti->accuracy);
     }
+}
+
+const char *
+tt_format_interval(tt_interval_t *ts, char *tsbuf, size_t tsbufsiz, bool human)
+{
+    FILE *fp;
+
+    fp = ep_fopensmem(tsbuf, tsbufsiz, "w");
+    if (fp == NULL)
+	return "XXX-cannot-format-interval-XXX";
+    tt_print_interval(ts, fp, human);
+    fputc('\0', fp);
+    fclose(fp);
+    // null terminate even if tsbuf overflows
+    tsbuf[tsbufsiz - 1] = '\0';
+    return tsbuf;
 }
 
 
