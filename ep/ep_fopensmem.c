@@ -23,6 +23,7 @@
 #include <ep.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/errno.h>
 
 struct meminfo
 {
@@ -49,13 +50,19 @@ static IORESULT_T
 memwrite(void *cookie, const char *buf, IOBLOCK_T size)
 {
 	struct meminfo *minf = cookie;
-	size_t l = minf->bufs - minf->bufx;
+	ssize_t l = minf->bufs - minf->bufx;
 
 	if (l > size)
 		l = size;
+	if (l < size)
+		errno = ENOSPC;
 	if (l > 0)
+	{
 		memcpy(minf->bufb + minf->bufx, buf, l);
-	minf->bufx += l;
+		minf->bufx += l;
+	}
+	else
+		l = -1;
 	return l;
 }
 
