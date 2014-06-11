@@ -63,6 +63,7 @@ main(int argc, char **argv)
 
 	estat = gdp_nexus_append(nexdle, &msg);
 	EP_STAT_CHECK(estat, goto fail1);
+	gdp_nexus_msg_print(&msg, stdout);
     }
 
 fail1:
