@@ -7,6 +7,7 @@
 #include <ep/ep_app.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_string.h>
+#include <ep/ep_b64.h>
 #include <unistd.h>
 #include <sys/file.h>
 #include <fcntl.h>
@@ -114,12 +115,25 @@ gdp_init(void)
 
 /*
 **  CREATE_NEXUS_NAME --- create a name for a new nexus
+**
+**	Probably not the best implementation.
 */
 
 static void
 create_nexus_name(nname_t np)
 {
-    uuid_generate(np);
+    int fd;
+
+    fd = open("/dev/urandom", O_RDONLY);
+    if (fd < 0)
+	fd = open("/dev/random", O_RDONLY);
+    if (fd < 0)
+	ep_app_abort("Cannot open /dev/urandom or /dev/urandom: %s",
+		strerror(errno));
+    if (read(fd, np, sizeof (nname_t)) < sizeof (nname_t))
+	ep_app_abort("Cannot read /dev/urandom or /dev/urandom: %s",
+		strerror(errno));
+    close(fd);
 }
 
 /*
@@ -189,7 +203,7 @@ get_nexus_path(nexdle_t *nexdle, char *pbuf, int pbufsiz)
 
     if (NexusDir == NULL)
 	NexusDir = ep_adm_getstrparam("gdp.nexus.dir", NEXUS_DIR);
-    uuid_unparse(nexdle->nname, pname);
+    gdp_nexus_printable_name(nexdle->nname, pname);
     i = snprintf(pbuf, pbufsiz, "%s/%s", NexusDir, pname);
     if (i < pbufsiz)
 	return EP_STAT_OK;
@@ -891,4 +905,40 @@ gdp_nexus_msg_print(const nexmsg_t *msg,
     }
     i = msg->len;
     fprintf(fp, "\n  %s%.*s%s\n", EpChar->lquote, i, msg->data, EpChar->rquote);
+}
+
+// make a printable nexus name from a binary version
+void
+gdp_nexus_printable_name(const nname_t internal, nexus_pname_t external)
+{
+    EP_STAT estat = ep_b64_encode(internal, sizeof (nname_t),
+			    external, sizeof (nexus_pname_t),
+			    EP_B64_ENC_URL);
+
+    if (!EP_STAT_ISOK(estat))
+    {
+	char ebuf[100];
+
+	ep_app_abort("gdp_nexus_printable_name: %s",
+		    ep_stat_tostr(estat, ebuf, sizeof ebuf));
+    }
+}
+
+// make a binary nexus name from a printable version
+EP_STAT
+gdp_nexus_internal_name(const nexus_pname_t external, nname_t internal)
+{
+    EP_STAT estat = ep_b64_decode(external, sizeof (nexus_pname_t),
+			    internal, sizeof (nname_t),
+			    EP_B64_ENC_URL);
+
+//    if (!EP_STAT_ISOK(estat))
+//    {
+//	char ebuf[100];
+//
+//	ep_app_abort("gdp_nexus_internal_name: %s",
+//		    ep_stat_tostr(estat, ebuf, sizeof ebuf));
+//    }
+
+    return estat;
 }

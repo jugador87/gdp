@@ -9,7 +9,6 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/time.h>
-#include <uuid/uuid.h>
 #include <ep/ep_stat.h>
 #include <event2/event.h>
 #include <gdp/gdp_timestamp.h>
@@ -25,14 +24,10 @@ typedef struct nexus_t	nexus_t;
 typedef struct nexdle_t	nexdle_t;
 
 // the internal name of a nexus
-typedef uuid_t		nname_t;
+typedef uint8_t		nname_t[32];
 
 // the printable name of a nexus
-#if __linux__ || __FreeBSD__
-typedef char		nexus_pname_t[37];
-#else
-typedef uuid_string_t	nexus_pname_t;
-#endif
+typedef char		nexus_pname_t[45];
 
 typedef enum
 {
@@ -137,15 +132,15 @@ extern void	gdp_nexus_msg_print(
 		const nexmsg_t *msg,	// message to print
 		FILE *fp);		// file to print it to
 
-/*
-**  GDP_NEXUS_PRINTABLE_NAME --- get printable name for a nexus
-**  GDP_NEXUS_INTERNAL_NAME --- turn a printable name into an internal name
-*/
+// make a printable nexus name from a binary version
+void	gdp_nexus_printable_name(
+		const nname_t internal,
+		nexus_pname_t external);
 
-#define gdp_nexus_printable_name(internal, external)  \
-		uuid_unparse(internal, external)
-#define gdp_nexus_internal_name(external, internal) \
-		uuid_parse(external, internal)
+// make a binary nexus name from a printable version
+EP_STAT	gdp_nexus_internal_name(
+		const nexus_pname_t external,
+		nname_t internal);
 
 /*
 **  GDP-specific status codes

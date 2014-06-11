@@ -37,7 +37,8 @@ main(int argc, char **argv)
     nexuspname = argv[0];
     fprintf(stdout, "Reading nexus %s\n", nexuspname);
 
-    if (gdp_nexus_internal_name(nexuspname, nname) < 0)
+    estat = gdp_nexus_internal_name(nexuspname, nname);
+    if (!EP_STAT_ISOK(estat))
     {
 	fprintf(stderr, "illegal nexus name syntax: %s\n", nexuspname);
 	exit(1);
