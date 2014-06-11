@@ -19,16 +19,16 @@
 
 #include <ep/ep.h>
 
-extern EP_STAT	ep_b64_encode(void *bin,		// raw binary input
+extern EP_STAT	ep_b64_encode(const void *bin,		// raw binary input
 				size_t bsize,		// sizeof bin
 				char *txt,		// text output buffer
 				size_t tsize,		// size of txt
-				char *encoding);	// encoding
-extern EP_STAT	ep_b64_decode(char *txt,		// text input
+				const char *encoding);	// encoding
+extern EP_STAT	ep_b64_decode(const char *txt,		// text input
 				size_t tsize,		// sizeof txt
 				void *bin,		// output binary buffer
 				size_t bsize,		// sizeof bin
-				char *encoding);	// encoding
+				const char *encoding);	// encoding
 
 // flag bits; only the bottom six bits are available; bottom two bits
 // encode wrap length

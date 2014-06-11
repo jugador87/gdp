@@ -13,7 +13,7 @@ static const char	EncChars[62] =
 
 
 static int
-encmaxline(char *encoding)
+encmaxline(const char *encoding)
 {
 	switch (encoding[2] & EP_B64_WRAPMASK)
 	{
@@ -35,7 +35,7 @@ encmaxline(char *encoding)
 */
 
 size_t
-ep_b64_enc_len(size_t bsize, char *encoding)
+ep_b64_enc_len(size_t bsize, const char *encoding)
 {
 	int neededlength = ((bsize + 2) / 3) * 4;
 
@@ -64,7 +64,7 @@ ep_b64_enc_len(size_t bsize, char *encoding)
 */
 
 static char
-getenc(int b, char *encoding)
+getenc(int b, const char *encoding)
 {
 	EP_ASSERT_REQUIRE(b >= 0 && b < 64);
 
@@ -76,9 +76,11 @@ getenc(int b, char *encoding)
 }
 
 EP_STAT
-ep_b64_encode(void *bbin, size_t bsize, char *txt, size_t tsize, char *encoding)
+ep_b64_encode(const void *bbin, size_t bsize,
+		char *txt, size_t tsize,
+		const char *encoding)
 {
-	uint8_t *bin = bbin;
+	const uint8_t *bin = bbin;
 	int maxline;
 	int bx, tx;			// indexes into binary & text
 	int lx;				// index into current output line
@@ -165,7 +167,9 @@ ep_b64_encode(void *bbin, size_t bsize, char *txt, size_t tsize, char *encoding)
 */
 
 EP_STAT
-ep_b64_decode(char *txt, size_t tsize, void *bbin, size_t bsize, char *encoding)
+ep_b64_decode(const char *txt, size_t tsize,
+		void *bbin, size_t bsize,
+		const char *encoding)
 {
 	uint8_t *bin = bbin;
 	int8_t decode[256];
@@ -182,6 +186,8 @@ ep_b64_decode(char *txt, size_t tsize, void *bbin, size_t bsize, char *encoding)
 		decode[bx] = tx;
 	for (bx = 0; bx < sizeof EncChars; bx++)
 		decode[(int) EncChars[bx]] = bx;
+	decode[(int) encoding[0]] = 62;
+	decode[(int) encoding[1]] = 63;
 	if ((encoding[2] & EP_B64_WRAPMASK) != 0)
 		decode['\r'] = decode['\n'] = -2;
 	if (EP_UT_BITSET(EP_B64_PAD, encoding[2]))
@@ -190,7 +196,7 @@ ep_b64_decode(char *txt, size_t tsize, void *bbin, size_t bsize, char *encoding)
 	// TODO: check to make sure output buffer won't overflow
 
 	// do the actual decoding
-	for (state = tx = bx = 0; tx < tsize; )
+	for (state = tx = bx = 0; tx < tsize && txt[tx] != '\0'; )
 	{
 		int v = decode[txt[tx++] & 0xff];
 
