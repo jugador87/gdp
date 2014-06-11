@@ -70,7 +70,7 @@
 
     <refentry>
       <refnamediv>
-        <refname>GET /gdp/v1/usc</refname>
+        <refname><code>GET /gdp/v1/usc</code></refname>
 
         <refpurpose>list all known USCs</refpurpose>
       </refnamediv>
@@ -95,7 +95,8 @@
 
     <refentry>
       <refnamediv>
-        <refname>GET /gdp/v1/usc/<replaceable>usc_id</replaceable></refname>
+        <refname><code>GET
+        /gdp/v1/usc/<replaceable>usc_id</replaceable></code></refname>
 
         <refpurpose>list information known about specified USC</refpurpose>
       </refnamediv>
@@ -124,7 +125,7 @@
 
     <refentry>
       <refnamediv>
-        <refname>POST /gdp/v1/usc</refname>
+        <refname><code>POST /gdp/v1/usc</code></refname>
 
         <refpurpose>Create a new USC</refpurpose>
       </refnamediv>
@@ -138,14 +139,15 @@
       <refsect1>
         <title>Response Data</title>
 
-        <para>Same as GET
-        /gdp/v1/usc/<replaceable>usc_id</replaceable>.</para>
+        <para>Same as <code>GET
+        /gdp/v1/usc/<replaceable>usc_id</replaceable></code>.</para>
       </refsect1>
     </refentry>
 
     <refentry>
       <refnamediv>
-        <refname>POST /gdp/v1/usc/<replaceable>usc_id</replaceable></refname>
+        <refname><code>POST
+        /gdp/v1/usc/<replaceable>usc_id</replaceable></code></refname>
 
         <refpurpose>add a record to specified USC</refpurpose>
       </refnamediv>
@@ -174,8 +176,8 @@
 
     <refentry>
       <refnamediv>
-        <refname>GET
-        /gdp/v1/usc/<replaceable>usc_id</replaceable>/<replaceable>msgno</replaceable></refname>
+        <refname><code>GET
+        /gdp/v1/usc/<replaceable>usc_id</replaceable>/<replaceable>msgno</replaceable></code></refname>
 
         <refpurpose>return specific message number</refpurpose>
       </refnamediv>
@@ -206,8 +208,8 @@ GDP-Commit-Timestamp: &lt;timestamp&gt;
 
     <refentry>
       <refnamediv>
-        <refname>GET
-        /gdp/v1/usc/<replaceable>usc_id</replaceable>/watch?start=<replaceable>msgno</replaceable>&amp;timeout=<replaceable>seconds</replaceable></refname>
+        <refname><code>GET
+        /gdp/v1/usc/<replaceable>usc_id</replaceable>/watch?start=<replaceable>msgno</replaceable>&amp;timeout=<replaceable>seconds</replaceable></code></refname>
 
         <refpurpose>watch to a USC</refpurpose>
       </refnamediv>
@@ -223,25 +225,49 @@ GDP-Commit-Timestamp: &lt;timestamp&gt;
 
         <para>If the indicated USC does not exist, the GET returns immediately
         with a 404 error code. Otherwise, if the indicated message number
-        exists, the result is exactly the same as the "GET
-        /gdp/v1/usc/&lt;usc_id&gt;/&lt;msgno&gt;" case. If the indicated
-        message number does not exist, this call waits for up to the indicated
-        timeout for that message to appear; if it does, the message is
-        returned in the usual way, otherwise it returns with a 408 Request
-        Timeout response. If the starting message number is not specified, it
-        starts from the beginning.</para>
+        exists, the result is exactly the same as the "<code>GET
+        /gdp/v1/usc/&lt;<replaceable>usc_id</replaceable>&gt;/&lt;<replaceable>msgno</replaceable>&gt;</code>"
+        case. If the indicated message number does not exist, this call waits
+        for up to the indicated timeout for that message to appear; if it
+        does, the message is returned in the usual way, otherwise it returns
+        with a 408 Request Timeout response. If the starting message number is
+        not specified, it starts from the beginning.</para>
 
         <para>Note that a successful GET response includes the message number
-        in the (non-standard) GDP-Message-Number header field. A client
-        wishing to simulate a "subscribe" operation would add one to the value
-        in that field and immediately re-issue a "watch" request with that
-        value as the starting message number.</para>
+        in the (non-standard) <code>GDP-Message-Number</code> header field. A
+        client wishing to simulate a "subscribe" operation would add one to
+        the value in that field and immediately re-issue a "watch" request
+        with that value as the starting message number.</para>
 
         <remark>Question: could we use the previous GET and just append
         "/watch" &mdash; or even assume this behavior if a timeout is
-        specified, e.g., "GET
-        /gdp/v1/usc/<replaceable>usc_id</replaceable>/<replaceable>msgno</replaceable>?timeout=60"?</remark>
+        specified, e.g., "<code>GET
+        /gdp/v1/usc/<replaceable>usc_id</replaceable>/<replaceable>msgno</replaceable>?timeout=60</code>"?</remark>
       </refsect1>
     </refentry>
+  </section>
+
+  <section>
+    <title>To Be Done</title>
+
+    <itemizedlist>
+      <listitem>
+        <para>There needs to be some way to associate human-friendly names
+        with USC names. Technically this directory is not part of the GDP, and
+        perhaps it shouldn't be in the <code>/gdp/v1 namespace</code>, but it
+        is clearly necessary. The most user-friendly approach would be to
+        permit symbolic names anywhere a <replaceable>usc_id</replaceable> is
+        permitted. This would indicate using a namespace that did not use
+        slash as the component separater, since this would create conflicts
+        (does "<code>GET /gdp/v1/usc/foo/bar/23</code>" retrieve message 23
+        from <filename>foo/bar</filename>, or the object named
+        "<filename>foo/bar/23</filename>"?). Of course it is possible to
+        %-encode other characters, but this isn't very friendly. The special
+        characters permitted in the path part of a URI are the "unreserved"
+        ("-", ".", "_", "~"), "sub-delims" ("!", "$", "&amp;", ";", "(", ")",
+        "*", "+", ",", ";", and "="), plus ":" and "@" according to RFC3986
+        section 3.3.</para>
+      </listitem>
+    </itemizedlist>
   </section>
 </article>
