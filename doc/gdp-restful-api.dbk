@@ -15,9 +15,9 @@
       </affiliation>
     </author>
 
-    <pubdate>2014-06-09</pubdate>
+    <pubdate>2014-06-11</pubdate>
 
-    <releaseinfo>Draft 2</releaseinfo>
+    <releaseinfo>Draft 3</releaseinfo>
   </articleinfo>
 
   <para>This document describes the RESTful interface to the Global Data Plane
@@ -264,7 +264,7 @@ GDP-Commit-Timestamp: &lt;timestamp&gt;
         "<filename>foo/bar/23</filename>"?). Of course it is possible to
         %-encode other characters, but this isn't very friendly. The special
         characters permitted in the path part of a URI are the "unreserved"
-        ("-", ".", "_", "~"), "sub-delims" ("!", "$", "&amp;", ";", "(", ")",
+        ("-", ".", "_", "~"), "sub-delims" ("!", "$", "&amp;", "'", "(", ")",
         "*", "+", ",", ";", and "="), plus ":" and "@" according to RFC3986
         section 3.3.</para>
       </listitem>
