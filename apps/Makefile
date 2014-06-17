@@ -3,7 +3,7 @@ ALL=	writer-test reader-test gdp-rest
 INCROOT=..
 LIBROOT=	${INCROOT}
 INCGDP=		-I${INCROOT}
-LIBGDP=		-L${LIBROOT}/gdp -lnexus
+LIBGDP=		-L${LIBROOT}/gdp -lgdp
 INCEP=
 LIBEP=		-L${LIBROOT}/ep -lep
 JANSSONROOT=	${HOME}/src/jansson-2.6
@@ -31,7 +31,7 @@ reader-test:	reader-test.o
 gdp-rest:	gdp-rest.o ../scgilib/scgilib.o
 	${CC} -o $@ gdp-rest.o ${LDFLAGS} ../scgilib/scgilib.o
 
-${ALL}:		${LIBROOT}/gdp/libnexus.a ${LIBROOT}/ep/libep.a
+${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 
 clean:
 	-rm ${ALL} *.o *.core

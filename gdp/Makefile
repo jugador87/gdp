@@ -4,7 +4,7 @@ OBJS=	\
 	gdp_log.o \
 	gdp_timestamp.o \
 
-ALL=	libnexus.a
+ALL=	libgdp.a
 
 PG=
 O=	-O
