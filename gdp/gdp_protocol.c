@@ -40,7 +40,7 @@ void
 gdp_pkt_hdr_init(gdp_pkt_hdr_t *pp,
 		int cmd,
 		gdp_rid_t rid,
-		gcl_name_t gcl_id)
+		gcl_name_t gcl_name)
 {
     EP_ASSERT_POINTER_VALID(pp);
 
@@ -50,8 +50,8 @@ gdp_pkt_hdr_init(gdp_pkt_hdr_t *pp,
     pp->ver = GDP_PROTO_CUR_VERSION;
     pp->cmd = cmd;
     pp->rid = rid;
-    memcpy(pp->gcl_id, gcl_id, sizeof pp->gcl_id);
-    pp->recno = GDP_PKT_NO_RECNO;
+    memcpy(pp->gcl_name, gcl_name, sizeof pp->gcl_name);
+    pp->msgno = GDP_PKT_NO_RECNO;
 }
 
 
@@ -133,18 +133,18 @@ gdp_pkt_out(gdp_pkt_hdr_t *pp, struct evbuffer *obuf)
     }
 
     // usc name
-    if (!gdp_gcl_name_is_zero(pp->gcl_id))
+    if (!gdp_gcl_name_is_zero(pp->gcl_name))
     {
 	pbuf[2] |= GDP_PKT_HAS_ID;
-	memcpy(pbp, pp->gcl_id, sizeof pp->gcl_id);
-	pbp += sizeof pp->gcl_id;
+	memcpy(pbp, pp->gcl_name, sizeof pp->gcl_name);
+	pbp += sizeof pp->gcl_name;
     }
 
     // record number
-    if (pp->recno != GDP_PKT_NO_RECNO)
+    if (pp->msgno != GDP_PKT_NO_RECNO)
     {
 	pbuf[2] |= GDP_PKT_HAS_RECNO;
-	PUT32(pp->recno);
+	PUT32(pp->msgno);
     }
 
     // timestamp
@@ -265,9 +265,9 @@ gdp_pkt_in(gdp_pkt_hdr_t *pp, struct evbuffer *ibuf)
     if (EP_UT_BITSET(GDP_PKT_HAS_RID, pp->flags))
 	needed += 8;		    // sizeof pp->rid;
     if (EP_UT_BITSET(GDP_PKT_HAS_ID, pp->flags))
-	needed += 32;		    // sizeof pp->gcl_id;
+	needed += 32;		    // sizeof pp->gcl_name;
     if (EP_UT_BITSET(GDP_PKT_HAS_RECNO, pp->flags))
-	needed += 4;		    // sizeof pp->recno;
+	needed += 4;		    // sizeof pp->msgno;
     if (EP_UT_BITSET(GDP_PKT_HAS_TS, pp->flags))
 	needed += 16;		    // sizeof pp->ts;
     needed += pp->dlen;
@@ -317,18 +317,18 @@ gdp_pkt_in(gdp_pkt_hdr_t *pp, struct evbuffer *ibuf)
 
     // GCL name
     if (!EP_UT_BITSET(GDP_PKT_HAS_ID, pp->flags))
-	memset(pp->gcl_id, 0, sizeof pp->gcl_id);
+	memset(pp->gcl_name, 0, sizeof pp->gcl_name);
     else
     {
-	memcpy(pp->gcl_id, pbp, sizeof pp->gcl_id);
-	pbp += sizeof pp->gcl_id;
+	memcpy(pp->gcl_name, pbp, sizeof pp->gcl_name);
+	pbp += sizeof pp->gcl_name;
     }
 
     // record number
     if (!EP_UT_BITSET(GDP_PKT_HAS_RECNO, pp->flags))
-	pp->recno = GDP_PKT_NO_RECNO;
+	pp->msgno = GDP_PKT_NO_RECNO;
     else
-	GET32(pp->recno)
+	GET32(pp->msgno)
 
     // timestamp
     if (!EP_UT_BITSET(GDP_PKT_HAS_TS, pp->flags))
@@ -374,19 +374,19 @@ gdp_pkt_dump_hdr(gdp_pkt_hdr_t *pp, FILE *fp)
 	fprintf(fp, "(none)");
     else
 	fprintf(fp, "%016llx", pp->rid);
-    fprintf(fp, ", recno=");
-    if (pp->recno == GDP_PKT_NO_RECNO)
+    fprintf(fp, ", msgno=");
+    if (pp->msgno == GDP_PKT_NO_RECNO)
 	fprintf(fp, "(none)");
     else
-	fprintf(fp, "%u", pp->recno);
+	fprintf(fp, "%u", pp->msgno);
     fprintf(fp, "\n\tgcl_name=");
-    if (gdp_gcl_name_is_zero(pp->gcl_id))
+    if (gdp_gcl_name_is_zero(pp->gcl_name))
 	fprintf(fp, "(none)");
     else
     {
 	gcl_pname_t pname;
 
-	gdp_gcl_printable_name(pp->gcl_id, pname);
+	gdp_gcl_printable_name(pp->gcl_name, pname);
 	fprintf(fp, "%s", pname);
     }
     fprintf(fp, "\n\tts=");

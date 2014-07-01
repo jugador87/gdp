@@ -937,11 +937,11 @@ gcl_msg_print(const gdp_msg_t *msg,
 */
 
 EP_STAT
-gdpd_gcl_error(gcl_name_t gcl_id, char *msg, EP_STAT logstat, int nak)
+gdpd_gcl_error(gcl_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
 {
     gcl_pname_t pname;
 
-    gdp_gcl_printable_name(gcl_id, pname);
+    gdp_gcl_printable_name(gcl_name, pname);
     gdp_log(logstat, "%s: %s", msg, pname);
     return GDP_STAT_FROM_NAK(GDP_NAK_C_BADREQ);
 }
@@ -957,14 +957,14 @@ cmd_create(struct bufferevent *bev, conn_t *c,
     EP_STAT estat;
     gcl_handle_t *gclh;
 
-    estat = gcl_create(NULL, &gclh, cpkt->gcl_id);
+    estat = gcl_create(NULL, &gclh, cpkt->gcl_name);
     if (EP_STAT_ISOK(estat))
     {
 	// cache the open GCL Handle for possible future use
 	gdp_cache_gcl_handle(gclh, GDP_MODE_AO);
 
 	// pass the name back to the caller
-	memcpy(rpkt->gcl_id, gclh->gcl_name, sizeof rpkt->gcl_id);
+	memcpy(rpkt->gcl_name, gclh->gcl_name, sizeof rpkt->gcl_name);
     }
     return estat;
 }
@@ -977,10 +977,10 @@ cmd_open_xx(struct bufferevent *bev, conn_t *c,
     EP_STAT estat;
     gcl_handle_t *gclh;
 
-    gclh = gdp_get_gcl_handle(cpkt->gcl_id, iomode);
+    gclh = gdp_get_gcl_handle(cpkt->gcl_name, iomode);
     if (gclh != NULL)
 	return EP_STAT_OK;
-    estat = gcl_open(cpkt->gcl_id, iomode, &gclh);
+    estat = gcl_open(cpkt->gcl_name, iomode, &gclh);
     if (EP_STAT_ISOK(estat))
 	gdp_cache_gcl_handle(gclh, iomode);
     return estat;
@@ -1009,10 +1009,10 @@ cmd_close(struct bufferevent *bev, conn_t *c,
 {
     gcl_handle_t *gclh;
 
-    gclh = gdp_get_gcl_handle(cpkt->gcl_id, GDP_MODE_ANY);
+    gclh = gdp_get_gcl_handle(cpkt->gcl_name, GDP_MODE_ANY);
     if (gclh == NULL)
     {
-	return gdpd_gcl_error(cpkt->gcl_id, "cmd_close: GCL not open",
+	return gdpd_gcl_error(cpkt->gcl_name, "cmd_close: GCL not open",
 			    GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
     }
     return gcl_close(gclh);
@@ -1027,14 +1027,14 @@ cmd_read(struct bufferevent *bev, conn_t *c,
     gdp_msg_t msg;
     EP_STAT estat;
 
-    gclh = gdp_get_gcl_handle(cpkt->gcl_id, GDP_MODE_RO);
+    gclh = gdp_get_gcl_handle(cpkt->gcl_name, GDP_MODE_RO);
     if (gclh == NULL)
     {
-	return gdpd_gcl_error(cpkt->gcl_id, "cmd_read: GCL not open",
+	return gdpd_gcl_error(cpkt->gcl_name, "cmd_read: GCL not open",
 			    GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
     }
 
-    estat = gcl_read(gclh, cpkt->recno, &msg, gclh->evb);
+    estat = gcl_read(gclh, cpkt->msgno, &msg, gclh->evb);
     EP_STAT_CHECK(estat, goto fail0);
     rpkt->dlen = EP_STAT_TO_LONG(estat);
 
@@ -1056,10 +1056,10 @@ cmd_publish(struct bufferevent *bev, conn_t *c,
     EP_STAT estat;
     int i;
 
-    gclh = gdp_get_gcl_handle(cpkt->gcl_id, GDP_MODE_AO);
+    gclh = gdp_get_gcl_handle(cpkt->gcl_name, GDP_MODE_AO);
     if (gclh == NULL)
     {
-	return gdpd_gcl_error(cpkt->gcl_id, "cmd_publish: GCL not open",
+	return gdpd_gcl_error(cpkt->gcl_name, "cmd_publish: GCL not open",
 			    GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
     }
 
@@ -1072,7 +1072,7 @@ cmd_publish(struct bufferevent *bev, conn_t *c,
     i = evbuffer_remove(bufferevent_get_input(bev), dp, cpkt->dlen);
     if (i < cpkt->dlen)
     {
-	return gdpd_gcl_error(cpkt->gcl_id, "cmd_publish: short read",
+	return gdpd_gcl_error(cpkt->gcl_name, "cmd_publish: short read",
 			    GDP_STAT_SHORTMSG, GDP_NAK_S_INTERNAL);
     }
 
@@ -1080,7 +1080,7 @@ cmd_publish(struct bufferevent *bev, conn_t *c,
     memset(&msg, 0, sizeof msg);
     msg.len = cpkt->dlen;
     msg.data = dp;
-    msg.msgno = cpkt->recno;
+    msg.msgno = cpkt->msgno;
     memcpy(&msg.ts, &cpkt->ts, sizeof msg.ts);
 
     estat = gcl_append(gclh, &msg);
@@ -1089,7 +1089,7 @@ cmd_publish(struct bufferevent *bev, conn_t *c,
 	ep_mem_free(dp);
 
     // fill in return information
-    rpkt->recno = msg.msgno;
+    rpkt->msgno = msg.msgno;
     return estat;
 }
 
@@ -1100,10 +1100,10 @@ cmd_subscribe(struct bufferevent *bev, conn_t *c,
 {
     gcl_handle_t *gclh;
 
-    gclh = gdp_get_gcl_handle(cpkt->gcl_id, GDP_MODE_RO);
+    gclh = gdp_get_gcl_handle(cpkt->gcl_name, GDP_MODE_RO);
     if (gclh == NULL)
     {
-	return gdpd_gcl_error(cpkt->gcl_id, "cmd_subscribe: GCL not open",
+	return gdpd_gcl_error(cpkt->gcl_name, "cmd_subscribe: GCL not open",
 			    GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
     }
     return implement_me("cmd_subscribe");
@@ -1489,7 +1489,7 @@ lev_read_cb(struct bufferevent *bev, void *ctx)
     {
 	gcl_handle_t *gclh;
 
-	gclh = gdp_get_gcl_handle(rpktbuf.gcl_id, 0);
+	gclh = gdp_get_gcl_handle(rpktbuf.gcl_name, 0);
 	if (gclh != NULL)
 	    evb = gclh->evb;
 

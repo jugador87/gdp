@@ -50,7 +50,7 @@
 **	    "seq" since this is a lower-level concept that is
 **	    subsumed by TCP.
 **
-**	XXX should recno be 64 bits?
+**	XXX should msgno be 64 bits?
 */
 
 typedef struct gdp_pkt_hdr
@@ -64,8 +64,8 @@ typedef struct gdp_pkt_hdr
 
     // variable part of packet
     gdp_rid_t	    rid;	//  8 sequence number (GDP_PKT_NO_RID => none)
-    gcl_name_t	    gcl_id;	// 32 name of the USC of interest (0 => none)
-    uint32_t	    recno;	//  4 record number (GDP_PKT_NO_RECNO => none)
+    gcl_name_t	    gcl_name;	// 32 name of the USC of interest (0 => none)
+    uint32_t	    msgno;	//  4 record number (GDP_PKT_NO_RECNO => none)
     tt_interval_t   ts;		// 16 commit timestamp (tv_sec = 0 => none)
     uint8_t	    *data;	//    dlen octets of data
 } gdp_pkt_hdr_t;
@@ -118,8 +118,8 @@ typedef struct gdp_pkt_hdr
 
 /***** values for gdp_pkg_hdr flags field *****/
 #define GDP_PKT_HAS_RID     0x01    // has a rid field
-#define GDP_PKT_HAS_ID	    0x02    // has a gcl_id field
-#define GDP_PKT_HAS_RECNO   0x04    // has a recno field
+#define GDP_PKT_HAS_ID	    0x02    // has a gcl_name field
+#define GDP_PKT_HAS_RECNO   0x04    // has a msgno field
 #define GDP_PKT_HAS_TS	    0x08    // has a timestamp field
 
 /***** dummy values for other fields *****/
@@ -131,7 +131,7 @@ void	gdp_pkt_hdr_init(	    // initialize a packet header structure
 		gdp_pkt_hdr_t *,	// the header to initialize
 		int cmd,		// the command to put in the packet
 		gdp_rid_t rid,		// the rid itself
-		gcl_name_t gcl_id);	// the name of the GCL
+		gcl_name_t gcl_name);	// the name of the GCL
 
 EP_STAT	gdp_pkt_out(		    // send a packet to a network buffer
 		gdp_pkt_hdr_t *,	// the header for the data

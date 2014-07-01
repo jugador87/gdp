@@ -195,17 +195,17 @@ drop_all_rid_info(conn_t *conn)
 static EP_HASH	    *OpenGCLCache;
 
 gcl_handle_t *
-gdp_get_gcl_handle(gcl_name_t gcl_id, gdp_iomode_t mode)
+gdp_get_gcl_handle(gcl_name_t gcl_name, gdp_iomode_t mode)
 {
     gcl_handle_t *gclh;
 
     // see if we have a pointer to this GCL in the cache
-    gclh = ep_hash_search(OpenGCLCache, sizeof (gcl_name_t), (void *) gcl_id);
+    gclh = ep_hash_search(OpenGCLCache, sizeof (gcl_name_t), (void *) gcl_name);
     if (ep_dbg_test(Dbg, 42))
     {
 	gcl_pname_t pbuf;
 
-	gdp_gcl_printable_name(gcl_id, pbuf);
+	gdp_gcl_printable_name(gcl_name, pbuf);
 	ep_dbg_printf("gdp_get_gcl_handle: %s => %p\n", pbuf, gclh);
     }
     return gclh;
@@ -229,11 +229,11 @@ gdp_cache_gcl_handle(gcl_handle_t *gclh, gdp_iomode_t mode)
 
 
 void
-gdp_drop_gcl_handle(gcl_name_t gcl_id, gdp_iomode_t mode)
+gdp_drop_gcl_handle(gcl_name_t gcl_name, gdp_iomode_t mode)
 {
     gcl_handle_t *gclh;
 
-    gclh = ep_hash_insert(OpenGCLCache, sizeof (gcl_name_t), gcl_id, NULL);
+    gclh = ep_hash_insert(OpenGCLCache, sizeof (gcl_name_t), gcl_name, NULL);
     if (ep_dbg_test(Dbg, 42))
     {
 	gcl_pname_t pbuf;
@@ -283,7 +283,7 @@ ack_success(gdp_pkt_hdr_t *pkt,
     if (gclh != NULL)
     {
 	if (gdp_gcl_name_is_zero(gclh->gcl_name))
-	    memcpy(gclh->gcl_name, pkt->gcl_id, sizeof gclh->gcl_name);
+	    memcpy(gclh->gcl_name, pkt->gcl_name, sizeof gclh->gcl_name);
 
 	if (gclh->rbuffer != NULL)
 	{
@@ -683,12 +683,12 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 //    }
     if (EP_UT_BITSET(GDP_PKT_HAS_ID, pkt.flags))
     {
-	gclh = gdp_get_gcl_handle(pkt.gcl_id, 0);
+	gclh = gdp_get_gcl_handle(pkt.gcl_name, 0);
 	if (gclh == NULL)
 	{
 	    gcl_pname_t pbuf;
 
-	    gdp_gcl_printable_name(pkt.gcl_id, pbuf);
+	    gdp_gcl_printable_name(pkt.gcl_name, pbuf);
 	    ep_dbg_cprintf(Dbg, 1, "gdp_read_cb: GCL %s has no handle\n", pbuf);
 	}
     }
@@ -946,7 +946,7 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
     {
 	pkt.dlen = msg->len;
 	pkt.data = msg->data;
-	pkt.recno = msg->msgno;
+	pkt.msgno = msg->msgno;
     }
     estat = gdp_pkt_out(&pkt, bufferevent_get_output(gclh->bev));
     EP_STAT_CHECK(estat, goto fail0);
