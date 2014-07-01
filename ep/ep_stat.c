@@ -16,6 +16,7 @@
 #include <ep_pcvt.h>
 #include <ep_dbg.h>
 #include <ep_registry.h>
+#include <ep_hash.h>
 #include <string.h>
 
 EP_SRC_ID("@(#)$Id: ep_stat.c 289 2014-05-11 04:50:04Z eric $");
@@ -195,15 +196,15 @@ ep_stat_vpost(EP_STAT stat,
 
 		ep_stat_tostr(stat, sbuf, sizeof sbuf);
 		ep_dbg_printf("ep_stat_vpost: posting %08x (%s)\n",
-				EP_STAT_TO_INT(stat), sbuf);
+				EP_STAT_TO_LONG(stat), sbuf);
 	}
 
 	EP_MUTEX_LOCK(StatMutex);
 
 	for (c = StatFuncList; c != NULL; c = c->next)
 	{
-		if (((EP_STAT_TO_INT(stat) ^ EP_STAT_TO_INT(c->stat)) &
-		     EP_STAT_TO_INT(c->mask)) == 0)
+		if (((EP_STAT_TO_LONG(stat) ^ EP_STAT_TO_LONG(c->stat)) &
+		     EP_STAT_TO_LONG(c->mask)) == 0)
 			break;
 	}
 
@@ -357,6 +358,33 @@ ep_stat_from_errno(int uerrno)
 
 /***********************************************************************
 **
+**  EP_STAT_REG_STRINGS -- register status code strings (for printing)
+*/
+
+EP_HASH		*EpStatStrings;
+
+void
+ep_stat_reg_strings(struct ep_stat_to_string *r)
+{
+	if (EpStatStrings == NULL)
+	{
+		EpStatStrings = ep_hash_new("EP_STAT to string", NULL, 0);
+		if (EpStatStrings == NULL)
+			return;
+	}
+
+	while (r->estr != NULL)
+	{
+		(void) ep_hash_insert(EpStatStrings,
+			sizeof r->estat, &r->estat, r->estr);
+		r++;
+	}
+}
+
+
+
+/***********************************************************************
+**
 **  EP_STAT_TOSTR -- return printable version of a status code
 **
 **	Currently has a few registries compiled in; these should be
@@ -388,6 +416,7 @@ ep_stat_tostr(EP_STAT stat,
 	int reg = EP_STAT_REGISTRY(stat);
 	char *pfx;
 	char *detail = NULL;
+	char *module = NULL;
 	char *rname;
 	char rbuf[50];
 
@@ -439,23 +468,59 @@ ep_stat_tostr(EP_STAT stat,
 		break;
 	}
 
+	// check to see if there is a string already
+	if (EpStatStrings != NULL && !EP_STAT_ISOK(stat))
+	{
+		EP_STAT xstat;
+		char *s;
+
+		xstat = EP_STAT_NEW(EP_STAT_SEV_OK,
+				EP_STAT_REGISTRY(stat),
+				EP_STAT_MODULE(stat),
+				0);
+		module = ep_hash_search(EpStatStrings, sizeof xstat, &xstat);
+
+		s = ep_hash_search(EpStatStrings, sizeof stat, &stat);
+		if (s != NULL)
+			detail = s;
+	}
+
 	if (EP_STAT_ISOK(stat))
 	{
 		snprintf(buf, blen, "OK [%ld = 0x%lx]",
-				EP_STAT_TO_INT(stat),
-				EP_STAT_TO_INT(stat));
+				EP_STAT_TO_LONG(stat),
+				EP_STAT_TO_LONG(stat));
 	}
 	else if (detail != NULL)
 	{
-		snprintf(buf, blen, "%s: %s",
+		snprintf(buf, blen, "%s: %s [%s:%ld:%ld]",
 				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
-				detail);
+				detail,
+				rname,
+				EP_STAT_MODULE(stat),
+				EP_STAT_DETAIL(stat));
 	}
-	else
+	else if (module != NULL)
+	{
+		snprintf(buf, blen, "%s: [%s:%s:%ld]",
+				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
+				rname,
+				module,
+				EP_STAT_DETAIL(stat));
+	}
+	else if (rname != NULL)
 	{
 		snprintf(buf, blen, "%s: [%s:%ld:%ld]",
 				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
 				rname,
+				EP_STAT_MODULE(stat),
+				EP_STAT_DETAIL(stat));
+	}
+	else
+	{
+		snprintf(buf, blen, "%s: [%ld:%ld:%ld]",
+				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
+				EP_STAT_REGISTRY(stat),
 				EP_STAT_MODULE(stat),
 				EP_STAT_DETAIL(stat));
 	}

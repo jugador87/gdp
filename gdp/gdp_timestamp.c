@@ -46,7 +46,8 @@ tt_now(tt_interval_t *tt)
     {
 	// get a default clock jitter
 	// for now this is just an administrative parameter
-	ClockAccuracy = ep_adm_getlongparam("gdp.clock.accuracy", ONESECOND);
+	ClockAccuracy = ep_adm_getlongparam("swarm.gdp.clock.accuracy",
+					    ONESECOND);
 	if (ClockAccuracy < 0)
 	    ClockAccuracy = ONESECOND;
     }
@@ -97,7 +98,7 @@ tt_parse_stamp(const char *timestr, tt_stamp_t *ts)
     tm.tm_year -= 1900;
     tm.tm_mon -= 1;
     ts->tv_sec = timegm(&tm);
-    return EP_STAT_FROM_INT(nbytes);	// OK status with detail
+    return EP_STAT_FROM_LONG(nbytes);	// OK status with detail
 }
 
 
@@ -137,13 +138,13 @@ EP_STAT
 tt_parse_interval(const char *timestr, tt_interval_t *ti)
 {
     EP_STAT estat;
-    int nbytes;
+    long nbytes;
     char *endptr;
 
     estat = tt_parse_stamp(timestr, &ti->stamp);
     EP_STAT_CHECK(estat, return estat);
 
-    nbytes = EP_STAT_TO_INT(estat);
+    nbytes = EP_STAT_TO_LONG(estat);
     timestr += nbytes;
     if (*timestr++ != '/')
     {
@@ -152,7 +153,7 @@ tt_parse_interval(const char *timestr, tt_interval_t *ti)
     }
     ti->accuracy = strtol(timestr, &endptr, 10);
 
-    return EP_STAT_FROM_INT((endptr - timestr) + nbytes);
+    return EP_STAT_FROM_LONG((endptr - timestr) + nbytes);
 }
 
 

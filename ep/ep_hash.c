@@ -25,7 +25,7 @@ EP_SRC_ID("@(#)$Id: ep_hash.c 286 2014-04-29 18:15:22Z eric $");
 struct node
 {
 	int			keylen;		// length of key
-	const void		*key;		// actual key
+	void			*key;		// actual key
 	void			*val;		// value
 	struct node		*next;		// next in chain
 };
@@ -86,7 +86,7 @@ ep_hash_new(
 	// figure how much extra space we need to allocate for table
 	xtra = tabsize * sizeof hash->tab[0];
 
-	hash = ep_rpool_zalloc(rp, sizeof *hash);
+	hash = ep_rpool_zalloc(rp, sizeof *hash + xtra);
 	hash->rpool = rp;
 	hash->hfunc = hfunc;
 	hash->flags = flags;
@@ -104,29 +104,47 @@ ep_hash_free(EP_HASH *hash)
 }
 
 
-void *
-ep_hash_search(
-	const EP_HASH *hp,
+struct node **
+find_node_ptr(EP_HASH *hp,
 	int keylen,
 	const void *key)
 {
 	int indx;
+	struct node **npp;
 	struct node *n;
 
-	EP_ASSERT_POINTER_VALID(hp);
-
 	indx = hp->hfunc(hp, keylen, key);
+	npp = &hp->tab[indx];
 
-	for (n = hp->tab[indx]; n != NULL; n = n->next)
+	for (n = *npp; n != NULL; npp = &n->next, n = *npp)
 	{
 		if (keylen == n->keylen &&
 		    memcmp(key, n->key, keylen) == 0)
 		{
 			// match
-			return n->val;
+			break;
 		}
 	}
-	return NULL;
+
+	return npp;
+}
+
+
+void *
+ep_hash_search(
+	EP_HASH *hp,
+	int keylen,
+	const void *key)
+{
+	struct node **npp;
+
+	EP_ASSERT_POINTER_VALID(hp);
+
+	npp = find_node_ptr(hp, keylen, key);
+	if (*npp == NULL)
+		return NULL;
+	else
+		return (*npp)->val;
 }
 
 
@@ -137,26 +155,22 @@ ep_hash_insert(
 	const void *key,
 	void *val)
 {
-	int indx;
+	struct node **npp;
 	struct node *n;
 	void *kp;
 
 	EP_ASSERT_POINTER_VALID(hp);
 
-	indx = hp->hfunc(hp, keylen, key);
-
-	for (n = hp->tab[indx]; n != NULL; n = n->next)
+	npp = find_node_ptr(hp, keylen, key);
+	if (*npp != NULL)
 	{
-		if (keylen == n->keylen &&
-		    memcmp(key, n->key, keylen) == 0)
-		{
-			// match
-			void *oldval;
+		// there is an existing value; replace it
+		void *oldval;
 
-			oldval = n->val;
-			n->val = val;
-			return oldval;
-		}
+		n = *npp;
+		oldval = n->val;
+		n->val = val;
+		return oldval;
 	}
 
 	// not found -- insert it
@@ -166,9 +180,37 @@ ep_hash_insert(
 	memcpy(kp, key, keylen);
 	n->key = kp;
 	n->val = val;
-	n->next = hp->tab[indx];
-	hp->tab[indx] = n;
+	n->next = NULL;
+	*npp = n;
 	return NULL;
+}
+
+
+void *
+ep_hash_delete(
+	EP_HASH *hp,
+	int keylen,
+	const void *key)
+{
+	struct node **npp;
+	struct node *n;
+	void *v;
+
+	EP_ASSERT_POINTER_VALID(hp);
+
+	npp = find_node_ptr(hp, keylen, key);
+	if (*npp == NULL)
+	{
+		// entry does not exist
+		return NULL;
+	}
+
+	n = *npp;
+	*npp = n->next;
+	v = n->val;
+	ep_rpool_mfree(hp->rpool, n->key);
+	ep_rpool_mfree(hp->rpool, n);
+	return v;
 }
 
 

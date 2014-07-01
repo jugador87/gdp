@@ -1,3 +1,5 @@
+/* vim: set ai sw=8 sts=8 :*/
+
 /***********************************************************************
 **	Copyright (c) 2008, Eric P. Allman.  All rights reserved.
 **	$Id: ep_app.c 252 2008-09-16 21:24:42Z eric $

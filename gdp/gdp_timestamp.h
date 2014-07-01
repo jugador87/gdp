@@ -1,8 +1,11 @@
+/* vim: set ai sw=4 sts=4 : */
+
 /**********************************************************************
 **  Time intervals.  Shamelessly stolen from TrueTime.
 **
-**	See "Spanner: Google's Globally-Distributed Database", Proceedings
-**	    of OSDI 2012.
+**	See "Spanner: Google's Globally-Distributed Database",
+**	    Proceedings of OSDI 2012.
+**	    (https://www.usenix.org/system/files/conference/osdi12/osdi12-final-16.pdf)
 **	Briefly, this abstraction explicitly acknowledges clock skew.  The
 **	    concept of "now" is actually a range indicating a confidence
 **	    interval.

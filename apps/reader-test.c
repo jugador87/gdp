@@ -1,20 +1,23 @@
 /* vim: set ai sw=4 sts=4 : */
 
-#include <gdp/gdp_nexus.h>
+#include <gdp/gdp.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_app.h>
+#include <event2/buffer.h>
 #include <unistd.h>
 #include <string.h>
 
 int
 main(int argc, char **argv)
 {
-    nexdle_t *nexdle;
+    gcl_handle_t *gclh;
     EP_STAT estat;
     char buf[200];
-    nname_t nname;
-    char *nexuspname;
+    gcl_name_t gclname;
+    char *gclpname;
     int opt;
+    uint32_t msgno;
+    struct evbuffer *evb;
 
     while ((opt = getopt(argc, argv, "D:")) > 0)
     {
@@ -30,41 +33,51 @@ main(int argc, char **argv)
 
     if (argc <= 0)
     {
-	fprintf(stderr, "Usage: %s [-D dbgspec] <nexus_name>\n",
+	fprintf(stderr, "Usage: %s [-D dbgspec] <gcl_name>\n",
 		getprogname());
 	exit(1);
     }
-    nexuspname = argv[0];
-    fprintf(stdout, "Reading nexus %s\n", nexuspname);
 
-    estat = gdp_nexus_internal_name(nexuspname, nname);
+    gdp_init();
+
+    gclpname = argv[0];
+    fprintf(stdout, "Reading GCL %s\n", gclpname);
+
+    estat = gdp_gcl_internal_name(gclpname, gclname);
     if (!EP_STAT_ISOK(estat))
     {
-	fprintf(stderr, "illegal nexus name syntax: %s\n", nexuspname);
+	fprintf(stderr, "illegal GCL name syntax: %s\n", gclpname);
 	exit(1);
     }
 
-    estat = gdp_nexus_open(nname, GDP_MODE_RO, &nexdle);
-    gdp_nexus_print(nexdle, stderr, 0, 0);
+    estat = gdp_gcl_open(gclname, GDP_MODE_RO, &gclh);
+    gdp_gcl_print(gclh, stderr, 0, 0);
     if (!EP_STAT_ISOK(estat))
     {
 	char sbuf[100];
 
-	ep_app_error("Cannot open nexus: %s",
+	ep_app_error("Cannot open GCL: %s",
 		ep_stat_tostr(estat, sbuf, sizeof sbuf));
 	goto fail0;
     }
 
+    evb = evbuffer_new();
+
+    msgno = 1;
     for (;;)
     {
-	nexmsg_t msg;
-	char mbuf[1000];
+	gdp_msg_t msg;
+	char mbuf[1024];
 
-	estat = gdp_nexus_read(nexdle, -1, &msg, mbuf, sizeof mbuf);
+	estat = gdp_gcl_read(gclh, msgno, &msg, evb);
 	EP_STAT_CHECK(estat, break);
-	gdp_nexus_msg_print(&msg, stdout);
+	msg.len = evbuffer_remove(evb, mbuf, sizeof mbuf);
+	msg.data = mbuf;
+	gdp_gcl_msg_print(&msg, stdout);
+	msgno++;
 
-	// XXX should have some termination condition
+	// flush any left over data
+	evbuffer_drain(evb, UINT32_MAX);
     }
 
 fail0:

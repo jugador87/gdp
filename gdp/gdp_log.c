@@ -11,6 +11,7 @@
 
 #include <ep/ep.h>
 #include <ep/ep_stat.h>
+#include <ep/ep_string.h>
 #include <syslog.h>
 #include <stdio.h>
 #include <time.h>
@@ -41,10 +42,10 @@ gdp_log_set(const char *tag,	// NULL => use program name
 
 void
 gdp_log_file(EP_STAT estat,
-		char *fmt,
-		va_list ap,
-		struct timeval *tv,
-		FILE *fp)
+	char *fmt,
+	va_list ap,
+	struct timeval *tv,
+	FILE *fp)
 {
 	char tbuf[40];
 	char ebuf[100];
@@ -145,9 +146,11 @@ gdp_log(EP_STAT estat, char *fmt, ...)
 	}
 	if (LogFile1 != NULL)
 	{
+		fprintf(LogFile1, "%s", EpVid->vidfgcyan);
 		va_start(ap, fmt);
 		gdp_log_file(estat, fmt, ap, &tv, LogFile1);
 		va_end(ap);
+		fprintf(LogFile1, "%s", EpVid->vidnorm);
 	}
 	if (LogFile2 != NULL)
 	{

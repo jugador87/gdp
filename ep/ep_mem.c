@@ -1,3 +1,5 @@
+/* vim: set ai sw=8 sts=8 :*/
+
 #include <ep.h>
 #include <ep_mem.h>
 #include <unistd.h>

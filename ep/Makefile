@@ -15,11 +15,14 @@ OBJS=	\
 	ep_b64.o \
 	ep_dbg.o \
 	ep_fopensmem.o \
+	ep_fread_unlocked.o \
 	ep_funclist.o \
 	ep_hash.o \
+	ep_hexdump.o \
 	ep_mem.o \
 	ep_pcvt.o \
 	ep_pprint.o \
+	ep_prflags.o \
 	ep_rpool.o \
 	ep_stat.o \
 	ep_string.o \
@@ -70,8 +73,10 @@ HFILES=	\
 	ep_dbg.h \
 	ep_funclist.h \
 	ep_hash.h \
+	ep_hexdump.h \
 	ep_mem.h \
 	ep_pcvt.h \
+	ep_prflags.h \
 	ep_registry.h \
 	ep_rpool.h \
 	ep_stat.h \

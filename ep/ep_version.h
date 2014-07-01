@@ -18,7 +18,7 @@
 #ifndef _EP_VERSION_H_
 #define _EP_VERSION_H_
 
-#include <ep.h>
+#include <ep/ep.h>
 
 // change these as necessary
 #define EP_VERSION_MAJOR	2

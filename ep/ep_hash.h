@@ -33,7 +33,7 @@ extern EP_HASH	*ep_hash_new(
 extern void	ep_hash_free(
 			EP_HASH *hash);
 extern void	*ep_hash_search(
-			const EP_HASH *hash,
+			EP_HASH *hash,
 			int keylen,
 			const void *key);
 extern void	*ep_hash_insert(
@@ -41,6 +41,10 @@ extern void	*ep_hash_insert(
 			int keylen,
 			const void *key,
 			void *val);
+extern void	*ep_hash_delete(
+			EP_HASH *hash,
+			int keylen,
+			const void *key);
 extern void	ep_hash_forall(
 			EP_HASH *hash,
 			EP_HASH_FORALL_FUNCP func,

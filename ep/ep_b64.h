@@ -1,3 +1,5 @@
+/* vim: set ai sw=8 sts=8 :*/
+
 /*
 **  EP_B64.H --- Base 64 encoding/decoding
 **

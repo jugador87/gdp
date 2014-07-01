@@ -9,7 +9,7 @@
 */
 
 #include <scgilib/scgilib.h>
-#include <gdp/gdp_nexus.h>
+#include <gdp/gdp.h>
 #include <ep/ep.h>
 #include <ep/ep_stat.h>
 #include <ep/ep_dbg.h>
@@ -29,15 +29,16 @@
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.rest", "RESTful interface to GDP");
 
-#define DEF_URI_PREFIX	"/gdp/v1/nexus"
-const char	*NexusUriPrefix;	// prefix on all REST calls
-EP_HASH		*OpenNexusCache;	// cache of open nexuses
+#define DEF_URI_PREFIX	"/gdp/v1/gcl"
+
+const char	*GclUriPrefix;		// prefix on all REST calls
+EP_HASH		*OpenGclCache;		// cache of open GCLs
 
 // used in SCGI callbacks to pass around state
 struct sockstate
 {
-    nexdle_t	    *nexdle;	// associated nexdle
-    struct event    *event;	// associated event
+    gcl_handle_t	*gcl_handle;	// associated GCL handle
+    struct event	*event;		// associated event
 };
 
 /*
@@ -151,7 +152,7 @@ gdp_failure(scgi_request *req, char *code, char *msg, char *fmt, ...)
 
 
 EP_STAT
-show_nexus(char *nexpname,
+show_gcl(char *gclpname,
 	scgi_request *req)
 {
     gdp_failure(req, "418", "Not Implemented", "");
@@ -160,22 +161,24 @@ show_nexus(char *nexpname,
 
 
 EP_STAT
-read_msg(char *nexpname, long msgno, scgi_request *req)
+read_msg(char *gclpname, long msgno, scgi_request *req)
 {
     EP_STAT estat;
-    nexdle_t *nexdle = NULL;
-    nexmsg_t msg;
-    char mbuf[512];
-    nname_t nexiname;
+    gcl_handle_t *gclh = NULL;
+    gdp_msg_t msg;
+    gcl_name_t gcliname;
+    struct evbuffer *revb;
 
     // for printing below
-    gdp_nexus_internal_name(nexpname, nexiname);
+    gdp_gcl_internal_name(gclpname, gcliname);
 
-    estat = gdp_nexus_open(nexiname, GDP_MODE_RO, &nexdle);
+    estat = gdp_gcl_open(gcliname, GDP_MODE_RO, &gclh);
     if (!EP_STAT_ISOK(estat))
 	goto fail0;
 
-    estat = gdp_nexus_read(nexdle, msgno, &msg, mbuf, sizeof mbuf);
+    revb = gdp_evbuffer_new();
+
+    estat = gdp_gcl_read(gclh, msgno, &msg, revb);
     if (!EP_STAT_ISOK(estat))
 	goto fail0;
 
@@ -190,14 +193,14 @@ read_msg(char *nexpname, long msgno, scgi_request *req)
 	    fp = ep_fopensmem(rbuf, sizeof rbuf, "w");
 	    if (fp == NULL)
 	    {
-		ep_app_abort("Cannot open memory for nexus read response: %s",
+		ep_app_abort("Cannot open memory for GCL read response: %s",
 			strerror(errno));
 	    }
-	    fprintf(fp, "HTTP/1.1 200 Nexus Message\r\n"
+	    fprintf(fp, "HTTP/1.1 200 GCL Message\r\n"
 			"Content-Type: application/json\r\n"
 			"GDP-USC-Name: %s\r\n"
 			"GDP-Message-Number: %ld\r\n",
-			nexpname,
+			gclpname,
 			msgno);
 	    if (msg.ts_valid)
 	    {
@@ -216,7 +219,7 @@ read_msg(char *nexpname, long msgno, scgi_request *req)
 	    char *obuf = ep_mem_malloc(rlen + msg.len);
 
 	    if (obuf == NULL)
-		ep_app_abort("Cannot allocate memory for nexus read response: %s",
+		ep_app_abort("Cannot allocate memory for GCL read response: %s",
 			strerror(errno));
 
 	    memcpy(obuf, rbuf, rlen);
@@ -227,19 +230,19 @@ read_msg(char *nexpname, long msgno, scgi_request *req)
     }
 
     // finished
-    gdp_nexus_close(nexdle);
+    gdp_gcl_close(gclh);
     return estat;
 
 fail0:
     {
 	char ebuf[200];
 
-	gdp_failure(req, "404", "Cannot read nexus", "ss", 
-		"nexus", nexpname,
+	gdp_failure(req, "404", "Cannot read GCL", "ss", 
+		"GCL", gclpname,
 		"reason", ep_stat_tostr(estat, ebuf, sizeof ebuf));
     }
-    if (nexdle != NULL)
-	gdp_nexus_close(nexdle);
+    if (gclh != NULL)
+	gdp_gcl_close(gclh);
     return estat;
 }
 
@@ -269,7 +272,7 @@ process_scgi_req(scgi_request *req,
 		void *arg)
 {
     char *uri;		    // the URI of the request
-    char *nexpname;	    // name of the nexus of interest
+    char *gclpname;	    // name of the GCL of interest
     EP_STAT estat = EP_STAT_OK;
 
     if (ep_dbg_test(Dbg, 3))
@@ -280,51 +283,51 @@ process_scgi_req(scgi_request *req,
 		req->request_uri);
     }
 
-    // strip off leading "/gdp/v1/nexus/" prefix
-    if (NexusUriPrefix == NULL)
-	NexusUriPrefix = ep_adm_getstrparam("gdp.rest.prefix", DEF_URI_PREFIX);
+    // strip off leading "/gdp/v1/gcl/" prefix
+    if (GclUriPrefix == NULL)
+	GclUriPrefix = ep_adm_getstrparam("gdp.rest.prefix", DEF_URI_PREFIX);
     uri = req->request_uri;
-    if (strncmp(uri, NexusUriPrefix, strlen(NexusUriPrefix)) != 0)
+    if (strncmp(uri, GclUriPrefix, strlen(GclUriPrefix)) != 0)
 	goto error404;
-    uri += strlen(NexusUriPrefix);
+    uri += strlen(GclUriPrefix);
     if (*uri == '/')
 	uri++;
 
-    // next component is the nexus id (name)
-    nexpname = uri;
+    // next component is the GCL id (name)
+    gclpname = uri;
     uri = strchr(uri, '/');
     if (uri == NULL)
 	uri = "";
     else if (*uri != '\0')
 	*uri++ = '\0';
 
-    ep_dbg_cprintf(Dbg, 3, "    nexus=%s, uri=%s\n", nexpname, uri);
+    ep_dbg_cprintf(Dbg, 3, "    gcl=%s, uri=%s\n", gclpname, uri);
 
-    // XXX if no nexus name, should we print all nexuses?
-    if (*nexpname == '\0')
+    // XXX if no GCL name, should we print all GCLs?
+    if (*gclpname == '\0')
     {
 	if (req->request_method == SCGI_METHOD_POST)
 	{
-	    // create a new nexus
-	    ep_dbg_cprintf(Dbg, 5, "=== Create new nexus\n");
-	    nexdle_t *nexdle;
-	    EP_STAT estat = gdp_nexus_create(NULL, &nexdle);
+	    // create a new GCL
+	    ep_dbg_cprintf(Dbg, 5, "=== Create new GCL\n");
+	    gcl_handle_t *gclh;
+	    EP_STAT estat = gdp_gcl_create(NULL, &gclh);
 
 	    if (EP_STAT_ISOK(estat))
 	    {
 		char sbuf[SCGI_MAX_OUTBUF_SIZE];
-		const nname_t *nname;
-		nexus_pname_t nbuf;
+		const gcl_name_t *nname;
+		gcl_pname_t nbuf;
 
-		// return the name of the nexus
-		nname = gdp_nexus_getname(nexdle);
-		gdp_nexus_printable_name(*nname, nbuf);
+		// return the name of the GCL
+		nname = gdp_gcl_getname(gclh);
+		gdp_gcl_printable_name(*nname, nbuf);
 		snprintf(sbuf, sizeof sbuf,
-			"HTTP/1.1 201 Nexus created\r\n"
+			"HTTP/1.1 201 GCL created\r\n"
 			"Content-Type: application/json\r\n"
 			"\r\n"
 			"{\r\n"
-			"    \"nexus_name\": \"%s\"\r\n"
+			"    \"gcl_name\": \"%s\"\r\n"
 			"}\r\n", nbuf);
 		write_scgi(req, sbuf);
 	    }
@@ -337,39 +340,39 @@ process_scgi_req(scgi_request *req,
     }
     else if (*uri == '\0')
     {
-	// have a bare nexus name
+	// have a bare GCL name
 	if (req->request_method == SCGI_METHOD_GET)
-	    estat = show_nexus(nexpname, req);
+	    estat = show_gcl(gclpname, req);
 	else if (req->request_method == SCGI_METHOD_POST)
 	{
-	    // append value to nexus
-	    nexmsg_t msg;
+	    // append value to GCL
+	    gdp_msg_t msg;
 	    struct sockstate *ss = req->descriptor->cbdata;
 
-	    ep_dbg_cprintf(Dbg, 5, "=== Add value to nexus\n");
+	    ep_dbg_cprintf(Dbg, 5, "=== Add value to GCL\n");
 
-	    // if we don't have an open nexus, get one
+	    // if we don't have an open GCL, get one
 	    estat = EP_STAT_OK;
-	    if (ss->nexdle == NULL)
+	    if (ss->gcl_handle == NULL)
 	    {
-		nname_t nexiname;
+		gcl_name_t gcliname;
 
-		gdp_nexus_internal_name(nexpname, nexiname);
-		estat = gdp_nexus_open(nexiname, GDP_MODE_AO, &ss->nexdle);
+		gdp_gcl_internal_name(gclpname, gcliname);
+		estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &ss->gcl_handle);
 	    }
 	    if (EP_STAT_ISOK(estat))
 	    {
 		memset(&msg, 0, sizeof msg);
 		msg.data = req->body;
 		msg.len = req->scgi_content_length;
-		estat = gdp_nexus_append(ss->nexdle, &msg);
+		estat = gdp_gcl_append(ss->gcl_handle, &msg);
 	    }
 	    if (!EP_STAT_ISOK(estat))
 	    {
 		char ebuf[200];
 
-		gdp_failure(req, "420" "Cannot append to nexus", "ss",
-			"nexus", nexpname,
+		gdp_failure(req, "420" "Cannot append to GCL", "ss",
+			"GCL", gclpname,
 			"error", ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		goto error404;
 	    }
@@ -415,7 +418,7 @@ process_scgi_req(scgi_request *req,
     else if (req->request_method == SCGI_METHOD_GET && is_integer_string(uri))
     {
 	// read message and return result
-	estat = read_msg(nexpname, atol(uri), req);
+	estat = read_msg(gclpname, atol(uri), req);
     }
 #if 0
     else if (req->request_method == SCGI_METHOD_POST)
@@ -489,9 +492,9 @@ fd_freefd_cb(int fd, void *cbdata)
     event_del(ss->event);
     event_free(ss->event);
     
-    // if we have an associated nexdle, close it
-    if (ss->nexdle != NULL)
-	gdp_nexus_close(ss->nexdle);
+    // if we have an associated GCL handle, close it
+    if (ss->gcl_handle != NULL)
+	gdp_gcl_close(ss->gcl_handle);
 
     ep_mem_free(ss);
 }
@@ -516,7 +519,7 @@ main(int argc, char **argv, char **env)
 	    break;
 
 	case 'u':			// URI prefix
-	    NexusUriPrefix = optarg;
+	    GclUriPrefix = optarg;
 	    break;
 	}
     }
@@ -539,8 +542,8 @@ main(int argc, char **argv, char **env)
 	}
     }
 
-    // Initialize the Open Nexus Cache
-    OpenNexusCache = ep_hash_new("Open Nexus Cache", NULL, 0);
+    // Initialize the Open GCL Cache
+    OpenGclCache = ep_hash_new("Open GCL Cache", NULL, 0);
 
     // Initialize SCGI library
     scgi_register_fd_callbacks(fd_newfd_cb, fd_freefd_cb);

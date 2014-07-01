@@ -1,3 +1,5 @@
+/* vim: set ai sw=8 sts=8 :*/
+
 /***********************************************************************
 **	Copyright (c) 2008-2010, Eric P. Allman.  All rights reserved.
 **	$Id: ep_rpool.h 286 2014-04-29 18:15:22Z eric $
@@ -12,7 +14,7 @@
 #ifndef _EP_RPOOL_H_
 #define _EP_RPOOL_H_
 
-# include <ep_mem.h>
+# include <ep/ep_mem.h>
 
 typedef struct EP_RPOOL		EP_RPOOL;
 

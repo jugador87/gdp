@@ -44,7 +44,8 @@
 **	Normally a registry would allocate different modules for
 **	different libraries or applications (obviously applications
 **	can overlap), and detail is for the use of that module or
-**	application.
+**	application.  The module name consisting of all 1 bits
+**	(0xff) is reserved for internal use.
 **
 **	As a special case, a severity code of zero (OK) can also
 **	be used to encode an integer return value of up to 2^31
@@ -66,15 +67,15 @@ typedef struct _ep_stat
 #define _EP_STAT_REGBITS	11
 #define _EP_STAT_MODBITS	8
 
-#if INT_MAX == INT32_MAX
+#if LONG_MAX == INT32_MAX
 # define _EP_STAT_DETBITS	10
 #else
 # define _EP_STAT_DETBITS	42
 #endif
 
-#define EP_STAT_MAX_REGISTRIES	((1 << _EP_STAT_REGBITS) - 1)
-#define EP_STAT_MAX_MODULES	((1 << _EP_STAT_MODBITS) - 1)
-#define EP_STAT_MAX_DETAIL	((1 << _EP_STAT_DETBITS) - 1)
+#define EP_STAT_MAX_REGISTRIES	((1L << _EP_STAT_REGBITS) - 1)
+#define EP_STAT_MAX_MODULES	((1L << _EP_STAT_MODBITS) - 1)
+#define EP_STAT_MAX_DETAIL	((1L << _EP_STAT_DETBITS) - 1)
 
 #define _EP_STAT_MODSHIFT	_EP_STAT_DETBITS
 #define _EP_STAT_REGSHIFT	(_EP_STAT_MODSHIFT + _EP_STAT_MODBITS)
@@ -88,16 +89,16 @@ typedef struct _ep_stat
 
 // constructors for status code
 #define EP_STAT_NEW(s, r, m, d) \
-			((EP_STAT) { ((((s) & ((1 << _EP_STAT_SEVBITS) - 1)) << _EP_STAT_SEVSHIFT) | \
-				      (((r) & ((1 << _EP_STAT_REGBITS) - 1)) << _EP_STAT_REGSHIFT) | \
-				      (((m) & ((1 << _EP_STAT_MODBITS) - 1)) << _EP_STAT_MODSHIFT) | \
-				      (((d) & ((1 << _EP_STAT_DETBITS) - 1)))) } )
+			((EP_STAT) { ((((s) & ((1L << _EP_STAT_SEVBITS) - 1)) << _EP_STAT_SEVSHIFT) | \
+				      (((r) & ((1L << _EP_STAT_REGBITS) - 1)) << _EP_STAT_REGSHIFT) | \
+				      (((m) & ((1L << _EP_STAT_MODBITS) - 1)) << _EP_STAT_MODSHIFT) | \
+				      (((d) & ((1L << _EP_STAT_DETBITS) - 1)))) } )
 
 // routines to extract pieces of error codes
-#define EP_STAT_SEVERITY(c)	(((c).code >> _EP_STAT_SEVSHIFT) & ((1 << _EP_STAT_SEVBITS) - 1))
-#define EP_STAT_REGISTRY(c)	(((c).code >> _EP_STAT_REGSHIFT) & ((1 << _EP_STAT_REGBITS) - 1))
-#define EP_STAT_MODULE(c)	(((c).code >> _EP_STAT_MODSHIFT) & ((1 << _EP_STAT_MODBITS) - 1))
-#define EP_STAT_DETAIL(c)	(((c).code                     ) & ((1 << _EP_STAT_SEVBITS) - 1))
+#define EP_STAT_SEVERITY(c)	(((c).code >> _EP_STAT_SEVSHIFT) & ((1L << _EP_STAT_SEVBITS) - 1))
+#define EP_STAT_REGISTRY(c)	(((c).code >> _EP_STAT_REGSHIFT) & ((1L << _EP_STAT_REGBITS) - 1))
+#define EP_STAT_MODULE(c)	(((c).code >> _EP_STAT_MODSHIFT) & ((1L << _EP_STAT_MODBITS) - 1))
+#define EP_STAT_DETAIL(c)	(((c).code                     ) & ((1L << _EP_STAT_SEVBITS) - 1))
 
 // predicates to query the status severity
 #define EP_STAT_ISOK(c)		(EP_STAT_SEVERITY(c) < EP_STAT_SEV_WARN)
@@ -111,8 +112,8 @@ typedef struct _ep_stat
 #define EP_STAT_IS_SAME(a, b)	((a).code == (b).code)
 
 // casting to and from int
-#define EP_STAT_TO_INT(s)	((s).code)
-#define EP_STAT_FROM_INT(i)	((EP_STAT) { (i) })
+#define EP_STAT_TO_LONG(s)	((s).code)
+#define EP_STAT_FROM_LONG(i)	((EP_STAT) { (i) })
 
 // error checking quick routine, e.g., EP_STAT_CHECK(stat, break);
 #define EP_STAT_CHECK(st, failure) \
@@ -160,6 +161,16 @@ typedef EP_STAT	(*EP_STAT_HANDLER_FUNCP)
 			//char *module,		// calling module
 			const char *defmsg,	// default message
 			va_list av);		// string arguments
+
+struct ep_stat_to_string
+{
+	EP_STAT		estat;		// status code
+	char		*estr;		// string representation
+};
+
+// register stat code to string mappings
+void		ep_stat_reg_strings(
+			struct ep_stat_to_string *);
 
 // return string representation of status
 char		*ep_stat_tostr(

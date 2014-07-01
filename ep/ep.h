@@ -37,16 +37,38 @@ char	*ep_mem_strdup(const char *);
 void	ep_mem_free(void *);
 
 #define EP_GEN_DEADBEEF		((void *) 0xDEADBEEF)
+// ideally this would check valid pointers for this architecture
 #define EP_ASSERT_POINTER_VALID(p) \
 				EP_ASSERT((p) != NULL && (p) != EP_GEN_DEADBEEF)
 
 #define EP_UT_BITSET(bit, word)	(((bit) & (word)) != 0)
 
-extern int		ep_adm_getintparam(const char *name, int def);
-extern long		ep_adm_getlongparam(const char *name, long def);
-extern bool		ep_adm_getboolparam(const char *name, bool def);
-extern const char	*ep_adm_getstrparam(const char *name, const char *def);
+extern int		ep_adm_getintparam(	// get integer param value
+				const char *name,	// name of param
+				int def);		// default value
+extern long		ep_adm_getlongparam(	// get long param value
+				const char *name,	// name of param
+				long def);		// default value
+extern bool		ep_adm_getboolparam(	// get boolean param value
+				const char *name,	// name of param
+				bool def);		// default value
+extern const char	*ep_adm_getstrparam(	// get string param value
+				const char *name,	// name of param
+				const char *def);	// default value
 
-extern FILE		*ep_fopensmem(void *buf, size_t bufsz, const char *mode);
+extern FILE		*ep_fopensmem(		// open a static memory buffer
+				void *buf,		// buffer
+				size_t bufsz,		// size of buffer
+				const char *mode);	// mode, e.g., r, w
+extern size_t		ep_fread_unlocked(	// unlocked version of fread
+				void *buf,		// buffer area
+				size_t sz,		// size of one item
+				size_t n,		// number of items
+				FILE *fp);		// file to read
+extern size_t		ep_fwrite_unlocked(	// unlocked version of fwrite
+				void *buf,		// buffer area
+				size_t sz,		// size of one item
+				size_t n,		// number of items
+				FILE *fp);		// file to write
 
 #endif // _EP_H_

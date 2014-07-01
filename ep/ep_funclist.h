@@ -1,3 +1,5 @@
+/* vim: set ai sw=8 sts=8 :*/
+
 /***********************************************************************
 **	Copyright (c) 2008-2010, Eric P. Allman.  All rights reserved.
 **	$Id: ep_funclist.h 286 2014-04-29 18:15:22Z eric $
