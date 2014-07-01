@@ -46,7 +46,8 @@ ep_b64_enc_len(size_t bsize, const char *encoding)
 		neededlength -= 2 - ((bsize + 2) % 3);
 
 	// add bytes needed for line wrapping
-	neededlength += ((neededlength - 1) / encmaxline(encoding)) * 2;
+	if (encmaxline(encoding) > 0)
+		neededlength += ((neededlength - 1) / encmaxline(encoding)) * 2;
 
 	return neededlength;
 }

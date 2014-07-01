@@ -1345,12 +1345,14 @@ gdp_gcl_printable_name(const gcl_name_t internal, gcl_pname_t external)
 		"gdp_gcl_printable_name: ep_b64_encode failure\n"
 		"\tstat = %s\n",
 		ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	strcpy("(unknown)", external);
     }
-
-    if (EP_STAT_TO_LONG(estat) != 43)
+    else if (EP_STAT_TO_LONG(estat) != 43)
+    {
 	ep_dbg_cprintf(Dbg, 2,
 		"gdp_gcl_printable_name: ep_b64_encode length failure (%ld != 43)\n",
 		EP_STAT_TO_LONG(estat));
+    }
 }
 
 // make a binary GCL name from a printable version
