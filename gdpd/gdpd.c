@@ -1696,14 +1696,13 @@ gdpd_init(int listenport)
 	saddr.sin.sin_family = AF_INET;
 	saddr.sin.sin_addr.s_addr = INADDR_ANY;
 	saddr.sin.sin_port = htons(listenport);
-	saddr.sin.sin_len = sizeof saddr.sin;
 	lev = evconnlistener_new_bind(GdpEventBase,
 		accept_cb,
 		NULL,	    // context
 		LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_THREADSAFE,
 		-1,
 		&saddr.sa,
-		saddr.sin.sin_len);
+		sizeof saddr.sin);
     }
     if (lev == NULL)
 	estat = init_error("gdpd_init: could not create evconnlistener");

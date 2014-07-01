@@ -852,7 +852,6 @@ gdp_init(void)
 	sa.sin_family = AF_INET;
 	sa.sin_addr.s_addr = inet_addr(conn->peername);
 	sa.sin_port = htons(gdpd_port);
-	sa.sin_len = sizeof sa;
 	if (bufferevent_socket_connect(bev, (struct sockaddr *) &sa,
 				    sizeof sa) < 0)
 	{
