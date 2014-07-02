@@ -29,6 +29,8 @@
 EP_DBG	Dbg = EP_DBG_INIT("gdp.pkt", "GDP packet traffic");
 
 
+#define FIXEDHDRSZ  (1 + 1 + 1 + 1 + 4)	    // ver, cmd, flags, reserved1, dlen
+
 /*
 **  GDP_PKT_HDR_INIT --- initialize GDP packet structure
 **
@@ -171,6 +173,14 @@ gdp_pkt_out(gdp_pkt_hdr_t *pp, struct evbuffer *obuf)
 		strerror(errno));
 	estat = GDP_STAT_PKT_WRITE_FAIL;
     }
+    else if (pp->data != NULL && pp->dlen > 0 &&
+	    evbuffer_add(obuf, pp->data, pp->dlen) < 0)
+    {
+	// couldn't write data
+	ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: data write failure: %s\n",
+		strerror(errno));
+	estat = GDP_STAT_PKT_WRITE_FAIL;
+    }
 
     return estat;
 }
@@ -233,10 +243,10 @@ gdp_pkt_in(gdp_pkt_hdr_t *pp, struct evbuffer *ibuf)
     EP_ASSERT_POINTER_VALID(pp);
     memset((void *) pp, 0, sizeof *pp);
 
-    ep_dbg_printf("gdp_pkt_in\n");	// XXX
+    ep_dbg_cprintf(Dbg, 60, "gdp_pkt_in\n");	// XXX
 
     // see if the fixed part of the header is all in
-    needed = 1 + 1 + 1 + 1 + 4;	    // ver, cmd, flags, reserved1, dlen
+    needed = FIXEDHDRSZ;	    // ver, cmd, flags, reserved1, dlen
 
     if (evbuffer_copyout(ibuf, pbuf, needed) < needed)
     {
@@ -365,6 +375,8 @@ static EP_PRFLAGS_DESC	PktFlags[] =
 void
 gdp_pkt_dump_hdr(gdp_pkt_hdr_t *pp, FILE *fp)
 {
+    int len = FIXEDHDRSZ;
+
     fprintf(fp, "Packet @ %p: ver=%d, cmd=%d (%s), r1=%d\n\tflags=",
 		pp, pp->ver, pp->cmd, _gdp_proto_cmd_name(pp->cmd),
 		pp->reserved1);
@@ -373,12 +385,18 @@ gdp_pkt_dump_hdr(gdp_pkt_hdr_t *pp, FILE *fp)
     if (pp->rid == GDP_PKT_NO_RID)
 	fprintf(fp, "(none)");
     else
+    {
 	fprintf(fp, "%016llx", pp->rid);
+	len += sizeof pp->rid;
+    }
     fprintf(fp, ", msgno=");
     if (pp->msgno == GDP_PKT_NO_RECNO)
 	fprintf(fp, "(none)");
     else
+    {
 	fprintf(fp, "%u", pp->msgno);
+	len += sizeof pp->msgno;
+    }
     fprintf(fp, "\n\tgcl_name=");
     if (gdp_gcl_name_is_zero(pp->gcl_name))
 	fprintf(fp, "(none)");
@@ -388,8 +406,11 @@ gdp_pkt_dump_hdr(gdp_pkt_hdr_t *pp, FILE *fp)
 
 	gdp_gcl_printable_name(pp->gcl_name, pname);
 	fprintf(fp, "%s", pname);
+	len += sizeof pp->gcl_name;
     }
     fprintf(fp, "\n\tts=");
     tt_print_interval(&pp->ts, fp, true);
-    fprintf(fp, "\n\tdlen=%u\n", pp->dlen);
+    if (pp->ts.stamp.tv_sec != 0)
+	len += sizeof pp->ts;
+    fprintf(fp, "\n\tdlen=%u; total header=%d\n", pp->dlen, len);
 }

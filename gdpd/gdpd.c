@@ -224,6 +224,9 @@ gcl_handle_save_offset(gcl_handle_t *gclh,
 	    long msgno,
 	    off_t off)
 {
+    ep_dbg_cprintf(Dbg, 8,
+	    "gcl_handle_save_offset: caching msgno %ld offset %lld\n",
+	    msgno, off);
     if (msgno >= gclh->cachesize)
     {
 	// have to allocate more space
@@ -234,6 +237,7 @@ gcl_handle_save_offset(gcl_handle_t *gclh,
 	if (gclh->offcache == NULL)
 	{
 	    // oops, no memory
+	    ep_dbg_cprintf(Dbg, 7, "gcl_handle_save_offset: no memory\n");
 	    return ep_stat_from_errno(errno);
 	}
     }
@@ -241,7 +245,7 @@ gcl_handle_save_offset(gcl_handle_t *gclh,
     if (off != gclh->offcache[msgno] && gclh->offcache[msgno] != 0)
     {
 	// somehow offset has moved.  not a happy camper.
-	fprintf(stderr,
+	gdp_log(EP_STAT_ERROR,
 		"gcl_handle_save_offset: offset for message %ld has moved from %lld to %lld\n",
 		msgno,
 		(long long) gclh->offcache[msgno],
@@ -250,7 +254,8 @@ gcl_handle_save_offset(gcl_handle_t *gclh,
     }
 
     gclh->offcache[msgno] = off;
-    ep_dbg_printf("Caching offset for msgno %ld = %lld\n", msgno, off);
+    if (msgno > gclh->maxmsgno)
+	gclh->maxmsgno = msgno;
     return EP_STAT_OK;
 }
 
@@ -324,7 +329,8 @@ get_gcl_rec(FILE *fp,
 		estat = ep_stat_from_errno(errno);
 	    else
 		estat = EP_STAT_END_OF_FILE;
-	    ep_dbg_cprintf(Dbg, 4, "get_gcl_rec: no msg magic\n");
+	    ep_dbg_cprintf(Dbg, 4, "get_gcl_rec: no msg magic (error=%d)\n",
+		    ferror(fp));
 	    goto fail0;
 	}
     }
@@ -422,24 +428,19 @@ gcl_read(gcl_handle_t *gclh,
 	    struct evbuffer *evb)
 {
     EP_STAT estat = EP_STAT_OK;
-    long seekmsgno;
 
     EP_ASSERT_POINTER_VALID(gclh);
 
     // don't want to read a partial record
     flock(fileno(gclh->fp), LOCK_SH);
 
-    // if we have to go backwards we'll need to start from zero
-    seekmsgno = msgno;
-    if (msgno < gclh->msgno)
-	seekmsgno = 0;
-
     // if we already have a seek offset, use it
-    if (seekmsgno < gclh->maxmsgno && gclh->offcache[seekmsgno] > 0)
+    if (msgno < gclh->maxmsgno && gclh->offcache[msgno] > 0)
     {
-	ep_dbg_printf("DBG Using cached offset %lld for msgno %ld\n",
+	ep_dbg_cprintf(Dbg, 18,
+		"gcl_read: using cached offset %lld for msgno %ld\n",
 		gclh->offcache[msgno], msgno);
-	if (fseek(gclh->fp, gclh->offcache[seekmsgno], SEEK_SET) < 0)
+	if (fseek(gclh->fp, gclh->offcache[msgno], SEEK_SET) < 0)
 	{
 	    estat = ep_stat_from_errno(errno);
 	    goto fail0;
@@ -447,7 +448,7 @@ gcl_read(gcl_handle_t *gclh,
     }
 
     // we may have to skip ahead, hence the do loop
-    ep_dbg_cprintf(Dbg, 7, "Looking for msgno %ld\n", msgno);
+    ep_dbg_cprintf(Dbg, 7, "gcl_read: looking for msgno %ld\n", msgno);
     do
     {
 	if (EP_UT_BITSET(GCL_ASYNC, gclh->flags))
@@ -788,7 +789,7 @@ gcl_append(gcl_handle_t *gclh,
     estat = gcl_handle_save_offset(gclh, ++gclh->msgno,
 				ftell(gclh->fp));
     EP_STAT_CHECK(estat, goto fail0);
-    fprintf(stdout, "Saved offset for msgno %ld\n", gclh->msgno);
+    ep_dbg_cprintf(Dbg, 18, "gcl_append: saved offset for msgno %ld\n", gclh->msgno);
 
     // write the message out
     // TODO: check for errors
