@@ -775,7 +775,8 @@ gcl_append(gcl_handle_t *gclh,
 
     // make sure no write conflicts
     flock(fileno(gclh->fp), LOCK_EX);
-    fprintf(stdout, "Back from locking for message %ld, cachesize %ld\n",
+    ep_dbg_cprintf(Dbg, 49,
+	    "Back from locking for message %ld, cachesize %ld\n",
 	    msg->msgno, gclh->cachesize);
 
     // read any messages that may have been added by another writer
