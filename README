@@ -13,7 +13,8 @@ Required Packages:
 		lighttpd with GDP; from http://www.xamuel.com/scgilib/;
 		slightly modified and included with this distribution)
 	Jansson --- JSON library from http://www.digip.org/jansson/.
-	libevent2 --- Event handling library available from ___XXX___.
+	libevent2 --- Event handling library available from
+		http://libevent.org.
 
 
 Directory Structure:
@@ -30,7 +31,7 @@ Directory Structure:
 		http://www.xamuel.com/scgilib/.  SCGI permits a
 		web server to access outside programs by opening
 		a socket in a manner much more efficient than basic
-		CGI fork/exec.
+		CGI fork/exec.  This is only used for the REST interface.
 	apps --- Application programs, including tests.
 	doc --- Some documentation, woefully incomplete.
 
@@ -63,23 +64,23 @@ Running the GDP RESTful Interface:
 
    2.	Compile the code if you haven't already.
 
-   3.	Create the directory /var/tmp/nexus.  This will hold the data
-	for nexuses that get created.
+   3.	Create the directory /var/tmp/gcl.  This will hold the data
+	for GCLs that get created.
 
-   4.	[Optional] Test the nexus code using apps/writer-test and
+   4.	[Optional] Test the GDP/GCL code using apps/writer-test and
 	apps/reader-test.
 
 	First run writer-test without arguments.  This will create a
-	new nexus in the temporary directory and print its name.  Each
-	line of text you type is added to the nexus as a separate
+	new GCL in the temporary directory and print its name.  Each
+	line of text you type is added to the GCL as a separate
 	message.  Control-D will terminate the program.
 
-	Second run reader-test with the nexus name printed by
-	writer-test as the argument.  This should dump the nexus.  At
+	Second run reader-test with the GCL name printed by
+	writer-test as the argument.  This should dump the GCL.  At
 	the moment it will terminate when it reaches the end of the
-	nexus; there is no "subscribe" interface yet.
+	GCL; there is no "subscribe" interface yet.
 
-	If you're curious you can view the file in /var/tmp/nexus;
+	If you're curious you can view the file in /var/tmp/gcl;
 	it is text.
 
    5.	Start up the GDP RESTful interface server in apps/gdp-rest.
@@ -97,30 +98,30 @@ Running the GDP RESTful Interface:
 	some debugging inside the daemon to help you understand the
 	interactions.  See .../etc/lighttpd/conf.d/debug.conf.
 
-   7.	All of your URIs will start with http://localhost:8080/gdp/v1/nexus,
+   7.	All of your URIs will start with http://localhost:8080/gdp/v1/gcl,
 	so I'll just abbreviate this part as "...".  Your options are:
 
-	* GET .../<nexus-id>/<msg-no>
-		Returns a JSON object with three fields: nexus_name,
+	* GET .../<gcl-name>/<msg-no>
+		Returns a JSON object with three fields: gcl_name,
 		message_number, and value.  Value will have 8-bit
 		characters and those that would break JSON syntax
 		encoded as %XX, where XX is the hex code for the
 		byte.
-	* POST .../<nexus-id>
-		Adds a new message to the given <nexus-id>.  The
+	* POST .../<gcl-name>
+		Adds a new message to the given <gcl-name>.  The
 		value is a JSON object which must at least have a
 		"value" field, which must be encoded as a string.
 		The return value includes the message number in
 		the "msgno" field.
 	* POST ...
-		Creates a new nexus.  The return value will include
+		Creates a new GCL.  The return value will include
 		the name.
 
 	You can do GETs from inside a browser such as Firefox, but not
 	POSTs.  For this you'll need to create a message to send
 	directly to the HTTP server.  For example:
 
-		POST /gdp/v1/nexus/x0_JlrMRD53TaovZ0Mg6LQJzPJYN6tB0tcoSv32UPVk HTTP/1.0
+		POST /gdp/v1/gcl/x0_JlrMRD53TaovZ0Mg6LQJzPJYN6tB0tcoSv32UPVk HTTP/1.0
 		Host: localhost:8080
 		Accept: application/json
 		Accept-Language: en-US,en;q=0.5
@@ -138,15 +139,15 @@ Running the GDP RESTful Interface:
 
 Changing Parameters:
 	If you want to change parameters such as socket numbers or the
-	nexus directory you can do so without recompiling.  Create
+	GCL directory you can do so without recompiling.  Create
 	a file with "name=value" pairs, one per line.  Set the
 	environment variable "APPLICATION_PARAMS" to point at that
 	file (use the full pathname).
 
 	Parameters you can change in that file include:
 
-	gdp.nexus.dir --- the data directory (e.g., /var/tmp/nexus).
+	gdp.gcl.dir --- the data directory (e.g., /var/tmp/gcl).
 	gdp.rest.scgiport --- the port number for the SCGI server to
 		listen on.  If you change this you'll also have to
 		change the lighttpd configuration.
-	gdp.rest.prefix --- the REST prefix (e.g., /gdp/v1/nexus).
+	gdp.rest.prefix --- the REST prefix (e.g., /gdp/v1/gcl).
