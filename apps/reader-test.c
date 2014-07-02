@@ -34,7 +34,7 @@ main(int argc, char **argv)
     if (argc <= 0)
     {
 	fprintf(stderr, "Usage: %s [-D dbgspec] <gcl_name>\n",
-		getprogname());
+		ep_app_getprogname());
 	exit(1);
     }
 

@@ -11,12 +11,12 @@
 #include <scgilib/scgilib.h>
 #include <gdp/gdp.h>
 #include <ep/ep.h>
-#include <ep/ep_stat.h>
-#include <ep/ep_dbg.h>
-#include <ep/ep_pcvt.h>
-#include <ep/ep_xlate.h>
 #include <ep/ep_app.h>
 #include <ep/ep_hash.h>
+#include <ep/ep_dbg.h>
+#include <ep/ep_pcvt.h>
+#include <ep/ep_stat.h>
+#include <ep/ep_xlate.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <sysexits.h>
@@ -550,7 +550,7 @@ main(int argc, char **argv, char **env)
     if (scgi_initialize(listenport))
     {
 	ep_dbg_cprintf(Dbg, 1, "%s: listening for SCGI on port %d\n",
-		getprogname(), listenport);
+		ep_app_getprogname(), listenport);
     }
     else
     {
