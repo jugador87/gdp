@@ -428,11 +428,11 @@ ep_stat_tostr(EP_STAT stat,
 		break;
 
 	  case EP_REGISTRY_NEOPHILIC:
-		rname = "VND$neophilic";
+		rname = "Neophilic";
 		break;
 
 	  case EP_REGISTRY_UCB:
-		rname = "VND$berkeley";
+		rname = "Berkeley";
 		break;
 
 	  case EP_REGISTRY_EPLIB:
@@ -451,7 +451,7 @@ ep_stat_tostr(EP_STAT stat,
 		break;
 
 	  case EP_REGISTRY_USER:
-		rname = "LOCAL-USER";
+		rname = "USER";
 		break;
 
 	  default:
@@ -463,7 +463,7 @@ ep_stat_tostr(EP_STAT stat,
 			pfx = "VND";
 		else
 			pfx = "RESERVED";
-		snprintf(rbuf, sizeof rbuf, "%s$%d", pfx, reg);
+		snprintf(rbuf, sizeof rbuf, "%s-%d", pfx, reg);
 		rname = rbuf;
 		break;
 	}
