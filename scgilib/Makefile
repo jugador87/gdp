@@ -12,4 +12,4 @@ helloworld:	helloworld.o scgilib.o
 scgilib.o:	scgilib.h
 
 clean:
-	-rm ${ALL} *.o
+	-rm -f ${ALL} *.o
