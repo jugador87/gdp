@@ -34,4 +34,4 @@ gdp-rest:	gdp-rest.o ../scgilib/scgilib.o
 ${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 
 clean:
-	-rm ${ALL} *.o *.core
+	-rm -f ${ALL} *.o *.core

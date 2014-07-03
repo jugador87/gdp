@@ -30,4 +30,4 @@ libgdp.a: ${OBJS}
 ${OBJS}: ${HFILES}
 
 clean:
-	-rm ${ALL} *.o *.core
+	-rm -f ${ALL} *.o *.core

@@ -38,4 +38,4 @@ gdpd: ${OBJS}
 ${OBJS}: ${HDEPS} ${LIBDEPS}
 
 clean:
-	-rm ${ALL} *.o *.core
+	-rm -f ${ALL} *.o *.core
