@@ -1,3 +1,9 @@
+apps/gdp-rest
+apps/reader-test
+apps/writer-test
+gdpd/gdpd
+*/tags
+*/.*.swp
 *.o
 *.a
 *~
