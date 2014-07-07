@@ -297,6 +297,9 @@ get_gcl_rec(FILE *fp,
 	//	tx counts through the target pattern, bx through the buffer
 	tx = bx = bstart = bend = 0;
 	offset = ftell(fp);
+	ep_dbg_cprintf(Dbg, 50,
+		"get_gcl_rec: initial offset %ld\n",
+		offset);
 	while (tx < sizeof MSG_MAGIC - 1)
 	{
 	    // if we don't have any input buffered, get some more
@@ -329,8 +332,9 @@ get_gcl_rec(FILE *fp,
 		estat = ep_stat_from_errno(errno);
 	    else
 		estat = EP_STAT_END_OF_FILE;
-	    ep_dbg_cprintf(Dbg, 4, "get_gcl_rec: no msg magic (error=%d)\n",
-		    ferror(fp));
+	    ep_dbg_cprintf(Dbg, 4,
+		    "get_gcl_rec: no msg magic (error=%d, offset=%ld)\n",
+		    ferror(fp), ftell(fp));
 	    goto fail0;
 	}
     }
@@ -554,7 +558,7 @@ gcl_create(gcl_t *gcl_type,
 		pbuf, strerror(errno));
 	goto fail1;
     }
-    gclh->fp = fp = fdopen(fd, "a");
+    gclh->fp = fp = fdopen(fd, "a+");
     if (gclh->fp == NULL)
     {
 	estat = ep_stat_from_errno(errno);
@@ -629,10 +633,12 @@ gcl_open(gcl_name_t gcl_name,
 
 	estat = get_gcl_path(gclh, pbuf, sizeof pbuf);
 	EP_STAT_CHECK(estat, goto fail0);
-	if (mode == GDP_MODE_RO)
-	    openmode = "r";
-	else
+	// temporarily open everything read/append
+//	if (mode == GDP_MODE_RO)
+//	    openmode = "r";
+//	else
 	    openmode = "a+";
+//	openmode = "rw";
 	if ((fp = fopen(pbuf, openmode)) == NULL ||
 	    (flock(fileno(fp), LOCK_SH) < 0))
 	{
@@ -981,7 +987,24 @@ cmd_open_xx(struct bufferevent *bev, conn_t *c,
 
     gclh = gdp_get_gcl_handle(cpkt->gcl_name, iomode);
     if (gclh != NULL)
+    {
+	if (ep_dbg_test(Dbg, 12))
+	{
+	    gcl_pname_t pname;
+
+	    gdp_gcl_printable_name(cpkt->gcl_name, pname);
+	    ep_dbg_printf("cmd_open_xx: using cached handle for %s\n", pname);
+	}
+	rewind(gclh->fp);	// make sure we can switch modes (read/write)
 	return EP_STAT_OK;
+    }
+    if (ep_dbg_test(Dbg, 12))
+    {
+	gcl_pname_t pname;
+
+	gdp_gcl_printable_name(cpkt->gcl_name, pname);
+	ep_dbg_printf("cmd_open_xx: doing initial open for %s\n", pname);
+    }
     estat = gcl_open(cpkt->gcl_name, iomode, &gclh);
     if (EP_STAT_ISOK(estat))
 	gdp_cache_gcl_handle(gclh, iomode);

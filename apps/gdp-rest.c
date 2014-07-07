@@ -17,6 +17,7 @@
 #include <ep/ep_pcvt.h>
 #include <ep/ep_stat.h>
 #include <ep/ep_xlate.h>
+#include <event2/buffer.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <sysexits.h>
@@ -176,7 +177,7 @@ read_msg(char *gclpname, long msgno, scgi_request *req)
     if (!EP_STAT_ISOK(estat))
 	goto fail0;
 
-    revb = gdp_evbuffer_new();
+    revb = evbuffer_new();
 
     estat = gdp_gcl_read(gclh, msgno, &msg, revb);
     if (!EP_STAT_ISOK(estat))
@@ -311,7 +312,7 @@ process_scgi_req(scgi_request *req,
 	    // create a new GCL
 	    ep_dbg_cprintf(Dbg, 5, "=== Create new GCL\n");
 	    gcl_handle_t *gclh;
-	    EP_STAT estat = gdp_gcl_create(NULL, &gclh);
+	    EP_STAT estat = gdp_gcl_create(NULL, NULL, &gclh);
 
 	    if (EP_STAT_ISOK(estat))
 	    {
@@ -542,9 +543,6 @@ main(int argc, char **argv, char **env)
 	}
     }
 
-    // Initialize the Open GCL Cache
-    OpenGclCache = ep_hash_new("Open GCL Cache", NULL, 0);
-
     // Initialize SCGI library
     scgi_register_fd_callbacks(fd_newfd_cb, fd_freefd_cb);
     if (scgi_initialize(listenport))
@@ -559,21 +557,8 @@ main(int argc, char **argv, char **env)
 	return EX_OSERR;
     }
 
-    //TODO: need to listen to other GDP events
-
-    // run the event loop
-#ifdef EVLOOP_NO_EXIT_ON_EMPTY
-    event_base_loop(GdpEventBase, EVLOOP_NO_EXIT_ON_EMPTY);
-#else
-    for (;;)
-    {
-	long evdelay = ep_adm_getintparam("gdp.rest.event.loopdelay", 100000);
-
-	event_base_loop(GdpEventBase, 0);
-	if (evdelay > 0)
-	    usleep(evdelay);			// avoid CPU hogging
-    }
-#endif
+    // do the event loop
+    gdp_event_loop();
 
     // shouldn't return, but if it does....
     return EX_OK;

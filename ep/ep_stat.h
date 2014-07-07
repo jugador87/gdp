@@ -139,17 +139,7 @@ extern EP_STAT	ep_stat_from_errno(int uerrno);
 #define _EP_STAT_INTERNAL(sev, mod, code) \
 		EP_STAT_NEW(EP_STAT_SEV_ ## sev, EP_REGISTRY_EPLIB, mod, code)
 
-// generic status codes
-#define EP_STAT_OK		EP_STAT_NEW(EP_STAT_SEV_OK, 0, 0, 0)
-#define EP_STAT_WARN		_EP_STAT_INTERNAL(WARN, EP_STAT_MOD_GENERIC, 0)
-#define EP_STAT_ERROR		_EP_STAT_INTERNAL(ERROR, EP_STAT_MOD_GENERIC, 0)
-#define EP_STAT_SEVERE		_EP_STAT_INTERNAL(SEVERE, EP_STAT_MOD_GENERIC, 0)
-#define EP_STAT_ABORT		_EP_STAT_INTERNAL(ABORT, EP_STAT_MOD_GENERIC, 0)
-
-// common shared errors
-#define EP_STAT_OUT_OF_MEMORY	_EP_STAT_INTERNAL(SEVERE, EP_STAT_MOD_GENERIC, 1)
-#define EP_STAT_ARG_OUT_OF_RANGE _EP_STAT_INTERNAL(ERROR, EP_STAT_MOD_GENERIC, 2)
-#define EP_STAT_END_OF_FILE	_EP_STAT_INTERNAL(WARN, EP_STAT_MOD_GENERIC, 3)
+#include <ep/ep_statcodes.h>
 
 
 // handle on status handler -- to release later

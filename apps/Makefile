@@ -1,4 +1,4 @@
-ALL=	writer-test reader-test # gdp-rest
+ALL=	writer-test reader-test gdp-rest
 
 INCROOT=..
 LIBROOT=	${INCROOT}

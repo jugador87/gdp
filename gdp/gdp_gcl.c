@@ -67,6 +67,11 @@ typedef struct gdp_conn_ctx
 
 struct bufferevent  *GdpPortBufferEvent;	// our primary protocol port
 
+int		    GdpEventModel;	// API-driven or event-driven
+
+#define GDP_API_DRIVEN		0	// synchronous
+#define GDP_EVENT_DRIVEN	1	// asynchronous
+
 #if 0
 /*
 **  Request Id to RID info mapping
@@ -927,6 +932,10 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
     if (gclh->bev == NULL)
 	gclh->bev = GdpPortBufferEvent;
 
+    ep_dbg_cprintf(Dbg, 43,
+	    "gdp_invoke: cmd=%d, GdpEventModel=%d\n",
+	    cmd, GdpEventModel);
+
     // initialize packet header
     //	XXX should probably allocate a RID here
     //  XXX for now just use the address of the handle as the RID.
@@ -966,13 +975,15 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	    else
 		s = "error";
 	    ep_dbg_cprintf(Dbg, 1, "gdp_invoke: event_base_loop %s\n", s);
+	    break;
 	}
-	//XXX what status will/should we return?
-	if (event_base_got_exit(GdpEventBase))
-	{
-	    ep_dbg_cprintf(Dbg, 1, "gdp_invoke: exiting on loopexit\n");
-	    estat = GDP_STAT_INTERNAL_ERROR;
-	}
+    }
+
+    //XXX what status will/should we return?
+    if (event_base_got_exit(GdpEventBase))
+    {
+	ep_dbg_cprintf(Dbg, 1, "gdp_invoke: exiting on loopexit\n");
+	estat = GDP_STAT_INTERNAL_ERROR;
     }
 
     if (EP_UT_BITSET(GCLH_DONE, gclh->flags))
@@ -1127,19 +1138,13 @@ fail1:
 	ep_mem_free(gclh);
 
     {
-	char ebuf[100];
-
-	//XXX should log
-	fprintf(stderr, "gdp_gcl_open: Couldn't open GCL: %s\n",
-		ep_stat_tostr(estat, ebuf, sizeof ebuf));
-    }
-    if (ep_dbg_test(Dbg, 10))
-    {
 	gcl_pname_t pname;
 	char ebuf[100];
 
 	gdp_gcl_printable_name(gcl_name, pname);
-	ep_dbg_printf("Couldn't open GCL %s: %s\n",
+	gdp_log(estat, "gdp_gcl_open: couldn't open GCL %s", pname);
+	ep_dbg_cprintf(Dbg, 10,
+		"Couldn't open GCL %s: %s\n",
 		pname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
     }
     return estat;
@@ -1398,11 +1403,31 @@ gdp_gcl_name_is_zero(const gcl_name_t gcl_name)
     return true;
 }
 
-/***********************************************************************
-**
-**  XXX PROBLEMS/TO BE DONE XXX:
-**    *	If a duplicate RID comes in on another connection ("B") while
-**	connection "A" is processing it, there is a race condition
-**	on the RIF data structure.
-**
-***********************************************************************/
+
+/*
+**  Base loop to be called for event-driven systems.
+**  Their events should have already been added to GdpEventBase.
+*/
+
+void
+gdp_event_loop(void)
+{
+    long evdelay = ep_adm_getintparam("gdp.rest.event.loopdelay", 100000);
+
+    GdpEventModel = GDP_EVENT_DRIVEN;
+
+    //TODO: need to listen to other GDP events
+
+    // This is in a loop because gdp_invoke may cause a loopbreak.
+    // The only reason to do that is to effectively do a "yield".
+    for (;;)
+    {
+#if defined(EVLOOP_NO_EXIT_ON_EMPTY) && false
+	event_base_loop(GdpEventBase, EVLOOP_NO_EXIT_ON_EMPTY);
+#else
+	event_base_loop(GdpEventBase, EVLOOP_ONCE);
+	if (evdelay > 0)
+	    usleep(evdelay);			// avoid CPU hogging
+#endif
+    }
+}

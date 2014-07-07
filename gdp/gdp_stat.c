@@ -9,7 +9,7 @@
 **  TODO    Verify that these strings are accurate.
 */
 
-struct ep_stat_to_string	stats[] =
+static struct ep_stat_to_string	Stats[] =
 {
     // module name
     { GDP_STAT_NEW(OK, 0),		"Swarm-GDP",			},
@@ -28,11 +28,13 @@ struct ep_stat_to_string	stats[] =
     { GDP_STAT_UNKNOWN_RID,		"request id unknown",		},
     { GDP_STAT_INTERNAL_ERROR,		"GDP internal error",		},
     { GDP_STAT_BAD_IOMODE,		"GDP bad I/O mode",		},
+
+    // end of list sentinel
     { EP_STAT_OK,			NULL				},
 };
 
 void
 gdp_stat_init(void)
 {
-    ep_stat_reg_strings(stats);
+    ep_stat_reg_strings(Stats);
 }
