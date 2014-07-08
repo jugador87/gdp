@@ -1,0 +1,5 @@
+To generate PDFs from the .DBK documents, install the following packages:
+    xsltproc
+    docbook-xsl-ns
+    docbook5-xml
+    fop
