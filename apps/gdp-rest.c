@@ -557,9 +557,6 @@ main(int argc, char **argv, char **env)
 	return EX_OSERR;
     }
 
-    // do the event loop
-    gdp_event_loop();
-
     // shouldn't return, but if it does....
     return EX_OK;
 }

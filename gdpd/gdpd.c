@@ -8,6 +8,7 @@
 #include <gdp/gdp_protocol.h>
 #include <gdp/gdp_stat.h>
 #include <gdp/gdp_priv.h>
+#include <pthread.h>
 #include <ep/ep.h>
 #include <ep/ep_app.h>
 #include <ep/ep_b64.h>
@@ -19,6 +20,7 @@
 #include <event2/event.h>
 #include <event2/bufferevent.h>
 #include <event2/listener.h>
+#include <event2/thread.h>
 #include <event2/util.h>
 #include <arpa/inet.h>
 #include <sys/file.h>
@@ -79,23 +81,6 @@ static const char	*GCLDir;	// the gcl data directory
 
 #define INITIAL_MSG_OFFCACHE	256	// initial size of offset cache
 
-struct gcl_handle_t
-{
-    gcl_name_t	    gcl_name;		// the internal name
-    gdp_iomode_t    iomode;		// read only or append only
-    long	    ver;		// version number of on-disk file
-    FILE	    *fp;		// the stdio file pointer
-    long	    msgno;		// last msgno actually seen
-    long	    maxmsgno;		// max msgno that we have read/written
-    struct evbuffer *evb;		// for holding output data
-    off_t	    *offcache;		// offsets of records we have seen
-    long	    cachesize;		// size of allocated offcache array
-    uint32_t	    flags;		// see below
-};
-
-// GCL Handle flags
-#define GCL_ASYNC	    0x00000001	// do async I/O on this GCL Handle
-
 #define GCL_NEXT_MSG	    (-1)	// sentinel for next available message
 
 
@@ -146,8 +131,8 @@ gcl_handle_new(gcl_handle_t **pgclh)
 	goto fail1;
 
     // get space to store output, e.g., for processing reads
-    gclh->evb = evbuffer_new();
-    if (gclh->evb == NULL)
+    gclh->revb = evbuffer_new();
+    if (gclh->revb == NULL)
 	goto fail1;
 
     // success
@@ -172,6 +157,10 @@ create_gcl_name(gcl_name_t np)
     evutil_secure_rng_get_bytes(np, sizeof (gcl_name_t));
 }
 
+
+/*
+**  GCL_PRINT --- print a GCL for debugging
+*/
 
 EP_STAT
 gcl_print(
@@ -291,7 +280,7 @@ get_gcl_rec(FILE *fp,
 	int bstart;		// buffer offset for start of test string
 	int bend;		// buffer offset for end of test string
 	int c = 0;		// current test character
-	char magicbuf[16];    // must be larger than target pattern
+	char magicbuf[16];	// must be larger than target pattern
 
 	// scan the stream for the message marker
 	//	tx counts through the target pattern, bx through the buffer
@@ -413,7 +402,7 @@ fail0:
 
 
 /*
-**  GDP_GCL_READ --- read a message from a gcl
+**  GCL_READ --- read a message from a gcl
 **
 **	In theory we should be positioned at the head of the next message.
 **	But that might not be the correct message.  If we have specified a
@@ -455,7 +444,7 @@ gcl_read(gcl_handle_t *gclh,
     ep_dbg_cprintf(Dbg, 7, "gcl_read: looking for msgno %ld\n", msgno);
     do
     {
-	if (EP_UT_BITSET(GCL_ASYNC, gclh->flags))
+	if (EP_UT_BITSET(GCLH_ASYNC, gclh->flags))
 	{
 	    fd_set inset;
 	    struct timeval zerotime = { 0, 0 };
@@ -497,7 +486,8 @@ gcl_read(gcl_handle_t *gclh,
 	if (msg->msgno < msgno)
 	{
 	    ep_dbg_cprintf(Dbg, 3, "Skipping msg->msgno %ld\n", msg->msgno);
-	    (void) evbuffer_drain(evb, UINT32_MAX);
+	    if (evb != NULL)
+		(void) evbuffer_drain(evb, evbuffer_get_length(evb));
 	}
     } while (msg->msgno < msgno);
 
@@ -519,15 +509,12 @@ fail0:
 /************************  PUBLIC  ************************/
 
 /*
-**  GDP_GCL_CREATE --- create a new gcl
-**
-**	Right now we cheat.  No network gcl need apply.
+**  GCL_CREATE --- create a new gcl
 */
 
 EP_STAT
-gcl_create(gcl_t *gcl_type,
-		gcl_handle_t **pgclh,
-		gcl_name_t gcl_name)
+gcl_create(gcl_name_t gcl_name,
+	gcl_handle_t **pgclh)
 {
     gcl_handle_t *gclh = NULL;
     EP_STAT estat = EP_STAT_OK;
@@ -543,8 +530,7 @@ gcl_create(gcl_t *gcl_type,
     // allocate a name
     if (gdp_gcl_name_is_zero(gcl_name))
 	create_gcl_name(gcl_name);
-    else
-	memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
+    memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
 
     // create a file node representing the gcl
     // XXX: this is where we start to seriously cheat
@@ -752,9 +738,9 @@ gcl_close(gcl_handle_t *gclh)
     {
 	fclose(gclh->fp);
     }
-    evbuffer_free(gclh->evb);
+    evbuffer_free(gclh->revb);
     ep_mem_free(gclh->offcache);
-    gdp_drop_gcl_handle(gclh->gcl_name, 0);
+    gdp_gcl_cache_drop(gclh->gcl_name, 0);
     ep_mem_free(gclh);
 
     return estat;
@@ -844,7 +830,7 @@ gcl_sub_event_cb(evutil_socket_t fd,
     struct gdp_cb_arg *cba = cbarg;
 
     // get the next message from this GCL Handle
-    estat = gcl_read(cba->gclh, GCL_NEXT_MSG, &msg, cba->gclh->evb);
+    estat = gcl_read(cba->gclh, GCL_NEXT_MSG, &msg, cba->gclh->revb);
     if (EP_STAT_ISOK(estat))
 	(*cba->cbfunc)(cba->gclh, &msg, cba->cbarg);
     //XXX;
@@ -929,16 +915,6 @@ gcl_msg_print(const gdp_msg_t *msg,
     fprintf(fp, "\n  %s%.*s%s\n", EpChar->lquote, i, msg->data, EpChar->rquote);
 }
 
-/*
-**  GET_GCL --- get an open GCL Handle
-**
-**	If there is a cached version of a GCL Handle of the particular mode
-**	(GDP_MODE_RO or GDP_MODE_AO), return it directly.  Otherwise, if
-**	the mode requested is GDP_MODE_ANY, return 
-*/
-
-//XXX
-
 
 /*
 **  GDPD_GCL_ERROR --- helper routine for returning errors
@@ -965,11 +941,12 @@ cmd_create(struct bufferevent *bev, conn_t *c,
     EP_STAT estat;
     gcl_handle_t *gclh;
 
-    estat = gcl_create(NULL, &gclh, cpkt->gcl_name);
+    estat = gcl_create(cpkt->gcl_name, &gclh);
     if (EP_STAT_ISOK(estat))
     {
 	// cache the open GCL Handle for possible future use
-	gdp_cache_gcl_handle(gclh, GDP_MODE_AO);
+	EP_ASSERT_INSIST(!gdp_gcl_name_is_zero(gclh->gcl_name));
+	gdp_gcl_cache_add(gclh, GDP_MODE_AO);
 
 	// pass the name back to the caller
 	memcpy(rpkt->gcl_name, gclh->gcl_name, sizeof rpkt->gcl_name);
@@ -985,7 +962,7 @@ cmd_open_xx(struct bufferevent *bev, conn_t *c,
     EP_STAT estat;
     gcl_handle_t *gclh;
 
-    gclh = gdp_get_gcl_handle(cpkt->gcl_name, iomode);
+    gclh = gdp_gcl_cache_get(cpkt->gcl_name, iomode);
     if (gclh != NULL)
     {
 	if (ep_dbg_test(Dbg, 12))
@@ -1007,7 +984,7 @@ cmd_open_xx(struct bufferevent *bev, conn_t *c,
     }
     estat = gcl_open(cpkt->gcl_name, iomode, &gclh);
     if (EP_STAT_ISOK(estat))
-	gdp_cache_gcl_handle(gclh, iomode);
+	gdp_gcl_cache_add(gclh, iomode);
     return estat;
 }
 
@@ -1034,7 +1011,7 @@ cmd_close(struct bufferevent *bev, conn_t *c,
 {
     gcl_handle_t *gclh;
 
-    gclh = gdp_get_gcl_handle(cpkt->gcl_name, GDP_MODE_ANY);
+    gclh = gdp_gcl_cache_get(cpkt->gcl_name, GDP_MODE_ANY);
     if (gclh == NULL)
     {
 	return gdpd_gcl_error(cpkt->gcl_name, "cmd_close: GCL not open",
@@ -1052,14 +1029,14 @@ cmd_read(struct bufferevent *bev, conn_t *c,
     gdp_msg_t msg;
     EP_STAT estat;
 
-    gclh = gdp_get_gcl_handle(cpkt->gcl_name, GDP_MODE_RO);
+    gclh = gdp_gcl_cache_get(cpkt->gcl_name, GDP_MODE_RO);
     if (gclh == NULL)
     {
 	return gdpd_gcl_error(cpkt->gcl_name, "cmd_read: GCL not open",
 			    GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
     }
 
-    estat = gcl_read(gclh, cpkt->msgno, &msg, gclh->evb);
+    estat = gcl_read(gclh, cpkt->msgno, &msg, gclh->revb);
     EP_STAT_CHECK(estat, goto fail0);
     rpkt->dlen = EP_STAT_TO_LONG(estat);
 
@@ -1081,7 +1058,7 @@ cmd_publish(struct bufferevent *bev, conn_t *c,
     EP_STAT estat;
     int i;
 
-    gclh = gdp_get_gcl_handle(cpkt->gcl_name, GDP_MODE_AO);
+    gclh = gdp_gcl_cache_get(cpkt->gcl_name, GDP_MODE_AO);
     if (gclh == NULL)
     {
 	return gdpd_gcl_error(cpkt->gcl_name, "cmd_publish: GCL not open",
@@ -1125,7 +1102,7 @@ cmd_subscribe(struct bufferevent *bev, conn_t *c,
 {
     gcl_handle_t *gclh;
 
-    gclh = gdp_get_gcl_handle(cpkt->gcl_name, GDP_MODE_RO);
+    gclh = gdp_gcl_cache_get(cpkt->gcl_name, GDP_MODE_RO);
     if (gclh == NULL)
     {
 	return gdpd_gcl_error(cpkt->gcl_name, "cmd_subscribe: GCL not open",
@@ -1514,16 +1491,17 @@ lev_read_cb(struct bufferevent *bev, void *ctx)
     {
 	gcl_handle_t *gclh;
 
-	gclh = gdp_get_gcl_handle(rpktbuf.gcl_name, 0);
+	gclh = gdp_gcl_cache_get(rpktbuf.gcl_name, 0);
 	if (gclh != NULL)
-	    evb = gclh->evb;
-
-	if (ep_dbg_test(Dbg, 40))
 	{
-	    gcl_pname_t pname;
+	    evb = gclh->revb;
+	    if (ep_dbg_test(Dbg, 40))
+	    {
+		gcl_pname_t pname;
 
-	    gdp_gcl_printable_name(gclh->gcl_name, pname);
-	    ep_dbg_printf("lev_read_cb: using evb %p from %s\n", evb, pname);
+		gdp_gcl_printable_name(gclh->gcl_name, pname);
+		ep_dbg_printf("lev_read_cb: using evb %p from %s\n", evb, pname);
+	    }
 	}
     }
 
@@ -1615,9 +1593,16 @@ accept_cb(struct evconnlistener *lev,
 {
     struct event_base *evbase = evconnlistener_get_base(lev);
     struct bufferevent *bev = bufferevent_socket_new(evbase, sockfd,
-						BEV_OPT_CLOSE_ON_FREE);
+		    BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
     union sockaddr_xx saddr;
     socklen_t slen = sizeof saddr;
+
+    if (bev == NULL)
+    {
+	gdp_log(ep_stat_from_errno(errno),
+		"accept_cb: could not allocate bufferevent");
+	return;
+    }
 
     if (getpeername(sockfd, &saddr.sa, &slen) < 0)
     {
@@ -1693,6 +1678,9 @@ gdpd_init(int listenport)
     EP_STAT estat = EP_STAT_OK;
     struct evconnlistener *lev;
 
+    if (evthread_use_pthreads() < 0)
+	return init_error("evthread_use_pthreads failed");
+
     if (GdpEventBase == NULL)
     {
 	// Initialize the EVENT library
@@ -1709,7 +1697,7 @@ gdpd_init(int listenport)
 	event_config_free(ev_cfg);
     }
 
-    gdp_init_gcl_cache();
+    gdp_gcl_cache_init();
 
     // set up the incoming evconnlistener
     if (listenport <= 0)
@@ -1733,8 +1721,24 @@ gdpd_init(int listenport)
 	estat = init_error("gdpd_init: could not create evconnlistener");
     else
 	evconnlistener_set_error_cb(lev, listener_error_cb);
-    ep_dbg_cprintf(Dbg, 1, "gdpd_init: listening on port %d\n", listenport);
 
+    // create a thread to run the event loop
+    estat = _gdp_start_event_loop_thread(GdpEventBase);
+    EP_STAT_CHECK(estat, goto fail1);
+
+    // success!
+    ep_dbg_cprintf(Dbg, 1, "gdpd_init: listening on port %d\n", listenport);
+    goto done;
+
+fail1:
+    {
+	char ebuf[200];
+
+	ep_dbg_cprintf(Dbg, 1, "gdpd_init: failed with stat %s\n",
+		ep_stat_tostr(estat, ebuf, sizeof ebuf));
+    }
+
+done:
     return estat;
 }
 
@@ -1778,5 +1782,6 @@ main(int argc, char **argv)
 		ep_stat_tostr(estat, ebuf, sizeof ebuf));
     }
 
-    event_base_loop(GdpEventBase, 0);
+    // for the moment the parent thread isn't needed
+    pthread_exit(NULL);
 }

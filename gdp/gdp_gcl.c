@@ -11,8 +11,10 @@
 #include <ep/ep_dbg.h>
 #include <ep/ep_hash.h>
 #include <ep/ep_string.h>
-#include <event2/event.h>
+#include <pthread.h>
 #include <event2/bufferevent.h>
+#include <event2/event.h>
+#include <event2/thread.h>
 #include <event2/util.h>
 #include <sys/file.h>
 #include <sys/socket.h>
@@ -35,27 +37,6 @@
 /************************  PRIVATE  ************************/
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl", "GCL interface to GDP");
-
-
-/*
-**  A handle on an open GCL.
-*/
-
-struct gcl_handle_t
-{
-    gcl_name_t		gcl_name;	// the internal name
-    gdp_iomode_t	iomode;		// read only or append only
-    long		msgno;		// last msgno actually seen
-    struct bufferevent	*bev;		// I/O handle, including buffers
-    struct evbuffer	*rbuffer;	// buffer for return results
-    uint32_t		flags;		// see below
-    EP_STAT		estat;		// status code from last operation
-};
-
-// GCL flags
-#define GCLH_DONE	    0x00000001	// operation complete
-
-#define GCL_NEXT_MSG	    -1		// sentinel for next available message
 
 
 typedef struct gdp_conn_ctx
@@ -200,7 +181,7 @@ drop_all_rid_info(conn_t *conn)
 static EP_HASH	    *OpenGCLCache;
 
 gcl_handle_t *
-gdp_get_gcl_handle(gcl_name_t gcl_name, gdp_iomode_t mode)
+gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 {
     gcl_handle_t *gclh;
 
@@ -211,15 +192,19 @@ gdp_get_gcl_handle(gcl_name_t gcl_name, gdp_iomode_t mode)
 	gcl_pname_t pbuf;
 
 	gdp_gcl_printable_name(gcl_name, pbuf);
-	ep_dbg_printf("gdp_get_gcl_handle: %s => %p\n", pbuf, gclh);
+	ep_dbg_printf("gdp_gcl_cache_get: %s => %p\n", pbuf, gclh);
     }
     return gclh;
 }
 
 
 void
-gdp_cache_gcl_handle(gcl_handle_t *gclh, gdp_iomode_t mode)
+gdp_gcl_cache_add(gcl_handle_t *gclh, gdp_iomode_t mode)
 {
+    // sanity checks
+    EP_ASSERT_POINTER_VALID(gclh);
+    EP_ASSERT_REQUIRE(!gdp_gcl_name_is_zero(gclh->gcl_name));
+
     // save it in the cache
     (void) ep_hash_insert(OpenGCLCache,
 			sizeof (gcl_name_t), &gclh->gcl_name, gclh);
@@ -228,13 +213,13 @@ gdp_cache_gcl_handle(gcl_handle_t *gclh, gdp_iomode_t mode)
 	gcl_pname_t pbuf;
 
 	gdp_gcl_printable_name(gclh->gcl_name, pbuf);
-	ep_dbg_printf("gdp_cache_gcl_handle: added %s => %p\n", pbuf, gclh);
+	ep_dbg_printf("gdp_gcl_cache_add: added %s => %p\n", pbuf, gclh);
     }
 }
 
 
 void
-gdp_drop_gcl_handle(gcl_name_t gcl_name, gdp_iomode_t mode)
+gdp_gcl_cache_drop(gcl_name_t gcl_name, gdp_iomode_t mode)
 {
     gcl_handle_t *gclh;
 
@@ -244,13 +229,13 @@ gdp_drop_gcl_handle(gcl_name_t gcl_name, gdp_iomode_t mode)
 	gcl_pname_t pbuf;
 
 	gdp_gcl_printable_name(gclh->gcl_name, pbuf);
-	ep_dbg_printf("gdp_drop_gcl_handle: dropping %s => %p\n", pbuf, gclh);
+	ep_dbg_printf("gdp_gcl_cache_drop: dropping %s => %p\n", pbuf, gclh);
     }
 }
 
 
 EP_STAT
-gdp_init_gcl_cache(void)
+gdp_gcl_cache_init(void)
 {
     EP_STAT estat = EP_STAT_OK;
 
@@ -260,8 +245,8 @@ gdp_init_gcl_cache(void)
 	if (OpenGCLCache == NULL)
 	{
 	    estat = ep_stat_from_errno(errno);
-	    gdp_log(estat, "gdp_init_gcl_cache: could not create OpenGCLCache");
-	    ep_app_abort("gdp_init_gcl_cache: could not create OpenGCLCache");
+	    gdp_log(estat, "gdp_gcl_cache_init: could not create OpenGCLCache");
+	    ep_app_abort("gdp_gcl_cache_init: could not create OpenGCLCache");
 	}
     }
     return estat;
@@ -290,7 +275,7 @@ ack_success(gdp_pkt_hdr_t *pkt,
 	if (gdp_gcl_name_is_zero(gclh->gcl_name))
 	    memcpy(gclh->gcl_name, pkt->gcl_name, sizeof gclh->gcl_name);
 
-	if (gclh->rbuffer != NULL)
+	if (gclh->revb != NULL)
 	{
 	    while (tocopy > 0)
 	    {
@@ -303,7 +288,7 @@ ack_success(gdp_pkt_hdr_t *pkt,
 		i = evbuffer_remove(bufferevent_get_input(bev), xbuf, len);
 		if (i > 0)
 		{
-		    evbuffer_add(gclh->rbuffer, xbuf, i);
+		    evbuffer_add(gclh->revb, xbuf, i);
 		    tocopy -= i;
 		}
 		else
@@ -688,7 +673,7 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 //    }
     if (EP_UT_BITSET(GDP_PKT_HAS_ID, pkt.flags))
     {
-	gclh = gdp_get_gcl_handle(pkt.gcl_name, 0);
+	gclh = gdp_gcl_cache_get(pkt.gcl_name, 0);
 	if (gclh == NULL)
 	{
 	    gcl_pname_t pbuf;
@@ -713,6 +698,7 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 //	drop_rid_mapping(pkt.rid, conn);
 
     // return our status via the GCL handle
+    pthread_mutex_lock(&gclh->mutex);
     gclh->estat = estat;
     gclh->flags |= GCLH_DONE;
     if (ep_dbg_test(Dbg, 44))
@@ -724,6 +710,8 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 	ep_dbg_printf("gdp_read_cb: returning stat %s\n\tGCL %s\n",
 		ep_stat_tostr(estat, ebuf, sizeof ebuf), pbuf);
     }
+    pthread_cond_signal(&gclh->cond);
+    pthread_mutex_unlock(&gclh->mutex);
 
     // shouldn't have to use event_base_loop{exit,break} here because
     // event_base_loop should have been called with EVLOOP_ONCE
@@ -754,6 +742,66 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 
 
 /*
+**  INITIALIZATION ROUTINES
+*/
+
+static EP_STAT
+init_error(const char *msg)
+{
+    int eno = errno;
+    EP_STAT estat = ep_stat_from_errno(eno);
+
+    gdp_log(estat, "gdp_init: %s", msg);
+    ep_app_error("gdp_init: %s: %s", msg, strerror(eno));
+    return estat;
+}
+
+
+/*
+**  Base loop to be called for event-driven systems.
+**  Their events should have already been added to the event base.
+*/
+
+static pthread_t    EventLoopThread;
+
+static void *
+run_event_loop(void *ctx)
+{
+    struct event_base *evb = ctx;
+    long evdelay = ep_adm_getintparam("gdp.rest.event.loopdelay", 100000);
+
+    for (;;)
+    {
+	if (ep_dbg_test(Dbg, 20))
+	{
+	    ep_dbg_printf("gdp_event_loop: starting up base loop\n");
+	    event_base_dump_events(evb, ep_dbg_getfile());
+	}
+//#ifdef EVLOOP_NO_EXIT_ON_EMPTY
+//	event_base_loop(evb, EVLOOP_NO_EXIT_ON_EMPTY);
+//#else
+//	event_base_loop(evb, 0);
+//#endif
+	event_base_loop(evb, EVLOOP_ONCE);
+	// shouldn't happen (?)
+	ep_dbg_cprintf(Dbg, 1, "gdp_event_loop: event_base_loop returned\n");
+	if (evdelay > 0)
+	    usleep(evdelay);			// avoid CPU hogging
+    }
+}
+
+
+EP_STAT
+_gdp_start_event_loop_thread(struct event_base *evb)
+{
+    if (pthread_create(&EventLoopThread, NULL, run_event_loop, evb) != 0)
+	return init_error("cannot create event loop thread");
+    else
+	return EP_STAT_OK;
+}
+
+
+/*
 **  GDP_INIT --- initialize this library
 */
 
@@ -772,18 +820,6 @@ evlib_log_cb(int severity, const char *msg)
     ep_dbg_cprintf(EvlibDbg, (4 - severity) * 10, "[%s] %s\n", sev, msg);
 }
 
-
-static EP_STAT
-init_error(const char *msg)
-{
-    int eno = errno;
-    EP_STAT estat = ep_stat_from_errno(eno);
-
-    gdp_log(estat, "gdp_init: %s", msg);
-    ep_app_error("gdp_init: %s: %s", msg, strerror(eno));
-    return estat;
-}
-
 EP_STAT
 gdp_init(void)
 {
@@ -800,6 +836,10 @@ gdp_init(void)
 
     // register status strings
     gdp_stat_init();
+
+    // tell it we're using pthreads
+    if (evthread_use_pthreads() < 0)
+	return init_error("cannot use pthreads");
 
     // set up the event base
     if (GdpEventBase == NULL)
@@ -827,13 +867,13 @@ gdp_init(void)
 	}
     }
 
-    estat = gdp_init_gcl_cache();
+    estat = gdp_gcl_cache_init();
     EP_STAT_CHECK(estat, goto fail0);
 
     // set up the bufferevent
     bev = bufferevent_socket_new(GdpEventBase,
-				-1,
-				BEV_OPT_CLOSE_ON_FREE);
+			-1,
+			BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
     if (bev == NULL)
     {
 	estat = init_error("could not allocate bufferevent");
@@ -850,7 +890,7 @@ gdp_init(void)
 	conn->peername = ep_adm_getstrparam("swarm.gdp.controlhost",
 					"127.0.0.1");
 	bufferevent_setcb(bev, gdp_read_cb, NULL, gdp_event_cb, conn);
-	bufferevent_enable(bev, EV_READ);
+	bufferevent_enable(bev, EV_READ | EV_WRITE);
 
 	// TODO at the moment just attaches to localhost; should
 	//	do discovery or at least have a run time parameter
@@ -865,6 +905,10 @@ gdp_init(void)
 	}
 	GdpPortBufferEvent = bev;
     }
+
+    // create a thread to run the event loop
+    estat = _gdp_start_event_loop_thread(GdpEventBase);
+    EP_STAT_CHECK(estat, goto fail1);
 
     ep_dbg_cprintf(Dbg, 4, "gdp_init: success\n");
     return estat;
@@ -901,6 +945,8 @@ gcl_handle_new(gcl_handle_t **pgclh)
     gclh = ep_mem_zalloc(sizeof *gclh);
     if (gclh == NULL)
 	goto fail1;
+    pthread_mutex_init(&gclh->mutex, NULL);
+    pthread_cond_init(&gclh->cond, NULL);
 
     // success
     *pgclh = gclh;
@@ -929,9 +975,6 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 
     EP_ASSERT_POINTER_VALID(gclh);
 
-    if (gclh->bev == NULL)
-	gclh->bev = GdpPortBufferEvent;
-
     ep_dbg_cprintf(Dbg, 43,
 	    "gdp_invoke: cmd=%d, GdpEventModel=%d\n",
 	    cmd, GdpEventModel);
@@ -946,37 +989,28 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	pkt.ts = msg->ts;
 
     // register this handle so we can process the results
-    gdp_cache_gcl_handle(gclh, 0);
+    gdp_gcl_cache_add(gclh, 0);
 
     // write the message out
+    pthread_mutex_lock(&gclh->mutex);
     gclh->flags &= ~GCLH_DONE;
+    pthread_cond_signal(&gclh->cond);
+    pthread_mutex_unlock(&gclh->mutex);
     if (msg != NULL)
     {
 	pkt.dlen = msg->len;
 	pkt.data = msg->data;
 	pkt.msgno = msg->msgno;
     }
-    estat = gdp_pkt_out(&pkt, bufferevent_get_output(gclh->bev));
+    estat = gdp_pkt_out(&pkt, bufferevent_get_output(GdpPortBufferEvent));
     EP_STAT_CHECK(estat, goto fail0);
 
     // run the event loop until we have a result
+    ep_dbg_cprintf(Dbg, 37, "gdp_invoke: waiting\n");
+    pthread_mutex_lock(&gclh->mutex);
     while (!EP_UT_BITSET(GCLH_DONE, gclh->flags))
     {
-	ep_dbg_cprintf(Dbg, 37, "gdp_invoke: running event_base_loop\n");
-	// XXX check return value here?
-	if (event_base_loop(GdpEventBase, EVLOOP_ONCE) < 0)
-	{
-	    char *s;
-
-	    if (event_base_got_exit(GdpEventBase))
-		s = "exit";
-	    else if (event_base_got_break(GdpEventBase))
-		s = "break";
-	    else
-		s = "error";
-	    ep_dbg_cprintf(Dbg, 1, "gdp_invoke: event_base_loop %s\n", s);
-	    break;
-	}
+	pthread_cond_wait(&gclh->cond, &gclh->mutex);
     }
 
     //XXX what status will/should we return?
@@ -990,6 +1024,7 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	estat = gclh->estat;
 
     // ok, done!
+    pthread_mutex_unlock(&gclh->mutex);
 fail0:
     {
 	char ebuf[200];
@@ -1168,8 +1203,10 @@ gdp_gcl_close(gcl_handle_t *gclh)
     //XXX should probably check status
 
     // release resources held by this handle
+    pthread_mutex_destroy(&gclh->mutex);
+    pthread_cond_destroy(&gclh->cond);
 //    free_all_mappings(gclh->rids);
-    gdp_drop_gcl_handle(gclh->gcl_name, 0);
+    gdp_gcl_cache_drop(gclh->gcl_name, 0);
     ep_mem_free(gclh);
     return estat;
 }
@@ -1212,7 +1249,7 @@ gdp_gcl_read(gcl_handle_t *gclh,
 
     msg->msgno = msgno;
     msg->len = 0;
-    gclh->rbuffer = revb;
+    gclh->revb = revb;
     estat = gdp_invoke(GDP_CMD_READ, gclh, msg);
 
     // ok, done!
@@ -1389,7 +1426,12 @@ gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
     return estat;
 }
 
-// test whether a GCL name is all zero
+/*
+**  GDP_GCL_NAME_IS_ZERO --- test whether a GCL name is all zero
+**
+**	We assume that this means "no name".
+*/
+
 bool
 gdp_gcl_name_is_zero(const gcl_name_t gcl_name)
 {
@@ -1404,30 +1446,18 @@ gdp_gcl_name_is_zero(const gcl_name_t gcl_name)
 }
 
 
-/*
-**  Base loop to be called for event-driven systems.
-**  Their events should have already been added to GdpEventBase.
-*/
-
+#if 0
 void
-gdp_event_loop(void)
+gdp_event_loop(struct event_base *evb)
 {
-    long evdelay = ep_adm_getintparam("gdp.rest.event.loopdelay", 100000);
-
     GdpEventModel = GDP_EVENT_DRIVEN;
+    if (evb == NULL)
+	evb = GdpEventBase;
 
     //TODO: need to listen to other GDP events
 
-    // This is in a loop because gdp_invoke may cause a loopbreak.
-    // The only reason to do that is to effectively do a "yield".
-    for (;;)
-    {
-#if defined(EVLOOP_NO_EXIT_ON_EMPTY) && false
-	event_base_loop(GdpEventBase, EVLOOP_NO_EXIT_ON_EMPTY);
-#else
-	event_base_loop(GdpEventBase, EVLOOP_ONCE);
-	if (evdelay > 0)
-	    usleep(evdelay);			// avoid CPU hogging
-#endif
-    }
+    pthread_create(&EventLoopThread, NULL, do_ev_loop, evb);
+
+    // parent returns to caller for API functionality
 }
+#endif

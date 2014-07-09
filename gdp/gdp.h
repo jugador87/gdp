@@ -165,7 +165,4 @@ EP_STAT	gdp_gcl_internal_name(
 		const gcl_pname_t external,
 		gcl_name_t internal);
 
-// run the event loop for event-driven programs
-void		gdp_event_loop(void);
-
 #endif // _GDP_H_

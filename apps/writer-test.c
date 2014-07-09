@@ -1,6 +1,7 @@
 /* vim: set ai sw=4 sts=4 : */
 
 #include <gdp/gdp.h>
+#include <ep/ep_app.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_string.h>
 #include <unistd.h>
@@ -31,7 +32,12 @@ main(int argc, char **argv)
 	}
     }
 
-    gdp_init();
+    estat = gdp_init();
+    if (!EP_STAT_ISOK(estat))
+    {
+	ep_app_error("GDP Initialization failed");
+	goto fail0;
+    }
 
     if (gclpname == NULL)
     {
@@ -45,7 +51,7 @@ main(int argc, char **argv)
 	gdp_gcl_internal_name(gclpname, gcliname);
 	estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gclh);
     }
-    EP_STAT_CHECK(estat, goto fail1);
+    EP_STAT_CHECK(estat, goto fail0);
     gdp_gcl_print(gclh, stdout, 0, 0);
     fprintf(stdout, "\nStarting to read input\n");
 
@@ -68,8 +74,13 @@ main(int argc, char **argv)
 	EP_STAT_CHECK(estat, goto fail1);
 	gdp_gcl_msg_print(&msg, stdout);
     }
+    goto done;
 
 fail1:
+    gdp_gcl_close(gclh);
+
+fail0:
+done:
     fprintf(stderr, "exiting with status %s\n",
 	    ep_stat_tostr(estat, buf, sizeof buf));
     return !EP_STAT_ISOK(estat);

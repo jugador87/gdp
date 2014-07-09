@@ -38,7 +38,12 @@ main(int argc, char **argv)
 	exit(1);
     }
 
-    gdp_init();
+    estat = gdp_init();
+    if (!EP_STAT_ISOK(estat))
+    {
+	ep_app_error("GDP Initialization failed");
+	goto fail0;
+    }
 
     gclpname = argv[0];
     fprintf(stdout, "Reading GCL %s\n", gclpname);
