@@ -18,6 +18,7 @@
 #include <ep/ep_stat.h>
 #include <ep/ep_xlate.h>
 #include <event2/buffer.h>
+#include <pthread.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <sysexits.h>
@@ -217,20 +218,27 @@ read_msg(char *gclpname, long msgno, scgi_request *req)
 	// finish up sending the data out --- the extra copy is annoying
 	{
 	    size_t rlen = strlen(rbuf);
-	    char *obuf = ep_mem_malloc(rlen + msg.len);
+	    size_t dlen = evbuffer_get_length(revb);
+	    char obuf[1024];
+	    char *obp = obuf;
 
-	    if (obuf == NULL)
+	    if (rlen + dlen > sizeof obuf)
+		obp = ep_mem_malloc(rlen + dlen);
+
+	    if (obp == NULL)
 		ep_app_abort("Cannot allocate memory for GCL read response: %s",
 			strerror(errno));
 
-	    memcpy(obuf, rbuf, rlen);
-	    memcpy(obuf + rlen, msg.data, msg.len);
-	    scgi_send(req, obuf, rlen + msg.len);
-	    ep_mem_free(obuf);
+	    memcpy(obp, rbuf, rlen);
+	    evbuffer_remove(revb, obp + rlen, dlen);
+	    scgi_send(req, obp, rlen + dlen);
+	    if (obp != obuf)
+		ep_mem_free(obp);
 	}
     }
 
     // finished
+    evbuffer_free(revb);
     gdp_gcl_close(gclh);
     return estat;
 
@@ -505,6 +513,7 @@ main(int argc, char **argv, char **env)
 {
     int opt;
     int listenport = -1;
+    useconds_t poll_delay;
     extern void run_scgi_protocol(void);
 
     while ((opt = getopt(argc, argv, "D:p:u:")) > 0)
@@ -533,7 +542,7 @@ main(int argc, char **argv, char **env)
     // Initialize the GDP library
     //	    Also initializes the EVENT library
     {
-	EP_STAT estat = gdp_init();
+	EP_STAT estat = gdp_init(true);
 	char ebuf[100];
 
 	if (!EP_STAT_ISOK(estat))
@@ -544,7 +553,7 @@ main(int argc, char **argv, char **env)
     }
 
     // Initialize SCGI library
-    scgi_register_fd_callbacks(fd_newfd_cb, fd_freefd_cb);
+    //scgi_register_fd_callbacks(fd_newfd_cb, fd_freefd_cb);
     if (scgi_initialize(listenport))
     {
 	ep_dbg_cprintf(Dbg, 1, "%s: listening for SCGI on port %d\n",
@@ -557,6 +566,27 @@ main(int argc, char **argv, char **env)
 	return EX_OSERR;
     }
 
-    // shouldn't return, but if it does....
-    return EX_OK;
+    // start looking for SCGI connections
+    //	XXX This should really be done through the event library
+    //	    rather than by polling.  To do this right there should
+    //	    be a pool of worker threads that would have the SCGI
+    //	    connection handed off to them.
+    //	XXX May be able to cheat by changing the select() in
+    //	    scgi_update_connections_port to wait.  It's OK if this
+    //	    thread hangs since the other work happens in a different
+    //	    thread.
+    poll_delay = ep_adm_getintparam("gdp.rest.scgi.pollinterval", 100000);
+    for (;;)
+    {
+	scgi_request *req = scgi_recv();
+	int dead = 0;
+
+	if (req == NULL)
+	{
+	    usleep(poll_delay);
+	    continue;
+	}
+	req->dead = &dead;
+	process_scgi_req(req, 0, NULL);
+    }
 }

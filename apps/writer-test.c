@@ -32,7 +32,7 @@ main(int argc, char **argv)
 	}
     }
 
-    estat = gdp_init();
+    estat = gdp_init(true);
     if (!EP_STAT_ISOK(estat))
     {
 	ep_app_error("GDP Initialization failed");

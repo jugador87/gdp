@@ -1679,7 +1679,10 @@ gdpd_init(int listenport)
     struct evconnlistener *lev;
 
     if (evthread_use_pthreads() < 0)
-	return init_error("evthread_use_pthreads failed");
+    {
+	estat = init_error("evthread_use_pthreads failed");
+	goto fail0;
+    }
 
     if (GdpEventBase == NULL)
     {
@@ -1721,24 +1724,23 @@ gdpd_init(int listenport)
 	estat = init_error("gdpd_init: could not create evconnlistener");
     else
 	evconnlistener_set_error_cb(lev, listener_error_cb);
+    EP_STAT_CHECK(estat, goto fail0);
 
     // create a thread to run the event loop
-    estat = _gdp_start_event_loop_thread(GdpEventBase);
-    EP_STAT_CHECK(estat, goto fail1);
+//    estat = _gdp_start_event_loop_thread(GdpEventBase);
+//    EP_STAT_CHECK(estat, goto fail0);
 
     // success!
     ep_dbg_cprintf(Dbg, 1, "gdpd_init: listening on port %d\n", listenport);
-    goto done;
+    return estat;
 
-fail1:
+fail0:
     {
 	char ebuf[200];
 
 	ep_dbg_cprintf(Dbg, 1, "gdpd_init: failed with stat %s\n",
 		ep_stat_tostr(estat, ebuf, sizeof ebuf));
     }
-
-done:
     return estat;
 }
 
@@ -1782,6 +1784,9 @@ main(int argc, char **argv)
 		ep_stat_tostr(estat, ebuf, sizeof ebuf));
     }
 
-    // for the moment the parent thread isn't needed
-    pthread_exit(NULL);
+    // need to manually run the event loop
+    gdp_run_event_loop(NULL);
+
+    // should never get here
+    ep_app_abort("Fell out of event loop");
 }

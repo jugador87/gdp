@@ -764,11 +764,14 @@ init_error(const char *msg)
 
 static pthread_t    EventLoopThread;
 
-static void *
-run_event_loop(void *ctx)
+void *
+gdp_run_event_loop(void *ctx)
 {
     struct event_base *evb = ctx;
     long evdelay = ep_adm_getintparam("gdp.rest.event.loopdelay", 100000);
+
+    if (evb == NULL)
+	evb = GdpEventBase;
 
     for (;;)
     {
@@ -794,7 +797,7 @@ run_event_loop(void *ctx)
 EP_STAT
 _gdp_start_event_loop_thread(struct event_base *evb)
 {
-    if (pthread_create(&EventLoopThread, NULL, run_event_loop, evb) != 0)
+    if (pthread_create(&EventLoopThread, NULL, gdp_run_event_loop, evb) != 0)
 	return init_error("cannot create event loop thread");
     else
 	return EP_STAT_OK;
@@ -821,7 +824,7 @@ evlib_log_cb(int severity, const char *msg)
 }
 
 EP_STAT
-gdp_init(void)
+gdp_init(bool run_event_loop)
 {
     static bool inited = false;
     EP_STAT estat = EP_STAT_OK;
@@ -907,7 +910,8 @@ gdp_init(void)
     }
 
     // create a thread to run the event loop
-    estat = _gdp_start_event_loop_thread(GdpEventBase);
+    if (run_event_loop)
+	estat = _gdp_start_event_loop_thread(GdpEventBase);
     EP_STAT_CHECK(estat, goto fail1);
 
     ep_dbg_cprintf(Dbg, 4, "gdp_init: success\n");
