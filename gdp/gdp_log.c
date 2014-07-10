@@ -10,6 +10,7 @@
 */
 
 #include <ep/ep.h>
+#include <ep/ep_app.h>
 #include <ep/ep_stat.h>
 #include <ep/ep_string.h>
 #include <syslog.h>
@@ -136,7 +137,7 @@ gdp_log(EP_STAT estat, char *fmt, ...)
 		LogInitialized = true;
 	}
 	if (LogTag == NULL)
-		LogTag = getprogname();
+		LogTag = ep_app_getprogname();
 
 	if (LogFac >= 0)
 	{
