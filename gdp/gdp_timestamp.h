@@ -28,6 +28,12 @@ typedef struct
     uint32_t	accuracy;	// clock accuracy in nanoseconds
 } tt_interval_t;
 
+// a sentinel value for stamp.tv_sec to indicate invalidity
+//  XXX zero is a horrid value, since it indicates a valid time.  Should
+//	be something like INT32_MIN or INT64_MIN depending on the size
+//	of the tv_sec field.
+#define TT_NOTIME		0
+
 extern EP_STAT	tt_now(tt_interval_t *t);	// return current time
 extern bool	tt_before(const tt_stamp_t t);	// true if t has passed
 extern bool	tt_after(const tt_stamp_t t);	// true if t has not started

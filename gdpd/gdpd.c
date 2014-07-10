@@ -361,8 +361,6 @@ get_gcl_rec(FILE *fp,
 		ep_dbg_cprintf(Dbg, 4, "get_gcl_rec: cannot parse timestamp\n");
 		goto fail0;
 	    }
-
-	    msg->ts_valid = true;
 	}
 
 	// be sure to not overflow buffer
@@ -760,8 +758,7 @@ gcl_append(gcl_handle_t *gclh,
     EP_ASSERT_POINTER_VALID(msg);
 
     // get a timestamp
-    if (EP_STAT_ISOK(tt_now(&msg->ts)))
-	msg->ts_valid = true;
+    (void) tt_now(&msg->ts);
 
     // XXX: check that GCL Handle is writable
 
@@ -787,7 +784,7 @@ gcl_append(gcl_handle_t *gclh,
     // write the message out
     // TODO: check for errors
     fprintf(gclh->fp, "%s%ld ", MSG_MAGIC, gclh->msgno);
-    if (msg->ts_valid)
+    if (msg->ts.stamp.tv_sec != TT_NOTIME)
 	tt_print_interval(&msg->ts, gclh->fp, false);
     else
 	fprintf(gclh->fp, "-");
@@ -902,7 +899,7 @@ gcl_msg_print(const gdp_msg_t *msg,
     int i;
 
     fprintf(fp, "GCL Message %ld, len %zu", msg->msgno, msg->len);
-    if (msg->ts_valid)
+    if (msg->ts.stamp.tv_sec != TT_NOTIME)
     {
 	fprintf(fp, ", timestamp ");
 	tt_print_interval(&msg->ts, fp, true);
@@ -1039,6 +1036,7 @@ cmd_read(struct bufferevent *bev, conn_t *c,
     estat = gcl_read(gclh, cpkt->msgno, &msg, gclh->revb);
     EP_STAT_CHECK(estat, goto fail0);
     rpkt->dlen = EP_STAT_TO_LONG(estat);
+    rpkt->ts = msg.ts;
 
 fail0:
     if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))

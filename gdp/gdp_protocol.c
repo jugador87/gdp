@@ -150,7 +150,7 @@ gdp_pkt_out(gdp_pkt_hdr_t *pp, struct evbuffer *obuf)
     }
 
     // timestamp
-    if (pp->ts.stamp.tv_sec != 0)
+    if (pp->ts.stamp.tv_sec != TT_NOTIME)
     {
 	pbuf[2] |= GDP_PKT_HAS_TS;
 	PUT64(pp->ts.stamp.tv_sec);
@@ -342,7 +342,10 @@ gdp_pkt_in(gdp_pkt_hdr_t *pp, struct evbuffer *ibuf)
 
     // timestamp
     if (!EP_UT_BITSET(GDP_PKT_HAS_TS, pp->flags))
+    {
 	memset(&pp->ts, 0, sizeof pp->ts);
+	pp->ts.stamp.tv_sec = TT_NOTIME;
+    }
     else
     {
 	GET64(pp->ts.stamp.tv_sec);
@@ -410,7 +413,7 @@ gdp_pkt_dump_hdr(gdp_pkt_hdr_t *pp, FILE *fp)
     }
     fprintf(fp, "\n\tts=");
     tt_print_interval(&pp->ts, fp, true);
-    if (pp->ts.stamp.tv_sec != 0)
+    if (pp->ts.stamp.tv_sec != TT_NOTIME)
 	len += sizeof pp->ts;
     fprintf(fp, "\n\tdlen=%u; total header=%d\n", pp->dlen, len);
 }

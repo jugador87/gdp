@@ -275,6 +275,8 @@ ack_success(gdp_pkt_hdr_t *pkt,
 	if (gdp_gcl_name_is_zero(gclh->gcl_name))
 	    memcpy(gclh->gcl_name, pkt->gcl_name, sizeof gclh->gcl_name);
 
+	gclh->ts = pkt->ts;
+
 	if (gclh->revb != NULL)
 	{
 	    while (tocopy > 0)
@@ -951,6 +953,7 @@ gcl_handle_new(gcl_handle_t **pgclh)
 	goto fail1;
     pthread_mutex_init(&gclh->mutex, NULL);
     pthread_cond_init(&gclh->cond, NULL);
+    gclh->ts.stamp.tv_sec = TT_NOTIME;
 
     // success
     *pgclh = gclh;
@@ -989,8 +992,6 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
     //	    This prevents having multiple commands in flight for a
     //	    single handle, but that's OK for now.
     gdp_pkt_hdr_init(&pkt, cmd, (gdp_rid_t) gclh, gclh->gcl_name);
-    if (msg != NULL && msg->ts_valid)
-	pkt.ts = msg->ts;
 
     // register this handle so we can process the results
     gdp_gcl_cache_add(gclh, 0);
@@ -1005,6 +1006,7 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	pkt.dlen = msg->len;
 	pkt.data = msg->data;
 	pkt.msgno = msg->msgno;
+	pkt.ts = msg->ts;
     }
     estat = gdp_pkt_out(&pkt, bufferevent_get_output(GdpPortBufferEvent));
     EP_STAT_CHECK(estat, goto fail0);
@@ -1025,7 +1027,11 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
     }
 
     if (EP_UT_BITSET(GCLH_DONE, gclh->flags))
+    {
 	estat = gclh->estat;
+	if (msg != NULL)
+	    msg->ts = gclh->ts;
+    }
 
     // ok, done!
     pthread_mutex_unlock(&gclh->mutex);
@@ -1228,9 +1234,8 @@ gdp_gcl_append(gcl_handle_t *gclh,
 
     EP_ASSERT_POINTER_VALID(gclh);
 
-    if (msg->ts.stamp.tv_sec == 0)
+    if (msg->ts.stamp.tv_sec == TT_NOTIME)
 	tt_now(&msg->ts);
-    msg->ts_valid = true;
 
     estat = gdp_invoke(GDP_CMD_PUBLISH, gclh, msg);
     return estat;
@@ -1253,6 +1258,7 @@ gdp_gcl_read(gcl_handle_t *gclh,
 
     msg->msgno = msgno;
     msg->len = 0;
+    msg->ts.stamp.tv_sec = TT_NOTIME;
     gclh->revb = revb;
     estat = gdp_invoke(GDP_CMD_READ, gclh, msg);
 
@@ -1358,7 +1364,7 @@ gdp_gcl_msg_print(const gdp_msg_t *msg,
 	    FILE *fp)
 {
     fprintf(fp, "GCL Message %ld, len %zu", msg->msgno, msg->len);
-    if (msg->ts_valid)
+    if (msg->ts.stamp.tv_sec != TT_NOTIME)
     {
 	fprintf(fp, ", timestamp ");
 	tt_print_interval(&msg->ts, fp, true);

@@ -70,7 +70,6 @@ typedef enum
 
 typedef struct
 {
-    bool	    ts_valid:1;	    // set if ts is valid
     tt_interval_t   ts;		    // timestamp for this message
     long	    msgno;	    // the message number
     void	    *data;	    // pointer to data

@@ -204,7 +204,7 @@ read_msg(char *gclpname, long msgno, scgi_request *req)
 			"GDP-Message-Number: %ld\r\n",
 			gclpname,
 			msgno);
-	    if (msg.ts_valid)
+	    if (msg.ts.stamp.tv_sec != TT_NOTIME)
 	    {
 		fprintf(fp, "GDP-Commit-Timestamp: ");
 		tt_print_interval(&msg.ts, fp, false);
@@ -405,7 +405,7 @@ process_scgi_req(scgi_request *req,
 			"{\r\n"
 			"    \"msgno\": \"%ld\"",
 			msg.msgno);
-		if (msg.ts_valid)
+		if (msg.ts.stamp.tv_sec != TT_NOTIME)
 		{
 		    fprintf(fp,
 			    ",\r\n"

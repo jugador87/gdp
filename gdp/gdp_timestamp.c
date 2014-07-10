@@ -25,7 +25,7 @@ tt_now(tt_interval_t *tt)
     if (clock_gettime(CLOCK_REALTIME, &tt->stamp) < 0)
     {
 	estat = ep_stat_from_errno(errno);
-	tt->stamp.tv_sec = tt->stamp.tv_nsec = -1;
+	tt->stamp.tv_sec = tt->stamp.tv_nsec = TT_NOTIME;
     }
 #else
     struct timeval tvu;
@@ -33,10 +33,13 @@ tt_now(tt_interval_t *tt)
     if (gettimeofday(&tvu, NULL) < 0)
     {
 	estat = ep_stat_from_errno(errno);
-	tt->stamp.tv_sec = tt->stamp.tv_nsec = -1;
+	tt->stamp.tv_sec = tt->stamp.tv_nsec = TT_NOTIME;
     }
-    tt->stamp.tv_sec = tvu.tv_sec;
-    tt->stamp.tv_nsec = tvu.tv_usec * 1000;
+    else
+    {
+	tt->stamp.tv_sec = tvu.tv_sec;
+	tt->stamp.tv_nsec = tvu.tv_usec * 1000;
+    }
 #endif
 
     // determine possible clock drift
@@ -65,7 +68,7 @@ tt_now(tt_interval_t *tt)
 void
 tt_print_stamp(const tt_stamp_t *ts, FILE *fp)
 {
-    if (ts->tv_sec == -1)
+    if (ts->tv_sec == TT_NOTIME)
     {
 	fprintf(fp, "(none)");
     }
@@ -88,14 +91,14 @@ tt_parse_stamp(const char *timestr, tt_stamp_t *ts)
     int nbytes;
     int i;
 
-    ep_dbg_cprintf(Dbg, 20, "Parsing time string %s\n", timestr);
+    ep_dbg_cprintf(Dbg, 20, "tt_parse_stamp: <<< %s\n", timestr);
     if ((i = sscanf(timestr, "%d-%d-%dT%d:%d:%d.%ldZ%n",
 	    &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
 	    &tm.tm_hour, &tm.tm_min, &tm.tm_sec,
 	    &ts->tv_nsec, &nbytes)) < 7)
     {
 	// failure; couldn't read enough data
-	ep_dbg_cprintf(Dbg, 1, "Bad format timestamp '%.30s', only %d fields\n",
+	ep_dbg_cprintf(Dbg, 1, "tt_parse_stamp: >>> Bad format: '%.30s', only %d fields\n",
 		timestr, i);
 	return GDP_STAT_STAMPFMT;
     }
@@ -103,6 +106,12 @@ tt_parse_stamp(const char *timestr, tt_stamp_t *ts)
     tm.tm_year -= 1900;
     tm.tm_mon -= 1;
     ts->tv_sec = timegm(&tm);
+    if (ep_dbg_test(Dbg, 20))
+    {
+	ep_dbg_printf("tt_parse_stamp: >>> ");
+	tt_print_stamp(ts, ep_dbg_getfile());
+	ep_dbg_printf(", nbytes = %d\n", nbytes);
+    }
     return EP_STAT_FROM_LONG(nbytes);	// OK status with detail
 }
 
@@ -110,7 +119,7 @@ tt_parse_stamp(const char *timestr, tt_stamp_t *ts)
 void
 tt_print_interval(const tt_interval_t *ti, FILE *fp, bool human)
 {
-    if (ti->stamp.tv_sec == -1)
+    if (ti->stamp.tv_sec == TT_NOTIME)
 	fprintf(fp, human ? "(none)" : "-");
     else
     {

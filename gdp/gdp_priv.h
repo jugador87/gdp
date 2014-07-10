@@ -7,6 +7,7 @@
 #ifndef _GDP_PRIV_H_
 #define _GDP_PRIV_H_
 
+#include <gdp/gdp_timestamp.h>
 #include <pthread.h>
 #include <event2/event.h>
 #include <event2/bufferevent.h>
@@ -20,10 +21,13 @@ struct gcl_handle_t
     pthread_cond_t	cond;		// pthread wakeup signal
     gcl_name_t		gcl_name;	// the internal name
     gdp_iomode_t	iomode;		// read only or append only
-    long		msgno;		// last msgno actually seen
+
+    // transient (should only be used when locked)
+    long		msgno;		// msgno from last operation
     struct evbuffer	*revb;		// buffer for return results
     uint32_t		flags;		// see below
     EP_STAT		estat;		// status code from last operation
+    tt_interval_t	ts;		// timestamp from last operation
 
     // fields used only by gdpd
     long		ver;		// version number of on-disk file
