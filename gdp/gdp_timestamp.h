@@ -25,7 +25,7 @@ typedef struct timespec	tt_stamp_t;
 typedef struct
 {
     tt_stamp_t	stamp;		// center of interval
-    long	accuracy;	// clock accuracy in nanoseconds
+    uint32_t	accuracy;	// clock accuracy in nanoseconds
 } tt_interval_t;
 
 extern EP_STAT	tt_now(tt_interval_t *t);	// return current time

@@ -19,23 +19,21 @@ long	ClockAccuracy = -1;		// in nanoseconds
 EP_STAT
 tt_now(tt_interval_t *tt)
 {
+    EP_STAT estat = EP_STAT_OK;
+
 #ifdef CLOCK_REALTIME
     if (clock_gettime(CLOCK_REALTIME, &tt->stamp) < 0)
     {
-	EP_STAT estat = ep_stat_from_errno(errno);
+	estat = ep_stat_from_errno(errno);
 	tt->stamp.tv_sec = tt->stamp.tv_nsec = -1;
-	tt->accuracy = -1;
-	return estat;
     }
 #else
     struct timeval tvu;
 
     if (gettimeofday(&tvu, NULL) < 0)
     {
-	EP_STAT estat = ep_stat_from_errno(errno);
+	estat = ep_stat_from_errno(errno);
 	tt->stamp.tv_sec = tt->stamp.tv_nsec = -1;
-	tt->accuracy = -1;
-	return estat;
     }
     tt->stamp.tv_sec = tvu.tv_sec;
     tt->stamp.tv_nsec = tvu.tv_usec * 1000;
@@ -60,19 +58,26 @@ tt_now(tt_interval_t *tt)
 	ep_dbg_printf("\n");
     }
 
-    return EP_STAT_OK;
+    return estat;
 }
 
 
 void
 tt_print_stamp(const tt_stamp_t *ts, FILE *fp)
 {
-    struct tm tm;
-    char tbuf[40];
+    if (ts->tv_sec == -1)
+    {
+	fprintf(fp, "(none)");
+    }
+    else
+    {
+	struct tm tm;
+	char tbuf[40];
 
-    gmtime_r(&ts->tv_sec, &tm);
-    strftime(tbuf, sizeof tbuf, "%Y-%m-%dT%H:%M:%S", &tm);
-    fprintf(fp, "%s.%09ldZ", tbuf, ts->tv_nsec);
+	gmtime_r(&ts->tv_sec, &tm);
+	strftime(tbuf, sizeof tbuf, "%Y-%m-%dT%H:%M:%S", &tm);
+	fprintf(fp, "%s.%09ldZ", tbuf, ts->tv_nsec);
+    }
 }
 
 
@@ -105,15 +110,20 @@ tt_parse_stamp(const char *timestr, tt_stamp_t *ts)
 void
 tt_print_interval(const tt_interval_t *ti, FILE *fp, bool human)
 {
-    tt_print_stamp(&ti->stamp, fp);
-    if (human)
-    {
-	fprintf(fp, " %s %ld.%09ld", EpChar->plusminus,
-		ti->accuracy / ONESECOND, ti->accuracy % ONESECOND);
-    }
+    if (ti->stamp.tv_sec == -1)
+	fprintf(fp, human ? "(none)" : "-");
     else
     {
-	fprintf(fp, "/%ld", ti->accuracy);
+	tt_print_stamp(&ti->stamp, fp);
+	if (human)
+	{
+	    fprintf(fp, " %s %ld.%09ld", EpChar->plusminus,
+		    ti->accuracy / ONESECOND, ti->accuracy % ONESECOND);
+	}
+	else
+	{
+	    fprintf(fp, "/%u", ti->accuracy);
+	}
     }
 }
 
