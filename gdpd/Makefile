@@ -22,8 +22,13 @@ CFLAGS=		${COPTS} ${INCS}
 
 OBJS=	\
 		gdpd.o \
+		gdpd_gcl.o \
+		gdpd_physlog.o \
 
 HDEPS=	\
+		gdpd.h \
+		gdpd_gcl.h \
+		gdpd_physlog.h \
 		../gdp/gdp.h \
 		../gdp/gdp_protocol.h \
 

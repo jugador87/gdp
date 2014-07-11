@@ -48,10 +48,6 @@ typedef struct gdp_conn_ctx
 
 struct bufferevent  *GdpPortBufferEvent;	// our primary protocol port
 
-int		    GdpEventModel;	// API-driven or event-driven
-
-#define GDP_API_DRIVEN		0	// synchronous
-#define GDP_EVENT_DRIVEN	1	// asynchronous
 
 #if 0
 /*
@@ -167,18 +163,40 @@ drop_all_rid_info(conn_t *conn)
 #endif // 0
 
 
-/*
-**  Find GCL handle in open GCL cache (with name-to-handle caching)
-**	These are public so gdpd can use them, but are not intended
-**	for other use.
+/***********************************************************************
+**
+**  GCL Caching
+**	Let's us find the internal representation of the GCL from
+**	the name.  These are not really intended for public use,
+**	but they are shared with gdpd.
 **
 **	FIXME This is a very stupid implementation at the moment.
 **
 **	FIXME Makes no distinction between io modes (we cludge this
 **	      by just opening everything for r/w for now)
-*/
+***********************************************************************/
 
 static EP_HASH	    *OpenGCLCache;
+
+
+EP_STAT
+gdp_gcl_cache_init(void)
+{
+    EP_STAT estat = EP_STAT_OK;
+
+    if (OpenGCLCache == NULL)
+    {
+	OpenGCLCache = ep_hash_new("OpenGCLCache", NULL, 0);
+	if (OpenGCLCache == NULL)
+	{
+	    estat = ep_stat_from_errno(errno);
+	    gdp_log(estat, "gdp_gcl_cache_init: could not create OpenGCLCache");
+	    ep_app_abort("gdp_gcl_cache_init: could not create OpenGCLCache");
+	}
+    }
+    return estat;
+}
+
 
 gcl_handle_t *
 gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
@@ -234,22 +252,120 @@ gdp_gcl_cache_drop(gcl_name_t gcl_name, gdp_iomode_t mode)
 }
 
 
-EP_STAT
-gdp_gcl_cache_init(void)
-{
-    EP_STAT estat = EP_STAT_OK;
+/***********************************************************************
+**
+**  Utility routines
+**
+***********************************************************************/
 
-    if (OpenGCLCache == NULL)
+/*
+**  GDP_GCL_GETNAME --- get the name of a GCL
+*/
+
+const gcl_name_t *
+gdp_gcl_getname(const gcl_handle_t *gclh)
+{
+    return &gclh->gcl_name;
+}
+
+/*
+**  GDP_GCL_MSG_PRINT --- print a message (for debugging)
+*/
+
+void
+gdp_gcl_msg_print(const gdp_msg_t *msg,
+	    FILE *fp)
+{
+    fprintf(fp, "GCL Message %ld, len %zu", msg->msgno, msg->len);
+    if (msg->ts.stamp.tv_sec != TT_NOTIME)
     {
-	OpenGCLCache = ep_hash_new("OpenGCLCache", NULL, 0);
-	if (OpenGCLCache == NULL)
-	{
-	    estat = ep_stat_from_errno(errno);
-	    gdp_log(estat, "gdp_gcl_cache_init: could not create OpenGCLCache");
-	    ep_app_abort("gdp_gcl_cache_init: could not create OpenGCLCache");
-	}
+	fprintf(fp, ", timestamp ");
+	tt_print_interval(&msg->ts, fp, true);
     }
+    else
+    {
+	fprintf(fp, ", no timestamp");
+    }
+    if (msg->data != NULL)
+    {
+	int i = msg->len;
+	fprintf(fp, "\n  %s%.*s%s\n", EpChar->lquote, i, msg->data,
+		EpChar->rquote);
+    }
+}
+
+// make a printable GCL name from a binary version
+void
+gdp_gcl_printable_name(const gcl_name_t internal, gcl_pname_t external)
+{
+    EP_STAT estat = ep_b64_encode(internal, sizeof (gcl_name_t),
+			    external, sizeof (gcl_pname_t),
+			    EP_B64_ENC_URL);
+
+    if (!EP_STAT_ISOK(estat))
+    {
+	char ebuf[100];
+
+	ep_dbg_cprintf(Dbg, 2,
+		"gdp_gcl_printable_name: ep_b64_encode failure\n"
+		"\tstat = %s\n",
+		ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	strcpy("(unknown)", external);
+    }
+    else if (EP_STAT_TO_LONG(estat) != 43)
+    {
+	ep_dbg_cprintf(Dbg, 2,
+		"gdp_gcl_printable_name: ep_b64_encode length failure (%ld != 43)\n",
+		EP_STAT_TO_LONG(estat));
+    }
+}
+
+// make a binary GCL name from a printable version
+EP_STAT
+gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
+{
+    EP_STAT estat = ep_b64_decode(external, sizeof (gcl_pname_t),
+			    internal, sizeof (gcl_name_t),
+			    EP_B64_ENC_URL);
+
+    if (!EP_STAT_ISOK(estat))
+    {
+	char ebuf[100];
+
+	ep_dbg_cprintf(Dbg, 2,
+		"gdp_gcl_internal_name: ep_b64_decode failure\n"
+		"\tstat = %s\n",
+		ep_stat_tostr(estat, ebuf, sizeof ebuf));
+    }
+
+    if (EP_STAT_TO_LONG(estat) != sizeof (gcl_name_t))
+    {
+	ep_dbg_cprintf(Dbg, 2,
+		"gdp_gcl_internal_name: ep_b64_decode length failure (%ld != %zd)\n",
+		EP_STAT_TO_LONG(estat), sizeof (gcl_name_t));
+	return EP_STAT_ABORT;
+    }
+
     return estat;
+}
+
+/*
+**  GDP_GCL_NAME_IS_ZERO --- test whether a GCL name is all zero
+**
+**	We assume that this means "no name".
+*/
+
+bool
+gdp_gcl_name_is_zero(const gcl_name_t gcl_name)
+{
+    const uint32_t *up;
+    int i;
+
+    up = (uint32_t *) gcl_name;
+    for (i = 0; i < sizeof (gcl_name_t) / 4; i++)
+	if (*up++ != 0)
+	    return false;
+    return true;
 }
 
 
@@ -982,9 +1098,7 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 
     EP_ASSERT_POINTER_VALID(gclh);
 
-    ep_dbg_cprintf(Dbg, 43,
-	    "gdp_invoke: cmd=%d, GdpEventModel=%d\n",
-	    cmd, GdpEventModel);
+    ep_dbg_cprintf(Dbg, 43, "gdp_invoke: cmd=%d\n", cmd);
 
     // initialize packet header
     //	XXX should probably allocate a RID here
@@ -1078,8 +1192,8 @@ gdp_gcl_print(
 **  CREATE_GCL_NAME -- create a name for a new GCL
 */
 
-static void
-create_gcl_name(gcl_name_t np)
+void
+gdp_gcl_newname(gcl_name_t np)
 {
     evutil_secure_rng_get_bytes(np, sizeof (gcl_name_t));
 }
@@ -1105,7 +1219,7 @@ gdp_gcl_create(gcl_t *gcl_type,
     EP_STAT_CHECK(estat, goto fail0);
 
     if (gcl_name == NULL || gdp_gcl_name_is_zero(gcl_name))
-	create_gcl_name(gclh->gcl_name);
+	gdp_gcl_newname(gclh->gcl_name);
     else
 	memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
 
@@ -1340,134 +1454,5 @@ gdp_gcl_unsubscribe(gcl_handle_t *gclh,
     EP_ASSERT_POINTER_VALID(cbfunc);
 
     XXX;
-}
-#endif
-
-
-
-/*
-**  GDP_GCL_GETNAME --- get the name of a GCL
-*/
-
-const gcl_name_t *
-gdp_gcl_getname(const gcl_handle_t *gclh)
-{
-    return &gclh->gcl_name;
-}
-
-/*
-**  GDP_GCL_MSG_PRINT --- print a message (for debugging)
-*/
-
-void
-gdp_gcl_msg_print(const gdp_msg_t *msg,
-	    FILE *fp)
-{
-    fprintf(fp, "GCL Message %ld, len %zu", msg->msgno, msg->len);
-    if (msg->ts.stamp.tv_sec != TT_NOTIME)
-    {
-	fprintf(fp, ", timestamp ");
-	tt_print_interval(&msg->ts, fp, true);
-    }
-    else
-    {
-	fprintf(fp, ", no timestamp");
-    }
-    if (msg->data != NULL)
-    {
-	int i = msg->len;
-	fprintf(fp, "\n  %s%.*s%s\n", EpChar->lquote, i, msg->data,
-		EpChar->rquote);
-    }
-}
-
-// make a printable GCL name from a binary version
-void
-gdp_gcl_printable_name(const gcl_name_t internal, gcl_pname_t external)
-{
-    EP_STAT estat = ep_b64_encode(internal, sizeof (gcl_name_t),
-			    external, sizeof (gcl_pname_t),
-			    EP_B64_ENC_URL);
-
-    if (!EP_STAT_ISOK(estat))
-    {
-	char ebuf[100];
-
-	ep_dbg_cprintf(Dbg, 2,
-		"gdp_gcl_printable_name: ep_b64_encode failure\n"
-		"\tstat = %s\n",
-		ep_stat_tostr(estat, ebuf, sizeof ebuf));
-	strcpy("(unknown)", external);
-    }
-    else if (EP_STAT_TO_LONG(estat) != 43)
-    {
-	ep_dbg_cprintf(Dbg, 2,
-		"gdp_gcl_printable_name: ep_b64_encode length failure (%ld != 43)\n",
-		EP_STAT_TO_LONG(estat));
-    }
-}
-
-// make a binary GCL name from a printable version
-EP_STAT
-gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
-{
-    EP_STAT estat = ep_b64_decode(external, sizeof (gcl_pname_t),
-			    internal, sizeof (gcl_name_t),
-			    EP_B64_ENC_URL);
-
-    if (!EP_STAT_ISOK(estat))
-    {
-	char ebuf[100];
-
-	ep_dbg_cprintf(Dbg, 2,
-		"gdp_gcl_internal_name: ep_b64_decode failure\n"
-		"\tstat = %s\n",
-		ep_stat_tostr(estat, ebuf, sizeof ebuf));
-    }
-
-    if (EP_STAT_TO_LONG(estat) != sizeof (gcl_name_t))
-    {
-	ep_dbg_cprintf(Dbg, 2,
-		"gdp_gcl_internal_name: ep_b64_decode length failure (%ld != %zd)\n",
-		EP_STAT_TO_LONG(estat), sizeof (gcl_name_t));
-	return EP_STAT_ABORT;
-    }
-
-    return estat;
-}
-
-/*
-**  GDP_GCL_NAME_IS_ZERO --- test whether a GCL name is all zero
-**
-**	We assume that this means "no name".
-*/
-
-bool
-gdp_gcl_name_is_zero(const gcl_name_t gcl_name)
-{
-    const uint32_t *up;
-    int i;
-
-    up = (uint32_t *) gcl_name;
-    for (i = 0; i < sizeof (gcl_name_t) / 4; i++)
-	if (*up++ != 0)
-	    return false;
-    return true;
-}
-
-
-#if 0
-void
-gdp_event_loop(struct event_base *evb)
-{
-    GdpEventModel = GDP_EVENT_DRIVEN;
-    if (evb == NULL)
-	evb = GdpEventBase;
-
-    //TODO: need to listen to other GDP events
-
-    pthread_create(&EventLoopThread, NULL, do_ev_loop, evb);
-
-    // parent returns to caller for API functionality
 }
 #endif

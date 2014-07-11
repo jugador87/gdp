@@ -62,4 +62,7 @@ const char	*_gdp_proto_cmd_name(uint8_t cmd);
 EP_STAT		_gdp_start_event_loop_thread(
 				struct event_base *evb);
 
+void		gdp_gcl_newname(
+				gcl_name_t gcl_name);
+
 #endif // _GDP_PRIV_H_
