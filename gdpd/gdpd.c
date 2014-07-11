@@ -1039,6 +1039,10 @@ cmd_read(struct bufferevent *bev, conn_t *c,
     estat = gcl_read(gclh, cpkt->msgno, &msg, gclh->revb);
     EP_STAT_CHECK(estat, goto fail0);
     rpkt->dlen = EP_STAT_TO_LONG(estat);
+    rpkt->flags |= GDP_PKT_HAS_TS;
+	rpkt->ts.stamp.tv_sec = msg.ts.stamp.tv_sec;
+	rpkt->ts.stamp.tv_nsec = msg.ts.stamp.tv_nsec;
+	rpkt->ts.accuracy = msg.ts.accuracy;
 
 fail0:
     if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
