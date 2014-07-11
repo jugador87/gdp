@@ -1,0 +1,8 @@
+To run the tests:
+
+Copy all the .js and .html files to the root directory of your webserver
+Configure SCGI and gdp-rest
+
+TODO:
+
+Allow running tests without user interaction
