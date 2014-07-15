@@ -10,8 +10,54 @@
 #include <event2/util.h>
 
 #include <sys/time.h>
+#include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
+
+struct elapsed_time {
+	long seconds;
+	long millis;
+};
+
+void
+avg_elapsed_time(struct elapsed_time *total_elapsed_time, size_t n, struct elapsed_time *out) {
+	assert(n > 0);
+	out->millis = (total_elapsed_time->seconds * 1000) + total_elapsed_time->millis;
+	out->millis /= n;
+	out->seconds = out->millis / 1000;
+	out->millis -= out->seconds * 1000;
+}
+
+void
+sum_elapsed_time(struct elapsed_time elapsed_time[], size_t n, struct elapsed_time *out) {
+	size_t i;
+	long new_seconds;
+	out->seconds = 0;
+	out->millis = 0;
+	for (i = 0; i < n; ++i) {
+		out->seconds += elapsed_time[i].seconds;
+		out->millis += elapsed_time[i].millis;
+	}
+	new_seconds = out->millis / 1000;
+	out->seconds += new_seconds;
+	out->millis -= new_seconds * 1000;
+}
+
+void
+get_elapsed_time(
+		struct timespec *start_time, struct timespec *end_time,
+		struct elapsed_time *out)
+{
+	out->millis = ((end_time->tv_sec - start_time->tv_sec) * 1000) +
+		((end_time->tv_nsec - start_time->tv_nsec) / (1000 * 1000));
+	out->seconds = out->millis / 1000;
+	out->millis -= out->seconds * 1000;
+}
+
+void
+print_elapsed_time(FILE *stream, struct elapsed_time *elapsed_time) {
+	fprintf(stream, "Elapsed time = %lu.%03lu s\n", elapsed_time->seconds, elapsed_time->millis);
+}
 
 int
 random_in_range(unsigned int min, unsigned int max)
@@ -80,6 +126,10 @@ main(int argc, char *argv[])
 
 	struct timespec start_time;
 	struct timespec end_time;
+	struct elapsed_time total_e_time;
+	struct elapsed_time avg_e_time;
+	struct elapsed_time *trial_write_times;
+	struct elapsed_time *trial_read_times;
 	char *data;
 	size_t record_size;
 	size_t max_record_size = max_length + 1;
@@ -94,6 +144,8 @@ main(int argc, char *argv[])
 	data = malloc(data_size);
 	cur_record = malloc(max_record_size);
 	cur_record_b64 = malloc((2 * max_length) + 1);
+	trial_write_times = malloc(trials * sizeof(struct elapsed_time));
+	trial_read_times = malloc(trials * sizeof(struct elapsed_time));
 
 	int t;
 	int i;
@@ -111,9 +163,9 @@ main(int argc, char *argv[])
 			record_size = random_in_range(min_length, max_length + 1);
 			memcpy(data + (i * max_record_size), cur_record_b64, record_size);
 			data[(i * max_record_size) + record_size] = '\0';
-			fprintf(stdout, "Msgno = %d\n", i + 1);
-			fprintf(stdout, "%s\n", &data[(i * max_record_size)]);
-			fprintf(stdout, "record length: %lu\n", strlen(&data[(i * max_record_size)]));
+			//fprintf(stdout, "Msgno = %d\n", i + 1);
+			//fprintf(stdout, "%s\n", &data[(i * max_record_size)]);
+			//fprintf(stdout, "record length: %lu\n", strlen(&data[(i * max_record_size)]));
 		}
 
 		estat = gdp_gcl_create(NULL, NULL, &gclh_write);
@@ -134,8 +186,8 @@ main(int argc, char *argv[])
 		}
 		clock_gettime(CLOCK_REALTIME, &end_time);
 		fprintf(stdout, "Finished writing data (end_time = %lu:%lu)\n", end_time.tv_sec, end_time.tv_nsec);
-		fprintf(stdout, "Elapsed time = %lu s (%lu ns)\n", end_time.tv_sec - start_time.tv_sec,
-			end_time.tv_nsec - start_time.tv_nsec);
+		get_elapsed_time(&start_time, &end_time, &trial_write_times[t]);
+		print_elapsed_time(stdout, &trial_write_times[t]);
 		memcpy(internal_name, gdp_gcl_getname(gclh_write), sizeof internal_name);
 		gdp_gcl_printable_name(internal_name, printable_name);
 		gdp_gcl_close(gclh_write);
@@ -157,10 +209,23 @@ main(int argc, char *argv[])
 		}
 		clock_gettime(CLOCK_REALTIME, &end_time);
 		fprintf(stdout, "Finished reading data (end_time = %lu:%lu)\n", end_time.tv_sec, end_time.tv_nsec);
-		fprintf(stdout, "Elapsed time = %lu s (%lu ns)\n", end_time.tv_sec - start_time.tv_sec,
-			end_time.tv_nsec - start_time.tv_nsec);
+		get_elapsed_time(&start_time, &end_time, &trial_read_times[t]);
+		print_elapsed_time(stdout, &trial_read_times[t]);
+		fprintf(stdout, "\n");
 	}
 
+	sum_elapsed_time(trial_read_times, trials, &total_e_time);
+	avg_elapsed_time(&total_e_time, trials, &avg_e_time);
+
+	fprintf(stdout, "Average read time per trial: %lu.%03lu s\n", avg_e_time.seconds, avg_e_time.millis);
+
+	sum_elapsed_time(trial_write_times, trials, &total_e_time);
+	avg_elapsed_time(&total_e_time, trials, &avg_e_time);
+
+	fprintf(stdout, "Average write time per trial: %lu.%03lu s\n", avg_e_time.seconds, avg_e_time.millis);
+
+	free(trial_read_times);
+	free(trial_write_times);
 	free(cur_record_b64);
 	free(cur_record);
 	free(data);
