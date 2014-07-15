@@ -72,7 +72,7 @@ main(int argc, char **argv)
     for (;;)
     {
 	gdp_msg_t msg;
-	char mbuf[1024];
+	char mbuf[1024 * 1024];
 
 	estat = gdp_gcl_read(gclh, msgno, &msg, evb);
 	EP_STAT_CHECK(estat, break);
