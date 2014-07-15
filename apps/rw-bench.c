@@ -146,8 +146,12 @@ main(int argc, char *argv[])
 			estat = gdp_gcl_read(gclh_read, i + 1, &msg, evb);
 			EP_STAT_CHECK(estat, goto fail2);
 			msg.len = evbuffer_remove(evb, cur_record, max_record_size);
+			cur_record[msg.len] = '\0';
 			msg.data = cur_record;
-			gdp_gcl_msg_print(&msg, stdout);
+			if (strncmp(data + (i * max_record_size), msg.data, max_length) != 0) {
+				fprintf(stdout, "data mismatch:\n> expected: %s\n> got     : %s\n",
+					data + (i * max_record_size), cur_record);
+			}
 
 			evbuffer_drain(evb, UINT_MAX);
 		}
