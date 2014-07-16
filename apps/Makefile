@@ -1,4 +1,4 @@
-ALL=	writer-test reader-test gdp-rest
+ALL=	writer-test reader-test gdp-rest rw-bench
 
 INCROOT=..
 LIBROOT=	${INCROOT}
@@ -30,6 +30,9 @@ reader-test:	reader-test.o
 
 gdp-rest:	gdp-rest.o ../scgilib/scgilib.o
 	${CC} -o $@ gdp-rest.o ${LDFLAGS} ../scgilib/scgilib.o
+
+rw-bench:	rw-bench.o
+	$(CC) -o $@ rw-bench.o $(LDFLAGS)
 
 ${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 
