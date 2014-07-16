@@ -403,7 +403,7 @@ process_scgi_req(scgi_request *req,
 			"Content-Type: application/json\r\n"
 			"\r\n"
 			"{\r\n"
-			"    \"msgno\": \"%ld\"",
+			"    \"msgno\": \"%d\"",
 			msg.msgno);
 		if (msg.ts.stamp.tv_sec != TT_NOTIME)
 		{
