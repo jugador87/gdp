@@ -898,12 +898,13 @@ gdp_run_event_loop(void *ctx)
 	    ep_dbg_printf("gdp_event_loop: starting up base loop\n");
 	    event_base_dump_events(evb, ep_dbg_getfile());
 	}
-//#ifdef EVLOOP_NO_EXIT_ON_EMPTY
-//	event_base_loop(evb, EVLOOP_NO_EXIT_ON_EMPTY);
-//#else
-//	event_base_loop(evb, 0);
-//#endif
-	event_base_loop(evb, EVLOOP_ONCE);
+#ifdef EVLOOP_NO_EXIT_ON_EMPTY // requires libevent 2.1-alpha
+	event_base_loop(evb, EVLOOP_NO_EXIT_ON_EMPTY);
+#else
+#message("your version of libevent doesn't support EVLOOP_NO_EXIT_ON_EMPTY, performance will suffer")
+	event_base_loop(evb, 0);
+#endif
+	// event_base_loop(evb, EVLOOP_ONCE);
 	// shouldn't happen (?)
 	ep_dbg_cprintf(Dbg, 1, "gdp_event_loop: event_base_loop returned\n");
 	if (evdelay > 0)
