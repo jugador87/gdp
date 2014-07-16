@@ -26,6 +26,7 @@ OBJS=	\
 	ep_rpool.o \
 	ep_stat.o \
 	ep_string.o \
+	ep_time.o \
 	ep_xlate.o \
 	ep_version.o \
 
@@ -81,6 +82,7 @@ HFILES=	\
 	ep_rpool.h \
 	ep_stat.h \
 	ep_string.h \
+	ep_time.h \
 	ep_xlate.h \
 	ep_version.h \
 
