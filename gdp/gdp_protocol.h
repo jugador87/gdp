@@ -64,7 +64,7 @@ typedef struct gdp_pkt_hdr
 
     // variable part of packet
     gdp_rid_t	    rid;	//  8 sequence number (GDP_PKT_NO_RID => none)
-    gcl_name_t	    gcl_name;	// 32 name of the USC of interest (0 => none)
+    gcl_name_t	    gcl_name;	// 32 name of the GCL of interest (0 => none)
     uint32_t	    msgno;	//  4 record number (GDP_PKT_NO_RECNO => none)
     tt_interval_t   ts;		// 16 commit timestamp (tv_sec = 0 => none)
     uint8_t	    *data;	//    dlen octets of data
@@ -77,13 +77,13 @@ typedef struct gdp_pkt_hdr
 //	64-127		Acknowledged commands
 #define GDP_CMD_PING		64	// test connection
 #define GDP_CMD_HELLO		65	// initial startup/handshake
-#define GDP_CMD_CREATE		66	// create a USC
-#define GDP_CMD_OPEN_AO		67	// open a USC for append-only
-#define GDP_CMD_OPEN_RO		68	// open a USC for read-only
-#define GDP_CMD_CLOSE		69	// close a USC
+#define GDP_CMD_CREATE		66	// create a GCL
+#define GDP_CMD_OPEN_AO		67	// open a GCL for append-only
+#define GDP_CMD_OPEN_RO		68	// open a GCL for read-only
+#define GDP_CMD_CLOSE		69	// close a GCL
 #define GDP_CMD_READ		70	// read a given record by index
 #define GDP_CMD_PUBLISH		71	// append a record
-#define GDP_CMD_SUBSCRIBE	72	// subscribe to a USC
+#define GDP_CMD_SUBSCRIBE	72	// subscribe to a GCL
 //	128-191		Positive acks (with CoAP, HTTP equivalents)
 #define GDP_ACK_MIN	    128		    // minimum ack code
 #define GDP_ACK_SUCCESS		128	// general success response (none, 200)
