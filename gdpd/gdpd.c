@@ -51,7 +51,7 @@ gcl_msg_print(const gdp_msg_t *msg,
 {
     int i;
 
-    fprintf(fp, "GCL Message %ld, len %zu", msg->msgno, msg->len);
+    fprintf(fp, "GCL Message %d, len %zu", msg->msgno, msg->len);
     if (msg->ts.stamp.tv_sec != TT_NOTIME)
     {
 	fprintf(fp, ", timestamp ");

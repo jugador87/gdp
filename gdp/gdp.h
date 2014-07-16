@@ -32,8 +32,11 @@ typedef uint8_t		    gcl_name_t[32];
 // the printable name of a GCL
 typedef char		    gcl_pname_t[45];
 
-// a request id (used for correlating commands and responses
+// a request id (used for correlating commands and responses)
 typedef uint64_t	    gdp_rid_t;
+
+// a message number
+typedef int32_t		    gdp_msgno_t;
 
 /*
 **  I/O modes
@@ -71,7 +74,7 @@ typedef enum
 typedef struct
 {
     tt_interval_t   ts;		    // timestamp for this message
-    long	    msgno;	    // the message number
+    gdp_msgno_t	    msgno;	    // the message number
     void	    *data;	    // pointer to data
     size_t	    len;	    // length of data
     GDP_MSG_EXTRA		    // used by gdpd

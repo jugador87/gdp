@@ -130,11 +130,11 @@ get_gcl_path(gcl_handle_t *gclh, char *pbuf, int pbufsiz)
 
 static EP_STAT
 gcl_handle_save_offset(gcl_handle_t *gclh,
-	    long msgno,
+	    gdp_msgno_t msgno,
 	    off_t off)
 {
     ep_dbg_cprintf(Dbg, 8,
-	    "gcl_handle_save_offset: caching msgno %ld offset %lld\n",
+	    "gcl_handle_save_offset: caching msgno %d offset %lld\n",
 	    msgno, off);
     if (msgno >= gclh->cachesize)
     {
@@ -155,7 +155,7 @@ gcl_handle_save_offset(gcl_handle_t *gclh,
     {
 	// somehow offset has moved.  not a happy camper.
 	gdp_log(EP_STAT_ERROR,
-		"gcl_handle_save_offset: offset for message %ld has moved from %lld to %lld\n",
+		"gcl_handle_save_offset: offset for message %d has moved from %lld to %lld\n",
 		msgno,
 		(long long) gclh->offcache[msgno],
 		(long long) off);
@@ -334,7 +334,7 @@ fail0:
 
 EP_STAT
 gcl_read(gcl_handle_t *gclh,
-	    long msgno,
+	    gdp_msgno_t msgno,
 	    gdp_msg_t *msg,
 	    struct evbuffer *evb)
 {
@@ -349,7 +349,7 @@ gcl_read(gcl_handle_t *gclh,
     if (msgno < gclh->maxmsgno && gclh->offcache[msgno] > 0)
     {
 	ep_dbg_cprintf(Dbg, 18,
-		"gcl_read: using cached offset %lld for msgno %ld\n",
+		"gcl_read: using cached offset %lld for msgno %d\n",
 		gclh->offcache[msgno], msgno);
 	if (fseek(gclh->fp, gclh->offcache[msgno], SEEK_SET) < 0)
 	{
@@ -359,7 +359,7 @@ gcl_read(gcl_handle_t *gclh,
     }
 
     // we may have to skip ahead, hence the do loop
-    ep_dbg_cprintf(Dbg, 7, "gcl_read: looking for msgno %ld\n", msgno);
+    ep_dbg_cprintf(Dbg, 7, "gcl_read: looking for msgno %d\n", msgno);
     do
     {
 	if (EP_UT_BITSET(GCLH_ASYNC, gclh->flags))
@@ -397,13 +397,13 @@ gcl_read(gcl_handle_t *gclh,
 	if (msg->msgno > msgno)
 	{
 	    // oh bugger, we've already read too far
-	    ep_app_error("gcl_read: read too far (cur=%ld, target=%ld)",
+	    ep_app_error("gcl_read: read too far (cur=%d, target=%d)",
 		    msg->msgno, msgno);
 	    estat = GDP_STAT_READ_OVERFLOW;
 	}
 	if (msg->msgno < msgno)
 	{
-	    ep_dbg_cprintf(Dbg, 3, "Skipping msg->msgno %ld\n", msg->msgno);
+	    ep_dbg_cprintf(Dbg, 3, "Skipping msg->msgno %d\n", msg->msgno);
 	    if (evb != NULL)
 		(void) evbuffer_drain(evb, evbuffer_get_length(evb));
 	}
@@ -685,7 +685,7 @@ gcl_append(gcl_handle_t *gclh,
     // make sure no write conflicts
     flock(fileno(gclh->fp), LOCK_EX);
     ep_dbg_cprintf(Dbg, 49,
-	    "Back from locking for message %ld, cachesize %ld\n",
+	    "Back from locking for message %d, cachesize %ld\n",
 	    msg->msgno, gclh->cachesize);
 
     // read any messages that may have been added by another writer
@@ -699,11 +699,12 @@ gcl_append(gcl_handle_t *gclh,
     estat = gcl_handle_save_offset(gclh, ++gclh->msgno,
 				ftell(gclh->fp));
     EP_STAT_CHECK(estat, goto fail0);
-    ep_dbg_cprintf(Dbg, 18, "gcl_append: saved offset for msgno %ld\n", gclh->msgno);
+    ep_dbg_cprintf(Dbg, 18, "gcl_append: saved offset for msgno %d\n",
+	    gclh->msgno);
 
     // write the message out
     // TODO: check for errors
-    fprintf(gclh->fp, "%s%ld ", MSG_MAGIC, gclh->msgno);
+    fprintf(gclh->fp, "%s%d ", MSG_MAGIC, gclh->msgno);
     if (msg->ts.stamp.tv_sec != TT_NOTIME)
 	tt_print_interval(&msg->ts, gclh->fp, false);
     else

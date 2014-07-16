@@ -23,7 +23,7 @@ struct gcl_handle_t
     gdp_iomode_t	iomode;		// read only or append only
 
     // transient (should only be used when locked)
-    long		msgno;		// msgno from last operation
+    gdp_msgno_t		msgno;		// msgno from last operation
     struct evbuffer	*revb;		// buffer for return results
     uint32_t		flags;		// see below
     EP_STAT		estat;		// status code from last operation
@@ -34,7 +34,7 @@ struct gcl_handle_t
     FILE		*fp;		// pointer to the on-disk file
     off_t		*offcache;	// offsets of records we have seen
     long		cachesize;	// size of offcache array
-    long		maxmsgno;	// last msgno that we have read/written
+    gdp_msgno_t		maxmsgno;	// last msgno that we have read/written
 };
 
 // GCL flags
