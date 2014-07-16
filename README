@@ -9,9 +9,13 @@ second.  All of these are likely to change in the future.
 Required Packages:
 
 	lighttpd --- Web server for RESTful interface.
+		Note: I used macports (http://macports.org) to install
+		lighttpd on the Mac, which is probably easier than compiling
+		it by hand; in particular, it does the Mac-specific
+		configuration for you.
 	scgilib --- C binding for Simple Common Gateway Interface: to connect
 		lighttpd with GDP; from http://www.xamuel.com/scgilib/;
-		slightly modified and included with this distribution)
+		slightly modified and included with this distribution).
 	Jansson --- JSON library from http://www.digip.org/jansson/.
 	libevent2 --- Event handling library available from
 		http://libevent.org.
@@ -60,7 +64,6 @@ Running the GDP RESTful Interface:
 	local machine, port 8001.  The rest of the lighttpd setup is
 	off the shelf.  I've set up mine to listen on port 8080,
 	and the rest of these instructions will reflect that.
-
 
    2.	Compile the code if you haven't already.
 
