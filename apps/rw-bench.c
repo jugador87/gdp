@@ -45,7 +45,7 @@ sum_elapsed_time(struct elapsed_time elapsed_time[], size_t n, struct elapsed_ti
 
 void
 get_elapsed_time(
-		struct timespec *start_time, struct timespec *end_time,
+		EP_TIME_SPEC *start_time, EP_TIME_SPEC *end_time,
 		struct elapsed_time *out)
 {
 	out->millis = ((end_time->tv_sec - start_time->tv_sec) * 1000) +
@@ -124,8 +124,8 @@ main(int argc, char *argv[])
 
 	fprintf(stdout, "\nRunning trials\n\n");
 
-	struct timespec start_time;
-	struct timespec end_time;
+	EP_TIME_SPEC start_time;
+	EP_TIME_SPEC end_time;
 	struct elapsed_time total_e_time;
 	struct elapsed_time avg_e_time;
 	struct elapsed_time *trial_write_times;
@@ -173,7 +173,7 @@ main(int argc, char *argv[])
 		EP_STAT_CHECK(estat, goto fail0);
 		gdp_gcl_print(gclh_write, stdout, 0, 0);
 
-		clock_gettime(CLOCK_REALTIME, &start_time);
+		ep_time_now(&start_time);
 		fprintf(stdout, "Writing data (start_time = %lu:%lu)\n", start_time.tv_sec, start_time.tv_nsec);
 		for (i = 0; i < num_records; ++i) {
 			memset(&msg, '\0', sizeof msg);
@@ -184,7 +184,7 @@ main(int argc, char *argv[])
 			estat = gdp_gcl_append(gclh_write, &msg);
 			EP_STAT_CHECK(estat, goto fail1);
 		}
-		clock_gettime(CLOCK_REALTIME, &end_time);
+		ep_time_now(&end_time);
 		fprintf(stdout, "Finished writing data (end_time = %lu:%lu)\n", end_time.tv_sec, end_time.tv_nsec);
 		get_elapsed_time(&start_time, &end_time, &trial_write_times[t]);
 		print_elapsed_time(stdout, &trial_write_times[t]);
@@ -192,7 +192,7 @@ main(int argc, char *argv[])
 		gdp_gcl_printable_name(internal_name, printable_name);
 		gdp_gcl_close(gclh_write);
 		estat = gdp_gcl_open(internal_name, GDP_MODE_RO, &gclh_read);
-		clock_gettime(CLOCK_REALTIME, &start_time);
+		ep_time_now(&start_time);
 		fprintf(stdout, "Reading data (start_time = %lu:%lu)\n", start_time.tv_sec, start_time.tv_nsec);
 		for (i = 0; i < num_records; ++i) {
 			estat = gdp_gcl_read(gclh_read, i + 1, &msg, evb);
@@ -207,7 +207,7 @@ main(int argc, char *argv[])
 
 			evbuffer_drain(evb, UINT_MAX);
 		}
-		clock_gettime(CLOCK_REALTIME, &end_time);
+		ep_time_now(&end_time);
 		fprintf(stdout, "Finished reading data (end_time = %lu:%lu)\n", end_time.tv_sec, end_time.tv_nsec);
 		get_elapsed_time(&start_time, &end_time, &trial_read_times[t]);
 		print_elapsed_time(stdout, &trial_read_times[t]);

@@ -9,17 +9,22 @@
 **	Briefly, this abstraction explicitly acknowledges clock skew.  The
 **	    concept of "now" is actually a range indicating a confidence
 **	    interval.
+**
+**	XXX The accuracy really shouldn't be in nanoseconds.  First of all,
+**	    that doesn't give us enough range (max 4 seconds).  Changing it
+**	    to microseconds might do it, but some clocks can actually have
+**	    very good accuracy (< 1 nsec).  Perhaps it should be an exponent,
+**	    e.g., 2^accuracy seconds (so -16 would be about 15 microseconds).
+**	    This is what ntp uses for precision.
 */
 
 #ifndef _GDP_TIMESTAMP_H_
 #define _GDP_TIMESTAMP_H_   1
 
-#include <time.h>
-#include <sys/time.h>
+#include <ep/ep_time.h>
 
 // a timestamp --- a single instant in time
-//	timespec has nanosecond resolution but may not be as portable as timeval
-typedef struct timespec	tt_stamp_t;
+typedef EP_TIME_SPEC	tt_stamp_t;
 
 // a time interval
 typedef struct
@@ -29,10 +34,7 @@ typedef struct
 } tt_interval_t;
 
 // a sentinel value for stamp.tv_sec to indicate invalidity
-//  XXX zero is a horrid value, since it indicates a valid time.  Should
-//	be something like INT32_MIN or INT64_MIN depending on the size
-//	of the tv_sec field.
-#define TT_NOTIME		0
+#define TT_NOTIME		EP_TIME_NOTIME
 
 extern EP_STAT	tt_now(tt_interval_t *t);	// return current time
 extern bool	tt_before(const tt_stamp_t t);	// true if t has passed

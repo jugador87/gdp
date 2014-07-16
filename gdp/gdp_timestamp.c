@@ -19,28 +19,7 @@ long	ClockAccuracy = -1;		// in nanoseconds
 EP_STAT
 tt_now(tt_interval_t *tt)
 {
-    EP_STAT estat = EP_STAT_OK;
-
-#ifdef CLOCK_REALTIME
-    if (clock_gettime(CLOCK_REALTIME, &tt->stamp) < 0)
-    {
-	estat = ep_stat_from_errno(errno);
-	tt->stamp.tv_sec = tt->stamp.tv_nsec = TT_NOTIME;
-    }
-#else
-    struct timeval tvu;
-
-    if (gettimeofday(&tvu, NULL) < 0)
-    {
-	estat = ep_stat_from_errno(errno);
-	tt->stamp.tv_sec = tt->stamp.tv_nsec = TT_NOTIME;
-    }
-    else
-    {
-	tt->stamp.tv_sec = tvu.tv_sec;
-	tt->stamp.tv_nsec = tvu.tv_usec * 1000;
-    }
-#endif
+    EP_STAT estat = ep_time_now(&tt->stamp);
 
     // determine possible clock drift
     if (ClockAccuracy < 0)

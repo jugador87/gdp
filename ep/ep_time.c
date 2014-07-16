@@ -10,7 +10,7 @@
 */
 
 EP_STAT
-ep_time_now(ep_timespec_t *tv)
+ep_time_now(EP_TIME_SPEC *tv)
 {
 	EP_STAT estat = EP_STAT_OK;
 
