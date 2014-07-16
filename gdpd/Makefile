@@ -24,11 +24,13 @@ OBJS=	\
 		gdpd.o \
 		gdpd_gcl.o \
 		gdpd_physlog.o \
+		circular_buffer.o \
 
 HDEPS=	\
 		gdpd.h \
 		gdpd_gcl.h \
 		gdpd_physlog.h \
+		circular_buffer.h \
 		../gdp/gdp.h \
 		../gdp/gdp_protocol.h \
 

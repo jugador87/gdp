@@ -934,6 +934,14 @@ main(int argc, char **argv)
 	ep_app_abort("Cannot initialize gdp library: %s",
 		ep_stat_tostr(estat, ebuf, sizeof ebuf));
     }
+    estat = gcl_physlog_init();
+    if (!EP_STAT_ISOK(estat))
+    {
+    	char ebuf[100];
+
+    	ep_app_abort("Cannot initialize gcl physlog: %s",
+    		ep_stat_tostr(estat, ebuf, sizeof ebuf));
+    }
 
     // need to manually run the event loop
     gdp_run_event_loop(NULL);

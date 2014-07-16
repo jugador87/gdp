@@ -30,11 +30,13 @@ struct gcl_handle_t
     tt_interval_t	ts;		// timestamp from last operation
 
     // fields used only by gdpd
-    long		ver;		// version number of on-disk file
-    FILE		*fp;		// pointer to the on-disk file
+    long		ver;		// version number of on-disk data file
+    int			fd;			// file descriptor for the on-disk data file
+    FILE		*fp;		// pointer to the on-disk data file
     off_t		*offcache;	// offsets of records we have seen
     long		cachesize;	// size of offcache array
     long		maxmsgno;	// last msgno that we have read/written
+    void		*index_entry;
 };
 
 // GCL flags

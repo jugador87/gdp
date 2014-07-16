@@ -34,8 +34,8 @@ gdpd_gclh_new(gcl_handle_t **pgclh)
     if (gclh == NULL)
 	goto fail1;
 
-    estat = gcl_offset_cache_init(gclh);
-    EP_STAT_CHECK(estat, goto fail0);
+    //estat = gcl_offset_cache_init(gclh);
+    //EP_STAT_CHECK(estat, goto fail0);
 
     // get space to store output, e.g., for processing reads
     gclh->revb = evbuffer_new();
