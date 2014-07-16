@@ -22,8 +22,12 @@ CFLAGS=		${COPTS} ${INCS}
 
 OBJS=	\
 		gdpd.o \
+		gdpd_router.o \
+		local_info.o \
 
 HDEPS=	\
+		gdpd_router.h \
+		local_info.h \
 		../gdp/gdp.h \
 		../gdp/gdp_protocol.h \
 
