@@ -61,8 +61,8 @@ index_entry_new(index_entry **out) {
 	(*out)->fd = -1;
 	(*out)->fp = NULL;
 	(*out)->max_msgno = 0;
-	(*out)->max_data_offset = -1;
-	(*out)->max_index_offset = -1;
+	(*out)->max_data_offset = sizeof(gcl_log_header);
+	(*out)->max_index_offset = 0;
 	int cache_size = ep_adm_getintparam("swarm.gdp.index.cachesize", 2048);
 	(*out)->index_cache = circular_buffer_new(cache_size);
 	return EP_STAT_OK;
@@ -217,7 +217,13 @@ gcl_read(gcl_handle_t *gclh,
 
 	char read_buffer[GCL_READ_BUFFER_SIZE];
 	gcl_log_record log_record;
-	FILE *data_fp = fdopen(dup(gclh->fd), "r");
+	int new_fd = dup(gclh->fd);
+	if (new_fd == -1)
+	{
+		fprintf(stderr, "%s", strerror(errno));
+		goto fail0;
+	}
+	FILE *data_fp = fdopen(new_fd, "r");
 	fseek(data_fp, offset, SEEK_SET);
 
 	// read header
@@ -255,6 +261,7 @@ gcl_create(gcl_name_t gcl_name,
 	int data_fd = -1;
 	int index_fd = -1;
 	FILE *data_fp;
+	FILE *index_fp;
 	char data_pbuf[PATH_MAX];
 	char index_pbuf[PATH_MAX];
 
@@ -288,8 +295,8 @@ gcl_create(gcl_name_t gcl_name,
 			data_pbuf, strerror(errno));
 		goto fail1;
     }
-    gclh->fp = data_fp = fdopen(data_fd, "a+");
-    if (gclh->fp == NULL)
+    data_fp = fdopen(data_fd, "a+");
+    if (data_fp == NULL)
     {
 		estat = ep_stat_from_errno(errno);
 		gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
@@ -303,6 +310,14 @@ gcl_create(gcl_name_t gcl_name,
     	gdp_log(estat, "gcl_create: cannot create %s: %s",
     		index_pbuf, strerror(errno));
     	goto fail2;
+    }
+    index_fp = fdopen(index_fd, "a+");
+    if (index_fp == NULL)
+    {
+    	estat = ep_stat_from_errno(errno);
+    	gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
+    		index_pbuf, strerror(errno));
+    	goto fail3;
     }
 
     index_entry *new_entry = NULL;
@@ -320,6 +335,8 @@ gcl_create(gcl_name_t gcl_name,
     // success!
     fflush(data_fp);
     flock(data_fd, LOCK_UN);
+    new_entry->fd = index_fd;
+    new_entry->fp = index_fp;
     gclh->fd = data_fd;
     gclh->fp = data_fp;
     gclh->index_entry = new_entry;
@@ -426,6 +443,8 @@ gcl_open(gcl_name_t gcl_name,
     gclh->index_entry = entry;
     gclh->ver = log_header.version;
 
+    *pgclh = gclh;
+
     return estat;
 
 fail5:
@@ -488,7 +507,7 @@ gcl_close(gcl_handle_t *gclh)
     evbuffer_free(gclh->revb);
     ep_mem_free(gclh->offcache);
     // XXX: when do we remove the index cache for optimal performance?
-    // gdp_gcl_cache_drop(gclh->gcl_name, 0);
+    gdp_gcl_cache_drop(gclh->gcl_name, 0);
     ep_mem_free(gclh);
 
     return estat;
@@ -525,7 +544,7 @@ gcl_append(gcl_handle_t *gclh,
 	gcl_index_cache_put(entry, index_record.msgno, index_record.offset);
 	++entry->max_msgno;
 	entry->max_index_offset += sizeof(index_record);
-	entry->max_data_offset += (sizeof(log_record) + record_size);
+	entry->max_data_offset += record_size;
 
 	pthread_rwlock_unlock(&entry->lock);
 
