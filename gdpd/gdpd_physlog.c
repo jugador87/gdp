@@ -7,6 +7,7 @@
 
 #include <gdp/gdp_protocol.h>
 
+#include <sys/file.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
