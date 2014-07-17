@@ -530,7 +530,7 @@ gcl_append(gcl_handle_t *gclh,
 	fwrite(&log_record, sizeof(log_record), 1, gclh->fp);
 
 	// write log record data
-	fwrite(&msg->data, msg->len, 1, gclh->fp);
+	fwrite(msg->data, msg->len, 1, gclh->fp);
 
 	index_record.msgno = log_record.msgno;
 	index_record.offset = entry->max_data_offset;
