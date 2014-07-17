@@ -172,8 +172,10 @@ gcl_read(gcl_handle_t *gclh,
 		// msgno is not in the index
 		// now binary search through the disk index
 
-		FILE *index_fp = fdopen(dup(entry->fd), "r");
-		off_t file_size = fseek(index_fp, 0, SEEK_END);
+		int index_fd = dup(entry->fd);
+		FILE *index_fp = fdopen(index_fd, "r");
+		fseek(index_fp, 0, SEEK_END);
+		off_t file_size = ftell(index_fp);
 		long long record_count = ((file_size - sizeof(gcl_log_header)) / sizeof(gcl_index_record));
 		gcl_index_record index_record;
 		size_t start = 0;
@@ -200,7 +202,8 @@ gcl_read(gcl_handle_t *gclh,
 			}
 		}
 
-		offset = LLONG_MAX;
+		fclose(index_fp);
+		close(index_fd);
 	}
 	else
 	{
@@ -215,13 +218,13 @@ gcl_read(gcl_handle_t *gclh,
 
 	char read_buffer[GCL_READ_BUFFER_SIZE];
 	gcl_log_record log_record;
-	int new_fd = dup(gclh->fd);
-	if (new_fd == -1)
+	int data_fd = dup(gclh->fd);
+	if (data_fd == -1)
 	{
 		fprintf(stderr, "%s", strerror(errno));
 		goto fail0;
 	}
-	FILE *data_fp = fdopen(new_fd, "r");
+	FILE *data_fp = fdopen(data_fd, "r");
 	fseek(data_fp, offset, SEEK_SET);
 
 	// read header
@@ -243,6 +246,8 @@ gcl_read(gcl_handle_t *gclh,
 	}
 
 	// done
+	fclose(data_fp);
+	close(data_fd);
 
 fail0:
 	pthread_rwlock_unlock(&entry->lock);
