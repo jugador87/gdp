@@ -148,9 +148,7 @@ gcl_index_cache_put(index_entry *entry, long long msgno, long long offset)
 	new_pair.key = msgno;
 	new_pair.value = offset;
 
-	pthread_rwlock_wrlock(&entry->lock);
 	circular_buffer_append(entry->index_cache, new_pair);
-	pthread_rwlock_unlock(&entry->lock);
 
 	return estat;
 }
