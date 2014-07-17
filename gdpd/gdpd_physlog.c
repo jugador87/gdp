@@ -63,7 +63,7 @@ index_entry_new(index_entry **out) {
 	(*out)->max_msgno = 0;
 	(*out)->max_data_offset = sizeof(gcl_log_header);
 	(*out)->max_index_offset = 0;
-	int cache_size = ep_adm_getintparam("swarm.gdp.index.cachesize", 2048);
+	int cache_size = ep_adm_getintparam("swarm.gdp.index.cachesize", 65536); // 1 MiB index cache
 	(*out)->index_cache = circular_buffer_new(cache_size);
 	return EP_STAT_OK;
 
