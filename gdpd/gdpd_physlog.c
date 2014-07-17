@@ -539,6 +539,7 @@ gcl_append(gcl_handle_t *gclh,
 	fwrite(&index_record, sizeof(index_record), 1, entry->fp);
 
 	// commit
+	fflush(entry->fp);
 	gcl_index_cache_put(entry, index_record.msgno, index_record.offset);
 	++entry->max_msgno;
 	entry->max_index_offset += sizeof(index_record);
