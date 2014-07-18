@@ -172,10 +172,7 @@ gcl_read(gcl_handle_t *gclh,
 		// msgno is not in the index
 		// now binary search through the disk index
 
-		int index_fd = dup(entry->fd);
-		FILE *index_fp = fdopen(index_fd, "r");
-		fseek(index_fp, 0, SEEK_END);
-		off_t file_size = ftell(index_fp);
+		off_t file_size = entry->max_index_offset;
 		long long record_count = ((file_size - sizeof(gcl_log_header)) / sizeof(gcl_index_record));
 		gcl_index_record index_record;
 		size_t start = 0;
@@ -185,8 +182,7 @@ gcl_read(gcl_handle_t *gclh,
 		while (start < end)
 		{
 			mid = start + (end - start) / 2;
-			fseek(index_fp, mid * sizeof(gcl_index_record), SEEK_SET);
-			fread(&index_record, sizeof(gcl_index_record), 1, index_fp);
+			pread(entry->fd, &index_record, sizeof(gcl_index_record), mid * sizeof(gcl_index_record));
 			if (msgno < index_record.msgno)
 			{
 				end = mid;
@@ -201,9 +197,6 @@ gcl_read(gcl_handle_t *gclh,
 				break;
 			}
 		}
-
-		fclose(index_fp);
-		close(index_fd);
 	}
 	else
 	{
@@ -218,36 +211,27 @@ gcl_read(gcl_handle_t *gclh,
 
 	char read_buffer[GCL_READ_BUFFER_SIZE];
 	gcl_log_record log_record;
-	int data_fd = dup(gclh->fd);
-	if (data_fd == -1)
-	{
-		fprintf(stderr, "%s", strerror(errno));
-		goto fail0;
-	}
-	FILE *data_fp = fdopen(data_fd, "r");
-	fseek(data_fp, offset, SEEK_SET);
 
 	// read header
-	fread(&log_record, sizeof(log_record), 1, data_fp);
-
+	pread(gclh->fd, &log_record, sizeof(log_record), offset);
+	offset += sizeof(log_record);
 	long long data_length = log_record.data_length;
 
 	// read data in chunks and add it to the evbuffer
 	while (data_length >= sizeof(read_buffer))
 	{
-		fread(&read_buffer, sizeof(read_buffer), 1, data_fp);
+		pread(gclh->fd, &read_buffer, sizeof(read_buffer), offset);
 		evbuffer_add(evb, &read_buffer, sizeof(read_buffer));
+		offset += sizeof(read_buffer);
 		data_length -= sizeof(read_buffer);
 	}
 	if (data_length > 0)
 	{
-		fread(&read_buffer, data_length, 1, data_fp);
+		pread(gclh->fd, &read_buffer, data_length, offset);
 		evbuffer_add(evb, &read_buffer, data_length);
 	}
 
 	// done
-	fclose(data_fp);
-	close(data_fd);
 
 fail0:
 	pthread_rwlock_unlock(&entry->lock);
@@ -418,7 +402,7 @@ gcl_open(gcl_name_t gcl_name,
 
 	gcl_log_header log_header;
 
-	fread(&log_header, sizeof(log_header), 1, data_fp);
+	pread(data_fd, &log_header, sizeof(log_header), 0);
 
 	if (log_header.magic != GCL_LOG_MAGIC) {
 		fprintf(stderr, "gcl_open: magic mismatch - found: %lld, expected: %lld\n",
