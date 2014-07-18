@@ -24,6 +24,7 @@ worker_thread_routine(void *tp_)
 
 		new_job->callback(new_job->data);
 
+		free(new_job->data);
 		free(new_job);
 	}
 
