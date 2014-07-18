@@ -178,6 +178,7 @@ drop_all_rid_info(conn_t *conn)
 
 static EP_HASH	    *OpenGCLCache;
 
+static pthread_rwlock_t OpenGCLCacheLock = PTHREAD_RWLOCK_INITIALIZER;
 
 EP_STAT
 gdp_gcl_cache_init(void)
@@ -203,6 +204,7 @@ gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 {
     gcl_handle_t *gclh;
 
+    pthread_rwlock_rdlock(&OpenGCLCacheLock);
     // see if we have a pointer to this GCL in the cache
     gclh = ep_hash_search(OpenGCLCache, sizeof (gcl_name_t), (void *) gcl_name);
     if (ep_dbg_test(Dbg, 42))
@@ -212,6 +214,7 @@ gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 	gdp_gcl_printable_name(gcl_name, pbuf);
 	ep_dbg_printf("gdp_gcl_cache_get: %s => %p\n", pbuf, gclh);
     }
+    pthread_rwlock_unlock(&OpenGCLCacheLock);
     return gclh;
 }
 
@@ -224,6 +227,7 @@ gdp_gcl_cache_add(gcl_handle_t *gclh, gdp_iomode_t mode)
     EP_ASSERT_REQUIRE(!gdp_gcl_name_is_zero(gclh->gcl_name));
 
     // save it in the cache
+    pthread_rwlock_wrlock(&OpenGCLCacheLock);
     (void) ep_hash_insert(OpenGCLCache,
 			sizeof (gcl_name_t), &gclh->gcl_name, gclh);
     if (ep_dbg_test(Dbg, 42))
@@ -233,6 +237,7 @@ gdp_gcl_cache_add(gcl_handle_t *gclh, gdp_iomode_t mode)
 	gdp_gcl_printable_name(gclh->gcl_name, pbuf);
 	ep_dbg_printf("gdp_gcl_cache_add: added %s => %p\n", pbuf, gclh);
     }
+    pthread_rwlock_unlock(&OpenGCLCacheLock);
 }
 
 
@@ -241,6 +246,7 @@ gdp_gcl_cache_drop(gcl_name_t gcl_name, gdp_iomode_t mode)
 {
     gcl_handle_t *gclh;
 
+    pthread_rwlock_wrlock(&OpenGCLCacheLock);
     gclh = ep_hash_insert(OpenGCLCache, sizeof (gcl_name_t), gcl_name, NULL);
     if (ep_dbg_test(Dbg, 42))
     {
@@ -249,6 +255,7 @@ gdp_gcl_cache_drop(gcl_name_t gcl_name, gdp_iomode_t mode)
 	gdp_gcl_printable_name(gclh->gcl_name, pbuf);
 	ep_dbg_printf("gdp_gcl_cache_drop: dropping %s => %p\n", pbuf, gclh);
     }
+    pthread_rwlock_unlock(&OpenGCLCacheLock);
 }
 
 
