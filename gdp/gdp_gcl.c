@@ -880,10 +880,11 @@ init_error(const char *msg)
 **  Their events should have already been added to the event base.
 */
 
-static pthread_t    EventLoopThread;
+static pthread_t    AcceptEventLoopThread;
+pthread_t	IoEventLoopThread;
 
 void *
-gdp_run_event_loop(void *ctx)
+gdp_run_accept_event_loop(void *ctx)
 {
     struct event_base *evb = ctx;
     long evdelay = ep_adm_getintparam("gdp.rest.event.loopdelay", 100000);
@@ -901,7 +902,7 @@ gdp_run_event_loop(void *ctx)
 #ifdef EVLOOP_NO_EXIT_ON_EMPTY // requires libevent 2.1-alpha
 	event_base_loop(evb, EVLOOP_NO_EXIT_ON_EMPTY);
 #else
-#message("your version of libevent doesn't support EVLOOP_NO_EXIT_ON_EMPTY, performance will suffer")
+#message("your version of libevent doesn't support EVLOOP_NO_EXIT_ON_EMPTY, performance may suffer")
 	event_base_loop(evb, 0);
 #endif
 	// event_base_loop(evb, EVLOOP_ONCE);
@@ -912,14 +913,41 @@ gdp_run_event_loop(void *ctx)
     }
 }
 
+void *
+gdp_run_io_event_loop(void *ctx)
+{
+	struct event_base *evb = ctx;
+
+	if (evb != NULL)
+	{
+		while (true)
+		{
+			// TODO: what if user compiling doesn't have libevent 2.1-alpha?
+			event_base_loop(evb, EVLOOP_NO_EXIT_ON_EMPTY);
+		}
+	}
+}
 
 EP_STAT
-_gdp_start_event_loop_thread(struct event_base *evb)
+_gdp_start_accept_event_loop_thread(struct event_base *evb)
 {
-    if (pthread_create(&EventLoopThread, NULL, gdp_run_event_loop, evb) != 0)
+    if (pthread_create(&AcceptEventLoopThread, NULL, gdp_run_accept_event_loop, evb) != 0)
 	return init_error("cannot create event loop thread");
     else
 	return EP_STAT_OK;
+}
+
+EP_STAT
+_gdp_start_io_event_loop_thread(struct event_base *evb)
+{
+	if (pthread_create(&IoEventLoopThread, NULL, gdp_run_io_event_loop, evb) != 0)
+	{
+		return init_error("cannot create io event loop thread");
+	}
+	else
+	{
+		return EP_STAT_OK;
+	}
 }
 
 
@@ -1030,7 +1058,7 @@ gdp_init(bool run_event_loop)
 
     // create a thread to run the event loop
     if (run_event_loop)
-	estat = _gdp_start_event_loop_thread(GdpEventBase);
+	estat = _gdp_start_accept_event_loop_thread(GdpEventBase);
     EP_STAT_CHECK(estat, goto fail1);
 
     ep_dbg_cprintf(Dbg, 4, "gdp_init: success\n");

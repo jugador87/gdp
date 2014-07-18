@@ -23,6 +23,8 @@ worker_thread_routine(void *tp_)
 		pthread_mutex_unlock(&tp->mutex);
 
 		new_job->callback(new_job->data);
+
+		free(new_job);
 	}
 
 	return 0;

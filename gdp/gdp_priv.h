@@ -14,6 +14,8 @@
 
 #include <stdio.h>
 
+extern pthread_t	IoEventLoopThread;
+
 struct gcl_handle_t
 {
     // fields used by GDP library
@@ -61,10 +63,15 @@ EP_STAT		gdp_gcl_cache_init(void);
 
 const char	*_gdp_proto_cmd_name(uint8_t cmd);
 
-EP_STAT		_gdp_start_event_loop_thread(
+EP_STAT		_gdp_start_accept_event_loop_thread(
 				struct event_base *evb);
 
 void		gdp_gcl_newname(
 				gcl_name_t gcl_name);
+
+EP_STAT		_gdp_start_accept_event_loop_thread(struct event_base *evb);
+
+
+EP_STAT		_gdp_start_io_event_loop_thread(struct event_base *evb);
 
 #endif // _GDP_PRIV_H_

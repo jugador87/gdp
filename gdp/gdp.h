@@ -88,7 +88,7 @@ extern EP_STAT	gdp_init(
 		bool run_event_loop);	// run event loop in thread
 
 // run event loop (normally run from gdp_init; never returns)
-extern void	*gdp_run_event_loop(
+extern void	*gdp_run_accept_event_loop(
 		void *);		// unused
 
 // create a new GCL
