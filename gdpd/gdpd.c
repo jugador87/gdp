@@ -606,6 +606,8 @@ lev_read_cb_continue(void *continue_data)
 	cdata->estat = dispatch_cmd(d, cdata->ctx, cdata->cpktbuf, &rpktbuf, cdata->bev);
 	//XXX anything to do with estat here?
 
+	free(cdata->cpktbuf);
+
 	// find the GCL handle, if any
 	{
 		gcl_handle_t *gclh;
