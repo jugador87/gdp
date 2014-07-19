@@ -30,7 +30,8 @@ typedef struct gcl_handle_t gcl_handle_t;
 typedef uint8_t		    gcl_name_t[32];
 
 // the printable name of a GCL
-typedef char		    gcl_pname_t[45];
+#define GCL_PNAME_LEN	    43		// length of an encoded pname
+typedef char		    gcl_pname_t[GCL_PNAME_LEN + 1];
 
 // a request id (used for correlating commands and responses)
 typedef uint64_t	    gdp_rid_t;

@@ -10,6 +10,7 @@
 #include <ep/ep_b64.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_hash.h>
+#include <ep/ep_prflags.h>
 #include <ep/ep_string.h>
 #include <pthread.h>
 #include <event2/bufferevent.h>
@@ -324,9 +325,18 @@ gdp_gcl_printable_name(const gcl_name_t internal, gcl_pname_t external)
 EP_STAT
 gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
 {
-    EP_STAT estat = ep_b64_decode(external, sizeof (gcl_pname_t),
+    EP_STAT estat;
+
+    if (strlen(external) != GCL_PNAME_LEN)
+    {
+	estat = GDP_STAT_GCL_NAME_INVALID;
+    }
+    else
+    {
+	estat = ep_b64_decode(external, sizeof (gcl_pname_t) - 1,
 			    internal, sizeof (gcl_name_t),
 			    EP_B64_ENC_URL);
+    }
 
     if (!EP_STAT_ISOK(estat))
     {
@@ -337,13 +347,12 @@ gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
 		"\tstat = %s\n",
 		ep_stat_tostr(estat, ebuf, sizeof ebuf));
     }
-
-    if (EP_STAT_TO_LONG(estat) != sizeof (gcl_name_t))
+    else if (EP_STAT_TO_LONG(estat) != sizeof (gcl_name_t))
     {
 	ep_dbg_cprintf(Dbg, 2,
 		"gdp_gcl_internal_name: ep_b64_decode length failure (%ld != %zd)\n",
 		EP_STAT_TO_LONG(estat), sizeof (gcl_name_t));
-	return EP_STAT_ABORT;
+	estat = EP_STAT_ABORT;
     }
 
     return estat;
@@ -755,6 +764,8 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 //    rid_info_t *rif;
     dispatch_ent_t *d;
 
+    ep_dbg_cprintf(Dbg, 50, "gdp_read_cb: fd %d\n", bufferevent_getfd(bev));
+
     estat = gdp_pkt_in(&pkt, ievb);
     if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
 	return;
@@ -840,22 +851,44 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 **  GDP_EVENT_CB --- events or errors occur on gdpd socket
 */
 
+static EP_PRFLAGS_DESC	EventWhatFlags[] =
+{
+    { BEV_EVENT_READING,	BEV_EVENT_READING,	"BEV_EVENT_READING"	},
+    { BEV_EVENT_WRITING,	BEV_EVENT_WRITING,	"BEV_EVENT_WRITING"	},
+    { BEV_EVENT_EOF,		BEV_EVENT_EOF,		"BEV_EVENT_EOF"		},
+    { BEV_EVENT_ERROR,		BEV_EVENT_ERROR,	"BEV_EVENT_ERROR"	},
+    { BEV_EVENT_TIMEOUT,	BEV_EVENT_TIMEOUT,	"BEV_EVENT_TIMEOUT"	},
+    { BEV_EVENT_CONNECTED,	BEV_EVENT_CONNECTED,	"BEV_EVENT_CONNECTED"	},
+    { 0, 0, NULL }
+};
+
 static void
 gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 {
+    bool exitloop = false;
+
+    if (ep_dbg_test(Dbg, 25))
+    {
+	ep_dbg_printf("gdp_event_cb: fd %d: ", bufferevent_getfd(bev));
+	ep_prflags(events, EventWhatFlags, ep_dbg_getfile());
+	ep_dbg_printf("\n");
+    }
     if (EP_UT_BITSET(BEV_EVENT_EOF, events))
     {
 	struct evbuffer *ievb = bufferevent_get_input(bev);
 	size_t l = evbuffer_get_length(ievb);
 
 	ep_dbg_cprintf(Dbg, 1, "gdpd_event_cb: got EOF, %zu bytes left\n", l);
+	exitloop = true;
     }
     if (EP_UT_BITSET(BEV_EVENT_ERROR, events))
     {
 	ep_dbg_cprintf(Dbg, 1, "gdpd_event_cb: error: %s\n",
 		evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+	exitloop = true;
     }
-    event_base_loopexit(GdpEventBase, NULL);
+    if (exitloop)
+	event_base_loopexit(GdpEventBase, NULL);
 }
 
 
@@ -904,7 +937,14 @@ gdp_run_event_loop(void *ctx)
 	event_base_loop(evb, 0);
 #endif
 	// shouldn't happen (?)
-	ep_dbg_cprintf(Dbg, 1, "gdp_event_loop: event_base_loop returned\n");
+	if (ep_dbg_test(Dbg, 1))
+	{
+	    ep_dbg_printf("gdp_event_loop: event_base_loop returned\n");
+	    if (event_base_got_break(evb))
+		ep_dbg_printf(" ... as a result of loopbreak\n");
+	    if (event_base_got_exit(evb))
+		ep_dbg_printf(" ... as a result of loopexit\n");
+	}
 	if (evdelay > 0)
 	    usleep(evdelay);			// avoid CPU hogging
     }
@@ -1024,6 +1064,8 @@ gdp_init(bool run_event_loop)
 	    goto fail1;
 	}
 	GdpPortBufferEvent = bev;
+	ep_dbg_cprintf(Dbg, 10, "gdp_init: listening on port %d, fd %d\n",
+		gdpd_port, bufferevent_getfd(bev));
     }
 
     // create a thread to run the event loop
