@@ -217,7 +217,7 @@ ep_b64_decode(const char *txt, size_t tsize,
 	// TODO: check to make sure output buffer won't overflow
 
 	// do the actual decoding
-	for (state = tx = bx = 0; tx < tsize && txt[tx] != '\0'; )
+	for (state = tx = bx = 0; tx < tsize && txt[tx] != '\0' && bx < bsize; )
 	{
 		int v = decode[txt[tx++] & 0xff];
 
