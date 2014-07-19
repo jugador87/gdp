@@ -105,7 +105,7 @@ write_scgi(scgi_request *req,
 EP_STAT
 gdp_failure(scgi_request *req, char *code, char *msg, char *fmt, ...)
 {
-    char buf[200];
+    char buf[4000];
     FILE *fp = ep_fopensmem(buf, sizeof buf, "w");
     va_list av;
     char c;
@@ -116,13 +116,14 @@ gdp_failure(scgi_request *req, char *code, char *msg, char *fmt, ...)
 		"Content-Type: application/json\r\n"
 		"\r\n"
 		"{\r\n"
-		"    \"error\": \"%s\"\r\n", code, msg);
-    fprintf(fp, "    \"code\": \"%s\"\r\n", code);
+		"    \"error\": \"%s\"\r\n"
+		"    \"code\": \"%s\"\r\n",
+		code, msg, code);
     va_start(av, fmt);
     while ((c = *fmt++) != '\0')
     {
 	char *p = va_arg(av, char *);
-	char pbuf[40];
+	char pbuf[100];
 
 	fprintf(fp, "    \"%s\": \"", p);
 	switch (c)
@@ -146,6 +147,7 @@ gdp_failure(scgi_request *req, char *code, char *msg, char *fmt, ...)
     fprintf(fp, "}");
     fputc('\0', fp);
     fclose(fp);
+    buf[sizeof buf - 1] = '\0';	    // in case it overflowed
     write_scgi(req, buf);
 
     // should chose something more appropriate here
@@ -162,6 +164,14 @@ show_gcl(char *gclpname,
 }
 
 
+/*
+**  READ_MSG --- read and return message from a GCL
+**
+**	XXX Currently doesn't use the GCL cache.  To make that work
+**	    long term we would have to have to implement LRU in that
+**	    cache (which we probably need to do anyway).
+*/
+
 EP_STAT
 read_msg(char *gclpname, long msgno, scgi_request *req)
 {
@@ -172,11 +182,11 @@ read_msg(char *gclpname, long msgno, scgi_request *req)
     struct evbuffer *revb;
 
     // for printing below
-    gdp_gcl_internal_name(gclpname, gcliname);
+    estat = gdp_gcl_internal_name(gclpname, gcliname);
+    EP_STAT_CHECK(estat, goto fail0);
 
     estat = gdp_gcl_open(gcliname, GDP_MODE_RO, &gclh);
-    if (!EP_STAT_ISOK(estat))
-	goto fail0;
+    EP_STAT_CHECK(estat, goto fail0);
 
     revb = evbuffer_new();
 
