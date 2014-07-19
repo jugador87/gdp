@@ -28,6 +28,7 @@ static struct ep_stat_to_string	Stats[] =
     { GDP_STAT_UNKNOWN_RID,		"request id unknown",		},
     { GDP_STAT_INTERNAL_ERROR,		"GDP internal error",		},
     { GDP_STAT_BAD_IOMODE,		"GDP bad I/O mode",		},
+    { GDP_STAT_GCL_NAME_INVALID,	"invalid GCL name",		},
 
     // end of list sentinel
     { EP_STAT_OK,			NULL				},

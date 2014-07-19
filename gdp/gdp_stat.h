@@ -32,6 +32,7 @@
 #define GDP_STAT_UNKNOWN_RID		GDP_STAT_NEW(SEVERE, 11)
 #define GDP_STAT_INTERNAL_ERROR		GDP_STAT_NEW(ABORT, 12)
 #define GDP_STAT_BAD_IOMODE		GDP_STAT_NEW(ERROR, 13)
+#define GDP_STAT_GCL_NAME_INVALID	GDP_STAT_NEW(ERROR, 14)
 
 // create EP_STAT from GDP protocol command codes for acks and naks
 //	values from 128-254 reserved for this use
