@@ -83,11 +83,14 @@ Running the GDP RESTful Interface:
 			)
 		    )
 
-	(Normally in /usr/local/etc/lighttpd/conf.c/scgi.conf)
-	This will tell lighttpd to connect to an SCGI server on the
-	local machine, port 8001.  The rest of the lighttpd setup is
-	off the shelf.  I've set up mine to listen on port 8080,
-	and the rest of these instructions will reflect that.
+	(Normally in /usr/local/etc/lighttpd/conf.c/scgi.conf) This will
+	tell lighttpd to connect to an SCGI server on the local machine,
+	port 8001.  You'll also need to make sure the line
+	"include conf.d/scgi.conf" in /usr/local/etc/lighttpd/modules.conf
+	is not commented out.  The rest of the lighttpd setup should be
+	off the shelf.  I've set up instance of lighttpd to listen on
+	port 8080 instead of the default port 80, and the rest of these
+	instructions will reflect that.
 
    2.	Compile the code if you haven't already.
 
