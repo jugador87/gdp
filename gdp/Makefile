@@ -16,7 +16,8 @@ ALL=	libgdp.a
 
 PG=
 O=	-O
-COPTS=	${PG} -g -Wall $O -std=c99
+WALL=	-Wall
+COPTS=	${PG} -g ${WALL} $O -std=c99
 CFLAGS=	${COPTS} -I..
 LDFLAGS=-L.
 RANLIB=	ranlib

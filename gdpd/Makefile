@@ -17,7 +17,8 @@ INCS=		${INCGDP} ${INCEP} ${INCJANSSON} ${INCEVENT2}
 LDFLAGS=	${LIBGDP} ${LIBEP} ${LIBJANSSON} ${LIBEVENT2}
 PG=
 O=		-O
-COPTS=		${PG} -g -Wall $O -std=c99
+WALL=		-Wall
+COPTS=		${PG} -g ${WALL} $O -std=c99
 CFLAGS=		${COPTS} ${INCS}
 
 OBJS=	\
