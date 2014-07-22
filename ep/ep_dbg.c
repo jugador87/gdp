@@ -25,6 +25,7 @@ struct FLAGPAT
 static EP_MUTEX	FlagListMutex;
 static FLAGPAT	*FlagList;
 FILE		*DebugFile;
+int		__EpDbgCurGen;		// current generation number
 
 
 /*

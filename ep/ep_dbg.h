@@ -26,7 +26,7 @@ struct EP_DBG
 	EP_DBG		*next;	// initted flags, in case values change
 };
 
-int	__EpDbgCurGen;		// current generation
+extern int	__EpDbgCurGen;		// current generation
 
 /***************************  END PRIVATE  ***************************/
 
