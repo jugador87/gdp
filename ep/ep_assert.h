@@ -59,6 +59,7 @@ extern void	ep_assert_failure(
 			int line);
 
 // called if ep_assert_failure was rude enough to return
-extern void	ep_assert_abort(const char *msg);
+extern void	ep_assert_abort(const char *msg)
+			__attribute__ ((noreturn));
 
 #endif /*_EP_ASSERT_H_*/

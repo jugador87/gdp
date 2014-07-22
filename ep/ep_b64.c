@@ -39,7 +39,7 @@ encmaxline(const char *encoding)
 size_t
 ep_b64_enc_len(size_t bsize, const char *encoding)
 {
-	int neededlength = ((bsize + 2) / 3) * 4;
+	size_t neededlength = ((bsize + 2) / 3) * 4;
 
 	// strip off bytes allocated for final padding
 	if (!EP_UT_BITSET(EP_B64_PAD, encoding[2]))
@@ -88,12 +88,12 @@ ep_b64_encode(const void *bbin, size_t bsize,
 	int bx, tx;			// indexes into binary & text
 	int lx;				// index into current output line
 	int nextc;
-	int neededlength = ep_b64_enc_len(bsize, encoding) + 1;
+	size_t neededlength = ep_b64_enc_len(bsize, encoding) + 1;
 					// +1 for null terminator on string
 
 	if (tsize < neededlength)
 	{
-		ep_dbg_printf("B64_OVERFLOW: tsize = %ld, neededlength = %d\n",
+		ep_dbg_printf("B64_OVERFLOW: tsize = %ld, neededlength = %zd\n",
 				tsize, neededlength);
 		return EP_STAT_B64_OVERFLOW;
 	}
@@ -157,7 +157,7 @@ ep_b64_encode(const void *bbin, size_t bsize,
 	// success!
 	EP_ASSERT_ENSURE(tx < tsize);
 	txt[tx] = '\0';
-	return EP_STAT_FROM_LONG(tx);
+	return EP_STAT_FROM_LONG((unsigned long) tx);
 }
 
 

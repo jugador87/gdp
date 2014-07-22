@@ -51,9 +51,6 @@ struct ep_malloc_functions
 # define ep_mem_ealloc(size)	ep_mem_ialloc((size), NULL, \
 					EP_MEM_F_FAILOK, \
 					_EP_MEM_FILE_LINE_)
-# define ep_mem_palloc(size)	ep_mem_ialloc((size), NULL, \
-					EP_MEM_F_ALTMEM, \
-					_EP_MEM_FILE_LINE_)
 # define ep_mem_falloc(size, flags) \
 				ep_mem_ialloc((size), NULL, (flags), \
 					_EP_MEM_FILE_LINE_)
@@ -81,7 +78,7 @@ extern void	*ep_mem_ialloc(		// allocate from heap w/ flags
 			int line);			// dbg: line number
 extern char	*ep_mem_istrdup(		// dup string from heap w/ flags
 			const char *s,			// string to copy
-			int slen,			// max length of s
+			ssize_t slen,			// max length of s
 			uint32_t flags,			// action modifiers
 			const char *file,		// dbg: file name
 			int line);			// dbg: line number

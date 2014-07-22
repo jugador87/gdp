@@ -25,7 +25,7 @@ static struct ep_malloc_functions	*SystemMallocFunctions =
 
 
 void
-ep_set_malloc_functions(struct ep_malloc_functions *mf)
+ep_mem_set_malloc_functions(struct ep_malloc_functions *mf)
 {
 	SystemMallocFunctions = mf;
 }
@@ -311,12 +311,12 @@ ep_mem_realloc(
 char *
 ep_mem_istrdup(
 	const char *s,
-	int slen,
+	ssize_t slen,
 	uint32_t flags,
 	const char *file,
 	int line)
 {
-	size_t l;
+	ssize_t l;
 	char *p;
 
 	if (s == NULL)
