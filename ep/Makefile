@@ -115,7 +115,8 @@ HFILES_NOTYET=	\
 CC=	cc
 PG=
 O=	-O
-COPTS=	${PG} -g -Wall $O -std=c99
+WALL=	-Wall
+COPTS=	${PG} -g ${WALL} $O -std=c99
 CFLAGS=	${COPTS} ${INCLS} -I${CURDIR} -I..
 RM=	rm
 LDFLAGS=-L.
