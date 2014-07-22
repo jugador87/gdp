@@ -8,6 +8,11 @@
 ** 	the same thing.
 */
 
+#include <ep.h>
+#include <string.h>
+#include <stdio.h>
+#include <sys/errno.h>
+
 #if __FreeBSD__ || __APPLE__
 #   define IORESULT_T	int
 #   define IOBLOCK_T	int
@@ -19,11 +24,6 @@
 #else
 #   error Cannot determine use of funopen vs fopencookie
 #endif
-
-#include <ep.h>
-#include <string.h>
-#include <stdio.h>
-#include <sys/errno.h>
 
 struct meminfo
 {

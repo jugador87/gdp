@@ -87,7 +87,7 @@ ep_b64_encode(const void *bbin, size_t bsize,
 	int maxline;
 	int bx, tx;			// indexes into binary & text
 	int lx;				// index into current output line
-	int nextc;
+	int nextc = 0;
 	size_t neededlength = ep_b64_enc_len(bsize, encoding) + 1;
 					// +1 for null terminator on string
 

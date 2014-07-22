@@ -10,6 +10,7 @@
 **  	ever use this in a threaded environment!
 */
 
+#include <ep.h>
 #include <stdio.h>
 
 size_t

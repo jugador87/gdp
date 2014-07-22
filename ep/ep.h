@@ -10,6 +10,9 @@
 #ifndef _EP_H_
 #define _EP_H_
 
+#define _BSD_SOURCE		1	// needed to compile on Linux
+#define _GNU_SOURCE		1	// needed to compile on Linux
+
 #include <ep/ep_conf.h>
 
 #include <stdlib.h>
