@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <sys/file.h>
 
 /*
 **  This is currently a crappy implementation.  It's slow and not very

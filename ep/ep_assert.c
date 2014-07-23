@@ -58,7 +58,11 @@ ep_assert_failure(
 	/*NOTREACHED*/
 }
 
-// :XXX: should be in unix-dependent file (probably posix_io.c)
+/*
+**  EP_ASSERT_ABORT --- force an abort
+**
+**	XXX should be in unix-dependent file (probably posix_io.c)
+*/
 
 void
 ep_assert_abort(const char *msg)
@@ -73,11 +77,11 @@ ep_assert_abort(const char *msg)
 
 	// no?  OK then, let's bail out near line 1
 	msg1 = strerror(errno);
-	write(2, msg0, strlen(msg0));
-	write(2, msg1, strlen(msg1));
-	write(2, msg2, strlen(msg2));
-	write(2, msg, strlen(msg));
-	write(2, "\n", 1);
+	(void) write(2, msg0, strlen(msg0));
+	(void) write(2, msg1, strlen(msg1));
+	(void) write(2, msg2, strlen(msg2));
+	(void) write(2, msg, strlen(msg));
+	(void) write(2, "\n", 1);
 	abort();
 
 	// if abort fails, what to do, what to do?

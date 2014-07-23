@@ -62,7 +62,8 @@ gcl_msg_print(const gdp_msg_t *msg,
 	fprintf(fp, ", no timestamp");
     }
     i = msg->len;
-    fprintf(fp, "\n  %s%.*s%s\n", EpChar->lquote, i, msg->data, EpChar->rquote);
+    fprintf(fp, "\n  %s%.*s%s\n", EpChar->lquote, i,
+		    (char *) msg->data, EpChar->rquote);
 }
 
 

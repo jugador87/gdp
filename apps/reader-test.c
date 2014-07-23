@@ -5,6 +5,7 @@
 #include <ep/ep_app.h>
 #include <event2/buffer.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <string.h>
 
 int

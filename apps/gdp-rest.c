@@ -25,6 +25,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <getopt.h>
+#include <sys/socket.h>
 #include <scgilib/scgilib.h>
 #include <event2/event.h>
 #include <jansson.h>
@@ -489,7 +491,9 @@ fd_newfd_cb(int fd, enum scgi_fd_type fdtype)
 
 	// allow address reuse to make debugging easier
 	setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof on);
+#ifdef SO_REUSEPORT		// not available on Linux
 	setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof on);
+#endif
     }
 
     ss = ep_mem_zalloc(sizeof *ss);
@@ -523,7 +527,7 @@ main(int argc, char **argv, char **env)
 {
     int opt;
     int listenport = -1;
-    useconds_t poll_delay;
+    long poll_delay;
     extern void run_scgi_protocol(void);
 
     while ((opt = getopt(argc, argv, "D:p:u:")) > 0)
@@ -593,7 +597,7 @@ main(int argc, char **argv, char **env)
 
 	if (req == NULL)
 	{
-	    usleep(poll_delay);
+	    (void) ep_time_nanosleep(poll_delay * 1000LL);
 	    continue;
 	}
 	req->dead = &dead;

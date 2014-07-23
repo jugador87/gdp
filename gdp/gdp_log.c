@@ -54,12 +54,12 @@ gdp_log_file(EP_STAT estat,
 
 	ep_stat_tostr(estat, ebuf, sizeof ebuf);
 	if ((tm = localtime(&tv->tv_sec)) == NULL)
-		snprintf(tbuf, sizeof tbuf, "%ld.%06u", tv->tv_sec, tv->tv_usec);
+		snprintf(tbuf, sizeof tbuf, "%ld.%06lu", tv->tv_sec, tv->tv_usec);
 	else
 	{
 		char lbuf[40];
 
-		snprintf(lbuf, sizeof lbuf, "%%Y-%%m-%%d %%H:%%M:%%S.%06u %%z",
+		snprintf(lbuf, sizeof lbuf, "%%Y-%%m-%%d %%H:%%M:%%S.%06lu %%z",
 				tv->tv_usec);
 		strftime(tbuf, sizeof tbuf, lbuf, tm);
 	}

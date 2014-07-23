@@ -5,9 +5,14 @@
 #include <sys/time.h>
 #include <stdint.h>
 
-typedef struct timespec		EP_TIME_SPEC;
+typedef struct
+{
+	int64_t		tv_sec;
+	uint32_t	tv_nsec;
+} EP_TIME_SPEC;
 
 extern EP_STAT	ep_time_now(EP_TIME_SPEC *tv);
+extern EP_STAT	ep_time_nanosleep(int64_t);
 
 #define EP_TIME_NOTIME		(INT64_MIN)
 

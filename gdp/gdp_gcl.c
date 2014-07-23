@@ -290,8 +290,8 @@ gdp_gcl_msg_print(const gdp_msg_t *msg,
     if (msg->data != NULL)
     {
 	int i = msg->len;
-	fprintf(fp, "\n  %s%.*s%s\n", EpChar->lquote, i, msg->data,
-		EpChar->rquote);
+	fprintf(fp, "\n  %s%.*s%s\n", EpChar->lquote, i,
+		(char *) msg->data, EpChar->rquote);
     }
 }
 
@@ -919,7 +919,7 @@ void *
 gdp_run_event_loop(void *ctx)
 {
     struct event_base *evb = ctx;
-    long evdelay = ep_adm_getintparam("gdp.rest.event.loopdelay", 100000);
+    long evdelay = ep_adm_getlongparam("gdp.rest.event.loopdelay", 100000);
 
     if (evb == NULL)
 	evb = GdpEventBase;
@@ -946,7 +946,7 @@ gdp_run_event_loop(void *ctx)
 		ep_dbg_printf(" ... as a result of loopexit\n");
 	}
 	if (evdelay > 0)
-	    usleep(evdelay);			// avoid CPU hogging
+	    ep_time_nanosleep(evdelay * 1000LL);	// avoid CPU hogging
     }
 }
 

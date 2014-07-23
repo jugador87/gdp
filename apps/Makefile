@@ -9,7 +9,6 @@ LIBEP=		-L${LIBROOT}/ep -lep
 JANSSONROOT=	${HOME}/src/jansson-2.6
 #INCJANSSON=	-I${JANSSONROOT}
 #LIBJANSSON=	-L${JANSSONROOT} -ljansson
-LIBJANSSON=	-ljansson
 #EVENT2ROOT=	${HOME}/src
 #INCEVENT2=	-I${EVENT2ROOT}
 LIBEVENT2=	-levent -levent_pthreads -pthread

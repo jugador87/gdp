@@ -54,11 +54,13 @@ tt_print_stamp(const tt_stamp_t *ts, FILE *fp)
     else
     {
 	struct tm tm;
+	time_t tvsec;
 	char tbuf[40];
 
-	gmtime_r(&ts->tv_sec, &tm);
+	tvsec = ts->tv_sec;		//XXX may overflow if time_t is 32 bits!
+	gmtime_r(&tvsec, &tm);
 	strftime(tbuf, sizeof tbuf, "%Y-%m-%dT%H:%M:%S", &tm);
-	fprintf(fp, "%s.%09ldZ", tbuf, ts->tv_nsec);
+	fprintf(fp, "%s.%09uldZ", tbuf, ts->tv_nsec);
     }
 }
 
@@ -71,7 +73,7 @@ tt_parse_stamp(const char *timestr, tt_stamp_t *ts)
     int i;
 
     ep_dbg_cprintf(Dbg, 20, "tt_parse_stamp: <<< %s\n", timestr);
-    if ((i = sscanf(timestr, "%d-%d-%dT%d:%d:%d.%ldZ%n",
+    if ((i = sscanf(timestr, "%d-%d-%dT%d:%d:%d.%uldZ%n",
 	    &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
 	    &tm.tm_hour, &tm.tm_min, &tm.tm_sec,
 	    &ts->tv_nsec, &nbytes)) < 7)
