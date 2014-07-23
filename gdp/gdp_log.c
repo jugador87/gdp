@@ -13,6 +13,7 @@
 #include <ep/ep_app.h>
 #include <ep/ep_stat.h>
 #include <ep/ep_string.h>
+#include <ep/ep_time.h>
 #include <syslog.h>
 #include <stdio.h>
 #include <time.h>
@@ -45,22 +46,25 @@ void
 gdp_log_file(EP_STAT estat,
 	char *fmt,
 	va_list ap,
-	struct timeval *tv,
+	EP_TIME_SPEC *tv,
 	FILE *fp)
 {
 	char tbuf[40];
 	char ebuf[100];
 	struct tm *tm;
+	time_t tvsec;
 
 	ep_stat_tostr(estat, ebuf, sizeof ebuf);
-	if ((tm = localtime(&tv->tv_sec)) == NULL)
-		snprintf(tbuf, sizeof tbuf, "%ld.%06lu", tv->tv_sec, tv->tv_usec);
+	tvsec = tv->tv_sec;		//XXX may overflow if time_t is 32 bits!
+	if ((tm = localtime(&tvsec)) == NULL)
+		snprintf(tbuf, sizeof tbuf, "%lld.%06lu",
+				tv->tv_sec, tv->tv_nsec / 1000L);
 	else
 	{
 		char lbuf[40];
 
 		snprintf(lbuf, sizeof lbuf, "%%Y-%%m-%%d %%H:%%M:%%S.%06lu %%z",
-				tv->tv_usec);
+				tv->tv_nsec / 1000L);
 		strftime(tbuf, sizeof tbuf, lbuf, tm);
 	}
 
@@ -127,9 +131,9 @@ void
 gdp_log(EP_STAT estat, char *fmt, ...)
 {
 	va_list ap;
-	struct timeval tv;
+	EP_TIME_SPEC tv;
 
-	gettimeofday(&tv, NULL);
+	ep_time_now(&tv);
 
 	if (!LogInitialized)
 	{
