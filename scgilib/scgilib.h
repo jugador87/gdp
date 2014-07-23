@@ -28,7 +28,7 @@ typedef struct SCGI_REQUEST scgi_request;
 typedef struct SCGI_DESC scgi_desc;
 
 #if !defined(FNDELAY)
-#define FNDELAY O_NDELAY
+#define FNDELAY O_NONBLOCK
 #endif
 
 /*
