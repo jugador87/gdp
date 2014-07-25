@@ -1,4 +1,4 @@
-/* vim: set ai sw=4 sts=4 : */
+/* vim: set ai sw=4 sts=4 ts=4: */
 
 #ifndef _GDP_PROTOCOL_H_
 #define _GDP_PROTOCOL_H_
@@ -13,61 +13,59 @@
 #define GDP_PROTO_CUR_VERSION	1	// current protocol version
 #define GDP_PROTO_MIN_VERSION	1	// min version we can accept
 
-
-
 /*
-**  Header for a GDP Protocol Data Unit.
-**
-**	This is not the "on the wire" format, which has to be put into
-**	network byte order and packed.  However, this does show the
-**	order in which fields are written.
-**
-**	Commands are eight bits with the top three bits encoding
-**	additional semantics.  Those bits are:
-**
-**	00x	"Blind" (unacknowledged) command
-**	01x	Acknowledged command
-**	10x	Positive acknowledgement
-**	110	Negative acknowledgement, client side problem
-**	111	Negative acknowledgement, server side problem
-**
-**	These roughly correspond to the "Type" and "Code" class
-**	field in the CoAP header.
-**
-**	XXX We may still want to play with these allocations,
-**	    depending on how dense the various spaces become.  I
-**	    suspect that "acknowledged command" will have the
-**	    most values and the ack/naks won't have very many.
-**	    Remember in particular that the commands have to include
-**	    the commands between gdpds for things like migration,
-**	    resource negotiation, etc.
-**
-**	XXX CoAP has two "sequence numbers": a message-id which
-**	    relates ack/naks to commands and a "token" which is
-**	    a higher level construct relating (for example)
-**	    subscribe requests to results.  The "rid" represents
-**	    a shorter version of the "token".  We don't include
-**	    "seq" since this is a lower-level concept that is
-**	    subsumed by TCP.
-**
-**	XXX should msgno be 64 bits?
-*/
+ **  Header for a GDP Protocol Data Unit.
+ **
+ **	This is not the "on the wire" format, which has to be put into
+ **	network byte order and packed.  However, this does show the
+ **	order in which fields are written.
+ **
+ **	Commands are eight bits with the top three bits encoding
+ **	additional semantics.  Those bits are:
+ **
+ **	00x	"Blind" (unacknowledged) command
+ **	01x	Acknowledged command
+ **	10x	Positive acknowledgement
+ **	110	Negative acknowledgement, client side problem
+ **	111	Negative acknowledgement, server side problem
+ **
+ **	These roughly correspond to the "Type" and "Code" class
+ **	field in the CoAP header.
+ **
+ **	XXX We may still want to play with these allocations,
+ **	    depending on how dense the various spaces become.  I
+ **	    suspect that "acknowledged command" will have the
+ **	    most values and the ack/naks won't have very many.
+ **	    Remember in particular that the commands have to include
+ **	    the commands between gdpds for things like migration,
+ **	    resource negotiation, etc.
+ **
+ **	XXX CoAP has two "sequence numbers": a message-id which
+ **	    relates ack/naks to commands and a "token" which is
+ **	    a higher level construct relating (for example)
+ **	    subscribe requests to results.  The "rid" represents
+ **	    a shorter version of the "token".  We don't include
+ **	    "seq" since this is a lower-level concept that is
+ **	    subsumed by TCP.
+ **
+ **	XXX should msgno be 64 bits?
+ */
 
 typedef struct gdp_pkt_hdr
 {
-    // fixed part of packet
-    uint8_t	    ver;	//  1 protocol version
-    uint8_t	    cmd;	//  1 command or ack/nak
-    uint8_t	    flags;	//  1 see below
-    uint8_t	    reserved1;	//  1 must be zero on send, ignored on receive
-    uint32_t	    dlen;	//  4 length of following data
+	// fixed part of packet
+	uint8_t ver;	//  1 protocol version
+	uint8_t cmd;	//  1 command or ack/nak
+	uint8_t flags;	//  1 see below
+	uint8_t reserved1;	//  1 must be zero on send, ignored on receive
+	uint32_t dlen;	//  4 length of following data
 
-    // variable part of packet
-    gdp_rid_t	    rid;	//  8 sequence number (GDP_PKT_NO_RID => none)
-    gcl_name_t	    gcl_name;	// 32 name of the GCL of interest (0 => none)
-    uint32_t	    msgno;	//  4 record number (GDP_PKT_NO_RECNO => none)
-    tt_interval_t   ts;		// 16 commit timestamp (tv_sec = 0 => none)
-    uint8_t	    *data;	//    dlen octets of data
+	// variable part of packet
+	gdp_rid_t rid;	//  8 sequence number (GDP_PKT_NO_RID => none)
+	gcl_name_t gcl_name;	// 32 name of the GCL of interest (0 => none)
+	uint32_t msgno;	//  4 record number (GDP_PKT_NO_RECNO => none)
+	tt_interval_t ts;		// 16 commit timestamp (tv_sec = 0 => none)
+	uint8_t *data;	//    dlen octets of data
 } gdp_pkt_hdr_t;
 
 /***** values for gdp_pkg_hdr cmd field *****/
@@ -115,7 +113,6 @@ typedef struct gdp_pkt_hdr
 #define GDP_NAK_MAX	    254		    // maximum nak code
 //	255		Reserved
 
-
 /***** values for gdp_pkg_hdr flags field *****/
 #define GDP_PKT_HAS_RID     0x01    // has a rid field
 #define GDP_PKT_HAS_ID	    0x02    // has a gcl_name field
@@ -126,34 +123,36 @@ typedef struct gdp_pkt_hdr
 #define GDP_PKT_NO_RID	    UINT64_MAX	// no request id
 #define GDP_PKT_NO_RECNO    UINT32_MAX	// no record number
 
+void
+gdp_pkt_hdr_init(	    // initialize a packet header structure
+        gdp_pkt_hdr_t *,	// the header to initialize
+        int cmd,		// the command to put in the packet
+        gdp_rid_t rid,		// the rid itself
+        gcl_name_t gcl_name);	// the name of the GCL
 
-void	gdp_pkt_hdr_init(	    // initialize a packet header structure
-		gdp_pkt_hdr_t *,	// the header to initialize
-		int cmd,		// the command to put in the packet
-		gdp_rid_t rid,		// the rid itself
-		gcl_name_t gcl_name);	// the name of the GCL
+EP_STAT
+gdp_pkt_out(		    // send a packet to a network buffer
+        gdp_pkt_hdr_t *,	// the header for the data
+        struct evbuffer *);	// the output buffer
 
-EP_STAT	gdp_pkt_out(		    // send a packet to a network buffer
-		gdp_pkt_hdr_t *,	// the header for the data
-		struct evbuffer *);	// the output buffer
+void
+gdp_pkt_out_hard(	    // send a packet to a network buffer
+        gdp_pkt_hdr_t *,	// the header for the data
+        struct evbuffer *);	// the output buffer
 
-void	gdp_pkt_out_hard(	    // send a packet to a network buffer
-		gdp_pkt_hdr_t *,	// the header for the data
-		struct evbuffer *);	// the output buffer
+EP_STAT
+gdp_pkt_in(		    // read a packet from a network buffer
+        gdp_pkt_hdr_t *,	// the buffer to store the result
+        struct evbuffer *);	// the input buffer
 
-EP_STAT gdp_pkt_in(		    // read a packet from a network buffer
-		gdp_pkt_hdr_t *,	// the buffer to store the result
-		struct evbuffer *);	// the input buffer
-
-void	gdp_pkt_dump_hdr(
-		gdp_pkt_hdr_t *pp,
-		FILE *fp);
+void
+gdp_pkt_dump_hdr(gdp_pkt_hdr_t *pp, FILE *fp);
 
 // generic sockaddr union   XXX does this belong in this header file?
 union sockaddr_xx
 {
-    struct sockaddr	sa;
-    struct sockaddr_in	sin;
-    struct sockaddr_in6	sin6;
+	struct sockaddr sa;
+	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
 };
 #endif // _GDP_PROTOCOL_H_
