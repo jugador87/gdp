@@ -1,8 +1,8 @@
-/* vim: set ai sw=4 sts=4 : */
+/* vim: set ai sw=4 sts=4 ts=4: */
 
 /*
-**  Headers for the GDP Daemon
-*/
+ **  Headers for the GDP Daemon
+ */
 
 #define GDP_MSG_EXTRA \
 	    off_t offset;
@@ -24,7 +24,8 @@
 // should get this information at runtime in a portable way
 #define NUM_CPU_CORES 8
 
-typedef struct lev_read_cb_continue_data {
+typedef struct lev_read_cb_continue_data
+{
 	gdp_pkt_hdr_t *cpktbuf;
 	struct bufferevent *bev;
 	void *ctx;

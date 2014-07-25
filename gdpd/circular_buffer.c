@@ -30,7 +30,8 @@ circular_buffer_free(CIRCULAR_BUFFER *circular_buffer)
 	return;
 }
 
-void circular_buffer_append(CIRCULAR_BUFFER *circular_buffer,
+void
+circular_buffer_append(CIRCULAR_BUFFER *circular_buffer,
         LONG_LONG_PAIR new_entry)
 {
 	if (circular_buffer->current_size == circular_buffer->max_size)

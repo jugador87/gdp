@@ -1,4 +1,4 @@
-/* vim: set ai sw=4 sts=4 : */
+/* vim: set ai sw=4 sts=4 ts=4: */
 
 #include "circular_buffer.h"
 #include "gdpd.h"
@@ -19,8 +19,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
-static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdpd.physlog",
-				"GDP Daemon Physical Log Implementation");
+static EP_DBG Dbg = EP_DBG_INIT("gdp.gdpd.physlog",
+		"GDP Daemon Physical Log Implementation");
 
 static const char *GCLDir = NULL;	// the gcl data directory
 static EP_HASH *name_index_table = NULL;
@@ -28,7 +28,8 @@ static EP_HASH *name_index_table = NULL;
 // EP_HASH is not thread-safe
 static pthread_rwlock_t table_lock = PTHREAD_RWLOCK_INITIALIZER;
 
-typedef struct index_entry {
+typedef struct index_entry
+{
 	// reading and writing to the log requires holding this lock
 	pthread_rwlock_t lock;
 	int fd;
@@ -40,22 +41,27 @@ typedef struct index_entry {
 } index_entry;
 
 EP_STAT
-gcl_physlog_init() {
+gcl_physlog_init()
+{
 	EP_STAT estat = EP_STAT_OK;
 
 	GCLDir = ep_adm_getstrparam("swarm.gdp.gcl.dir", GCL_DIR);
-	name_index_table = ep_hash_new("name_index_table", NULL, sizeof(gcl_name_t));
+	name_index_table = ep_hash_new("name_index_table", NULL,
+	        sizeof(gcl_name_t));
 
 	return estat;
 }
 
 static EP_STAT
-index_entry_new(index_entry **out) {
+index_entry_new(index_entry **out)
+{
 	*out = malloc(sizeof(index_entry));
-	if (*out == NULL) {
+	if (*out == NULL)
+	{
 		return EP_STAT_ERROR;
 	}
-	if (pthread_rwlock_init(&(*out)->lock, NULL) != 0) {
+	if (pthread_rwlock_init(&(*out)->lock, NULL) != 0)
+	{
 		goto fail0;
 	}
 	(*out)->fd = -1;
@@ -67,8 +73,7 @@ index_entry_new(index_entry **out) {
 	(*out)->index_cache = circular_buffer_new(cache_size);
 	return EP_STAT_OK;
 
-fail0:
-	free(*out);
+	fail0: free(*out);
 	*out = NULL;
 	return EP_STAT_ERROR;
 }
@@ -76,21 +81,21 @@ fail0:
 static EP_STAT
 get_gcl_path(gcl_handle_t *gclh, char *pbuf, int pbufsiz)
 {
-    gcl_pname_t pname;
-    int i;
+	gcl_pname_t pname;
+	int i;
 
-    EP_ASSERT_POINTER_VALID(gclh);
+	EP_ASSERT_POINTER_VALID(gclh);
 
-    gdp_gcl_printable_name(gclh->gcl_name, pname);
-    i = snprintf(pbuf, pbufsiz, "%s/%s", GCLDir, pname);
-    if (i < pbufsiz)
-    {
-    	return EP_STAT_OK;
-    }
-    else
-    {
-    	return EP_STAT_ERROR;
-    }
+	gdp_gcl_printable_name(gclh->gcl_name, pname);
+	i = snprintf(pbuf, pbufsiz, "%s/%s", GCLDir, pname);
+	if (i < pbufsiz)
+	{
+		return EP_STAT_OK;
+	}
+	else
+	{
+		return EP_STAT_ERROR;
+	}
 }
 
 EP_STAT
@@ -114,8 +119,7 @@ gcl_index_create_cache(gcl_handle_t *gclh, index_entry **out)
 	EP_STAT_CHECK(estat, goto fail0);
 	ep_hash_insert(name_index_table, sizeof(gcl_name_t), gclh->gcl_name, *out);
 	gclh->index_entry = *out;
-fail0:
-	pthread_rwlock_unlock(&table_lock);
+	fail0: pthread_rwlock_unlock(&table_lock);
 	return estat;
 }
 
@@ -154,10 +158,7 @@ gcl_index_cache_put(index_entry *entry, long long msgno, long long offset)
 }
 
 EP_STAT
-gcl_read(gcl_handle_t *gclh,
-	long msgno,
-	gdp_msg_t *msg,
-	struct evbuffer *evb)
+gcl_read(gcl_handle_t *gclh, long msgno, gdp_msg_t *msg, struct evbuffer *evb)
 {
 	EP_STAT estat = EP_STAT_OK;
 	index_entry *entry = gclh->index_entry;
@@ -168,12 +169,14 @@ gcl_read(gcl_handle_t *gclh,
 
 	// first check if msgno is in the index
 	long_pair = circular_buffer_search(entry->index_cache, msgno);
-	if (long_pair == NULL) {
+	if (long_pair == NULL)
+	{
 		// msgno is not in the index
 		// now binary search through the disk index
 
 		off_t file_size = entry->max_index_offset;
-		long long record_count = ((file_size - sizeof(gcl_log_header)) / sizeof(gcl_index_record));
+		long long record_count = ((file_size - sizeof(gcl_log_header))
+		        / sizeof(gcl_index_record));
 		gcl_index_record index_record;
 		size_t start = 0;
 		size_t end = record_count;
@@ -182,7 +185,8 @@ gcl_read(gcl_handle_t *gclh,
 		while (start < end)
 		{
 			mid = start + (end - start) / 2;
-			pread(entry->fd, &index_record, sizeof(gcl_index_record), mid * sizeof(gcl_index_record));
+			pread(entry->fd, &index_record, sizeof(gcl_index_record),
+			        mid * sizeof(gcl_index_record));
 			if (msgno < index_record.msgno)
 			{
 				end = mid;
@@ -233,15 +237,13 @@ gcl_read(gcl_handle_t *gclh,
 
 	// done
 
-fail0:
-	pthread_rwlock_unlock(&entry->lock);
+	fail0: pthread_rwlock_unlock(&entry->lock);
 
 	return estat;
 }
 
 EP_STAT
-gcl_create(gcl_name_t gcl_name,
-	gcl_handle_t **pgclh)
+gcl_create(gcl_name_t gcl_name, gcl_handle_t **pgclh)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gcl_handle_t *gclh = NULL;
@@ -253,131 +255,126 @@ gcl_create(gcl_name_t gcl_name,
 	char index_pbuf[PATH_MAX];
 
 	// allocate the memory to hold the GCL Handle
-    // Note that ep_mem_* always returns, hence no test here
-    estat = gdpd_gclh_new(&gclh);
-    EP_STAT_CHECK(estat, goto fail0);
+	// Note that ep_mem_* always returns, hence no test here
+	estat = gdpd_gclh_new(&gclh);
+	EP_STAT_CHECK(estat, goto fail0);
 
-    // allocate a name
-    if (gdp_gcl_name_is_zero(gcl_name))
-    {
-    	gdp_gcl_newname(gcl_name);
-    }
-    memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
+	// allocate a name
+	if (gdp_gcl_name_is_zero(gcl_name))
+	{
+		gdp_gcl_newname(gcl_name);
+	}
+	memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
 
-    // create a file node representing the gcl
-    // XXX: this is where we start to seriously cheat
-    estat = get_gcl_path(gclh, data_pbuf, sizeof data_pbuf);
-    EP_STAT_CHECK(estat, goto fail1);
-    strncat(data_pbuf, GCL_DATA_SUFFIX, sizeof(GCL_DATA_SUFFIX));
+	// create a file node representing the gcl
+	// XXX: this is where we start to seriously cheat
+	estat = get_gcl_path(gclh, data_pbuf, sizeof data_pbuf);
+	EP_STAT_CHECK(estat, goto fail1);
+	strncat(data_pbuf, GCL_DATA_SUFFIX, sizeof(GCL_DATA_SUFFIX));
 
-    estat = get_gcl_path(gclh, index_pbuf, sizeof index_pbuf);
-    EP_STAT_CHECK(estat, goto fail2);
-    strncat(index_pbuf, GCL_INDEX_SUFFIX, sizeof(GCL_INDEX_SUFFIX));
+	estat = get_gcl_path(gclh, index_pbuf, sizeof index_pbuf);
+	EP_STAT_CHECK(estat, goto fail2);
+	strncat(index_pbuf, GCL_INDEX_SUFFIX, sizeof(GCL_INDEX_SUFFIX));
 
-    if ((data_fd = open(data_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644)) < 0 ||
-	(flock(data_fd, LOCK_EX) < 0))
-    {
+	if ((data_fd = open(data_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644))
+	        < 0 || (flock(data_fd, LOCK_EX) < 0))
+	{
 		estat = ep_stat_from_errno(errno);
-		gdp_log(estat, "gcl_create: cannot create %s: %s",
-			data_pbuf, strerror(errno));
+		gdp_log(estat, "gcl_create: cannot create %s: %s", data_pbuf,
+		        strerror(errno));
 		goto fail1;
-    }
-    data_fp = fdopen(data_fd, "a+");
-    if (data_fp == NULL)
-    {
+	}
+	data_fp = fdopen(data_fd, "a+");
+	if (data_fp == NULL)
+	{
 		estat = ep_stat_from_errno(errno);
-		gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
-			data_pbuf, strerror(errno));
+		gdp_log(estat, "gcl_create: cannot fdopen %s: %s", data_pbuf,
+		        strerror(errno));
 		goto fail1;
-    }
+	}
 
-    if ((index_fd = open(index_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644)) < 0)
-    {
-    	estat = ep_stat_from_errno(errno);
-    	gdp_log(estat, "gcl_create: cannot create %s: %s",
-    		index_pbuf, strerror(errno));
-    	goto fail2;
-    }
-    index_fp = fdopen(index_fd, "a+");
-    if (index_fp == NULL)
-    {
-    	estat = ep_stat_from_errno(errno);
-    	gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
-    		index_pbuf, strerror(errno));
-    	goto fail3;
-    }
+	if ((index_fd = open(index_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644))
+	        < 0)
+	{
+		estat = ep_stat_from_errno(errno);
+		gdp_log(estat, "gcl_create: cannot create %s: %s", index_pbuf,
+		        strerror(errno));
+		goto fail2;
+	}
+	index_fp = fdopen(index_fd, "a+");
+	if (index_fp == NULL)
+	{
+		estat = ep_stat_from_errno(errno);
+		gdp_log(estat, "gcl_create: cannot fdopen %s: %s", index_pbuf,
+		        strerror(errno));
+		goto fail3;
+	}
 
-    index_entry *new_entry = NULL;
-    estat = gcl_index_create_cache(gclh, &new_entry);
-    EP_STAT_CHECK(estat, goto fail3);
+	index_entry *new_entry = NULL;
+	estat = gcl_index_create_cache(gclh, &new_entry);
+	EP_STAT_CHECK(estat, goto fail3);
 
-    // write the header metadata
-    gcl_log_header log_header;
-    log_header.magic = GCL_LOG_MAGIC;
-    log_header.version = GCL_VERSION;
-    fwrite(&log_header, sizeof(log_header), 1, data_fp);
+	// write the header metadata
+	gcl_log_header log_header;
+	log_header.magic = GCL_LOG_MAGIC;
+	log_header.version = GCL_VERSION;
+	fwrite(&log_header, sizeof(log_header), 1, data_fp);
 
-    // TODO: will probably need creation date or some such later
+	// TODO: will probably need creation date or some such later
 
-    // success!
-    fflush(data_fp);
-    flock(data_fd, LOCK_UN);
-    new_entry->fd = index_fd;
-    new_entry->fp = index_fp;
-    gclh->fd = data_fd;
-    gclh->fp = data_fp;
-    gclh->index_entry = new_entry;
-    gclh->ver = log_header.version;
-    *pgclh = gclh;
-    if (ep_dbg_test(Dbg, 10))
-    {
+	// success!
+	fflush(data_fp);
+	flock(data_fd, LOCK_UN);
+	new_entry->fd = index_fd;
+	new_entry->fp = index_fp;
+	gclh->fd = data_fd;
+	gclh->fp = data_fp;
+	gclh->index_entry = new_entry;
+	gclh->ver = log_header.version;
+	*pgclh = gclh;
+	if (ep_dbg_test(Dbg, 10))
+	{
 		gcl_pname_t pname;
 
 		gdp_gcl_printable_name(gclh->gcl_name, pname);
 		ep_dbg_printf("Created GCL Handle %s\n", pname);
-    }
-    return estat;
+	}
+	return estat;
 
-fail3:
-fail2:
-	if (index_fd >= 0)
+	fail3: fail2: if (index_fd >= 0)
 	{
 		close(index_fd);
 	}
 
-fail1:
-    if (data_fd >= 0)
-	    close(data_fd);
-    ep_mem_free(gclh);
+	fail1: if (data_fd >= 0)
+		close(data_fd);
+	ep_mem_free(gclh);
 
-fail0:
-    if (ep_dbg_test(Dbg, 8))
-    {
-    	char ebuf[100];
+	fail0: if (ep_dbg_test(Dbg, 8))
+	{
+		char ebuf[100];
 
-    	ep_dbg_printf("Could not create GCL Handle: %s\n",
-    		ep_stat_tostr(estat, ebuf, sizeof ebuf));
-    }
-    return estat;
+		ep_dbg_printf("Could not create GCL Handle: %s\n",
+		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
+	return estat;
 }
 
 EP_STAT
-gcl_open(gcl_name_t gcl_name,
-	gdp_iomode_t mode,
-	gcl_handle_t **pgclh)
+gcl_open(gcl_name_t gcl_name, gdp_iomode_t mode, gcl_handle_t **pgclh)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gcl_handle_t *gclh = NULL;
 	int data_fd = -1;
 	int index_fd = -1;
 	FILE *data_fp;
-    char data_pbuf[PATH_MAX];
+	char data_pbuf[PATH_MAX];
 	char index_pbuf[PATH_MAX];
 
-    estat = gdpd_gclh_new(&gclh);
-    EP_STAT_CHECK(estat, goto fail1);
-    memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
-    gclh->iomode = mode;
+	estat = gdpd_gclh_new(&gclh);
+	EP_STAT_CHECK(estat, goto fail1);
+	memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
+	gclh->iomode = mode;
 
 	const char *openmode = "a+";
 
@@ -395,7 +392,8 @@ gcl_open(gcl_name_t gcl_name,
 		goto fail1;
 	}
 
-	if ((data_fp = fdopen(data_fd, openmode)) == NULL) {
+	if ((data_fp = fdopen(data_fd, openmode)) == NULL)
+	{
 		estat = ep_stat_from_errno(errno);
 		goto fail2;
 	}
@@ -404,9 +402,11 @@ gcl_open(gcl_name_t gcl_name,
 
 	pread(data_fd, &log_header, sizeof(log_header), 0);
 
-	if (log_header.magic != GCL_LOG_MAGIC) {
-		fprintf(stderr, "gcl_open: magic mismatch - found: %lld, expected: %lld\n",
-			log_header.magic, GCL_LOG_MAGIC);
+	if (log_header.magic != GCL_LOG_MAGIC)
+	{
+		fprintf(stderr,
+		        "gcl_open: magic mismatch - found: %lld, expected: %lld\n",
+		        log_header.magic, GCL_LOG_MAGIC);
 		goto fail3;
 	}
 
@@ -426,45 +426,42 @@ gcl_open(gcl_name_t gcl_name,
 	}
 
 	gclh->fd = data_fd;
-    gclh->fp = data_fp;
-    gclh->index_entry = entry;
-    gclh->ver = log_header.version;
+	gclh->fp = data_fp;
+	gclh->index_entry = entry;
+	gclh->ver = log_header.version;
 
-    *pgclh = gclh;
+	*pgclh = gclh;
 
-    return estat;
+	return estat;
 
-fail5:
+	fail5:
 
-fail4:
+	fail4:
 
-fail3:
-	fclose(data_fp);
-fail2:
-	close(data_fd);
-fail1:
+	fail3: fclose(data_fp);
+	fail2: close(data_fd);
+	fail1:
 
-fail0:
-    if (gclh == NULL)
-	ep_mem_free(gclh);
+	fail0: if (gclh == NULL)
+		ep_mem_free(gclh);
 
-    {
-	char ebuf[100];
+	{
+		char ebuf[100];
 
-	//XXX should log
-	fprintf(stderr, "gcl_open: Couldn't open gcl: %s\n",
-		ep_stat_tostr(estat, ebuf, sizeof ebuf));
-    }
-    if (ep_dbg_test(Dbg, 10))
-    {
+		//XXX should log
+		fprintf(stderr, "gcl_open: Couldn't open gcl: %s\n",
+		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
+	if (ep_dbg_test(Dbg, 10))
+	{
 		gcl_pname_t pname;
 		char ebuf[100];
 
 		gdp_gcl_printable_name(gcl_name, pname);
-		ep_dbg_printf("Couldn't open gcl %s: %s\n",
-			pname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
-    }
-    return estat;
+		ep_dbg_printf("Couldn't open gcl %s: %s\n", pname,
+		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
+	return estat;
 }
 
 EP_STAT
@@ -472,42 +469,41 @@ gcl_close(gcl_handle_t *gclh)
 {
 	EP_STAT estat = EP_STAT_OK;
 
-    EP_ASSERT_POINTER_VALID(gclh);
-    if (gclh->fp == NULL)
-    {
+	EP_ASSERT_POINTER_VALID(gclh);
+	if (gclh->fp == NULL)
+	{
 		estat = EP_STAT_ERROR;
 		gdp_log(estat, "gcl_close: null fp");
-    }
-    else
-    {
-    	fclose(gclh->fp);
-    }
-    if (gclh->fd == -1)
-    {
+	}
+	else
+	{
+		fclose(gclh->fp);
+	}
+	if (gclh->fd == -1)
+	{
 		estat = EP_STAT_ERROR;
 		gdp_log(estat, "gcl_close: null fp");
-    }
-    else
-    {
-    	close(gclh->fd);
-    }
-    evbuffer_free(gclh->revb);
-    ep_mem_free(gclh->offcache);
-    // XXX: when do we remove the index cache for optimal performance?
-    gdp_gcl_cache_drop(gclh->gcl_name, 0);
-    ep_mem_free(gclh);
+	}
+	else
+	{
+		close(gclh->fd);
+	}
+	evbuffer_free(gclh->revb);
+	ep_mem_free(gclh->offcache);
+	// XXX: when do we remove the index cache for optimal performance?
+	gdp_gcl_cache_drop(gclh->gcl_name, 0);
+	ep_mem_free(gclh);
 
-    return estat;
+	return estat;
 }
 
 EP_STAT
-gcl_append(gcl_handle_t *gclh,
-	gdp_msg_t *msg)
+gcl_append(gcl_handle_t *gclh, gdp_msg_t *msg)
 {
 	gcl_log_record log_record;
 	gcl_index_record index_record;
 	long long record_size = sizeof(gcl_log_record) + msg->len;
-	index_entry *entry = (index_entry *)(gclh->index_entry);
+	index_entry *entry = (index_entry *) (gclh->index_entry);
 
 	pthread_rwlock_wrlock(&entry->lock);
 

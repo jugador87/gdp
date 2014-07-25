@@ -5,7 +5,8 @@
 
 typedef struct thread_pool_job thread_pool_job;
 
-typedef struct thread_pool {
+typedef struct thread_pool
+{
 	pthread_mutex_t mutex;
 	pthread_cond_t is_full;
 	pthread_cond_t is_empty;
@@ -13,9 +14,11 @@ typedef struct thread_pool {
 	thread_pool_job *new_job;
 } thread_pool;
 
-typedef void (*thread_pool_job_callback)(void *);
+typedef void
+(*thread_pool_job_callback)(void *);
 
-typedef struct thread_pool_job {
+typedef struct thread_pool_job
+{
 	thread_pool_job_callback callback;
 	void *data;
 } thread_pool_job;
