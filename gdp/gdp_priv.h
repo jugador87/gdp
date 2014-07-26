@@ -14,6 +14,8 @@
 
 #include <stdio.h>
 
+extern pthread_t IoEventLoopThread;
+
 struct gcl_handle_t
 {
 	// fields used by GDP library
@@ -30,11 +32,13 @@ struct gcl_handle_t
 	tt_interval_t ts;		// timestamp from last operation
 
 	// fields used only by gdpd
-	long ver;		// version number of on-disk file
-	FILE *fp;		// pointer to the on-disk file
+	long ver;		// version number of on-disk data file
+	int fd;			// file descriptor for the on-disk data file
+	FILE *fp;		// pointer to the on-disk data file
 	off_t *offcache;	// offsets of records we have seen
 	long cachesize;	// size of offcache array
-	gdp_msgno_t maxmsgno;	// last msgno that we have read/written
+	long maxmsgno;	// last msgno that we have read/written
+	void *index_entry;
 };
 
 // GCL flags
@@ -59,9 +63,15 @@ const char *
 _gdp_proto_cmd_name(uint8_t cmd);
 
 EP_STAT
-_gdp_start_event_loop_thread(struct event_base *evb);
+_gdp_start_accept_event_loop_thread(struct event_base *evb);
 
 void
 gdp_gcl_newname(gcl_name_t gcl_name);
+
+EP_STAT
+_gdp_start_accept_event_loop_thread(struct event_base *evb);
+
+EP_STAT
+_gdp_start_io_event_loop_thread(struct event_base *evb);
 
 #endif // _GDP_PRIV_H_

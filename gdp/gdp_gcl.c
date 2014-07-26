@@ -170,6 +170,8 @@ drop_all_rid_info(conn_t *conn)
 
 static EP_HASH *OpenGCLCache;
 
+static pthread_rwlock_t OpenGCLCacheLock = PTHREAD_RWLOCK_INITIALIZER;
+
 EP_STAT
 gdp_gcl_cache_init(void)
 {
@@ -193,6 +195,7 @@ gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 {
 	gcl_handle_t *gclh;
 
+	pthread_rwlock_rdlock(&OpenGCLCacheLock);
 	// see if we have a pointer to this GCL in the cache
 	gclh = ep_hash_search(OpenGCLCache, sizeof(gcl_name_t), (void *) gcl_name);
 	if (ep_dbg_test(Dbg, 42))
@@ -202,6 +205,7 @@ gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 		gdp_gcl_printable_name(gcl_name, pbuf);
 		ep_dbg_printf("gdp_gcl_cache_get: %s => %p\n", pbuf, gclh);
 	}
+	pthread_rwlock_unlock(&OpenGCLCacheLock);
 	return gclh;
 }
 
@@ -213,6 +217,7 @@ gdp_gcl_cache_add(gcl_handle_t *gclh, gdp_iomode_t mode)
 	EP_ASSERT_REQUIRE(!gdp_gcl_name_is_zero(gclh->gcl_name));
 
 	// save it in the cache
+	pthread_rwlock_wrlock(&OpenGCLCacheLock);
 	(void) ep_hash_insert(OpenGCLCache, sizeof(gcl_name_t), &gclh->gcl_name,
 	        gclh);
 	if (ep_dbg_test(Dbg, 42))
@@ -222,6 +227,7 @@ gdp_gcl_cache_add(gcl_handle_t *gclh, gdp_iomode_t mode)
 		gdp_gcl_printable_name(gclh->gcl_name, pbuf);
 		ep_dbg_printf("gdp_gcl_cache_add: added %s => %p\n", pbuf, gclh);
 	}
+	pthread_rwlock_unlock(&OpenGCLCacheLock);
 }
 
 void
@@ -229,6 +235,7 @@ gdp_gcl_cache_drop(gcl_name_t gcl_name, gdp_iomode_t mode)
 {
 	gcl_handle_t *gclh;
 
+	pthread_rwlock_wrlock(&OpenGCLCacheLock);
 	gclh = ep_hash_insert(OpenGCLCache, sizeof(gcl_name_t), gcl_name, NULL);
 	if (ep_dbg_test(Dbg, 42))
 	{
@@ -237,6 +244,7 @@ gdp_gcl_cache_drop(gcl_name_t gcl_name, gdp_iomode_t mode)
 		gdp_gcl_printable_name(gclh->gcl_name, pbuf);
 		ep_dbg_printf("gdp_gcl_cache_drop: dropping %s => %p\n", pbuf, gclh);
 	}
+	pthread_rwlock_unlock(&OpenGCLCacheLock);
 }
 
 /***********************************************************************
@@ -875,10 +883,11 @@ init_error(const char *msg)
  **  Their events should have already been added to the event base.
  */
 
-static pthread_t EventLoopThread;
+static pthread_t AcceptEventLoopThread;
+pthread_t IoEventLoopThread;
 
 void *
-gdp_run_event_loop(void *ctx)
+gdp_run_accept_event_loop(void *ctx)
 {
 	struct event_base *evb = ctx;
 	long evdelay = ep_adm_getlongparam("gdp.rest.event.loopdelay", 100000);
@@ -899,13 +908,24 @@ gdp_run_event_loop(void *ctx)
 		event_base_loop(evb, 0);
 #endif
 		// shouldn't happen (?)
-		if (ep_dbg_test(Dbg, 1))
+		ep_dbg_cprintf(Dbg, 1, "gdp_event_loop: event_base_loop returned\n");
+		if (evdelay > 0)
+			usleep(evdelay);			// avoid CPU hogging
+	}
+}
+
+void *
+gdp_run_io_event_loop(void *ctx)
+{
+	struct event_base *evb = ctx;
+	long evdelay = ep_adm_getlongparam("gdp.rest.event.loopdelay", 100000);
+
+	if (evb != NULL)
+	{
+		while (true)
 		{
-			ep_dbg_printf("gdp_event_loop: event_base_loop returned\n");
-			if (event_base_got_break(evb))
-				ep_dbg_printf(" ... as a result of loopbreak\n");
-			if (event_base_got_exit(evb))
-				ep_dbg_printf(" ... as a result of loopexit\n");
+			// TODO: what if user compiling doesn't have libevent 2.1-alpha?
+			event_base_loop(evb, EVLOOP_NO_EXIT_ON_EMPTY);
 		}
 		if (evdelay > 0)
 			ep_time_nanosleep(evdelay * 1000LL);	// avoid CPU hogging
@@ -913,12 +933,27 @@ gdp_run_event_loop(void *ctx)
 }
 
 EP_STAT
-_gdp_start_event_loop_thread(struct event_base *evb)
+_gdp_start_accept_event_loop_thread(struct event_base *evb)
 {
-	if (pthread_create(&EventLoopThread, NULL, gdp_run_event_loop, evb) != 0)
+	if (pthread_create(&AcceptEventLoopThread, NULL, gdp_run_accept_event_loop,
+	        evb) != 0)
 		return init_error("cannot create event loop thread");
 	else
 		return EP_STAT_OK;
+}
+
+EP_STAT
+_gdp_start_io_event_loop_thread(struct event_base *evb)
+{
+	if (pthread_create(&IoEventLoopThread, NULL, gdp_run_io_event_loop, evb)
+	        != 0)
+	{
+		return init_error("cannot create io event loop thread");
+	}
+	else
+	{
+		return EP_STAT_OK;
+	}
 }
 
 /*
@@ -1031,7 +1066,7 @@ gdp_init(bool run_event_loop)
 
 	// create a thread to run the event loop
 	if (run_event_loop)
-		estat = _gdp_start_event_loop_thread(GdpEventBase);
+		estat = _gdp_start_accept_event_loop_thread(GdpEventBase);
 	EP_STAT_CHECK(estat, goto fail1);
 
 	ep_dbg_cprintf(Dbg, 4, "gdp_init: success\n");

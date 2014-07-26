@@ -2,6 +2,7 @@
 
 #include "gdpd.h"
 #include "gdpd_physlog.h"
+#include "thread_pool.h"
 
 #include <ep/ep_string.h>
 #include <ep/ep_hexdump.h>
@@ -18,6 +19,9 @@
 /************************  PRIVATE  ************************/
 
 static EP_DBG Dbg = EP_DBG_INIT("gdp.gdpd", "GDP Daemon");
+
+static struct event_base *GdpIoEventBase;
+static struct thread_pool *cpu_job_thread_pool;
 
 /*
  **  A handle on an open connection.
@@ -595,22 +599,21 @@ dispatch_cmd(dispatch_ent_t *d, conn_t *conn, gdp_pkt_hdr_t *cpkt,
  */
 
 void
-lev_read_cb(struct bufferevent *bev, void *ctx)
+lev_read_cb_continue(void *continue_data)
 {
-	EP_STAT estat;
-	gdp_pkt_hdr_t cpktbuf;
+	lev_read_cb_continue_data *cdata =
+	        (lev_read_cb_continue_data *) continue_data;
 	gdp_pkt_hdr_t rpktbuf;
 	dispatch_ent_t *d;
 	struct evbuffer *evb = NULL;
 
-	estat = gdp_pkt_in(&cpktbuf, bufferevent_get_input(bev));
-	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
-		return;
-
 	// got the packet, dispatch it based on the command
-	d = &DispatchTable[cpktbuf.cmd];
-	estat = dispatch_cmd(d, ctx, &cpktbuf, &rpktbuf, bev);
+	d = &DispatchTable[cdata->cpktbuf->cmd];
+	cdata->estat = dispatch_cmd(d, cdata->ctx, cdata->cpktbuf, &rpktbuf,
+	        cdata->bev);
 	//XXX anything to do with estat here?
+
+	free(cdata->cpktbuf);
 
 	// find the GCL handle, if any
 	{
@@ -641,14 +644,14 @@ lev_read_cb(struct bufferevent *bev, void *ctx)
 		evbuffer_lock(evb);
 
 	// send the response packet header
-	estat = gdp_pkt_out(&rpktbuf, bufferevent_get_output(bev));
+	cdata->estat = gdp_pkt_out(&rpktbuf, bufferevent_get_output(cdata->bev));
 	//XXX anything to do with estat here?
 
 	// copy any data
 	if (rpktbuf.dlen > 0)
 	{
 		// still experimental
-		//evbuffer_add_buffer_reference(bufferevent_get_output(bev), evb);
+		//evbuffer_add_buffer_reference(bufferevent_get_output(cdata->bev), evb);
 
 		// slower, but works
 		int left = rpktbuf.dlen;
@@ -666,11 +669,11 @@ lev_read_cb(struct bufferevent *bev, void *ctx)
 			{
 				ep_dbg_cprintf(Dbg, 2,
 				        "lev_read_cb: short read (wanted %d, got %d)\n", len, i);
-				estat = GDP_STAT_SHORTMSG;
+				cdata->estat = GDP_STAT_SHORTMSG;
 			}
 			if (i <= 0)
 				break;
-			evbuffer_add(bufferevent_get_output(bev), buf, i);
+			evbuffer_add(bufferevent_get_output(cdata->bev), buf, i);
 			if (ep_dbg_test(Dbg, 43))
 			{
 				ep_hexdump(buf, i, ep_dbg_getfile(), 0);
@@ -682,6 +685,30 @@ lev_read_cb(struct bufferevent *bev, void *ctx)
 	// we can now unlock
 	if (rpktbuf.dlen > 0)
 		evbuffer_unlock(evb);
+}
+
+/*
+ **  LEV_READ_CB --- handle reads on command sockets
+ */
+
+void
+lev_read_cb(struct bufferevent *bev, void *ctx)
+{
+	EP_STAT estat;
+	gdp_pkt_hdr_t *cpktbuf = malloc(sizeof(gdp_pkt_hdr_t));
+
+	estat = gdp_pkt_in(cpktbuf, bufferevent_get_input(bev));
+	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
+		return;
+
+	lev_read_cb_continue_data *data = malloc(sizeof(lev_read_cb_continue_data));
+	data->bev = bev;
+	data->cpktbuf = cpktbuf;
+	data->ctx = ctx;
+	data->estat = estat;
+	thread_pool_job *new_job = thread_pool_job_new(&lev_read_cb_continue, data);
+
+	thread_pool_add_job(cpu_job_thread_pool, new_job);
 }
 
 /*
@@ -712,7 +739,7 @@ void
 accept_cb(struct evconnlistener *lev,
 evutil_socket_t sockfd, struct sockaddr *sa, int salen, void *ctx)
 {
-	struct event_base *evbase = evconnlistener_get_base(lev);
+	struct event_base *evbase = GdpIoEventBase;
 	struct bufferevent *bev = bufferevent_socket_new(evbase, sockfd,
 	        BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
 	union sockaddr_xx saddr;
@@ -813,10 +840,20 @@ gdpd_init(int listenport)
 		if (GdpEventBase == NULL)
 		{
 			estat = ep_stat_from_errno(errno);
-			ep_app_error("gdpd_init: could not create event base: %s",
+			ep_app_error("gdpd_init: could not create GdpEventBase: %s",
 			        strerror(errno));
 		}
 		event_config_free(ev_cfg);
+	}
+
+	if (GdpIoEventBase == NULL)
+	{
+		GdpIoEventBase = event_base_new();
+		if (GdpIoEventBase == NULL)
+		{
+			estat = ep_stat_from_errno(errno);
+			ep_app_error("gdpd_init: could not GdpIoEventBase");
+		}
 	}
 
 	gdp_gcl_cache_init();
@@ -898,10 +935,23 @@ main(int argc, char **argv)
 		ep_app_abort("Cannot initialize gdp library: %s",
 		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
+	estat = gcl_physlog_init();
+	if (!EP_STAT_ISOK(estat))
+	{
+		char ebuf[100];
+
+		ep_app_abort("Cannot initialize gcl physlog: %s",
+		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
+
+	cpu_job_thread_pool = thread_pool_new(NUM_CPU_CORES);
+	thread_pool_init(cpu_job_thread_pool);
 
 	// need to manually run the event loop
-	gdp_run_event_loop(NULL);
+	_gdp_start_io_event_loop_thread(GdpIoEventBase);
+	_gdp_start_accept_event_loop_thread(GdpEventBase);
 
 	// should never get here
+	pthread_join(IoEventLoopThread, NULL);
 	ep_app_abort("Fell out of event loop");
 }

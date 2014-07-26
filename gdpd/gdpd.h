@@ -15,7 +15,19 @@
 #include <gdp/gdp.h>
 #include <gdp/gdp_log.h>
 #include <gdp/gdp_priv.h>
+#include <gdp/gdp_protocol.h>
 #include <gdp/gdp_stat.h>
 
 #include <unistd.h>
 #include <string.h>
+
+// should get this information at runtime in a portable way
+#define NUM_CPU_CORES 8
+
+typedef struct lev_read_cb_continue_data
+{
+	gdp_pkt_hdr_t *cpktbuf;
+	struct bufferevent *bev;
+	void *ctx;
+	EP_STAT estat;
+} lev_read_cb_continue_data;
