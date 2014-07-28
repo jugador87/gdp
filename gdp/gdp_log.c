@@ -1,13 +1,13 @@
 /* vim: set ai sw=8 sts=8 : */
 
 /***********************************************************************
- **	Copyright (c) 2008-2014, Eric P. Allman.  All rights reserved.
- **	$Id: unix_syslog.c 288 2014-05-11 04:49:26Z eric $
- ***********************************************************************/
+**	Copyright (c) 2008-2014, Eric P. Allman.  All rights reserved.
+**	$Id: unix_syslog.c 288 2014-05-11 04:49:26Z eric $
+***********************************************************************/
 
 /*
- **  Message logging for GDP.
- */
+**  Message logging for GDP.
+*/
 
 #include <ep/ep.h>
 #include <ep/ep_app.h>
@@ -19,17 +19,17 @@
 #include <time.h>
 #include <sys/time.h>
 
-static const char *LogTag = NULL;
-static int LogFac = LOG_LOCAL4;
-static FILE *LogFile1 = NULL;
-static FILE *LogFile2 = NULL;
-static bool LogInitialized = false;
+static const char	*LogTag = NULL;
+static int		LogFac = LOG_LOCAL4;
+static FILE		*LogFile1 = NULL;
+static FILE		*LogFile2 = NULL;
+static bool		LogInitialized = false;
 
 void
 gdp_log_set(const char *tag,	// NULL => use program name
-        int logfac,		// -1 => don't use syslog
-        FILE *logfile,		// NULL => don't print to open file
-        const char *fname)	// NULL => don't log to disk file
+	int logfac,		// -1 => don't use syslog
+	FILE *logfile,		// NULL => don't print to open file
+	const char *fname)	// NULL => don't log to disk file
 {
 	LogTag = tag;
 	LogFac = logfac;
@@ -41,8 +41,13 @@ gdp_log_set(const char *tag,	// NULL => use program name
 	LogInitialized = true;
 }
 
+
 void
-gdp_log_file(EP_STAT estat, char *fmt, va_list ap, EP_TIME_SPEC *tv, FILE *fp)
+gdp_log_file(EP_STAT estat,
+	char *fmt,
+	va_list ap,
+	EP_TIME_SPEC *tv,
+	FILE *fp)
 {
 	char tbuf[40];
 	char ebuf[100];
@@ -52,14 +57,14 @@ gdp_log_file(EP_STAT estat, char *fmt, va_list ap, EP_TIME_SPEC *tv, FILE *fp)
 	ep_stat_tostr(estat, ebuf, sizeof ebuf);
 	tvsec = tv->tv_sec;		//XXX may overflow if time_t is 32 bits!
 	if ((tm = localtime(&tvsec)) == NULL)
-		snprintf(tbuf, sizeof tbuf, "%lld.%06lu", tv->tv_sec,
-		        tv->tv_nsec / 1000L);
+		snprintf(tbuf, sizeof tbuf, "%lld.%06lu",
+				tv->tv_sec, tv->tv_nsec / 1000L);
 	else
 	{
 		char lbuf[40];
 
 		snprintf(lbuf, sizeof lbuf, "%%Y-%%m-%%d %%H:%%M:%%S.%06lu %%z",
-		        tv->tv_nsec / 1000L);
+				tv->tv_nsec / 1000L);
 		strftime(tbuf, sizeof tbuf, lbuf, tm);
 	}
 
@@ -67,6 +72,7 @@ gdp_log_file(EP_STAT estat, char *fmt, va_list ap, EP_TIME_SPEC *tv, FILE *fp)
 	vfprintf(fp, fmt, ap);
 	fprintf(fp, "\n");
 }
+
 
 static void
 gdp_log_syslog(EP_STAT estat, char *fmt, va_list ap)
@@ -87,27 +93,27 @@ gdp_log_syslog(EP_STAT estat, char *fmt, va_list ap)
 	// map estat severity to syslog priority
 	switch (sev)
 	{
-	case EP_STAT_SEV_OK:
+	  case EP_STAT_SEV_OK:
 		logsev = LOG_INFO;
 		break;
 
-	case EP_STAT_SEV_WARN:
+	  case EP_STAT_SEV_WARN:
 		logsev = LOG_WARNING;
 		break;
 
-	case EP_STAT_SEV_ERROR:
+	  case EP_STAT_SEV_ERROR:
 		logsev = LOG_ERR;
 		break;
 
-	case EP_STAT_SEV_SEVERE:
+	  case EP_STAT_SEV_SEVERE:
 		logsev = LOG_CRIT;
 		break;
 
-	case EP_STAT_SEV_ABORT:
+	  case EP_STAT_SEV_ABORT:
 		logsev = LOG_ALERT;
 		break;
 
-	default:
+	  default:
 		// %%% for lack of anything better
 		logsev = LOG_ERR;
 		break;
@@ -119,6 +125,7 @@ gdp_log_syslog(EP_STAT estat, char *fmt, va_list ap)
 	syslog(logsev, "%s: %s", ebuf, mbuf);
 	fprintf(stderr, "%s: %s\n", ebuf, mbuf);
 }
+
 
 void
 gdp_log(EP_STAT estat, char *fmt, ...)
