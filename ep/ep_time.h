@@ -1,3 +1,5 @@
+/* vim: set ai sw=8 sts=8 ts=8 :*/
+
 #ifndef _EP_TIME_H_
 #define _EP_TIME_H_
 

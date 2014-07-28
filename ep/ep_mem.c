@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 :*/
 
 #include <ep.h>
 #include <ep_mem.h>

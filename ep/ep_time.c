@@ -1,3 +1,5 @@
+/* vim: set ai sw=8 sts=8 ts=8 :*/
+
 #include <ep.h>
 #include <ep_time.h>
 #include <errno.h>

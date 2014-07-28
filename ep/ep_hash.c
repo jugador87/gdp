@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 :*/
 
 /***********************************************************************
 **	Copyright (c) 2008-2010, Eric P. Allman.  All rights reserved.
