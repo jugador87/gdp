@@ -1,8 +1,8 @@
-/* vim: set ai sw=4 sts=4 ts=4: */
+/* vim: set ai sw=4 sts=4 : */
 
 /*
- **  These headers are not intended for external use.
- */
+**  These headers are not intended for external use.
+*/
 
 #ifndef _GDP_PRIV_H_
 #define _GDP_PRIV_H_
@@ -14,31 +14,31 @@
 
 #include <stdio.h>
 
-extern pthread_t IoEventLoopThread;
+extern pthread_t	IoEventLoopThread;
 
 struct gcl_handle_t
 {
-	// fields used by GDP library
-	pthread_mutex_t mutex;		// lock on this data structure
-	pthread_cond_t cond;		// pthread wakeup signal
-	gcl_name_t gcl_name;	// the internal name
-	gdp_iomode_t iomode;		// read only or append only
+    // fields used by GDP library
+    pthread_mutex_t	mutex;		// lock on this data structure
+    pthread_cond_t	cond;		// pthread wakeup signal
+    gcl_name_t		gcl_name;	// the internal name
+    gdp_iomode_t	iomode;		// read only or append only
 
-	// transient (should only be used when locked)
-	long msgno;		// msgno from last operation
-	struct evbuffer *revb;		// buffer for return results
-	uint32_t flags;		// see below
-	EP_STAT estat;		// status code from last operation
-	tt_interval_t ts;		// timestamp from last operation
+    // transient (should only be used when locked)
+    long		msgno;		// msgno from last operation
+    struct evbuffer	*revb;		// buffer for return results
+    uint32_t		flags;		// see below
+    EP_STAT		estat;		// status code from last operation
+    tt_interval_t	ts;		// timestamp from last operation
 
-	// fields used only by gdpd
-	long ver;		// version number of on-disk data file
-	int fd;			// file descriptor for the on-disk data file
-	FILE *fp;		// pointer to the on-disk data file
-	off_t *offcache;	// offsets of records we have seen
-	long cachesize;	// size of offcache array
-	long maxmsgno;	// last msgno that we have read/written
-	void *index_entry;
+    // fields used only by gdpd
+    long		ver;		// version number of on-disk data file
+    int			fd;			// file descriptor for the on-disk data file
+    FILE		*fp;		// pointer to the on-disk data file
+    off_t		*offcache;	// offsets of records we have seen
+    long		cachesize;	// size of offcache array
+    long		maxmsgno;	// last msgno that we have read/written
+    void		*index_entry;
 };
 
 // GCL flags
@@ -47,31 +47,31 @@ struct gcl_handle_t
 
 #define GCL_NEXT_MSG	(-1)		// sentinel for next available message
 
-gcl_handle_t *
-gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode);
+gcl_handle_t	*gdp_gcl_cache_get(
+				gcl_name_t gcl_name,
+				gdp_iomode_t mode);
 
-void
-gdp_gcl_cache_add(gcl_handle_t *gclh, gdp_iomode_t mode);
+void		gdp_gcl_cache_add(
+				gcl_handle_t *gclh,
+				gdp_iomode_t mode);
 
-void
-gdp_gcl_cache_drop(gcl_name_t gcl_name, gdp_iomode_t mode);
+void		gdp_gcl_cache_drop(
+				gcl_name_t gcl_name,
+				gdp_iomode_t mode);
 
-EP_STAT
-gdp_gcl_cache_init(void);
+EP_STAT		gdp_gcl_cache_init(void);
 
-const char *
-_gdp_proto_cmd_name(uint8_t cmd);
+const char	*_gdp_proto_cmd_name(uint8_t cmd);
 
-EP_STAT
-_gdp_start_accept_event_loop_thread(struct event_base *evb);
+EP_STAT		_gdp_start_accept_event_loop_thread(
+				struct event_base *evb);
 
-void
-gdp_gcl_newname(gcl_name_t gcl_name);
+void		gdp_gcl_newname(
+				gcl_name_t gcl_name);
 
-EP_STAT
-_gdp_start_accept_event_loop_thread(struct event_base *evb);
+EP_STAT		_gdp_start_accept_event_loop_thread(struct event_base *evb);
 
-EP_STAT
-_gdp_start_io_event_loop_thread(struct event_base *evb);
+
+EP_STAT		_gdp_start_io_event_loop_thread(struct event_base *evb);
 
 #endif // _GDP_PRIV_H_

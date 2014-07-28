@@ -1,13 +1,13 @@
-/* vim: set ai sw=4 sts=4 ts=4: */
+/* vim: set ai sw=4 sts=4 : */
 
 /***********************************************************************
- **
- **  GDP_STAT.H --- status codes specific to the Global Data Plane
- **
- **	If you add codes here, be sure to add a string description
- **	in gdp_stat.c.
- **
- ***********************************************************************/
+**
+**  GDP_STAT.H --- status codes specific to the Global Data Plane
+**
+**	If you add codes here, be sure to add a string description
+**	in gdp_stat.c.
+**
+***********************************************************************/
 
 #include <ep/ep_stat.h>
 #include <ep/ep_registry.h>

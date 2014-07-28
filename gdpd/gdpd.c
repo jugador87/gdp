@@ -1,4 +1,4 @@
-/* vim: set ai sw=4 sts=4 ts=4: */
+/* vim: set ai sw=4 sts=4 : */
 
 #include "gdpd.h"
 #include "gdpd_physlog.h"
@@ -281,263 +281,263 @@ typedef struct
 
 dispatch_ent_t DispatchTable[256] =
 {
-NOENT,  // 0
-NOENT,                   // 1
-NOENT,                   // 2
-NOENT,                   // 3
-NOENT,                   // 4
-NOENT,                   // 5
-NOENT,                   // 6
-NOENT,                   // 7
-NOENT,                   // 8
-NOENT,                   // 9
-NOENT,                   // 10
-NOENT,                   // 11
-NOENT,                   // 12
-NOENT,                   // 13
-NOENT,                   // 14
-NOENT,                   // 15
-NOENT,                   // 16
-NOENT,                   // 17
-NOENT,                   // 18
-NOENT,                   // 19
-NOENT,                   // 20
-NOENT,                   // 21
-NOENT,                   // 22
-NOENT,                   // 23
-NOENT,                   // 24
-NOENT,                   // 25
-NOENT,                   // 26
-NOENT,                   // 27
-NOENT,                   // 28
-NOENT,                   // 29
-NOENT,                   // 30
-NOENT,                   // 31
-NOENT,                   // 32
-NOENT,                   // 33
-NOENT,                   // 34
-NOENT,                   // 35
-NOENT,                   // 36
-NOENT,                   // 37
-NOENT,                   // 38
-NOENT,                   // 39
-NOENT,                   // 40
-NOENT,                   // 41
-NOENT,                   // 42
-NOENT,                   // 43
-NOENT,                   // 44
-NOENT,                   // 45
-NOENT,                   // 46
-NOENT,                   // 47
-NOENT,                   // 48
-NOENT,                   // 49
-NOENT,                   // 50
-NOENT,                   // 51
-NOENT,                   // 52
-NOENT,                   // 53
-NOENT,                   // 54
-NOENT,                   // 55
-NOENT,                   // 56
-NOENT,                   // 57
-NOENT,                   // 58
-NOENT,                   // 59
-NOENT,                   // 60
-NOENT,                   // 61
-NOENT,                   // 62
-NOENT,                   // 63
-NOENT,                   // 64
-NOENT,                   // 65
-{ cmd_create, GDP_ACK_DATA_CREATED },		// 66
-        { cmd_open_ao, GDP_ACK_SUCCESS },		// 67
-        { cmd_open_ro, GDP_ACK_SUCCESS },		// 68
-        { cmd_close, GDP_ACK_SUCCESS },		// 69
-        { cmd_read, GDP_ACK_DATA_CONTENT },		// 70
-        { cmd_publish, GDP_ACK_DATA_CREATED },		// 71
-        { cmd_subscribe, GDP_ACK_SUCCESS },		// 72
-        NOENT,                   // 73
-        NOENT,                   // 74
-        NOENT,                   // 75
-        NOENT,                   // 76
-        NOENT,                   // 77
-        NOENT,                   // 78
-        NOENT,                   // 79
-        NOENT,                   // 80
-        NOENT,                   // 81
-        NOENT,                   // 82
-        NOENT,                   // 83
-        NOENT,                   // 84
-        NOENT,                   // 85
-        NOENT,                   // 86
-        NOENT,                   // 87
-        NOENT,                   // 88
-        NOENT,                   // 89
-        NOENT,                   // 90
-        NOENT,                   // 91
-        NOENT,                   // 92
-        NOENT,                   // 93
-        NOENT,                   // 94
-        NOENT,                   // 95
-        NOENT,                   // 96
-        NOENT,                   // 97
-        NOENT,                   // 98
-        NOENT,                   // 99
-        NOENT,                   // 100
-        NOENT,                   // 101
-        NOENT,                   // 102
-        NOENT,                   // 103
-        NOENT,                   // 104
-        NOENT,                   // 105
-        NOENT,                   // 106
-        NOENT,                   // 107
-        NOENT,                   // 108
-        NOENT,                   // 109
-        NOENT,                   // 110
-        NOENT,                   // 111
-        NOENT,                   // 112
-        NOENT,                   // 113
-        NOENT,                   // 114
-        NOENT,                   // 115
-        NOENT,                   // 116
-        NOENT,                   // 117
-        NOENT,                   // 118
-        NOENT,                   // 119
-        NOENT,                   // 120
-        NOENT,                   // 121
-        NOENT,                   // 122
-        NOENT,                   // 123
-        NOENT,                   // 124
-        NOENT,                   // 125
-        NOENT,                   // 126
-        NOENT,                   // 127
-        NOENT,                   // 128
-        NOENT,                   // 129
-        NOENT,                   // 130
-        NOENT,                   // 131
-        NOENT,                   // 132
-        NOENT,                   // 133
-        NOENT,                   // 134
-        NOENT,                   // 135
-        NOENT,                   // 136
-        NOENT,                   // 137
-        NOENT,                   // 138
-        NOENT,                   // 139
-        NOENT,                   // 140
-        NOENT,                   // 141
-        NOENT,                   // 142
-        NOENT,                   // 143
-        NOENT,                   // 144
-        NOENT,                   // 145
-        NOENT,                   // 146
-        NOENT,                   // 147
-        NOENT,                   // 148
-        NOENT,                   // 149
-        NOENT,                   // 150
-        NOENT,                   // 151
-        NOENT,                   // 152
-        NOENT,                   // 153
-        NOENT,                   // 154
-        NOENT,                   // 155
-        NOENT,                   // 156
-        NOENT,                   // 157
-        NOENT,                   // 158
-        NOENT,                   // 159
-        NOENT,                   // 160
-        NOENT,                   // 161
-        NOENT,                   // 162
-        NOENT,                   // 163
-        NOENT,                   // 164
-        NOENT,                   // 165
-        NOENT,                   // 166
-        NOENT,                   // 167
-        NOENT,                   // 168
-        NOENT,                   // 169
-        NOENT,                   // 170
-        NOENT,                   // 171
-        NOENT,                   // 172
-        NOENT,                   // 173
-        NOENT,                   // 174
-        NOENT,                   // 175
-        NOENT,                   // 176
-        NOENT,                   // 177
-        NOENT,                   // 178
-        NOENT,                   // 179
-        NOENT,                   // 180
-        NOENT,                   // 181
-        NOENT,                   // 182
-        NOENT,                   // 183
-        NOENT,                   // 184
-        NOENT,                   // 185
-        NOENT,                   // 186
-        NOENT,                   // 187
-        NOENT,                   // 188
-        NOENT,                   // 189
-        NOENT,                   // 190
-        NOENT,                   // 191
-        NOENT,                   // 192
-        NOENT,                   // 193
-        NOENT,                   // 194
-        NOENT,                   // 195
-        NOENT,                   // 196
-        NOENT,                   // 197
-        NOENT,                   // 198
-        NOENT,                   // 199
-        NOENT,                   // 200
-        NOENT,                   // 201
-        NOENT,                   // 202
-        NOENT,                   // 203
-        NOENT,                   // 204
-        NOENT,                   // 205
-        NOENT,                   // 206
-        NOENT,                   // 207
-        NOENT,                   // 208
-        NOENT,                   // 209
-        NOENT,                   // 210
-        NOENT,                   // 211
-        NOENT,                   // 212
-        NOENT,                   // 213
-        NOENT,                   // 214
-        NOENT,                   // 215
-        NOENT,                   // 216
-        NOENT,                   // 217
-        NOENT,                   // 218
-        NOENT,                   // 219
-        NOENT,                   // 220
-        NOENT,                   // 221
-        NOENT,                   // 222
-        NOENT,                   // 223
-        NOENT,                   // 224
-        NOENT,                   // 225
-        NOENT,                   // 226
-        NOENT,                   // 227
-        NOENT,                   // 228
-        NOENT,                   // 229
-        NOENT,                   // 230
-        NOENT,                   // 231
-        NOENT,                   // 232
-        NOENT,                   // 233
-        NOENT,                   // 234
-        NOENT,                   // 235
-        NOENT,                   // 236
-        NOENT,                   // 237
-        NOENT,                   // 238
-        NOENT,                   // 239
-        NOENT,                   // 240
-        NOENT,                   // 241
-        NOENT,                   // 242
-        NOENT,                   // 243
-        NOENT,                   // 244
-        NOENT,                   // 245
-        NOENT,                   // 246
-        NOENT,                   // 247
-        NOENT,                   // 248
-        NOENT,                   // 249
-        NOENT,                   // 250
-        NOENT,                   // 251
-        NOENT,                   // 252
-        NOENT,                   // 253
-        NOENT,                   // 254
-        NOENT,                   // 255
-        };
+	NOENT,  // 0
+	NOENT,                   // 1
+	NOENT,                   // 2
+	NOENT,                   // 3
+	NOENT,                   // 4
+	NOENT,                   // 5
+	NOENT,                   // 6
+	NOENT,                   // 7
+	NOENT,                   // 8
+	NOENT,                   // 9
+	NOENT,                   // 10
+	NOENT,                   // 11
+	NOENT,                   // 12
+	NOENT,                   // 13
+	NOENT,                   // 14
+	NOENT,                   // 15
+	NOENT,                   // 16
+	NOENT,                   // 17
+	NOENT,                   // 18
+	NOENT,                   // 19
+	NOENT,                   // 20
+	NOENT,                   // 21
+	NOENT,                   // 22
+	NOENT,                   // 23
+	NOENT,                   // 24
+	NOENT,                   // 25
+	NOENT,                   // 26
+	NOENT,                   // 27
+	NOENT,                   // 28
+	NOENT,                   // 29
+	NOENT,                   // 30
+	NOENT,                   // 31
+	NOENT,                   // 32
+	NOENT,                   // 33
+	NOENT,                   // 34
+	NOENT,                   // 35
+	NOENT,                   // 36
+	NOENT,                   // 37
+	NOENT,                   // 38
+	NOENT,                   // 39
+	NOENT,                   // 40
+	NOENT,                   // 41
+	NOENT,                   // 42
+	NOENT,                   // 43
+	NOENT,                   // 44
+	NOENT,                   // 45
+	NOENT,                   // 46
+	NOENT,                   // 47
+	NOENT,                   // 48
+	NOENT,                   // 49
+	NOENT,                   // 50
+	NOENT,                   // 51
+	NOENT,                   // 52
+	NOENT,                   // 53
+	NOENT,                   // 54
+	NOENT,                   // 55
+	NOENT,                   // 56
+	NOENT,                   // 57
+	NOENT,                   // 58
+	NOENT,                   // 59
+	NOENT,                   // 60
+	NOENT,                   // 61
+	NOENT,                   // 62
+	NOENT,                   // 63
+	NOENT,                   // 64
+	NOENT,                   // 65
+	{ cmd_create, GDP_ACK_DATA_CREATED },		// 66
+	{ cmd_open_ao, GDP_ACK_SUCCESS },		// 67
+	{ cmd_open_ro, GDP_ACK_SUCCESS },		// 68
+	{ cmd_close, GDP_ACK_SUCCESS },		// 69
+	{ cmd_read, GDP_ACK_DATA_CONTENT },		// 70
+	{ cmd_publish, GDP_ACK_DATA_CREATED },		// 71
+	{ cmd_subscribe, GDP_ACK_SUCCESS },		// 72
+	NOENT,                   // 73
+	NOENT,                   // 74
+	NOENT,                   // 75
+	NOENT,                   // 76
+	NOENT,                   // 77
+	NOENT,                   // 78
+	NOENT,                   // 79
+	NOENT,                   // 80
+	NOENT,                   // 81
+	NOENT,                   // 82
+	NOENT,                   // 83
+	NOENT,                   // 84
+	NOENT,                   // 85
+	NOENT,                   // 86
+	NOENT,                   // 87
+	NOENT,                   // 88
+	NOENT,                   // 89
+	NOENT,                   // 90
+	NOENT,                   // 91
+	NOENT,                   // 92
+	NOENT,                   // 93
+	NOENT,                   // 94
+	NOENT,                   // 95
+	NOENT,                   // 96
+	NOENT,                   // 97
+	NOENT,                   // 98
+	NOENT,                   // 99
+	NOENT,                   // 100
+	NOENT,                   // 101
+	NOENT,                   // 102
+	NOENT,                   // 103
+	NOENT,                   // 104
+	NOENT,                   // 105
+	NOENT,                   // 106
+	NOENT,                   // 107
+	NOENT,                   // 108
+	NOENT,                   // 109
+	NOENT,                   // 110
+	NOENT,                   // 111
+	NOENT,                   // 112
+	NOENT,                   // 113
+	NOENT,                   // 114
+	NOENT,                   // 115
+	NOENT,                   // 116
+	NOENT,                   // 117
+	NOENT,                   // 118
+	NOENT,                   // 119
+	NOENT,                   // 120
+	NOENT,                   // 121
+	NOENT,                   // 122
+	NOENT,                   // 123
+	NOENT,                   // 124
+	NOENT,                   // 125
+	NOENT,                   // 126
+	NOENT,                   // 127
+	NOENT,                   // 128
+	NOENT,                   // 129
+	NOENT,                   // 130
+	NOENT,                   // 131
+	NOENT,                   // 132
+	NOENT,                   // 133
+	NOENT,                   // 134
+	NOENT,                   // 135
+	NOENT,                   // 136
+	NOENT,                   // 137
+	NOENT,                   // 138
+	NOENT,                   // 139
+	NOENT,                   // 140
+	NOENT,                   // 141
+	NOENT,                   // 142
+	NOENT,                   // 143
+	NOENT,                   // 144
+	NOENT,                   // 145
+	NOENT,                   // 146
+	NOENT,                   // 147
+	NOENT,                   // 148
+	NOENT,                   // 149
+	NOENT,                   // 150
+	NOENT,                   // 151
+	NOENT,                   // 152
+	NOENT,                   // 153
+	NOENT,                   // 154
+	NOENT,                   // 155
+	NOENT,                   // 156
+	NOENT,                   // 157
+	NOENT,                   // 158
+	NOENT,                   // 159
+	NOENT,                   // 160
+	NOENT,                   // 161
+	NOENT,                   // 162
+	NOENT,                   // 163
+	NOENT,                   // 164
+	NOENT,                   // 165
+	NOENT,                   // 166
+	NOENT,                   // 167
+	NOENT,                   // 168
+	NOENT,                   // 169
+	NOENT,                   // 170
+	NOENT,                   // 171
+	NOENT,                   // 172
+	NOENT,                   // 173
+	NOENT,                   // 174
+	NOENT,                   // 175
+	NOENT,                   // 176
+	NOENT,                   // 177
+	NOENT,                   // 178
+	NOENT,                   // 179
+	NOENT,                   // 180
+	NOENT,                   // 181
+	NOENT,                   // 182
+	NOENT,                   // 183
+	NOENT,                   // 184
+	NOENT,                   // 185
+	NOENT,                   // 186
+	NOENT,                   // 187
+	NOENT,                   // 188
+	NOENT,                   // 189
+	NOENT,                   // 190
+	NOENT,                   // 191
+	NOENT,                   // 192
+	NOENT,                   // 193
+	NOENT,                   // 194
+	NOENT,                   // 195
+	NOENT,                   // 196
+	NOENT,                   // 197
+	NOENT,                   // 198
+	NOENT,                   // 199
+	NOENT,                   // 200
+	NOENT,                   // 201
+	NOENT,                   // 202
+	NOENT,                   // 203
+	NOENT,                   // 204
+	NOENT,                   // 205
+	NOENT,                   // 206
+	NOENT,                   // 207
+	NOENT,                   // 208
+	NOENT,                   // 209
+	NOENT,                   // 210
+	NOENT,                   // 211
+	NOENT,                   // 212
+	NOENT,                   // 213
+	NOENT,                   // 214
+	NOENT,                   // 215
+	NOENT,                   // 216
+	NOENT,                   // 217
+	NOENT,                   // 218
+	NOENT,                   // 219
+	NOENT,                   // 220
+	NOENT,                   // 221
+	NOENT,                   // 222
+	NOENT,                   // 223
+	NOENT,                   // 224
+	NOENT,                   // 225
+	NOENT,                   // 226
+	NOENT,                   // 227
+	NOENT,                   // 228
+	NOENT,                   // 229
+	NOENT,                   // 230
+	NOENT,                   // 231
+	NOENT,                   // 232
+	NOENT,                   // 233
+	NOENT,                   // 234
+	NOENT,                   // 235
+	NOENT,                   // 236
+	NOENT,                   // 237
+	NOENT,                   // 238
+	NOENT,                   // 239
+	NOENT,                   // 240
+	NOENT,                   // 241
+	NOENT,                   // 242
+	NOENT,                   // 243
+	NOENT,                   // 244
+	NOENT,                   // 245
+	NOENT,                   // 246
+	NOENT,                   // 247
+	NOENT,                   // 248
+	NOENT,                   // 249
+	NOENT,                   // 250
+	NOENT,                   // 251
+	NOENT,                   // 252
+	NOENT,                   // 253
+	NOENT,                   // 254
+	NOENT,                   // 255
+};
 
 /*
  **  DISPATCHCMD --- dispatch a command via the DispatchTable
@@ -596,16 +596,14 @@ dispatch_cmd(dispatch_ent_t *d, conn_t *conn, gdp_pkt_hdr_t *cpkt,
 void
 lev_read_cb_continue(void *continue_data)
 {
-	lev_read_cb_continue_data *cdata =
-	        (lev_read_cb_continue_data *) continue_data;
+	lev_read_cb_continue_data *cdata = (lev_read_cb_continue_data *)continue_data;
 	gdp_pkt_hdr_t rpktbuf;
 	dispatch_ent_t *d;
 	struct evbuffer *evb = NULL;
 
 	// got the packet, dispatch it based on the command
 	d = &DispatchTable[cdata->cpktbuf->cmd];
-	cdata->estat = dispatch_cmd(d, cdata->ctx, cdata->cpktbuf, &rpktbuf,
-	        cdata->bev);
+	cdata->estat = dispatch_cmd(d, cdata->ctx, cdata->cpktbuf, &rpktbuf, cdata->bev);
 	//XXX anything to do with estat here?
 
 	free(cdata->cpktbuf);

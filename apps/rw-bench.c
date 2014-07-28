@@ -1,4 +1,4 @@
-/* vim: set ai sw=4 sts=4 ts=4: */
+/* vim: set ai sw=4 sts=4 : */
 
 #include <gdp/gdp.h>
 
@@ -14,34 +14,27 @@
 #include <stdio.h>
 #include <unistd.h>
 
-struct elapsed_time
-{
+struct elapsed_time {
 	long seconds;
 	long millis;
 };
 
 void
-avg_elapsed_time(struct elapsed_time *total_elapsed_time, size_t n,
-        struct elapsed_time *out)
-{
+avg_elapsed_time(struct elapsed_time *total_elapsed_time, size_t n, struct elapsed_time *out) {
 	assert(n > 0);
-	out->millis = (total_elapsed_time->seconds * 1000)
-	        + total_elapsed_time->millis;
+	out->millis = (total_elapsed_time->seconds * 1000) + total_elapsed_time->millis;
 	out->millis /= n;
 	out->seconds = out->millis / 1000;
 	out->millis -= out->seconds * 1000;
 }
 
 void
-sum_elapsed_time(struct elapsed_time elapsed_time[], size_t n,
-        struct elapsed_time *out)
-{
+sum_elapsed_time(struct elapsed_time elapsed_time[], size_t n, struct elapsed_time *out) {
 	size_t i;
 	long new_seconds;
 	out->seconds = 0;
 	out->millis = 0;
-	for (i = 0; i < n; ++i)
-	{
+	for (i = 0; i < n; ++i) {
 		out->seconds += elapsed_time[i].seconds;
 		out->millis += elapsed_time[i].millis;
 	}
@@ -51,20 +44,19 @@ sum_elapsed_time(struct elapsed_time elapsed_time[], size_t n,
 }
 
 void
-get_elapsed_time(struct timespec *start_time, struct timespec *end_time,
-        struct elapsed_time *out)
+get_elapsed_time(
+		struct timespec *start_time, struct timespec *end_time,
+		struct elapsed_time *out)
 {
-	out->millis = ((end_time->tv_sec - start_time->tv_sec) * 1000)
-	        + ((end_time->tv_nsec - start_time->tv_nsec) / (1000 * 1000));
+	out->millis = ((end_time->tv_sec - start_time->tv_sec) * 1000) +
+		((end_time->tv_nsec - start_time->tv_nsec) / (1000 * 1000));
 	out->seconds = out->millis / 1000;
 	out->millis -= out->seconds * 1000;
 }
 
 void
-print_elapsed_time(FILE *stream, struct elapsed_time *elapsed_time)
-{
-	fprintf(stream, "Elapsed time = %lu.%03lu s\n", elapsed_time->seconds,
-	        elapsed_time->millis);
+print_elapsed_time(FILE *stream, struct elapsed_time *elapsed_time) {
+	fprintf(stream, "Elapsed time = %lu.%03lu s\n", elapsed_time->seconds, elapsed_time->millis);
 }
 
 int
@@ -182,10 +174,8 @@ main(int argc, char *argv[])
 		gdp_gcl_print(gclh_write, stdout, 0, 0);
 
 		clock_gettime(CLOCK_REALTIME, &start_time);
-		fprintf(stdout, "Writing data (start_time = %lu:%lu)\n",
-		        start_time.tv_sec, start_time.tv_nsec);
-		for (i = 0; i < num_records; ++i)
-		{
+		fprintf(stdout, "Writing data (start_time = %lu:%lu)\n", start_time.tv_sec, start_time.tv_nsec);
+		for (i = 0; i < num_records; ++i) {
 			memset(&msg, '\0', sizeof msg);
 			msg.data = &data[(i * max_record_size)];
 			msg.len = strlen(msg.data);
@@ -195,38 +185,30 @@ main(int argc, char *argv[])
 			EP_STAT_CHECK(estat, goto fail1);
 		}
 		clock_gettime(CLOCK_REALTIME, &end_time);
-		fprintf(stdout, "Finished writing data (end_time = %lu:%lu)\n",
-		        end_time.tv_sec, end_time.tv_nsec);
+		fprintf(stdout, "Finished writing data (end_time = %lu:%lu)\n", end_time.tv_sec, end_time.tv_nsec);
 		get_elapsed_time(&start_time, &end_time, &trial_write_times[t]);
 		print_elapsed_time(stdout, &trial_write_times[t]);
-		memcpy(internal_name, gdp_gcl_getname(gclh_write),
-		        sizeof internal_name);
+		memcpy(internal_name, gdp_gcl_getname(gclh_write), sizeof internal_name);
 		gdp_gcl_printable_name(internal_name, printable_name);
 		gdp_gcl_close(gclh_write);
 		estat = gdp_gcl_open(internal_name, GDP_MODE_RO, &gclh_read);
 		clock_gettime(CLOCK_REALTIME, &start_time);
-		fprintf(stdout, "Reading data (start_time = %lu:%lu)\n",
-		        start_time.tv_sec, start_time.tv_nsec);
-		for (i = 0; i < num_records; ++i)
-		{
+		fprintf(stdout, "Reading data (start_time = %lu:%lu)\n", start_time.tv_sec, start_time.tv_nsec);
+		for (i = 0; i < num_records; ++i) {
 			estat = gdp_gcl_read(gclh_read, i + 1, &msg, evb);
 			EP_STAT_CHECK(estat, goto fail2);
 			msg.len = evbuffer_remove(evb, cur_record, max_record_size);
 			cur_record[msg.len] = '\0';
 			msg.data = cur_record;
-			if (strncmp(data + (i * max_record_size), msg.data, max_length)
-			        != 0)
-			{
-				fprintf(stdout,
-				        "data mismatch:\n> expected: %s\n> got     : %s\n",
-				        data + (i * max_record_size), cur_record);
+			if (strncmp(data + (i * max_record_size), msg.data, max_length) != 0) {
+				fprintf(stdout, "data mismatch:\n> expected: %s\n> got     : %s\n",
+					data + (i * max_record_size), cur_record);
 			}
 
 			evbuffer_drain(evb, UINT_MAX);
 		}
 		clock_gettime(CLOCK_REALTIME, &end_time);
-		fprintf(stdout, "Finished reading data (end_time = %lu:%lu)\n",
-		        end_time.tv_sec, end_time.tv_nsec);
+		fprintf(stdout, "Finished reading data (end_time = %lu:%lu)\n", end_time.tv_sec, end_time.tv_nsec);
 		get_elapsed_time(&start_time, &end_time, &trial_read_times[t]);
 		print_elapsed_time(stdout, &trial_read_times[t]);
 		fprintf(stdout, "\n");
@@ -235,14 +217,12 @@ main(int argc, char *argv[])
 	sum_elapsed_time(trial_read_times, trials, &total_e_time);
 	avg_elapsed_time(&total_e_time, trials, &avg_e_time);
 
-	fprintf(stdout, "Average read time per trial: %lu.%03lu s\n",
-	        avg_e_time.seconds, avg_e_time.millis);
+	fprintf(stdout, "Average read time per trial: %lu.%03lu s\n", avg_e_time.seconds, avg_e_time.millis);
 
 	sum_elapsed_time(trial_write_times, trials, &total_e_time);
 	avg_elapsed_time(&total_e_time, trials, &avg_e_time);
 
-	fprintf(stdout, "Average write time per trial: %lu.%03lu s\n",
-	        avg_e_time.seconds, avg_e_time.millis);
+	fprintf(stdout, "Average write time per trial: %lu.%03lu s\n", avg_e_time.seconds, avg_e_time.millis);
 
 	free(trial_read_times);
 	free(trial_write_times);
@@ -252,12 +232,16 @@ main(int argc, char *argv[])
 
 	goto done;
 
-	fail2: gdp_gcl_close(gclh_read);
+fail2:
+	gdp_gcl_close(gclh_read);
 
-	fail1: gdp_gcl_close(gclh_write);
+fail1:
+	gdp_gcl_close(gclh_write);
 
-	fail0: done: fprintf(stderr, "exiting with status %s\n",
-	        ep_stat_tostr(estat, buf, sizeof buf));
+fail0:
+done:
+	fprintf(stderr, "exiting with status %s\n",
+	ep_stat_tostr(estat, buf, sizeof buf));
 
 	return !EP_STAT_ISOK(estat);
 }
