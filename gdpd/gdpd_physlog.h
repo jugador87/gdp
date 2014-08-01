@@ -32,14 +32,10 @@ EP_STAT			gcl_append(
 						gcl_handle_t *gclh,
 						gdp_msg_t *msg);
 
-#define GCL_MAX_LINE		128	// max length of text line in gcl
-#define GCL_PATH_LEN		200	// max length of pathname
-#define GCL_DIR			"/var/tmp/gcl"
-#define GCL_VERSION		0
-#define GCL_MAGIC		"#!GDP-GCL "
-#define MSG_MAGIC		"\n#!MSG "
+#define GCL_DIR				"/var/tmp/gcl"
+#define GCL_VERSION			0
 
-#define GCL_LOG_MAGIC 0x4041424344454647LL
+#define GCL_LOG_MAGIC		0x4041424344454647LL
 
 #define GCL_DATA_SUFFIX		".data"
 #define GCL_INDEX_SUFFIX	".index"
