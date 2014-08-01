@@ -3,14 +3,15 @@
 
 #include <pthread.h>
 
-typedef struct thread_pool_job thread_pool_job;
+//XXX This forward declaration is C11 only.  We are using C99.
+//typedef struct thread_pool_job thread_pool_job;
 
 typedef struct thread_pool {
 	pthread_mutex_t mutex;
 	pthread_cond_t is_full;
 	pthread_cond_t is_empty;
 	int num_threads;
-	thread_pool_job *new_job;
+	struct thread_pool_job *new_job;
 } thread_pool;
 
 typedef void (*thread_pool_job_callback)(void *);

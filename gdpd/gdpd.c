@@ -1,4 +1,4 @@
-/* vim: set ai sw=4 sts=4 : */
+/* vim: set ai sw=4 sts=4 ts=4 : */
 
 #include "gdpd.h"
 #include "gdpd_physlog.h"
@@ -16,7 +16,8 @@
 #include <errno.h>
 #include <arpa/inet.h>
 
-/************************  PRIVATE  ************************/
+
+/************************  PRIVATE	************************/
 
 static EP_DBG Dbg = EP_DBG_INIT("gdp.gdpd", "GDP Daemon");
 
@@ -24,12 +25,12 @@ static struct event_base *GdpIoEventBase;
 static struct thread_pool *cpu_job_thread_pool;
 
 /*
- **  A handle on an open connection.
- */
+**	A handle on an open connection.
+*/
 
 typedef struct
 {
-	int dummy;	    // unused
+	int		dummy;			// unused
 } conn_t;
 
 EP_STAT
@@ -40,15 +41,16 @@ implement_me(char *s)
 }
 
 /*
- **  GDP_GCL_MSG_PRINT --- print a message (for debugging)
- */
+**	GDP_GCL_MSG_PRINT --- print a message (for debugging)
+*/
 
 void
-gcl_msg_print(const gdp_msg_t *msg, FILE *fp)
+gcl_msg_print(const gdp_msg_t *msg,
+			FILE *fp)
 {
 	int i;
 
-	fprintf(fp, "GCL Message %ld, len %zu", msg->msgno, msg->len);
+	fprintf(fp, "GCL Message %d, len %zu", msg->msgno, msg->len);
 	if (msg->ts.stamp.tv_sec != TT_NOTIME)
 	{
 		fprintf(fp, ", timestamp ");
@@ -59,12 +61,13 @@ gcl_msg_print(const gdp_msg_t *msg, FILE *fp)
 		fprintf(fp, ", no timestamp");
 	}
 	i = msg->len;
-	fprintf(fp, "\n  %s%.*s%s\n", EpChar->lquote, i, msg->data, EpChar->rquote);
+	fprintf(fp, "\n	 %s%.*s%s\n", EpChar->lquote, i,
+					(char *) msg->data, EpChar->rquote);
 }
 
 /*
- **  GDPD_GCL_ERROR --- helper routine for returning errors
- */
+**	GDPD_GCL_ERROR --- helper routine for returning errors
+*/
 
 EP_STAT
 gdpd_gcl_error(gcl_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
@@ -77,12 +80,12 @@ gdpd_gcl_error(gcl_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
 }
 
 /*
- **  Command implementations
- */
+**	Command implementations
+*/
 
 EP_STAT
-cmd_create(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
-        gdp_pkt_hdr_t *rpkt)
+cmd_create(struct bufferevent *bev, conn_t *c,
+		gdp_pkt_hdr_t *cpkt, gdp_pkt_hdr_t *rpkt)
 {
 	EP_STAT estat;
 	gcl_handle_t *gclh;
@@ -101,8 +104,8 @@ cmd_create(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
 }
 
 EP_STAT
-cmd_open_xx(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
-        gdp_pkt_hdr_t *rpkt, int iomode)
+cmd_open_xx(struct bufferevent *bev, conn_t *c,
+		gdp_pkt_hdr_t *cpkt, gdp_pkt_hdr_t *rpkt, int iomode)
 {
 	EP_STAT estat;
 	gcl_handle_t *gclh;
@@ -117,7 +120,7 @@ cmd_open_xx(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
 			gdp_gcl_printable_name(cpkt->gcl_name, pname);
 			ep_dbg_printf("cmd_open_xx: using cached handle for %s\n", pname);
 		}
-		rewind(gclh->fp);	// make sure we can switch modes (read/write)
+		rewind(gclh->fp);		// make sure we can switch modes (read/write)
 		return EP_STAT_OK;
 	}
 	if (ep_dbg_test(Dbg, 12))
@@ -134,22 +137,22 @@ cmd_open_xx(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
 }
 
 EP_STAT
-cmd_open_ao(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
-        gdp_pkt_hdr_t *rpkt)
+cmd_open_ao(struct bufferevent *bev, conn_t *c,
+		gdp_pkt_hdr_t *cpkt, gdp_pkt_hdr_t *rpkt)
 {
 	return cmd_open_xx(bev, c, cpkt, rpkt, GDP_MODE_AO);
 }
 
 EP_STAT
-cmd_open_ro(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
-        gdp_pkt_hdr_t *rpkt)
+cmd_open_ro(struct bufferevent *bev, conn_t *c,
+		gdp_pkt_hdr_t *cpkt, gdp_pkt_hdr_t *rpkt)
 {
 	return cmd_open_xx(bev, c, cpkt, rpkt, GDP_MODE_RO);
 }
 
 EP_STAT
-cmd_close(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
-        gdp_pkt_hdr_t *rpkt)
+cmd_close(struct bufferevent *bev, conn_t *c,
+		gdp_pkt_hdr_t *cpkt, gdp_pkt_hdr_t *rpkt)
 {
 	gcl_handle_t *gclh;
 
@@ -157,14 +160,14 @@ cmd_close(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
 	if (gclh == NULL)
 	{
 		return gdpd_gcl_error(cpkt->gcl_name, "cmd_close: GCL not open",
-		GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
+							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 	return gcl_close(gclh);
 }
 
 EP_STAT
-cmd_read(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
-        gdp_pkt_hdr_t *rpkt)
+cmd_read(struct bufferevent *bev, conn_t *c,
+		gdp_pkt_hdr_t *cpkt, gdp_pkt_hdr_t *rpkt)
 {
 	gcl_handle_t *gclh;
 	gdp_msg_t msg;
@@ -174,7 +177,7 @@ cmd_read(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
 	if (gclh == NULL)
 	{
 		return gdpd_gcl_error(cpkt->gcl_name, "cmd_read: GCL not open",
-		GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
+							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 
 	estat = gcl_read(gclh, cpkt->msgno, &msg, gclh->revb);
@@ -182,14 +185,16 @@ cmd_read(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
 	rpkt->dlen = EP_STAT_TO_LONG(estat);
 	rpkt->ts = msg.ts;
 
-	fail0: if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
+fail0:
+	if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
 		rpkt->cmd = GDP_NAK_C_NOTFOUND;
 	return estat;
 }
 
+
 EP_STAT
-cmd_publish(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
-        gdp_pkt_hdr_t *rpkt)
+cmd_publish(struct bufferevent *bev, conn_t *c,
+		gdp_pkt_hdr_t *cpkt, gdp_pkt_hdr_t *rpkt)
 {
 	gcl_handle_t *gclh;
 	char *dp;
@@ -202,7 +207,7 @@ cmd_publish(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
 	if (gclh == NULL)
 	{
 		return gdpd_gcl_error(cpkt->gcl_name, "cmd_publish: GCL not open",
-		GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
+							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 
 	if (cpkt->dlen > sizeof dbuf)
@@ -215,7 +220,7 @@ cmd_publish(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
 	if (i < cpkt->dlen)
 	{
 		return gdpd_gcl_error(cpkt->gcl_name, "cmd_publish: short read",
-		GDP_STAT_SHORTMSG, GDP_NAK_S_INTERNAL);
+							GDP_STAT_SHORTMSG, GDP_NAK_S_INTERNAL);
 	}
 
 	// create the message
@@ -235,9 +240,10 @@ cmd_publish(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
 	return estat;
 }
 
+
 EP_STAT
-cmd_subscribe(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
-        gdp_pkt_hdr_t *rpkt)
+cmd_subscribe(struct bufferevent *bev, conn_t *c,
+		gdp_pkt_hdr_t *cpkt, gdp_pkt_hdr_t *rpkt)
 {
 	gcl_handle_t *gclh;
 
@@ -245,14 +251,15 @@ cmd_subscribe(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
 	if (gclh == NULL)
 	{
 		return gdpd_gcl_error(cpkt->gcl_name, "cmd_subscribe: GCL not open",
-		GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
+							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 	return implement_me("cmd_subscribe");
 }
 
+
 EP_STAT
-cmd_not_implemented(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
-        gdp_pkt_hdr_t *rpkt)
+cmd_not_implemented(struct bufferevent *bev, conn_t *c,
+				gdp_pkt_hdr_t *cpkt, gdp_pkt_hdr_t *rpkt)
 {
 	//XXX print/log something here?
 
@@ -261,305 +268,310 @@ cmd_not_implemented(struct bufferevent *bev, conn_t *c, gdp_pkt_hdr_t *cpkt,
 	return GDP_STAT_NOT_IMPLEMENTED;
 }
 
-typedef EP_STAT
-cmdfunc_t(struct bufferevent *bev, conn_t *conn, gdp_pkt_hdr_t *cpkt,
-        gdp_pkt_hdr_t *rpkt);
+
+typedef EP_STAT cmdfunc_t(struct bufferevent *bev,
+						conn_t *conn,
+						gdp_pkt_hdr_t *cpkt,
+						gdp_pkt_hdr_t *rpkt);
 
 typedef struct
 {
-	cmdfunc_t *func;		// function to call
-	uint8_t ok_stat;	// default OK ack/nak status
+	cmdfunc_t	*func;			// function to call
+	uint8_t		ok_stat;		// default OK ack/nak status
 } dispatch_ent_t;
 
 /*
- **  Dispatch Table
- **
- **	One per possible command/ack/nak.
- */
+**	Dispatch Table
+**
+**		One per possible command/ack/nak.
+*/
 
-#define NOENT	    { NULL, 0 }
+#define NOENT		{ NULL, 0 }
 
 dispatch_ent_t DispatchTable[256] =
 {
-	NOENT,  // 0
-	NOENT,                   // 1
-	NOENT,                   // 2
-	NOENT,                   // 3
-	NOENT,                   // 4
-	NOENT,                   // 5
-	NOENT,                   // 6
-	NOENT,                   // 7
-	NOENT,                   // 8
-	NOENT,                   // 9
-	NOENT,                   // 10
-	NOENT,                   // 11
-	NOENT,                   // 12
-	NOENT,                   // 13
-	NOENT,                   // 14
-	NOENT,                   // 15
-	NOENT,                   // 16
-	NOENT,                   // 17
-	NOENT,                   // 18
-	NOENT,                   // 19
-	NOENT,                   // 20
-	NOENT,                   // 21
-	NOENT,                   // 22
-	NOENT,                   // 23
-	NOENT,                   // 24
-	NOENT,                   // 25
-	NOENT,                   // 26
-	NOENT,                   // 27
-	NOENT,                   // 28
-	NOENT,                   // 29
-	NOENT,                   // 30
-	NOENT,                   // 31
-	NOENT,                   // 32
-	NOENT,                   // 33
-	NOENT,                   // 34
-	NOENT,                   // 35
-	NOENT,                   // 36
-	NOENT,                   // 37
-	NOENT,                   // 38
-	NOENT,                   // 39
-	NOENT,                   // 40
-	NOENT,                   // 41
-	NOENT,                   // 42
-	NOENT,                   // 43
-	NOENT,                   // 44
-	NOENT,                   // 45
-	NOENT,                   // 46
-	NOENT,                   // 47
-	NOENT,                   // 48
-	NOENT,                   // 49
-	NOENT,                   // 50
-	NOENT,                   // 51
-	NOENT,                   // 52
-	NOENT,                   // 53
-	NOENT,                   // 54
-	NOENT,                   // 55
-	NOENT,                   // 56
-	NOENT,                   // 57
-	NOENT,                   // 58
-	NOENT,                   // 59
-	NOENT,                   // 60
-	NOENT,                   // 61
-	NOENT,                   // 62
-	NOENT,                   // 63
-	NOENT,                   // 64
-	NOENT,                   // 65
-	{ cmd_create, GDP_ACK_DATA_CREATED },		// 66
-	{ cmd_open_ao, GDP_ACK_SUCCESS },		// 67
-	{ cmd_open_ro, GDP_ACK_SUCCESS },		// 68
-	{ cmd_close, GDP_ACK_SUCCESS },		// 69
-	{ cmd_read, GDP_ACK_DATA_CONTENT },		// 70
-	{ cmd_publish, GDP_ACK_DATA_CREATED },		// 71
-	{ cmd_subscribe, GDP_ACK_SUCCESS },		// 72
-	NOENT,                   // 73
-	NOENT,                   // 74
-	NOENT,                   // 75
-	NOENT,                   // 76
-	NOENT,                   // 77
-	NOENT,                   // 78
-	NOENT,                   // 79
-	NOENT,                   // 80
-	NOENT,                   // 81
-	NOENT,                   // 82
-	NOENT,                   // 83
-	NOENT,                   // 84
-	NOENT,                   // 85
-	NOENT,                   // 86
-	NOENT,                   // 87
-	NOENT,                   // 88
-	NOENT,                   // 89
-	NOENT,                   // 90
-	NOENT,                   // 91
-	NOENT,                   // 92
-	NOENT,                   // 93
-	NOENT,                   // 94
-	NOENT,                   // 95
-	NOENT,                   // 96
-	NOENT,                   // 97
-	NOENT,                   // 98
-	NOENT,                   // 99
-	NOENT,                   // 100
-	NOENT,                   // 101
-	NOENT,                   // 102
-	NOENT,                   // 103
-	NOENT,                   // 104
-	NOENT,                   // 105
-	NOENT,                   // 106
-	NOENT,                   // 107
-	NOENT,                   // 108
-	NOENT,                   // 109
-	NOENT,                   // 110
-	NOENT,                   // 111
-	NOENT,                   // 112
-	NOENT,                   // 113
-	NOENT,                   // 114
-	NOENT,                   // 115
-	NOENT,                   // 116
-	NOENT,                   // 117
-	NOENT,                   // 118
-	NOENT,                   // 119
-	NOENT,                   // 120
-	NOENT,                   // 121
-	NOENT,                   // 122
-	NOENT,                   // 123
-	NOENT,                   // 124
-	NOENT,                   // 125
-	NOENT,                   // 126
-	NOENT,                   // 127
-	NOENT,                   // 128
-	NOENT,                   // 129
-	NOENT,                   // 130
-	NOENT,                   // 131
-	NOENT,                   // 132
-	NOENT,                   // 133
-	NOENT,                   // 134
-	NOENT,                   // 135
-	NOENT,                   // 136
-	NOENT,                   // 137
-	NOENT,                   // 138
-	NOENT,                   // 139
-	NOENT,                   // 140
-	NOENT,                   // 141
-	NOENT,                   // 142
-	NOENT,                   // 143
-	NOENT,                   // 144
-	NOENT,                   // 145
-	NOENT,                   // 146
-	NOENT,                   // 147
-	NOENT,                   // 148
-	NOENT,                   // 149
-	NOENT,                   // 150
-	NOENT,                   // 151
-	NOENT,                   // 152
-	NOENT,                   // 153
-	NOENT,                   // 154
-	NOENT,                   // 155
-	NOENT,                   // 156
-	NOENT,                   // 157
-	NOENT,                   // 158
-	NOENT,                   // 159
-	NOENT,                   // 160
-	NOENT,                   // 161
-	NOENT,                   // 162
-	NOENT,                   // 163
-	NOENT,                   // 164
-	NOENT,                   // 165
-	NOENT,                   // 166
-	NOENT,                   // 167
-	NOENT,                   // 168
-	NOENT,                   // 169
-	NOENT,                   // 170
-	NOENT,                   // 171
-	NOENT,                   // 172
-	NOENT,                   // 173
-	NOENT,                   // 174
-	NOENT,                   // 175
-	NOENT,                   // 176
-	NOENT,                   // 177
-	NOENT,                   // 178
-	NOENT,                   // 179
-	NOENT,                   // 180
-	NOENT,                   // 181
-	NOENT,                   // 182
-	NOENT,                   // 183
-	NOENT,                   // 184
-	NOENT,                   // 185
-	NOENT,                   // 186
-	NOENT,                   // 187
-	NOENT,                   // 188
-	NOENT,                   // 189
-	NOENT,                   // 190
-	NOENT,                   // 191
-	NOENT,                   // 192
-	NOENT,                   // 193
-	NOENT,                   // 194
-	NOENT,                   // 195
-	NOENT,                   // 196
-	NOENT,                   // 197
-	NOENT,                   // 198
-	NOENT,                   // 199
-	NOENT,                   // 200
-	NOENT,                   // 201
-	NOENT,                   // 202
-	NOENT,                   // 203
-	NOENT,                   // 204
-	NOENT,                   // 205
-	NOENT,                   // 206
-	NOENT,                   // 207
-	NOENT,                   // 208
-	NOENT,                   // 209
-	NOENT,                   // 210
-	NOENT,                   // 211
-	NOENT,                   // 212
-	NOENT,                   // 213
-	NOENT,                   // 214
-	NOENT,                   // 215
-	NOENT,                   // 216
-	NOENT,                   // 217
-	NOENT,                   // 218
-	NOENT,                   // 219
-	NOENT,                   // 220
-	NOENT,                   // 221
-	NOENT,                   // 222
-	NOENT,                   // 223
-	NOENT,                   // 224
-	NOENT,                   // 225
-	NOENT,                   // 226
-	NOENT,                   // 227
-	NOENT,                   // 228
-	NOENT,                   // 229
-	NOENT,                   // 230
-	NOENT,                   // 231
-	NOENT,                   // 232
-	NOENT,                   // 233
-	NOENT,                   // 234
-	NOENT,                   // 235
-	NOENT,                   // 236
-	NOENT,                   // 237
-	NOENT,                   // 238
-	NOENT,                   // 239
-	NOENT,                   // 240
-	NOENT,                   // 241
-	NOENT,                   // 242
-	NOENT,                   // 243
-	NOENT,                   // 244
-	NOENT,                   // 245
-	NOENT,                   // 246
-	NOENT,                   // 247
-	NOENT,                   // 248
-	NOENT,                   // 249
-	NOENT,                   // 250
-	NOENT,                   // 251
-	NOENT,                   // 252
-	NOENT,                   // 253
-	NOENT,                   // 254
-	NOENT,                   // 255
+	NOENT,					// 0
+	NOENT,					// 1
+	NOENT,					// 2
+	NOENT,					// 3
+	NOENT,					// 4
+	NOENT,					// 5
+	NOENT,					// 6
+	NOENT,					// 7
+	NOENT,					// 8
+	NOENT,					// 9
+	NOENT,					// 10
+	NOENT,					// 11
+	NOENT,					// 12
+	NOENT,					// 13
+	NOENT,					// 14
+	NOENT,					// 15
+	NOENT,					// 16
+	NOENT,					// 17
+	NOENT,					// 18
+	NOENT,					// 19
+	NOENT,					// 20
+	NOENT,					// 21
+	NOENT,					// 22
+	NOENT,					// 23
+	NOENT,					// 24
+	NOENT,					// 25
+	NOENT,					// 26
+	NOENT,					// 27
+	NOENT,					// 28
+	NOENT,					// 29
+	NOENT,					// 30
+	NOENT,					// 31
+	NOENT,					// 32
+	NOENT,					// 33
+	NOENT,					// 34
+	NOENT,					// 35
+	NOENT,					// 36
+	NOENT,					// 37
+	NOENT,					// 38
+	NOENT,					// 39
+	NOENT,					// 40
+	NOENT,					// 41
+	NOENT,					// 42
+	NOENT,					// 43
+	NOENT,					// 44
+	NOENT,					// 45
+	NOENT,					// 46
+	NOENT,					// 47
+	NOENT,					// 48
+	NOENT,					// 49
+	NOENT,					// 50
+	NOENT,					// 51
+	NOENT,					// 52
+	NOENT,					// 53
+	NOENT,					// 54
+	NOENT,					// 55
+	NOENT,					// 56
+	NOENT,					// 57
+	NOENT,					// 58
+	NOENT,					// 59
+	NOENT,					// 60
+	NOENT,					// 61
+	NOENT,					// 62
+	NOENT,					// 63
+	NOENT,					// 64
+	NOENT,					// 65
+	{ cmd_create,		GDP_ACK_DATA_CREATED	},				// 66
+	{ cmd_open_ao,		GDP_ACK_SUCCESS			},				// 67
+	{ cmd_open_ro,		GDP_ACK_SUCCESS			},				// 68
+	{ cmd_close,		GDP_ACK_SUCCESS			},				// 69
+	{ cmd_read,			GDP_ACK_DATA_CONTENT	},				// 70
+	{ cmd_publish,		GDP_ACK_DATA_CREATED	},				// 71
+	{ cmd_subscribe,	GDP_ACK_SUCCESS			},				// 72
+	NOENT,					// 73
+	NOENT,					// 74
+	NOENT,					// 75
+	NOENT,					// 76
+	NOENT,					// 77
+	NOENT,					// 78
+	NOENT,					// 79
+	NOENT,					// 80
+	NOENT,					// 81
+	NOENT,					// 82
+	NOENT,					// 83
+	NOENT,					// 84
+	NOENT,					// 85
+	NOENT,					// 86
+	NOENT,					// 87
+	NOENT,					// 88
+	NOENT,					// 89
+	NOENT,					// 90
+	NOENT,					// 91
+	NOENT,					// 92
+	NOENT,					// 93
+	NOENT,					// 94
+	NOENT,					// 95
+	NOENT,					// 96
+	NOENT,					// 97
+	NOENT,					// 98
+	NOENT,					// 99
+	NOENT,					// 100
+	NOENT,					// 101
+	NOENT,					// 102
+	NOENT,					// 103
+	NOENT,					// 104
+	NOENT,					// 105
+	NOENT,					// 106
+	NOENT,					// 107
+	NOENT,					// 108
+	NOENT,					// 109
+	NOENT,					// 110
+	NOENT,					// 111
+	NOENT,					// 112
+	NOENT,					// 113
+	NOENT,					// 114
+	NOENT,					// 115
+	NOENT,					// 116
+	NOENT,					// 117
+	NOENT,					// 118
+	NOENT,					// 119
+	NOENT,					// 120
+	NOENT,					// 121
+	NOENT,					// 122
+	NOENT,					// 123
+	NOENT,					// 124
+	NOENT,					// 125
+	NOENT,					// 126
+	NOENT,					// 127
+	NOENT,					// 128
+	NOENT,					// 129
+	NOENT,					// 130
+	NOENT,					// 131
+	NOENT,					// 132
+	NOENT,					// 133
+	NOENT,					// 134
+	NOENT,					// 135
+	NOENT,					// 136
+	NOENT,					// 137
+	NOENT,					// 138
+	NOENT,					// 139
+	NOENT,					// 140
+	NOENT,					// 141
+	NOENT,					// 142
+	NOENT,					// 143
+	NOENT,					// 144
+	NOENT,					// 145
+	NOENT,					// 146
+	NOENT,					// 147
+	NOENT,					// 148
+	NOENT,					// 149
+	NOENT,					// 150
+	NOENT,					// 151
+	NOENT,					// 152
+	NOENT,					// 153
+	NOENT,					// 154
+	NOENT,					// 155
+	NOENT,					// 156
+	NOENT,					// 157
+	NOENT,					// 158
+	NOENT,					// 159
+	NOENT,					// 160
+	NOENT,					// 161
+	NOENT,					// 162
+	NOENT,					// 163
+	NOENT,					// 164
+	NOENT,					// 165
+	NOENT,					// 166
+	NOENT,					// 167
+	NOENT,					// 168
+	NOENT,					// 169
+	NOENT,					// 170
+	NOENT,					// 171
+	NOENT,					// 172
+	NOENT,					// 173
+	NOENT,					// 174
+	NOENT,					// 175
+	NOENT,					// 176
+	NOENT,					// 177
+	NOENT,					// 178
+	NOENT,					// 179
+	NOENT,					// 180
+	NOENT,					// 181
+	NOENT,					// 182
+	NOENT,					// 183
+	NOENT,					// 184
+	NOENT,					// 185
+	NOENT,					// 186
+	NOENT,					// 187
+	NOENT,					// 188
+	NOENT,					// 189
+	NOENT,					// 190
+	NOENT,					// 191
+	NOENT,					// 192
+	NOENT,					// 193
+	NOENT,					// 194
+	NOENT,					// 195
+	NOENT,					// 196
+	NOENT,					// 197
+	NOENT,					// 198
+	NOENT,					// 199
+	NOENT,					// 200
+	NOENT,					// 201
+	NOENT,					// 202
+	NOENT,					// 203
+	NOENT,					// 204
+	NOENT,					// 205
+	NOENT,					// 206
+	NOENT,					// 207
+	NOENT,					// 208
+	NOENT,					// 209
+	NOENT,					// 210
+	NOENT,					// 211
+	NOENT,					// 212
+	NOENT,					// 213
+	NOENT,					// 214
+	NOENT,					// 215
+	NOENT,					// 216
+	NOENT,					// 217
+	NOENT,					// 218
+	NOENT,					// 219
+	NOENT,					// 220
+	NOENT,					// 221
+	NOENT,					// 222
+	NOENT,					// 223
+	NOENT,					// 224
+	NOENT,					// 225
+	NOENT,					// 226
+	NOENT,					// 227
+	NOENT,					// 228
+	NOENT,					// 229
+	NOENT,					// 230
+	NOENT,					// 231
+	NOENT,					// 232
+	NOENT,					// 233
+	NOENT,					// 234
+	NOENT,					// 235
+	NOENT,					// 236
+	NOENT,					// 237
+	NOENT,					// 238
+	NOENT,					// 239
+	NOENT,					// 240
+	NOENT,					// 241
+	NOENT,					// 242
+	NOENT,					// 243
+	NOENT,					// 244
+	NOENT,					// 245
+	NOENT,					// 246
+	NOENT,					// 247
+	NOENT,					// 248
+	NOENT,					// 249
+	NOENT,					// 250
+	NOENT,					// 251
+	NOENT,					// 252
+	NOENT,					// 253
+	NOENT,					// 254
+	NOENT,					// 255
 };
 
 /*
- **  DISPATCHCMD --- dispatch a command via the DispatchTable
- **
- **  Parameters:
- **	d --- a pointer to the dispatch table entry
- **	conn --- the connection handle
- **	cpkt --- the command packet
- **	rpkt --- filled in with a response packet
- */
+**	DISPATCHCMD --- dispatch a command via the DispatchTable
+**
+**	Parameters:
+**		d --- a pointer to the dispatch table entry
+**		conn --- the connection handle
+**		cpkt --- the command packet
+**		rpkt --- filled in with a response packet
+*/
 
 EP_STAT
-dispatch_cmd(dispatch_ent_t *d, conn_t *conn, gdp_pkt_hdr_t *cpkt,
-        gdp_pkt_hdr_t *rpkt, struct bufferevent *bev)
+dispatch_cmd(dispatch_ent_t *d,
+			conn_t *conn,
+			gdp_pkt_hdr_t *cpkt,
+			gdp_pkt_hdr_t *rpkt,
+			struct bufferevent *bev)
 {
 	EP_STAT estat;
 
 	ep_dbg_cprintf(Dbg, 18, "dispatch_cmd: >>> command %d\n", cpkt->cmd);
 
 	// set up response packet
-	//	    XXX since we copy almost everything, should we just do it
-	//		and skip the memset?
+	//		XXX since we copy almost everything, should we just do it
+	//			and skip the memset?
 	memcpy(rpkt, cpkt, sizeof *rpkt);
 	rpkt->cmd = d->ok_stat;
 	rpkt->dlen = 0;
@@ -572,31 +584,37 @@ dispatch_cmd(dispatch_ent_t *d, conn_t *conn, gdp_pkt_hdr_t *cpkt,
 	if (!EP_STAT_ISOK(estat) && rpkt->cmd < GDP_NAK_MIN)
 	{
 		// function didn't specify return code; take a guess ourselves
-//	if (EP_STAT_REGISTRY(estat) == EP_REGISTRY_UCB &&
-//		EP_STAT_MODULE(estat) == GDP_MODULE &&
-//		EP_STAT_DETAIL(estat) >= GDP_ACK_MIN &&
-//		EP_STAT_DETAIL(estat) <= GDP_NAK_MAX)
-//	    rpkt->cmd = EP_STAT_DETAIL(estat);
-//	else
-		rpkt->cmd = GDP_NAK_S_INTERNAL;
+//		if (EP_STAT_REGISTRY(estat) == EP_REGISTRY_UCB &&
+//				EP_STAT_MODULE(estat) == GDP_MODULE &&
+//				EP_STAT_DETAIL(estat) >= GDP_ACK_MIN &&
+//				EP_STAT_DETAIL(estat) <= GDP_NAK_MAX)
+//			rpkt->cmd = EP_STAT_DETAIL(estat);
+//		else
+			rpkt->cmd = GDP_NAK_S_INTERNAL;
 	}
 
 	if (ep_dbg_test(Dbg, 18))
 	{
 		char ebuf[200];
 
-		ep_dbg_printf("dispatch_cmd: <<< %d, status %d (%s)\n", cpkt->cmd,
-		        rpkt->cmd, ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		ep_dbg_printf("dispatch_cmd: <<< %d, status %d (%s)\n",
+				cpkt->cmd, rpkt->cmd, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		if (ep_dbg_test(Dbg, 30))
 			gdp_pkt_dump_hdr(rpkt, ep_dbg_getfile());
 	}
 	return estat;
 }
 
+
+/*
+**	LEV_READ_CB_CONTINUE --- handle reads on command sockets
+*/
+
 void
 lev_read_cb_continue(void *continue_data)
 {
-	lev_read_cb_continue_data *cdata = (lev_read_cb_continue_data *)continue_data;
+	lev_read_cb_continue_data *cdata =
+			(lev_read_cb_continue_data *) continue_data;
 	gdp_pkt_hdr_t rpktbuf;
 	dispatch_ent_t *d;
 	struct evbuffer *evb = NULL;
@@ -661,7 +679,7 @@ lev_read_cb_continue(void *continue_data)
 			if (i < len)
 			{
 				ep_dbg_cprintf(Dbg, 2,
-				        "lev_read_cb: short read (wanted %d, got %d)\n", len, i);
+						"lev_read_cb: short read (wanted %d, got %d)\n", len, i);
 				cdata->estat = GDP_STAT_SHORTMSG;
 			}
 			if (i <= 0)
@@ -681,8 +699,8 @@ lev_read_cb_continue(void *continue_data)
 }
 
 /*
- **  LEV_READ_CB --- handle reads on command sockets
- */
+**  LEV_READ_CB --- handle reads on command sockets
+*/
 
 void
 lev_read_cb(struct bufferevent *bev, void *ctx)
@@ -705,8 +723,8 @@ lev_read_cb(struct bufferevent *bev, void *ctx)
 }
 
 /*
- **  LEV_EVENT_CB --- handle special events on socket
- */
+**	LEV_EVENT_CB --- handle special events on socket
+*/
 
 void
 lev_event_cb(struct bufferevent *bev, short events, void *ctx)
@@ -716,8 +734,8 @@ lev_event_cb(struct bufferevent *bev, short events, void *ctx)
 		EP_STAT estat = ep_stat_from_errno(errno);
 		int err = EVUTIL_SOCKET_ERROR();
 
-		gdp_log(estat, "error on command socket: %d (%s)", err,
-		        evutil_socket_error_to_string(err));
+		gdp_log(estat, "error on command socket: %d (%s)",
+				err, evutil_socket_error_to_string(err));
 	}
 
 	if (EP_UT_BITSET(BEV_EVENT_ERROR | BEV_EVENT_EOF, events))
@@ -725,30 +743,33 @@ lev_event_cb(struct bufferevent *bev, short events, void *ctx)
 }
 
 /*
- **  ACCEPT_CB --- called when a new connection is accepted
- */
+**	ACCEPT_CB --- called when a new connection is accepted
+*/
 
 void
 accept_cb(struct evconnlistener *lev,
-evutil_socket_t sockfd, struct sockaddr *sa, int salen, void *ctx)
+		evutil_socket_t sockfd,
+		struct sockaddr *sa,
+		int salen,
+		void *ctx)
 {
 	struct event_base *evbase = GdpIoEventBase;
 	struct bufferevent *bev = bufferevent_socket_new(evbase, sockfd,
-	        BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+					BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
 	union sockaddr_xx saddr;
 	socklen_t slen = sizeof saddr;
 
 	if (bev == NULL)
 	{
 		gdp_log(ep_stat_from_errno(errno),
-		        "accept_cb: could not allocate bufferevent");
+				"accept_cb: could not allocate bufferevent");
 		return;
 	}
 
 	if (getpeername(sockfd, &saddr.sa, &slen) < 0)
 	{
 		gdp_log(ep_stat_from_errno(errno),
-		        "accept_cb: connection from unknown peer");
+				"accept_cb: connection from unknown peer");
 	}
 	else if (ep_dbg_test(Dbg, 20))
 	{
@@ -757,12 +778,12 @@ evutil_socket_t sockfd, struct sockaddr *sa, int salen, void *ctx)
 		switch (saddr.sa.sa_family)
 		{
 		case AF_INET:
-			inet_ntop(saddr.sa.sa_family, &saddr.sin.sin_addr, abuf,
-			        sizeof abuf);
+			inet_ntop(saddr.sa.sa_family, &saddr.sin.sin_addr,
+					abuf, sizeof abuf);
 			break;
 		case AF_INET6:
-			inet_ntop(saddr.sa.sa_family, &saddr.sin6.sin6_addr, abuf,
-			        sizeof abuf);
+			inet_ntop(saddr.sa.sa_family, &saddr.sin6.sin6_addr,
+					abuf, sizeof abuf);
 			break;
 		default:
 			strcpy("<unknown>", abuf);
@@ -776,8 +797,8 @@ evutil_socket_t sockfd, struct sockaddr *sa, int salen, void *ctx)
 }
 
 /*
- **  LISTENER_ERROR_CB --- called if there is an error when listening
- */
+**	LISTENER_ERROR_CB --- called if there is an error when listening
+*/
 
 void
 listener_error_cb(struct evconnlistener *lev, void *ctx)
@@ -787,18 +808,19 @@ listener_error_cb(struct evconnlistener *lev, void *ctx)
 	EP_STAT estat;
 
 	estat = ep_stat_from_errno(errno);
-	gdp_log(estat, "listener error %d (%s)", err,
-	        evutil_socket_error_to_string(err));
+	gdp_log(estat, "listener error %d (%s)",
+			err, evutil_socket_error_to_string(err));
 	event_base_loopexit(evbase, NULL);
 }
 
+
 /*
- **  GDP_INIT --- initialize this library
- **
- **	We intentionally do not call gdp_init() because that opens
- **	an outgoing socket, which we're not (yet) using.  We do set
- **	up GdpEventBase, but with different options.
- */
+**	GDP_INIT --- initialize this library
+**
+**		We intentionally do not call gdp_init() because that opens
+**		an outgoing socket, which we're not (yet) using.  We do set
+**		up GdpEventBase, but with different options.
+*/
 
 static EP_STAT
 init_error(const char *msg)
@@ -854,17 +876,20 @@ gdpd_init(int listenport)
 	// set up the incoming evconnlistener
 	if (listenport <= 0)
 		listenport = ep_adm_getintparam("swarm.gdp.controlport",
-		GDP_PORT_DEFAULT);
+										GDP_PORT_DEFAULT);
 	{
 		union sockaddr_xx saddr;
 
 		saddr.sin.sin_family = AF_INET;
 		saddr.sin.sin_addr.s_addr = INADDR_ANY;
 		saddr.sin.sin_port = htons(listenport);
-		lev = evconnlistener_new_bind(GdpEventBase, accept_cb,
-		        NULL,	    // context
-		        LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_THREADSAFE,
-		        -1, &saddr.sa, sizeof saddr.sin);
+		lev = evconnlistener_new_bind(GdpEventBase,
+				accept_cb,
+				NULL,		// context
+				LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_THREADSAFE,
+				-1,
+				&saddr.sa,
+				sizeof saddr.sin);
 	}
 	if (lev == NULL)
 		estat = init_error("gdpd_init: could not create evconnlistener");
@@ -873,19 +898,19 @@ gdpd_init(int listenport)
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// create a thread to run the event loop
-//    estat = _gdp_start_event_loop_thread(GdpEventBase);
-//    EP_STAT_CHECK(estat, goto fail0);
+//	estat = _gdp_start_event_loop_thread(GdpEventBase);
+//	EP_STAT_CHECK(estat, goto fail0);
 
 	// success!
 	ep_dbg_cprintf(Dbg, 1, "gdpd_init: listening on port %d\n", listenport);
 	return estat;
 
-	fail0:
+fail0:
 	{
 		char ebuf[200];
 
 		ep_dbg_cprintf(Dbg, 1, "gdpd_init: failed with stat %s\n",
-		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	return estat;
 }
@@ -923,11 +948,12 @@ main(int argc, char **argv)
 	estat = gdpd_init(listenport);
 	if (!EP_STAT_ISOK(estat))
 	{
-		char ebuf[100];
+		char ebuf[100]; 
 
 		ep_app_abort("Cannot initialize gdp library: %s",
-		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
+
 	estat = gcl_physlog_init();
 	if (!EP_STAT_ISOK(estat))
 	{
@@ -945,6 +971,6 @@ main(int argc, char **argv)
 	_gdp_start_accept_event_loop_thread(GdpEventBase);
 
 	// should never get here
-	pthread_join(IoEventLoopThread, NULL);
+	pthread_join(GdpIoEventLoopThread, NULL);
 	ep_app_abort("Fell out of event loop");
 }

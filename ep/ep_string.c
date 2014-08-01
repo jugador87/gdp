@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 :*/
 
 /***********************************************************************
 **	Copyright (c) 2008, Eric P. Allman.  All rights reserved.
@@ -32,19 +32,17 @@ strlcpy(
 {
 	size_t i = 0;
 
+	if (n == 0)
+		return 0;
 	while (--n > 0 && *src != '\0')
 	{
 		*dst++ = *src++;
 		i++;
 	}
-	if (n >= 0)
-	{
-		*dst++ = '\0';
-		i++;
-	}
+	*dst++ = '\0';
 	if (*src != '\0')
 		i += strlen(src);
-	return i;
+	return ++i;
 }
 
 
@@ -56,6 +54,8 @@ strlcat(
 {
 	size_t i = strlen(dst);
 
+	if (n == 0)
+		return 0;
 	while (n > 0 && *dst++ != '\0')
 		n--;
 	while (*src != '\0' && --n > 0)
@@ -65,12 +65,8 @@ strlcat(
 	}
 	if (*src != '\0')
 		i += strlen(src);
-	if (n >= 0)
-	{
-		*dst++ = '\0';
-		i++;
-	}
-	return i;
+	*dst++ = '\0';
+	return ++i;
 }
 
 #endif /* EP_OSCF_HAS_STRLCPY */

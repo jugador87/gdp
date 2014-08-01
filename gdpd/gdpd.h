@@ -1,11 +1,11 @@
-/* vim: set ai sw=4 sts=4 : */
+/* vim: set ai sw=4 sts=4 ts=4 : */
 
 /*
-**  Headers for the GDP Daemon
+**	Headers for the GDP Daemon
 */
 
 #define GDP_MSG_EXTRA \
-	    off_t offset;
+			off_t offset;
 
 #include <ep/ep.h>
 #include <ep/ep_app.h>

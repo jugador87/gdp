@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 :*/
 
 /***********************************************************************
 **	Copyright (c) 2008, Eric P. Allman.  All rights reserved.
@@ -26,7 +26,7 @@ struct EP_DBG
 	EP_DBG		*next;	// initted flags, in case values change
 };
 
-int	__EpDbgCurGen;		// current generation
+extern int	__EpDbgCurGen;		// current generation
 
 /***************************  END PRIVATE  ***************************/
 

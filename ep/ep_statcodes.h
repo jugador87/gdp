@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 : */
+/* vim: set ai sw=8 sts=8 ts=8 : */
 
 // generic status codes
 #define EP_STAT_OK		EP_STAT_NEW(EP_STAT_SEV_OK, 0, 0, 0)

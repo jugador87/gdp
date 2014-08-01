@@ -9,13 +9,18 @@ second.  All of these are likely to change in the future.
 Required Packages:
 
 	lighttpd --- Web server for RESTful interface.
+		Note: I used macports (http://macports.org) to install
+		lighttpd on the Mac, which is probably easier than compiling
+		it by hand; in particular, it does the Mac-specific
+		configuration for you.
 	scgilib --- C binding for Simple Common Gateway Interface: to connect
 		lighttpd with GDP; from http://www.xamuel.com/scgilib/;
-		slightly modified and included with this distribution)
+		slightly modified and included with this distribution).
 	Jansson --- JSON library from http://www.digip.org/jansson/.
+		[At this moment this is not being used, but it probably
+		will be in the future.]
 	libevent2 --- Event handling library available from
 		http://libevent.org.
-
 
 Directory Structure:
 	ep --- A library of C utility functions.  This is a stripped
@@ -38,7 +43,30 @@ Directory Structure:
 Compiling:
 	Should just be a matter of typing "make all" in the root.
 
+Running a GDP-based program:
+	For anything interesting to happen, an instance of the GDP
+	Daemon must be running.  If it is not running, some programs
+	will loop trying to connect with it; others will just die
+	immediately.
+
+	Located in gdpd/gdpd, it takes these parameters:
+	   -D<debug-spec>
+		Turn on debugging.  See "Setting Debug Flags" below
+		for more information.  Implies -F.
+	   -F	Run in foreground.  At the moment, gdpd always runs
+		in foreground, but the intent is that it will default
+		to background mode without this flag.
+	   -P<port>
+		Use <port> as the rendezvous port.  Defaults to 2468.
+		Can also be set with the "swarm.gdp.controlport"
+		parameter.  See "Changing Parameters" below for more
+		information.
+
 Running the GDP RESTful Interface:
+	(In these instructions, <gcl-name> is a URI-base-64-encoded
+	string of length 43 characters.  A <msg-no> is a positive
+	non-zero integer.)
+
    1.	The instructions for SCGI configuration for lighttpd are totally
 	wrong.  The configuration file you actually need is:
 
@@ -55,19 +83,26 @@ Running the GDP RESTful Interface:
 			)
 		    )
 
-	(Normally in /usr/local/etc/lighttpd/conf.c/scgi.conf)
-	This will tell lighttpd to connect to an SCGI server on the
-	local machine, port 8001.  The rest of the lighttpd setup is
-	off the shelf.  I've set up mine to listen on port 8080,
-	and the rest of these instructions will reflect that.
-
+	(Normally in /usr/local/etc/lighttpd/conf.c/scgi.conf) This will
+	tell lighttpd to connect to an SCGI server on the local machine,
+	port 8001.  You'll also need to make sure the line
+	"include conf.d/scgi.conf" in /usr/local/etc/lighttpd/modules.conf
+	is not commented out.  The rest of the lighttpd setup should be
+	off the shelf.  I've set up instance of lighttpd to listen on
+	port 8080 instead of the default port 80, and the rest of these
+	instructions will reflect that.
 
    2.	Compile the code if you haven't already.
 
    3.	Create the directory /var/tmp/gcl.  This will hold the data
 	for GCLs that get created.
 
-   4.	[Optional] Test the GDP/GCL code using apps/writer-test and
+   4.	Start the GDP daemon (see above).  At this time some callers
+	will loop waiting for the daemon to start, but it's always
+	best to have it running before trying anything else (not just
+	the REST interface).
+
+   5.	[Optional] Test the GDP/GCL code using apps/writer-test and
 	apps/reader-test.
 
 	First run writer-test without arguments.  This will create a
@@ -83,14 +118,14 @@ Running the GDP RESTful Interface:
 	If you're curious you can view the file in /var/tmp/gcl;
 	it is text.
 
-   5.	Start up the GDP RESTful interface server in apps/gdp-rest.
+   6.	Start up the GDP RESTful interface server in apps/gdp-rest.
 	It will run in foreground and spit out some debugging
 	information.  For even more, use -D\*=20 on the command
 	line.  This sets all debug flags to level 20.  The backslash
 	is just to keep the Unix shell from trying to glob the
 	asterisk.
 
-   6.	Start the lighttpd server, for example using:
+   7.	Start the lighttpd server, for example using:
 	"lighttpd -f /usr/local/etc/lighttpd/lighttpd.conf -D".
 	This assumes that your configuration is in
 	/usr/local/etc/lighttpd.  The -D says to run in foreground
@@ -98,7 +133,7 @@ Running the GDP RESTful Interface:
 	some debugging inside the daemon to help you understand the
 	interactions.  See .../etc/lighttpd/conf.d/debug.conf.
 
-   7.	All of your URIs will start with http://localhost:8080/gdp/v1/gcl,
+   8.	All of your URIs will start with http://localhost:8080/gdp/v1/gcl,
 	so I'll just abbreviate this part as "...".  Your options are:
 
 	* GET .../<gcl-name>/<msg-no>
@@ -137,6 +172,23 @@ Running the GDP RESTful Interface:
 	Some of the headers are probably unnecessary, but I've tested
 	this query in particular.
 
+Setting Debug Flags:
+	You can turn on debugging output using a command line flag,
+	conventionally "-D<pattern>=<level>".  The <pattern> specifies
+	which flags should be set and <level> specifies how much
+	should be printed; zero indicates no output, and more output
+	is added as the values increase.
+
+	By convention <level> is no greater than 127, and values 100
+	and above may modify the base behavior of the program (i.e.,
+	do more than just printing information).
+
+	Each debug flag has a hierarchical name with (by convention)
+	"." as the separator, for example, "gdp.timestamp" to indicate
+	the timestamping part of the GDP.  The "what(1)" program on
+	a binary will show you which debug flags are available,
+	including a short description.
+
 Changing Parameters:
 	If you want to change parameters such as socket numbers or the
 	GCL directory you can do so without recompiling.  Create
@@ -151,3 +203,9 @@ Changing Parameters:
 		listen on.  If you change this you'll also have to
 		change the lighttpd configuration.
 	gdp.rest.prefix --- the REST prefix (e.g., /gdp/v1/gcl).
+	swarm.gdp.controlport --- the rendezvous port used by the GDP
+		Daemon.  This should eventually be replaced by service
+		discovery.  Defaults to 2468.
+	swarm.rest.event.loopdelay --- if the event loop exits for some
+		reason, this is the number of microseconds to delay
+		before restarting the loop.  Defaults to 100000 (100msec).

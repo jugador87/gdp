@@ -9,7 +9,6 @@ LIBEP=		-L${LIBROOT}/ep -lep
 JANSSONROOT=	${HOME}/src/jansson-2.6
 #INCJANSSON=	-I${JANSSONROOT}
 #LIBJANSSON=	-L${JANSSONROOT} -ljansson
-LIBJANSSON=	-ljansson
 #EVENT2ROOT=	${HOME}/src
 #INCEVENT2=	-I${EVENT2ROOT}
 LIBEVENT2=	-levent -levent_pthreads -pthread
@@ -17,7 +16,9 @@ INCS=		${INCGDP} ${INCEP} ${INCJANSSON} ${INCEVENT2}
 LDFLAGS=	${LIBGDP} ${LIBEP} ${LIBJANSSON} ${LIBEVENT2}
 PG=
 O=		-O
-COPTS=		${PG} -g -Wall $O
+WALL=		-Wall
+STD=		-std=c99
+COPTS=		${PG} -g ${WALL} $O ${STD}
 CFLAGS=		${COPTS} ${INCS}
 
 all:	${ALL}

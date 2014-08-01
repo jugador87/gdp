@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 :*/
 
 /***********************************************************************
 **	Copyright (c) 2008-2014, Eric P. Allman.  All rights reserved.
@@ -446,14 +446,14 @@ ep_rpool_realloc(EP_RPOOL *rp,
 	struct rpseg *sp;
 	ssize_t spaceleft;
 
-        if (ep_dbg_test(Dbg, 90))
-        {
-                ep_dbg_printf("ep_rpool_realloc(%p, %p, %zu, %zu)",
-                        rp, emem, oldsize, newsize);
-                if (rp != NULL)
-                        ep_dbg_printf(" [%s]", rp->name);
-                ep_dbg_printf("\n");
-        }
+	if (ep_dbg_test(Dbg, 90))
+	{
+		ep_dbg_printf("ep_rpool_realloc(%p, %p, %zu, %zu)",
+			rp, emem, oldsize, newsize);
+		if (rp != NULL)
+			ep_dbg_printf(" [%s]", rp->name);
+		ep_dbg_printf("\n");
+	}
 
 	// easy case --- no rpool, so we can treat it as a heap
 	if (rp == NULL)

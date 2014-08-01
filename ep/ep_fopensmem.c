@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 :*/
 
 /*
 **  Open up a stream backed by (static) memory.
@@ -7,6 +7,11 @@
 ** 	fopencookie (on Linux).  These two routimes do substantially
 ** 	the same thing.
 */
+
+#include <ep.h>
+#include <string.h>
+#include <stdio.h>
+#include <sys/errno.h>
 
 #if __FreeBSD__ || __APPLE__
 #   define IORESULT_T	int
@@ -19,11 +24,6 @@
 #else
 #   error Cannot determine use of funopen vs fopencookie
 #endif
-
-#include <ep.h>
-#include <string.h>
-#include <stdio.h>
-#include <sys/errno.h>
 
 struct meminfo
 {

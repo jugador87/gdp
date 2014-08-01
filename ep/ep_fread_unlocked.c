@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 :*/
 
 /*
 **  EP_FREAD_UNLOCKED --- unlocked file read
@@ -10,6 +10,7 @@
 **  	ever use this in a threaded environment!
 */
 
+#include <ep.h>
 #include <stdio.h>
 
 size_t

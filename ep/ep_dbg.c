@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 :*/
 
 /***********************************************************************
 **	Copyright (c) 2008, Eric P. Allman.  All rights reserved.
@@ -25,6 +25,7 @@ struct FLAGPAT
 static EP_MUTEX	FlagListMutex;
 static FLAGPAT	*FlagList;
 FILE		*DebugFile;
+int		__EpDbgCurGen;		// current generation number
 
 
 /*

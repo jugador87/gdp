@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 :*/
 
 /*
 **  EP.H -- general definitions for EP library.
@@ -10,8 +10,12 @@
 #ifndef _EP_H_
 #define _EP_H_
 
+#define _BSD_SOURCE		1	// needed to compile on Linux
+#define _GNU_SOURCE		1	// needed to compile on Linux
+
 #include <ep/ep_conf.h>
 
+#include <unistd.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>

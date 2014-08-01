@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 :*/
 
 /***********************************************************************
 **	Copyright (c) 2008-2010, Eric P. Allman.  All rights reserved.
@@ -24,7 +24,7 @@ EP_SRC_ID("@(#)$Id: ep_hash.c 286 2014-04-29 18:15:22Z eric $");
 
 struct node
 {
-	int			keylen;		// length of key
+	size_t			keylen;		// length of key
 	void			*key;		// actual key
 	void			*val;		// value
 	struct node		*next;		// next in chain
@@ -46,11 +46,11 @@ struct EP_HASH
 int
 def_hfunc(
 	const EP_HASH *const hp,
-	const int keysize,
+	const size_t keysize,
 	const void *key)
 {
 	int hfunc = 0;
-	int i;
+	size_t i;
 
 	for (i = 0; i < keysize; i++)
 	{
@@ -70,7 +70,7 @@ ep_hash_new(
 	uint32_t flags = 0;
 	EP_HASH *hash;
 	EP_RPOOL *rp;
-	int xtra;
+	size_t xtra;
 
 	if (tabsize == 0)
 		tabsize = ep_adm_getintparam("libep.hash.tabsize", 2003);
@@ -106,7 +106,7 @@ ep_hash_free(EP_HASH *hash)
 
 struct node **
 find_node_ptr(EP_HASH *hp,
-	int keylen,
+	size_t keylen,
 	const void *key)
 {
 	int indx;
@@ -133,7 +133,7 @@ find_node_ptr(EP_HASH *hp,
 void *
 ep_hash_search(
 	EP_HASH *hp,
-	int keylen,
+	size_t keylen,
 	const void *key)
 {
 	struct node **npp;
@@ -151,7 +151,7 @@ ep_hash_search(
 void *
 ep_hash_insert(
 	EP_HASH *hp,
-	int keylen,
+	size_t keylen,
 	const void *key,
 	void *val)
 {
@@ -189,7 +189,7 @@ ep_hash_insert(
 void *
 ep_hash_delete(
 	EP_HASH *hp,
-	int keylen,
+	size_t keylen,
 	const void *key)
 {
 	struct node **npp;
