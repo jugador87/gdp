@@ -963,7 +963,8 @@ main(int argc, char **argv)
 		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 
-	cpu_job_thread_pool = thread_pool_new(NUM_CPU_CORES);
+	long ncpu = sysconf(_SC_NPROCESSORS_ONLN);
+	cpu_job_thread_pool = thread_pool_new(ncpu);
 	thread_pool_init(cpu_job_thread_pool);
 
 	// need to manually run the event loop
