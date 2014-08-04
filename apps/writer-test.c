@@ -16,7 +16,7 @@ main(int argc, char **argv)
 	char *gclpname = NULL;
 	int opt;
 	EP_STAT estat;
-	long msgno = 1;
+	gdp_msgno_t msgno = 1;
 	char buf[200];
 
 	while ((opt = getopt(argc, argv, "a:D:")) > 0)

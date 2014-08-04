@@ -1453,7 +1453,7 @@ gdp_gcl_append(gcl_handle_t *gclh,
 
 EP_STAT
 gdp_gcl_read(gcl_handle_t *gclh,
-			long msgno,
+			gdp_msgno_t msgno,
 			gdp_msg_t *msg,
 			struct evbuffer *revb)
 {

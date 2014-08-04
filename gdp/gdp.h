@@ -124,7 +124,7 @@ extern EP_STAT	gdp_gcl_append(
 // read from a readable GCL
 extern EP_STAT	gdp_gcl_read(
 					gcl_handle_t *gclh,		// readable GCL handle
-					long msgno,				// offset into GCL (msg number)
+					gdp_msgno_t msgno,		// offset into GCL (msg number)
 					gdp_msg_t *msg,			// pointer to result message
 					struct evbuffer *revb); // reply buffer to receive data
 
