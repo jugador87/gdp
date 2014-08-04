@@ -1,6 +1,6 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
-#include "circular_buffer.h"
+#include "gdp_circular_buffer.h"
 #include "gdpd.h"
 #include "gdpd_gcl.h"
 #include "gdpd_physlog.h"

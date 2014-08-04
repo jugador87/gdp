@@ -1,9 +1,17 @@
-#include "circular_buffer.h"
+#include "gdp_circular_buffer.h"
 
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+/*
+ * Specialized circular buffer implementation for an index cache that only
+ * gets updated when a new record is appended to the GCL. This maintains the
+ * invariant that the circular buffer is always sorted, assuming the key
+ * (msgno in this case) is always increasing.
+ *
+ */
 
 CIRCULAR_BUFFER *
 circular_buffer_new(size_t max_size)
@@ -60,6 +68,10 @@ circular_buffer_compar(const void *key, const void *element)
 	return (*(int64_t*) key - ((LONG_LONG_PAIR *) element)->key);
 }
 
+/*
+ * circular_buffer_search() assumes that the buffer is sorted.
+ *
+ */
 LONG_LONG_PAIR *
 circular_buffer_search(CIRCULAR_BUFFER *circular_buffer, int64_t key)
 {
