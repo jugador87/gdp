@@ -17,6 +17,7 @@
 #include <ep_dbg.h>
 #include <ep_registry.h>
 #include <ep_hash.h>
+#include <ep_thr.h>
 #include <string.h>
 
 EP_SRC_ID("@(#)$Id: ep_stat.c 289 2014-05-11 04:50:04Z eric $");
@@ -33,7 +34,7 @@ struct EP_STAT_HANDLE
 
 
 //static EP_STAT_HANDLE	*StatFuncList;
-//static EP_MUTEX		StatMutex	EP_MUTEX_INIT;
+//static EP_THR_MUTEX		StatMutex	EP_MUTEX_INITIALIZER;
 
 //static EP_DBG	Dbg = EP_DBG_INIT("libep.stat", "Status handling");
 
@@ -62,7 +63,7 @@ ep_stat_register(EP_STAT stat,
 {
 	EP_STAT_HANDLE *c;
 
-	EP_MUTEX_LOCK(StatMutex);
+	ep_thr_mutex_lock(&StatMutex);
 
 	// make sure we have a resource pool (this will never be freed)
 	if (StatRpool == NULL)
@@ -101,7 +102,7 @@ ep_stat_register(EP_STAT stat,
 		c->func = func;
 	}
 
-	EP_MUTEX_UNLOCK(StatMutex);
+	ep_thr_mutex_unlock(&StatMutex);
 
 	return c;
 }
@@ -128,7 +129,7 @@ ep_stat_unregister(EP_STAT_HANDLE *h)
 	EP_STAT_HANDLE **pc;
 	EP_STAT stat = EP_STAT_OK;
 
-	EP_MUTEX_LOCK(StatMutex);
+	ep_thr_mutex_lock(&StatMutex);
 
 	// search for the matching handle
 	for (pc = &StatFuncList; (c = *pc) != NULL && c != h; pc = &c->next)
@@ -150,7 +151,7 @@ ep_stat_unregister(EP_STAT_HANDLE *h)
 		*pc = c->next;
 	}
 
-	EP_MUTEX_UNLOCK(StatMutex);
+	ep_thr_mutex_unlock(&StatMutex);
 	return stat;
 }
 
@@ -199,7 +200,7 @@ ep_stat_vpost(EP_STAT stat,
 				EP_STAT_TO_LONG(stat), sbuf);
 	}
 
-	EP_MUTEX_LOCK(StatMutex);
+	ep_thr_mutex_lock(&StatMutex);
 
 	for (c = StatFuncList; c != NULL; c = c->next)
 	{
@@ -212,12 +213,12 @@ ep_stat_vpost(EP_STAT stat,
 	{
 		// found -- call the function
 		stat = (*c->func)(stat, defmsg, av);
-		EP_MUTEX_UNLOCK(StatMutex);
+		ep_thr_mutex_unlock(&StatMutex);
 	}
 	else
 	{
 		// not found -- do the default
-		EP_MUTEX_UNLOCK(StatMutex);
+		ep_thr_mutex_unlock(&StatMutex);
 		if (EP_STAT_SEVERITY(stat) >
 		    ep_adm_getintparam("libep.stat.post.warnsev",
 					EP_STAT_SEV_WARN))

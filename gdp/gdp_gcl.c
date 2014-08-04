@@ -992,6 +992,9 @@ gdp_init(bool run_event_loop)
 		return EP_STAT_OK;
 	inited = true;
 
+	// initialize the EP library
+	ep_lib_init(EP_LIB_USEPTHREADS);
+
 	ep_dbg_cprintf(Dbg, 4, "gdp_init: initializing\n");
 
 	// register status strings

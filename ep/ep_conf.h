@@ -47,12 +47,18 @@
 **		System memory reallocation routine; defaults to "realloc"
 **	EP_OSCF_SYSTEM_MFREE
 **		System memory free routine; defaults to "free"
+**	EP_OSCF_USE_PTHREADS
+**		Compile in pthreads support
 **
 **  Configuration is probably better done using autoconf
 **
 **	This is the fallback version (if none other found)
 **	(Actually, currently hacked to work on my development platforms)
 */
+
+# if !EP_OSCF_USE_PTHREADS
+#  define EP_OSCF_USE_PTHREADS		1
+# endif
 
 // these should be defined on all POSIX platforms
 # define EP_OSCF_HAS_INTTYPES_H		1	// does <inttypes.h> exist?

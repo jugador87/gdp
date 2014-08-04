@@ -1,4 +1,4 @@
-/* vim: set ai sw=4 sts=4 ts=4 : */
+/* vim: set ai sw=8 sts=8 ts=8 : */
 
 #include <ep/ep_stat.h>
 
@@ -23,7 +23,7 @@ static struct ep_stat_to_string	Stats[] =
 
 
 void
-ep_stat_init(void)
+_ep_stat_init(void)
 {
     ep_stat_reg_strings(Stats);
 }
