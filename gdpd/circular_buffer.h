@@ -2,11 +2,12 @@
 #define CIRCULAR_BUFFER_H_INCLUDED
 
 #include <stddef.h>
+#include <stdint.h>
 
 typedef struct LONG_LONG_PAIR
 {
-	long long key;
-	long long value;
+	int64_t key;
+	int64_t value;
 } LONG_LONG_PAIR;
 
 typedef struct CIRCULAR_BUFFER
@@ -30,7 +31,7 @@ void circular_buffer_append(
 	LONG_LONG_PAIR new_entry);
 
 LONG_LONG_PAIR *
-circular_buffer_search(CIRCULAR_BUFFER *circular_buffer, long long key);
+circular_buffer_search(CIRCULAR_BUFFER *circular_buffer, int64_t key);
 
 void
 circular_buffer_foreach(

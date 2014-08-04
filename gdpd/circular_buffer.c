@@ -57,11 +57,11 @@ void circular_buffer_append(CIRCULAR_BUFFER *circular_buffer,
 int
 circular_buffer_compar(const void *key, const void *element)
 {
-	return (*(long long*) key - ((LONG_LONG_PAIR *) element)->key);
+	return (*(int64_t*) key - ((LONG_LONG_PAIR *) element)->key);
 }
 
 LONG_LONG_PAIR *
-circular_buffer_search(CIRCULAR_BUFFER *circular_buffer, long long key)
+circular_buffer_search(CIRCULAR_BUFFER *circular_buffer, int64_t key)
 {
 	LONG_LONG_PAIR *found_ptr = NULL;
 

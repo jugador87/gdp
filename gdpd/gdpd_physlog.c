@@ -16,6 +16,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <sys/file.h>
 #include <stdint.h>
@@ -44,9 +45,9 @@ typedef struct index_entry
 	pthread_rwlock_t	lock;
 	int					fd;
 	FILE				*fp;
-	long long			max_msgno;
-	long long			max_data_offset;
-	long long			max_index_offset;
+	int64_t				max_msgno;
+	int64_t				max_data_offset;
+	int64_t				max_index_offset;
 	CIRCULAR_BUFFER		*index_cache;
 } index_entry;
 
@@ -145,7 +146,7 @@ fail0:
 }
 
 EP_STAT
-gcl_index_cache_get(index_entry *entry, long long msgno, long long *out)
+gcl_index_cache_get(index_entry *entry, int64_t msgno, int64_t *out)
 {
 	EP_STAT estat = EP_STAT_OK;
 
@@ -165,7 +166,7 @@ gcl_index_cache_get(index_entry *entry, long long msgno, long long *out)
 }
 
 EP_STAT
-gcl_index_cache_put(index_entry *entry, long long msgno, long long offset)
+gcl_index_cache_put(index_entry *entry, int64_t msgno, int64_t offset)
 {
 	EP_STAT estat = EP_STAT_OK;
 	LONG_LONG_PAIR new_pair;
@@ -201,7 +202,7 @@ gcl_read(gcl_handle_t *gclh,
 	EP_STAT estat = EP_STAT_OK;
 	index_entry *entry = gclh->index_entry;
 	LONG_LONG_PAIR *long_pair;
-	long long offset = LLONG_MAX;
+	int64_t offset = LLONG_MAX;
 
 	EP_ASSERT_POINTER_VALID(gclh);
 
@@ -215,7 +216,7 @@ gcl_read(gcl_handle_t *gclh,
 		// now binary search through the disk index
 
 		off_t file_size = entry->max_index_offset;
-		long long record_count = (file_size - sizeof(gcl_log_header)) /
+		int64_t record_count = (file_size - sizeof(gcl_log_header)) /
 								sizeof(gcl_index_record);
 		gcl_index_record index_record;
 		size_t start = 0;
@@ -259,7 +260,7 @@ gcl_read(gcl_handle_t *gclh,
 	// read header
 	pread(gclh->fd, &log_record, sizeof(log_record), offset);
 	offset += sizeof(log_record);
-	long long data_length = log_record.data_length;
+	int64_t data_length = log_record.data_length;
 
 	// read data in chunks and add it to the evbuffer
 	while (data_length >= sizeof(read_buffer))
@@ -461,7 +462,7 @@ gcl_open(gcl_name_t gcl_name,
 
 	if (log_header.magic != GCL_LOG_MAGIC)
 	{
-		fprintf(stderr, "gcl_open: magic mismatch - found: %lld, expected: %lld\n",
+		fprintf(stderr, "gcl_open: magic mismatch - found: %" PRId64 ", expected: %" PRId64 "\n",
 			log_header.magic, GCL_LOG_MAGIC);
 		goto fail3;
 	}
@@ -569,7 +570,7 @@ gcl_append(gcl_handle_t *gclh,
 {
 	gcl_log_record log_record;
 	gcl_index_record index_record;
-	long long record_size = sizeof(gcl_log_record) + msg->len;
+	int64_t record_size = sizeof(gcl_log_record) + msg->len;
 	index_entry *entry = (index_entry *)(gclh->index_entry);
 
 	pthread_rwlock_wrlock(&entry->lock);

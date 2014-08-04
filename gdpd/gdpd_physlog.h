@@ -43,19 +43,19 @@ EP_STAT			gcl_append(
 #define GCL_READ_BUFFER_SIZE 4096
 
 typedef struct gcl_log_record {
-	long long msgno;
+	int64_t msgno;
 	tt_interval_t timestamp;
-	long long data_length;
+	int64_t data_length;
 	char data[];
 } gcl_log_record;
 
 typedef struct gcl_log_header {
-	long long magic;
-	long long version;
+	int64_t magic;
+	int64_t version;
 	gcl_log_record records[]; // rest of the file
 } gcl_log_header;
 
 typedef struct gcl_index_record {
-	long long msgno;
-	long long offset;
+	int64_t msgno;
+	int64_t offset;
 } gcl_index_record;
