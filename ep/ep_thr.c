@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#if EP_OSCF_USE_PTHREADS
+
 static EP_DBG	Dbg = EP_DBG_INIT("ep.thr", "Threading support");
 
 static bool	_EpThrUsePthreads = false;
@@ -248,3 +250,14 @@ ep_thr_rwlock_unlock(EP_THR_RWLOCK *rwl)
 		diagnose_err(err, "rwlock_unlock");
 	return err;
 }
+
+#else // !EP_OSCF_USE_PTHREADS
+
+void
+_ep_thr_init(void)
+{
+	ep_dbg_printf("WARNING: initializing pthreads, "
+			"but pthreads compiled out\n");
+}
+
+#endif // EP_OSCF_USE_PTHREADS

@@ -56,7 +56,7 @@
 **	(Actually, currently hacked to work on my development platforms)
 */
 
-# if !EP_OSCF_USE_PTHREADS
+# ifndef EP_OSCF_USE_PTHREADS
 #  define EP_OSCF_USE_PTHREADS		1
 # endif
 
