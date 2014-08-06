@@ -315,11 +315,11 @@ gcl_create(gcl_name_t gcl_name,
 	// XXX: this is where we start to seriously cheat
 	estat = get_gcl_path(gclh, data_pbuf, sizeof data_pbuf);
 	EP_STAT_CHECK(estat, goto fail1);
-	strlcat(data_pbuf, GCL_DATA_SUFFIX, sizeof(GCL_DATA_SUFFIX));
+	strlcat(data_pbuf, GCL_DATA_SUFFIX, sizeof(data_pbuf));
 
 	estat = get_gcl_path(gclh, index_pbuf, sizeof index_pbuf);
 	EP_STAT_CHECK(estat, goto fail2);
-	strlcat(index_pbuf, GCL_INDEX_SUFFIX, sizeof(GCL_INDEX_SUFFIX));
+	strlcat(index_pbuf, GCL_INDEX_SUFFIX, sizeof(index_pbuf));
 
 	if ((data_fd = open(data_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644)) < 0 ||
 		(flock(data_fd, LOCK_EX) < 0))
@@ -439,11 +439,11 @@ gcl_open(gcl_name_t gcl_name,
 
 	estat = get_gcl_path(gclh, data_pbuf, sizeof data_pbuf);
 	EP_STAT_CHECK(estat, goto fail0);
-	strlcat(data_pbuf, GCL_DATA_SUFFIX, sizeof(GCL_DATA_SUFFIX));
+	strlcat(data_pbuf, GCL_DATA_SUFFIX, sizeof(data_pbuf));
 
 	estat = get_gcl_path(gclh, index_pbuf, sizeof index_pbuf);
 	EP_STAT_CHECK(estat, goto fail0);
-	strlcat(index_pbuf, GCL_INDEX_SUFFIX, sizeof(GCL_INDEX_SUFFIX));
+	strlcat(index_pbuf, GCL_INDEX_SUFFIX, sizeof(index_pbuf));
 
 	if ((data_fd = open(data_pbuf, O_RDWR | O_APPEND, 0644)) < 0)
 	{
