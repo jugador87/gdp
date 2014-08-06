@@ -16,6 +16,8 @@
  *  Copyright/license:  This code is released into the public domain.
  */
 
+#define _POSIX_SOURCE		1
+
 #include "scgilib.h"
 #include <ctype.h>
 #include <errno.h>
@@ -24,6 +26,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 /*
  * Doubly-linked list of ports to listen on

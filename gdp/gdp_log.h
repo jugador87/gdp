@@ -1,5 +1,5 @@
 /*
-**  Definitions for event logging.
+**	Definitions for event logging.
 */
 
 #ifndef _GDP_LOG_H_

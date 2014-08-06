@@ -16,7 +16,9 @@ ALL=	libgdp.a
 
 PG=
 O=	-O
-COPTS=	${PG} -g -Wall $O
+WALL=	-Wall
+STD=	-std=c99
+COPTS=	${PG} -g ${WALL} $O ${STD}
 CFLAGS=	${COPTS} -I..
 LDFLAGS=-L.
 RANLIB=	ranlib
@@ -30,4 +32,4 @@ libgdp.a: ${OBJS}
 ${OBJS}: ${HFILES}
 
 clean:
-	-rm ${ALL} *.o *.core
+	-rm -f ${ALL} *.o *.core

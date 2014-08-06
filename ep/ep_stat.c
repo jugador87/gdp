@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 :*/
 
 /***********************************************************************
 **	Copyright (c) 2008-2014, Eric P. Allman.  All rights reserved.
@@ -352,7 +352,7 @@ EP_STAT
 ep_stat_from_errno(int uerrno)
 {
 	return EP_STAT_NEW(EP_STAT_SEV_ERROR, EP_REGISTRY_EPLIB,
-			EP_STAT_MOD_ERRNO, uerrno);
+			EP_STAT_MOD_ERRNO, (unsigned long) uerrno);
 }
 
 
@@ -361,7 +361,7 @@ ep_stat_from_errno(int uerrno)
 **  EP_STAT_REG_STRINGS -- register status code strings (for printing)
 */
 
-EP_HASH		*EpStatStrings;
+static EP_HASH	*EpStatStrings;
 
 void
 ep_stat_reg_strings(struct ep_stat_to_string *r)

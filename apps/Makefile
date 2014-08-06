@@ -1,4 +1,4 @@
-ALL=	writer-test reader-test gdp-rest
+ALL=	writer-test reader-test gdp-rest rw-bench
 
 INCROOT=..
 LIBROOT=	${INCROOT}
@@ -9,15 +9,16 @@ LIBEP=		-L${LIBROOT}/ep -lep
 JANSSONROOT=	${HOME}/src/jansson-2.6
 #INCJANSSON=	-I${JANSSONROOT}
 #LIBJANSSON=	-L${JANSSONROOT} -ljansson
-LIBJANSSON=	-ljansson
 #EVENT2ROOT=	${HOME}/src
 #INCEVENT2=	-I${EVENT2ROOT}
-LIBEVENT2=	-levent -levent_pthreads
+LIBEVENT2=	-levent -levent_pthreads -pthread
 INCS=		${INCGDP} ${INCEP} ${INCJANSSON} ${INCEVENT2}
 LDFLAGS=	${LIBGDP} ${LIBEP} ${LIBJANSSON} ${LIBEVENT2}
 PG=
 O=		-O
-COPTS=		${PG} -g -Wall $O
+WALL=		-Wall
+STD=		-std=c99
+COPTS=		${PG} -g ${WALL} $O ${STD}
 CFLAGS=		${COPTS} ${INCS}
 
 all:	${ALL}
@@ -31,7 +32,10 @@ reader-test:	reader-test.o
 gdp-rest:	gdp-rest.o ../scgilib/scgilib.o
 	${CC} -o $@ gdp-rest.o ${LDFLAGS} ../scgilib/scgilib.o
 
+rw-bench:	rw-bench.o
+	$(CC) -o $@ rw-bench.o $(LDFLAGS)
+
 ${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 
 clean:
-	-rm ${ALL} *.o *.core
+	-rm -f ${ALL} *.o *.core

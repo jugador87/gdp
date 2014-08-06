@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 :*/
 
 /***********************************************************************
 **	Copyright (c) 2008, Eric P. Allman.  All rights reserved.
@@ -15,7 +15,8 @@ extern void EP_TYPE_PRINTFLIKE(1, 2)
 extern void EP_TYPE_PRINTFLIKE(1, 2)
 		ep_app_error(const char *fmt, ...);
 extern void EP_TYPE_PRINTFLIKE(1, 2)
-		ep_app_abort(const char *fmt, ...);
+		ep_app_abort(const char *fmt, ...)
+			__attribute__ ((noreturn));
 
 extern const char	*ep_app_getprogname(void);
 

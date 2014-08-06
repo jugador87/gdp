@@ -1,6 +1,8 @@
 O=		-O
 PG=
-COPTS=		${PG} -g -Wall $O
+WALL=		-Wall
+STD=		-std=c99
+COPTS=		${PG} -g ${WALL} $O ${STD}
 CFLAGS=		${COPTS} ${INCS}
 ALL=		helloworld
 
@@ -12,4 +14,4 @@ helloworld:	helloworld.o scgilib.o
 scgilib.o:	scgilib.h
 
 clean:
-	-rm ${ALL} *.o
+	-rm -f ${ALL} *.o

@@ -1,9 +1,11 @@
 apps/gdp-rest
 apps/reader-test
+apps/rw-bench
 apps/writer-test
 gdpd/gdpd
+scgilib/helloworld
 */tags
-*/.*.swp
+*.swp
 *.o
 *.a
 *~
