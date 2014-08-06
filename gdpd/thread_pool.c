@@ -12,15 +12,15 @@ worker_thread_routine(void *tp_)
 
 	while (true)
 	{
-		pthread_mutex_lock(&tp->mutex);
+		ep_thr_mutex_lock(&tp->mutex);
 		while (tp->new_job == NULL)
 		{
-			pthread_cond_wait(&tp->is_full, &tp->mutex);
+			ep_thr_cond_wait(&tp->is_full, &tp->mutex);
 		}
 		new_job = tp->new_job;
 		tp->new_job = NULL;
-		pthread_cond_signal(&tp->is_empty);
-		pthread_mutex_unlock(&tp->mutex);
+		ep_thr_cond_signal(&tp->is_empty);
+		ep_thr_mutex_unlock(&tp->mutex);
 
 		new_job->callback(new_job->data);
 
@@ -38,9 +38,9 @@ thread_pool_new(int num_threads)
 
 	new_tp->new_job = NULL;
 	new_tp->num_threads = num_threads;
-	pthread_mutex_init(&new_tp->mutex, NULL);
-	pthread_cond_init(&new_tp->is_empty, NULL);
-	pthread_cond_init(&new_tp->is_full, NULL);
+	ep_thr_mutex_init(&new_tp->mutex);
+	ep_thr_cond_init(&new_tp->is_empty);
+	ep_thr_cond_init(&new_tp->is_full);
 
 	return new_tp;
 }
@@ -66,14 +66,14 @@ thread_pool_init(thread_pool *pool)
 void
 thread_pool_add_job(thread_pool *tp, thread_pool_job *new_job)
 {
-	pthread_mutex_lock(&tp->mutex);
+	ep_thr_mutex_lock(&tp->mutex);
 	while (tp->new_job != NULL)
 	{
-		pthread_cond_wait(&tp->is_empty, &tp->mutex);
+		ep_thr_cond_wait(&tp->is_empty, &tp->mutex);
 	}
 	tp->new_job = new_job;
-	pthread_cond_signal(&tp->is_full);
-	pthread_mutex_unlock(&tp->mutex);
+	ep_thr_cond_signal(&tp->is_full);
+	ep_thr_mutex_unlock(&tp->mutex);
 }
 
 thread_pool_job *

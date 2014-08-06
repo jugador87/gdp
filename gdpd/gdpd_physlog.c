@@ -12,7 +12,7 @@
 
 //#include <linux/limits.h>		XXX NOT PORTABLE!!!
 #include <sys/file.h>
-#include <pthread.h>
+#include <ep/ep_thr.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -37,7 +37,7 @@ static EP_HASH		*name_index_table = NULL;
 // reading and writing to the EP_HASH mapping gcl_name -> index requires
 //		holding table_mutex
 // EP_HASH is not thread-safe
-static pthread_rwlock_t table_lock = PTHREAD_RWLOCK_INITIALIZER;
+static EP_THR_RWLOCK table_lock EP_THR_RWLOCK_INITIALIZER;
 
 typedef struct index_entry
 {

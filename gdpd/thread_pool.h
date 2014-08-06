@@ -1,15 +1,15 @@
 #ifndef THREAD_POOL_H_INCLUDED
 #define THREAD_POOL_H_INCLUDED
 
-#include <pthread.h>
+#include <ep/ep_thr.h>
 
 //XXX This forward declaration is C11 only.  We are using C99.
 //typedef struct thread_pool_job thread_pool_job;
 
 typedef struct thread_pool {
-	pthread_mutex_t mutex;
-	pthread_cond_t is_full;
-	pthread_cond_t is_empty;
+	EP_THR_MUTEX mutex;
+	EP_THR_COND is_full;
+	EP_THR_COND is_empty;
 	int num_threads;
 	struct thread_pool_job *new_job;
 } thread_pool;

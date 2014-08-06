@@ -8,7 +8,7 @@
 #define _GDP_PRIV_H_
 
 #include <gdp/gdp_timestamp.h>
-#include <pthread.h>
+#include <ep/ep_thr.h>
 #include <event2/event.h>
 #include <event2/bufferevent.h>
 
@@ -19,8 +19,8 @@ extern pthread_t	GdpIoEventLoopThread;
 struct gcl_handle_t
 {
 	// fields used by GDP library
-	pthread_mutex_t		mutex;			// lock on this data structure
-	pthread_cond_t		cond;			// pthread wakeup signal
+	EP_THR_MUTEX		mutex;			// lock on this data structure
+	EP_THR_COND			cond;			// pthread wakeup signal
 	gcl_name_t			gcl_name;		// the internal name
 	gdp_iomode_t		iomode;			// read only or append only
 

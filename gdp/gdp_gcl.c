@@ -12,7 +12,7 @@
 #include <ep/ep_hash.h>
 #include <ep/ep_prflags.h>
 #include <ep/ep_string.h>
-#include <pthread.h>
+#include <ep/ep_thr.h>
 #include <event2/bufferevent.h>
 #include <event2/event.h>
 #include <event2/thread.h>
@@ -179,7 +179,7 @@ drop_all_rid_info(conn_t *conn)
 
 static EP_HASH		*OpenGCLCache;
 
-static pthread_rwlock_t OpenGCLCacheLock = PTHREAD_RWLOCK_INITIALIZER;
+static EP_THR_RWLOCK OpenGCLCacheLock EP_THR_RWLOCK_INITIALIZER;
 
 EP_STAT
 gdp_gcl_cache_init(void)
@@ -828,7 +828,7 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 //		drop_rid_mapping(pkt.rid, conn);
 
 	// return our status via the GCL handle
-	pthread_mutex_lock(&gclh->mutex);
+	ep_thr_mutex_lock(&gclh->mutex);
 	gclh->estat = estat;
 	gclh->flags |= GCLH_DONE;
 	if (ep_dbg_test(Dbg, 44))
@@ -840,8 +840,8 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 		ep_dbg_printf("gdp_read_cb: returning stat %s\n\tGCL %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf), pbuf);
 	}
-	pthread_cond_signal(&gclh->cond);
-	pthread_mutex_unlock(&gclh->mutex);
+	ep_thr_cond_signal(&gclh->cond);
+	ep_thr_mutex_unlock(&gclh->mutex);
 
 	// shouldn't have to use event_base_loop{exit,break} here because
 	// event_base_loop should have been called with EVLOOP_ONCE
@@ -1161,8 +1161,8 @@ gcl_handle_new(gcl_handle_t **pgclh)
 	gclh = ep_mem_zalloc(sizeof *gclh);
 	if (gclh == NULL)
 		goto fail1;
-	pthread_mutex_init(&gclh->mutex, NULL);
-	pthread_cond_init(&gclh->cond, NULL);
+	ep_thr_mutex_init(&gclh->mutex);
+	ep_thr_cond_init(&gclh->cond);
 	gclh->ts.stamp.tv_sec = TT_NOTIME;
 
 	// success
@@ -1205,10 +1205,10 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	gdp_gcl_cache_add(gclh, 0);
 
 	// write the message out
-	pthread_mutex_lock(&gclh->mutex);
+	ep_thr_mutex_lock(&gclh->mutex);
 	gclh->flags &= ~GCLH_DONE;
-	pthread_cond_signal(&gclh->cond);
-	pthread_mutex_unlock(&gclh->mutex);
+	ep_thr_cond_signal(&gclh->cond);
+	ep_thr_mutex_unlock(&gclh->mutex);
 	if (msg != NULL)
 	{
 		pkt.dlen = msg->len;
@@ -1221,10 +1221,10 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 
 	// run the event loop until we have a result
 	ep_dbg_cprintf(Dbg, 37, "gdp_invoke: waiting\n");
-	pthread_mutex_lock(&gclh->mutex);
+	ep_thr_mutex_lock(&gclh->mutex);
 	while (!EP_UT_BITSET(GCLH_DONE, gclh->flags))
 	{
-		pthread_cond_wait(&gclh->cond, &gclh->mutex);
+		ep_thr_cond_wait(&gclh->cond, &gclh->mutex);
 	}
 
 	//XXX what status will/should we return?
@@ -1242,7 +1242,7 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	}
 
 	// ok, done!
-	pthread_mutex_unlock(&gclh->mutex);
+	ep_thr_mutex_unlock(&gclh->mutex);
 fail0:
 	{
 		char ebuf[200];
@@ -1421,8 +1421,8 @@ gdp_gcl_close(gcl_handle_t *gclh)
 	//XXX should probably check status
 
 	// release resources held by this handle
-	pthread_mutex_destroy(&gclh->mutex);
-	pthread_cond_destroy(&gclh->cond);
+	ep_thr_mutex_destroy(&gclh->mutex);
+	ep_thr_cond_destroy(&gclh->cond);
 //	  free_all_mappings(gclh->rids);
 	gdp_gcl_cache_drop(gclh->gcl_name, 0);
 	ep_mem_free(gclh);
