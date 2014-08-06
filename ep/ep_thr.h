@@ -7,7 +7,7 @@
 #ifndef _EP_THR_H_
 #define _EP_THR_H_
 
-# include <ep.h>
+# include <ep/ep.h>
 
 # if EP_OSCF_USE_PTHREADS
 #  include <pthread.h>
