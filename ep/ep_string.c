@@ -58,6 +58,8 @@ strlcat(
 		return 0;
 	while (n > 0 && *dst++ != '\0')
 		n--;
+	--dst;
+	++n;
 	while (*src != '\0' && --n > 0)
 	{
 		*dst++ = *src++;
