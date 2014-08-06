@@ -49,10 +49,20 @@ typedef struct gcl_log_record {
 	char data[];
 } gcl_log_record;
 
+typedef struct gcl_log_header_metadata {
+	int16_t type;
+	int16_t length;
+	char name_value_pair[];
+} gcl_log_header_metadata;
+
 typedef struct gcl_log_header {
 	int64_t magic;
 	int64_t version;
-	gcl_log_record records[]; // rest of the file
+	int16_t header_size; 	// the total size of the header such that
+							// the data records begin at offset header_size
+	int16_t log_type;
+							// content_type goes between log_type and metadata
+	gcl_log_header_metadata metadata[];
 } gcl_log_header;
 
 typedef struct gcl_index_record {

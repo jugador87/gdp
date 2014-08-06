@@ -63,7 +63,7 @@ gcl_physlog_init()
 }
 
 static EP_STAT
-index_entry_new(index_entry **out)
+index_entry_new(gcl_handle_t *gclh, index_entry **out)
 {
 	*out = malloc(sizeof(index_entry));
 	if (*out == NULL)
@@ -76,7 +76,7 @@ index_entry_new(index_entry **out)
 	}
 	(*out)->fp = NULL;
 	(*out)->max_msgno = 0;
-	(*out)->max_data_offset = sizeof(gcl_log_header);
+	(*out)->max_data_offset = gclh->data_offset;
 	(*out)->max_index_offset = 0;
 	int cache_size = ep_adm_getintparam("swarm.gdp.index.cachesize", 65536);
 								// 1 MiB index cache
@@ -134,7 +134,7 @@ gcl_index_create_cache(gcl_handle_t *gclh, index_entry **out)
 	EP_STAT estat = EP_STAT_OK;
 
 	pthread_rwlock_wrlock(&table_lock);
-	estat = index_entry_new(out);
+	estat = index_entry_new(gclh, out);
 	EP_STAT_CHECK(estat, goto fail0);
 	ep_hash_insert(name_index_table, sizeof(gcl_name_t), gclh->gcl_name, *out);
 	gclh->index_entry = *out;
@@ -354,17 +354,26 @@ gcl_create(gcl_name_t gcl_name,
 		goto fail3;
 	}
 
+	// write the header
+	gcl_log_header log_header;
+	int16_t content_type_size = 0; // XXX: strlen(content_type) + 1
+	int16_t metadata_size = 0; // XXX: compute size of metadata
+	log_header.magic = GCL_LOG_MAGIC;
+	log_header.version = GCL_VERSION;
+	log_header.header_size = sizeof(gcl_log_header) + content_type_size + metadata_size;
+	log_header.log_type = 0; // XXX: define different log types
+	fwrite(&log_header, sizeof(log_header), 1, data_fp);
+	// XXX: write content_type string
+	// XXX: write metadata
+
+	// TODO: will probably need creation date or some such later
+
+	gclh->ver = log_header.version;
+	gclh->data_offset = log_header.header_size;
+
 	index_entry *new_entry = NULL;
 	estat = gcl_index_create_cache(gclh, &new_entry);
 	EP_STAT_CHECK(estat, goto fail3);
-
-	// write the header metadata
-	gcl_log_header log_header;
-	log_header.magic = GCL_LOG_MAGIC;
-	log_header.version = GCL_VERSION;
-	fwrite(&log_header, sizeof(log_header), 1, data_fp);
-
-	// TODO: will probably need creation date or some such later
 
 	// success!
 	fflush(data_fp);
@@ -372,7 +381,6 @@ gcl_create(gcl_name_t gcl_name,
 	new_entry->fp = index_fp;
 	gclh->fp = data_fp;
 	gclh->index_entry = new_entry;
-	gclh->ver = log_header.version;
 	*pgclh = gclh;
 	if (ep_dbg_test(Dbg, 10))
 	{
@@ -462,6 +470,8 @@ gcl_open(gcl_name_t gcl_name,
 	flockfile(data_fp);
 	fseek(data_fp, 0, SEEK_SET);
 	fread(&log_header, sizeof(log_header), 1, data_fp);
+	// XXX: read content_type string
+	// XXX: read metadata entries
 	funlockfile(data_fp);
 
 	if (log_header.magic != GCL_LOG_MAGIC)
@@ -484,6 +494,9 @@ gcl_open(gcl_name_t gcl_name,
 		goto fail5;
 	}
 
+	gclh->ver = log_header.version;
+	gclh->data_offset = log_header.header_size;
+
 	index_entry* entry;
 	gcl_index_find_cache(gclh, &entry);
 	if (entry == NULL)
@@ -494,7 +507,6 @@ gcl_open(gcl_name_t gcl_name,
 
 	gclh->fp = data_fp;
 	gclh->index_entry = entry;
-	gclh->ver = log_header.version;
 
 	entry->fp = index_fp;
 
