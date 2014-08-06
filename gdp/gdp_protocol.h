@@ -84,16 +84,14 @@ typedef struct gdp_pkt_hdr
 #define GDP_CMD_READ		70	// read a given record by index
 #define GDP_CMD_PUBLISH		71	// append a record
 #define GDP_CMD_SUBSCRIBE	72	// subscribe to a USC
-#define GDP_CMD_FIND_OBJ    73  // determine which node holds an object
 //	128-191		Positive acks (with CoAP, HTTP equivalents)
 #define GDP_ACK_MIN	    128		    // minimum ack code
 #define GDP_ACK_SUCCESS		128	// general success response (none, 200)
 #define GDP_ACK_DATA_CREATED	129	// datum created (2.01, 201)
 #define GDP_ACK_DATA_DEL	130	// datam deleted (2.02, 202)
-#define GDP_ACK_DATA_VALID	131	// data valid/found (2.03, none)
+#define GDP_ACK_DATA_VALID	131	// data valid (2.03, none)
 #define GDP_ACK_DATA_CHANGED	132	// data changed (2.04, ~204)
 #define GDP_ACK_DATA_CONTENT	133	// content (2.05, ~200)
-#define GDP_ACK_SBY         134 // processing, standby for result (none, ~102)
 #define GDP_ACK_MAX	    191		    // maximum ack code
 //	192-223		Negative acks, client side (CoAP, HTTP)
 #define GDP_NAK_MIN	    192		    // minimum nak code

@@ -3,7 +3,6 @@
 #define GDP_MSG_EXTRA \
 	    off_t offset;
 
-#include <gdpd/gdpd_router.h>
 #include <gdp/gdp.h>
 #include <gdp/gdp_log.h>
 #include <gdp/gdp_protocol.h>
@@ -1114,14 +1113,6 @@ cmd_subscribe(struct bufferevent *bev, conn_t *c,
 
 
 EP_STAT
-cmd_find_obj(struct bufferevent *bev, conn_t *c,
-    gdp_pkt_hdr_t *cpkt, gdp_pkt_hdr_t *rpkt)
-{
-    return router_find_obj(bev, c, cpkt, rpkt);
-}
-
-
-EP_STAT
 cmd_not_implemented(struct bufferevent *bev, conn_t *c,
 		gdp_pkt_hdr_t *cpkt, gdp_pkt_hdr_t *rpkt)
 {
@@ -1229,7 +1220,7 @@ dispatch_ent_t	DispatchTable[256] =
     { cmd_read,		GDP_ACK_DATA_CONTENT	},		// 70
     { cmd_publish,	GDP_ACK_DATA_CREATED	},		// 71
     { cmd_subscribe,	GDP_ACK_SUCCESS		},		// 72
-    { cmd_find_obj,     GDP_ACK_SUCCESS     },      // 73
+    NOENT,                   // 73
     NOENT,                   // 74
     NOENT,                   // 75
     NOENT,                   // 76
@@ -1738,11 +1729,6 @@ gdpd_init(int listenport)
     // create a thread to run the event loop
 //    estat = _gdp_start_event_loop_thread(GdpEventBase);
 //    EP_STAT_CHECK(estat, goto fail0);
-    
-    // initialize router
-    // TODO add estat stuff
-    // XXX should be here? Should call gdp_init as mentioned above?
-    router_init()
 
     // success!
     ep_dbg_cprintf(Dbg, 1, "gdpd_init: listening on port %d\n", listenport);
