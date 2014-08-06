@@ -34,7 +34,6 @@ struct gcl_handle_t
 	// fields used only by gdpd
 	long				ver;			// version number of on-disk file
 	FILE				*fp;			// pointer to the on-disk file
-	int					fd;				// fileno(fp)
 	off_t				*offcache;		// offsets of records we have seen
 	long				cachesize;		// size of offcache array
 	gdp_msgno_t			maxmsgno;		// last msgno that we have read/written

@@ -43,7 +43,6 @@ typedef struct index_entry
 {
 	// reading and writing to the log requires holding this lock
 	pthread_rwlock_t	lock;
-	int					fd;
 	FILE				*fp;
 	int64_t				max_msgno;
 	int64_t				max_data_offset;
@@ -75,7 +74,6 @@ index_entry_new(index_entry **out)
 	{
 		goto fail0;
 	}
-	(*out)->fd = -1;
 	(*out)->fp = NULL;
 	(*out)->max_msgno = 0;
 	(*out)->max_data_offset = sizeof(gcl_log_header);
@@ -223,11 +221,12 @@ gcl_read(gcl_handle_t *gclh,
 		size_t end = record_count;
 		size_t mid;
 
+		flockfile(entry->fp);
 		while (start < end)
 		{
 			mid = start + (end - start) / 2;
-			pread(entry->fd, &index_record, sizeof(gcl_index_record),
-					mid * sizeof(gcl_index_record));
+			fseek(entry->fp, mid * sizeof(gcl_index_record), SEEK_SET);
+			fread(&index_record, sizeof(gcl_index_record), 1, entry->fp);
 			if (msgno < index_record.msgno)
 			{
 				end = mid;
@@ -242,6 +241,7 @@ gcl_read(gcl_handle_t *gclh,
 				break;
 			}
 		}
+		funlockfile(entry->fp);
 	}
 	else
 	{
@@ -258,27 +258,29 @@ gcl_read(gcl_handle_t *gclh,
 	gcl_log_record log_record;
 
 	// read header
-	pread(gclh->fd, &log_record, sizeof(log_record), offset);
+	flockfile(gclh->fp);
+	fseek(gclh->fp, offset, SEEK_SET);
+	fread(&log_record, sizeof(log_record), 1, gclh->fp);
 	offset += sizeof(log_record);
 	int64_t data_length = log_record.data_length;
 
 	// read data in chunks and add it to the evbuffer
 	while (data_length >= sizeof(read_buffer))
 	{
-		pread(gclh->fd, &read_buffer, sizeof(read_buffer), offset);
+		fread(&read_buffer, sizeof(read_buffer), 1, gclh->fp);
 		evbuffer_add(evb, &read_buffer, sizeof(read_buffer));
-		offset += sizeof(read_buffer);
 		data_length -= sizeof(read_buffer);
 	}
 	if (data_length > 0)
 	{
-		pread(gclh->fd, &read_buffer, data_length, offset);
+		fread(&read_buffer, data_length, 1, gclh->fp);
 		evbuffer_add(evb, &read_buffer, data_length);
 	}
 
 	// done
 
 fail0:
+	funlockfile(gclh->fp);
 	pthread_rwlock_unlock(&entry->lock);
 
 	return estat;
@@ -367,9 +369,7 @@ gcl_create(gcl_name_t gcl_name,
 	// success!
 	fflush(data_fp);
 	flock(data_fd, LOCK_UN);
-	new_entry->fd = index_fd;
 	new_entry->fp = index_fp;
-	gclh->fd = data_fd;
 	gclh->fp = data_fp;
 	gclh->index_entry = new_entry;
 	gclh->ver = log_header.version;
@@ -426,6 +426,7 @@ gcl_open(gcl_name_t gcl_name,
 	int data_fd = -1;
 	int index_fd = -1;
 	FILE *data_fp;
+	FILE *index_fp;
 	char data_pbuf[GCL_PATH_MAX];
 	char index_pbuf[GCL_PATH_MAX];
 
@@ -458,7 +459,10 @@ gcl_open(gcl_name_t gcl_name,
 
 	gcl_log_header log_header;
 
-	pread(data_fd, &log_header, sizeof(log_header), 0);
+	flockfile(data_fp);
+	fseek(data_fp, 0, SEEK_SET);
+	fread(&log_header, sizeof(log_header), 1, data_fp);
+	funlockfile(data_fp);
 
 	if (log_header.magic != GCL_LOG_MAGIC)
 	{
@@ -474,6 +478,12 @@ gcl_open(gcl_name_t gcl_name,
 		goto fail4;
 	}
 
+	if ((index_fp = fdopen(index_fd, openmode)) == NULL)
+	{
+		estat = ep_stat_from_errno(errno);
+		goto fail5;
+	}
+
 	index_entry* entry;
 	gcl_index_find_cache(gclh, &entry);
 	if (entry == NULL)
@@ -482,10 +492,11 @@ gcl_open(gcl_name_t gcl_name,
 		EP_STAT_CHECK(estat, goto fail5);
 	}
 
-	gclh->fd = data_fd;
 	gclh->fp = data_fp;
 	gclh->index_entry = entry;
 	gclh->ver = log_header.version;
+
+	entry->fp = index_fp;
 
 	*pgclh = gclh;
 
@@ -542,15 +553,7 @@ gcl_close(gcl_handle_t *gclh)
 	{
 		fclose(gclh->fp);
 	}
-	if (gclh->fd == -1)
-	{
-		estat = EP_STAT_ERROR;
-		gdp_log(estat, "gcl_close: null fp");
-	}
-	else
-	{
-		close(gclh->fd);
-	}
+
 	evbuffer_free(gclh->revb);
 	ep_mem_free(gclh->offcache);
 	// XXX: when do we remove the index cache for optimal performance?
