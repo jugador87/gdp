@@ -17,7 +17,7 @@ ALL=	libgdp.a
 PG=
 O=	-O
 WALL=	-Wall
-STD=	-std=c99
+STD=	-std=gnu99
 COPTS=	${PG} -g ${WALL} $O ${STD}
 CFLAGS=	${COPTS} -I..
 LDFLAGS=-L.
