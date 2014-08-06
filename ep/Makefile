@@ -19,13 +19,16 @@ OBJS=	\
 	ep_funclist.o \
 	ep_hash.o \
 	ep_hexdump.o \
+	ep_lib.o \
 	ep_mem.o \
 	ep_pcvt.o \
 	ep_pprint.o \
 	ep_prflags.o \
 	ep_rpool.o \
 	ep_stat.o \
+	ep_statcodes.o \
 	ep_string.o \
+	ep_thr.o \
 	ep_time.o \
 	ep_xlate.o \
 	ep_version.o \
@@ -81,7 +84,9 @@ HFILES=	\
 	ep_registry.h \
 	ep_rpool.h \
 	ep_stat.h \
+	ep_statcodes.h \
 	ep_string.h \
+	ep_thr.h \
 	ep_time.h \
 	ep_xlate.h \
 	ep_version.h \

@@ -8,6 +8,7 @@
 #include <ep.h>
 #include <ep_dbg.h>
 #include <ep_string.h>
+#include <ep_thr.h>
 #include <ep_assert.h>
 #include <fnmatch.h>
 
@@ -22,7 +23,7 @@ struct FLAGPAT
 	FLAGPAT		*next;		// next in chain
 };
 
-static EP_MUTEX	FlagListMutex;
+static EP_THR_MUTEX	FlagListMutex	EP_THR_MUTEX_INITIALIZER;
 static FLAGPAT	*FlagList;
 FILE		*DebugFile;
 int		__EpDbgCurGen;		// current generation number
@@ -88,11 +89,11 @@ ep_dbg_setto(const char *fpat,
 	fp->lev = lev;
 
 	// link to front of chain
-	EP_MUTEX_LOCK(FlagListMutex);
+	ep_thr_mutex_lock(&FlagListMutex);
 	fp->next = FlagList;
 	FlagList = fp;
 	__EpDbgCurGen++;
-	EP_MUTEX_UNLOCK(FlagListMutex);
+	ep_thr_mutex_unlock(&FlagListMutex);
 }
 
 
@@ -114,7 +115,7 @@ ep_dbg_flaglevel(EP_DBG *flag)
 {
 	FLAGPAT *fp;
 
-	EP_MUTEX_LOCK(FlagListMutex);
+	ep_thr_mutex_lock(&FlagListMutex);
 	flag->gen = __EpDbgCurGen;
 	for (fp = FlagList; fp != NULL; fp = fp->next)
 	{
@@ -125,7 +126,7 @@ ep_dbg_flaglevel(EP_DBG *flag)
 		flag->level = 0;
 	else
 		flag->level = fp->lev;
-	EP_MUTEX_UNLOCK(FlagListMutex);
+	ep_thr_mutex_unlock(&FlagListMutex);
 
 	return flag->level;
 }

@@ -206,7 +206,6 @@ gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 	gcl_handle_t *gclh;
 
 	// see if we have a pointer to this GCL in the cache
-	pthread_rwlock_rdlock(&OpenGCLCacheLock);
 	gclh = ep_hash_search(OpenGCLCache, sizeof (gcl_name_t), (void *) gcl_name);
 	if (ep_dbg_test(Dbg, 42))
 	{
@@ -215,7 +214,6 @@ gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 		gdp_gcl_printable_name(gcl_name, pbuf);
 		ep_dbg_printf("gdp_gcl_cache_get: %s => %p\n", pbuf, gclh);
 	}
-	pthread_rwlock_unlock(&OpenGCLCacheLock);
 	return gclh;
 }
 
@@ -228,7 +226,6 @@ gdp_gcl_cache_add(gcl_handle_t *gclh, gdp_iomode_t mode)
 	EP_ASSERT_REQUIRE(!gdp_gcl_name_is_zero(gclh->gcl_name));
 
 	// save it in the cache
-	pthread_rwlock_wrlock(&OpenGCLCacheLock);
 	(void) ep_hash_insert(OpenGCLCache,
 						sizeof (gcl_name_t), &gclh->gcl_name, gclh);
 	if (ep_dbg_test(Dbg, 42))
@@ -238,7 +235,6 @@ gdp_gcl_cache_add(gcl_handle_t *gclh, gdp_iomode_t mode)
 		gdp_gcl_printable_name(gclh->gcl_name, pbuf);
 		ep_dbg_printf("gdp_gcl_cache_add: added %s => %p\n", pbuf, gclh);
 	}
-	pthread_rwlock_unlock(&OpenGCLCacheLock);
 }
 
 
@@ -247,9 +243,7 @@ gdp_gcl_cache_drop(gcl_name_t gcl_name, gdp_iomode_t mode)
 {
 	gcl_handle_t *gclh;
 
-	pthread_rwlock_wrlock(&OpenGCLCacheLock);
 	gclh = ep_hash_insert(OpenGCLCache, sizeof (gcl_name_t), gcl_name, NULL);
-	pthread_rwlock_unlock(&OpenGCLCacheLock);
 	if (ep_dbg_test(Dbg, 42))
 	{
 		gcl_pname_t pbuf;
@@ -981,6 +975,15 @@ gdp_run_io_event_loop(void *ctx)
 #else
 		event_base_loop(evb, 0);
 #endif
+		// shouldn't happen (?)
+		if (ep_dbg_test(Dbg, 1))
+		{
+			ep_dbg_printf("gdp_event_loop: event_base_loop returned\n");
+			if (event_base_got_break(evb))
+				ep_dbg_printf(" ... as a result of loopbreak\n");
+			if (event_base_got_exit(evb))
+				ep_dbg_printf(" ... as a result of loopexit\n");
+		}
 		if (evdelay > 0)
 			ep_time_nanosleep(evdelay * 1000LL);		// avoid CPU hogging
 	}

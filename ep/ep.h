@@ -27,14 +27,15 @@
 //XXX hacks for non-libep settings
 #define EP_SRC_ID(x)
 
+/*
+**  Initialization
+*/
 
-// yes, I know this doesn't work; give me a break
-typedef int			EP_MUTEX;
-#define EP_MUTEX_LOCK(m)	EP_ASSERT((m)++ == 0)
-#define EP_MUTEX_UNLOCK(m)	EP_ASSERT(--(m) == 0)
-#define EP_MUTEX_IS_LOCKED(m)	((m) != 0)
-#define EP_MUTEX_INIT		= 0
+EP_STAT		ep_lib_init(uint32_t flags);
 
+#define EP_LIB_USEPTHREADS	0x00000001	// turn on pthreads support
+
+// the versions from ep_mem.h give you a bit more
 void	*ep_mem_malloc(size_t);
 void	*ep_mem_zalloc(size_t);
 char	*ep_mem_strdup(const char *);

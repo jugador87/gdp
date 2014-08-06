@@ -11,6 +11,7 @@
 #include <ep_assert.h>
 #include <ep_hash.h>
 #include <ep_string.h>
+#include <ep_thr.h>
 
 EP_SRC_ID("@(#)$Id: ep_hash.c 286 2014-04-29 18:15:22Z eric $");
 
@@ -34,7 +35,7 @@ struct EP_HASH
 {
 	EP_RPOOL		*rpool;		// resource pool
 	uint32_t		flags;		// flags -- see below
-	EP_MUTEX		mutex;		// lock on this object
+	EP_THR_MUTEX		mutex;		// lock on this object
 	EP_HASH_HASH_FUNCP	hfunc;		// hashing function
 	int			tabsize;	// size of hash tab
 	struct node		*tab[0];	// actually longer
@@ -91,6 +92,7 @@ ep_hash_new(
 	hash->hfunc = hfunc;
 	hash->flags = flags;
 	hash->tabsize = tabsize;
+	ep_thr_mutex_init(&hash->mutex);
 
 	return hash;
 }
@@ -100,6 +102,7 @@ void
 ep_hash_free(EP_HASH *hash)
 {
 	EP_ASSERT_POINTER_VALID(hash);
+	ep_thr_mutex_destroy(&hash->mutex);
 	ep_rpool_free(hash->rpool);	// also frees hash
 }
 

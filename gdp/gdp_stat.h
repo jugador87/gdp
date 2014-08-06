@@ -10,7 +10,6 @@
 ***********************************************************************/
 
 #include <ep/ep_stat.h>
-#include <ep/ep_registry.h>
 
 // XXX	should really be in an include shared with other projects
 //		to avoid conflicts in the future

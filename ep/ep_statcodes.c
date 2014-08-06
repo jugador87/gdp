@@ -23,7 +23,7 @@ static struct ep_stat_to_string	Stats[] =
 
 
 void
-ep_stat_init(void)
+_ep_stat_init(void)
 {
     ep_stat_reg_strings(Stats);
 }

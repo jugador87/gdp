@@ -17,6 +17,7 @@
 #include <ep_funclist.h>
 #include <ep_rpool.h>
 #include <ep_stat.h>
+#include <ep_thr.h>
 #include <ep_assert.h>
 
 EP_SRC_ID("@(#)$Id: ep_funclist.c 286 2014-04-29 18:15:22Z eric $");
@@ -38,7 +39,7 @@ struct EP_FUNCLIST
 	const char	*name;			// for debugging
 	uint32_t	flags;			// flag bits, see below
 	EP_RPOOL	*rpool;			// resource pool
-	EP_MUTEX	mutex;			// locking node
+	EP_THR_MUTEX	mutex;			// locking node
 
 	// memory for actual functions
 	struct fseg	*list;			// the actual list
@@ -67,6 +68,7 @@ ep_funclist_new(
 
 	flp->flags = flags;
 	flp->rpool = rp;
+	ep_thr_mutex_init(&flp->mutex);
 
 	return flp;
 }
@@ -75,6 +77,7 @@ void
 ep_funclist_free(EP_FUNCLIST *flp)
 {
 	EP_ASSERT_POINTER_VALID(flp);
+	ep_thr_mutex_destroy(&flp->mutex);
 	ep_rpool_free(flp->rpool);	// also frees flp
 }
 
@@ -86,7 +89,7 @@ ep_funclist_push(EP_FUNCLIST *flp,
 	struct fseg *fsp;
 
 	EP_ASSERT_POINTER_VALID(flp);
-	EP_MUTEX_LOCK(flp->mutex);
+	ep_thr_mutex_lock(&flp->mutex);
 
 	// allocate a new function block and fill it
 	fsp = ep_rpool_malloc(flp->rpool, sizeof *fsp);
@@ -97,7 +100,7 @@ ep_funclist_push(EP_FUNCLIST *flp,
 	fsp->next = flp->list;
 	flp->list = fsp;
 
-	EP_MUTEX_UNLOCK(flp->mutex);
+	ep_thr_mutex_unlock(&flp->mutex);
 }
 
 #if 0
@@ -133,11 +136,11 @@ ep_funclist_invoke(EP_FUNCLIST *flp)
 
 	EP_ASSERT_POINTER_VALID(flp);
 
-	EP_MUTEX_LOCK(flp->mutex);
-
+	//XXX possible deadlock if a called function tries to modify the list
+	ep_thr_mutex_lock(&flp->mutex);
 	for (fsp = flp->list; fsp != NULL; fsp = fsp->next)
 	{
 		(*fsp->func)(fsp->arg);
 	}
-	EP_MUTEX_UNLOCK(flp->mutex);
+	ep_thr_mutex_unlock(&flp->mutex);
 }

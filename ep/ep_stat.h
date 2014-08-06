@@ -55,13 +55,13 @@
 #ifndef _EP_STAT_H
 # define _EP_STAT_H
 
-# include <ep/ep.h>
-# include <limits.h>
-
 typedef struct _ep_stat
 {
 	unsigned long	code;
 } EP_STAT;
+
+# include <ep/ep.h>
+# include <limits.h>
 
 #define _EP_STAT_SEVBITS	3
 #define _EP_STAT_REGBITS	11

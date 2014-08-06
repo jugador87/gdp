@@ -13,6 +13,7 @@
 #include <ep_pcvt.h>
 #include <ep_dbg.h>
 #include <ep_funclist.h>
+#include <ep_thr.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -91,7 +92,7 @@ struct EP_RPOOL
 	const char	*name;		// for debugging
 	size_t		qsize;		// quantum size
 	uint32_t	flags;		// various flags, see below
-	EP_MUTEX	mutex;		// to avoid being tromped upon
+	EP_THR_MUTEX	mutex;		// to avoid being tromped upon
 
 	// pointers to the segment list
 	struct rpseg	*head;		// pointer to allocatable memory
@@ -145,6 +146,7 @@ ep_rpool_new(const char *name,
 		name = "anonymous rpool";
 	rp = ep_mem_zalloc(sizeof *rp);
 	rp->name = name;
+	ep_thr_mutex_init(&rp->mutex);
 
 	if (qsize == 0)
 	{
@@ -205,6 +207,10 @@ ep_rpool_free(EP_RPOOL *rp)
 			ep_mem_free(sp->segbase);
 		ep_mem_free(sp);
 	}
+
+	// now free the memory pool itself
+	ep_thr_mutex_destroy(&rp->mutex);
+	ep_mem_free(rp);
 }
 
 
@@ -300,7 +306,7 @@ ep_rpool_ialloc(EP_RPOOL *rp,
 
 	EP_ASSERT_POINTER_VALID(rp);
 	if (!EP_UT_BITSET(PRE_LOCKED, rp->flags))
-		EP_MUTEX_LOCK(rp->mutex);
+		ep_thr_mutex_lock(&rp->mutex);
 
 	// round the size up so allocations will be even
 	nbytes = MEMALIGN(nbytes);
@@ -416,7 +422,7 @@ ep_rpool_ialloc(EP_RPOOL *rp,
 	sp->segfree += nbytes;
 
 	if (!EP_UT_BITSET(PRE_LOCKED, rp->flags))
-		EP_MUTEX_UNLOCK(rp->mutex);
+		ep_thr_mutex_unlock(&rp->mutex);
 
 	// zero or trash memory as requested
 	if (EP_UT_BITSET(EP_MEM_F_ZERO, flags))
@@ -465,7 +471,7 @@ ep_rpool_realloc(EP_RPOOL *rp,
 	// dup code from ep_rpool_ialloc
 	EP_ASSERT_POINTER_VALID(rp);
 	if (!EP_UT_BITSET(PRE_LOCKED, rp->flags))
-		EP_MUTEX_LOCK(rp->mutex);
+		ep_thr_mutex_lock(&rp->mutex);
 
 	// round the size up so allocations will be even
 	oldsize = MEMALIGN(oldsize);
@@ -500,13 +506,13 @@ ep_rpool_realloc(EP_RPOOL *rp,
 		p = emem;
 
 		if (!EP_UT_BITSET(PRE_LOCKED, rp->flags))
-			EP_MUTEX_UNLOCK(rp->mutex);
+			ep_thr_mutex_unlock(&rp->mutex);
 	}
 	else
 	{
 		// can't do it the easy way, so just find new space
 		if (!EP_UT_BITSET(PRE_LOCKED, rp->flags))
-			EP_MUTEX_UNLOCK(rp->mutex);
+			ep_thr_mutex_unlock(&rp->mutex);
 
 		p = ep_rpool_malloc(rp, newsize);
 		if (emem != NULL)
@@ -622,7 +628,7 @@ ep_rpool_attach(EP_RPOOL *rp,
 {
 	EP_ASSERT_POINTER_VALID(rp);
 
-	EP_MUTEX_LOCK(rp->mutex);
+	ep_thr_mutex_lock(&rp->mutex);
 
 	// if no function list associated with this pool, create one
 	if (rp->ffuncs == NULL)
@@ -630,13 +636,13 @@ ep_rpool_attach(EP_RPOOL *rp,
 		EP_FUNCLIST *fl;
 
 		rp->flags |= PRE_LOCKED;
-		EP_MUTEX_UNLOCK(rp->mutex);
+		ep_thr_mutex_unlock(&rp->mutex);
 		fl = ep_funclist_new(rp->name);
-		EP_MUTEX_LOCK(rp->mutex);
+		ep_thr_mutex_lock(&rp->mutex);
 		rp->ffuncs = fl;
 		rp->flags &= ~PRE_LOCKED;
 	}
-	EP_MUTEX_UNLOCK(rp->mutex);
+	ep_thr_mutex_unlock(&rp->mutex);
 
 	// add this function to the function list
 	ep_funclist_push(rp->ffuncs, freefunc, arg);

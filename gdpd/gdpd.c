@@ -839,6 +839,9 @@ gdpd_init(int listenport)
 	EP_STAT estat = EP_STAT_OK;
 	struct evconnlistener *lev;
 
+    // initialize the EP library
+    ep_lib_init(EP_LIB_USEPTHREADS);
+
 	if (evthread_use_pthreads() < 0)
 	{
 		estat = init_error("evthread_use_pthreads failed");
