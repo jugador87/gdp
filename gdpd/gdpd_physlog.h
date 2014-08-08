@@ -35,7 +35,7 @@ EP_STAT			gcl_append(
 #define GCL_DIR				"/var/tmp/gcl"
 #define GCL_VERSION			0
 
-#define GCL_LOG_MAGIC		0x4041424344454647LL
+#define GCL_LOG_MAGIC		0x8F4E39104A803299LL
 
 #define GCL_DATA_SUFFIX		".data"
 #define GCL_INDEX_SUFFIX	".index"
