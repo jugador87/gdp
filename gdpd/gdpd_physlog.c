@@ -356,14 +356,12 @@ gcl_create(gcl_name_t gcl_name,
 
 	// write the header
 	gcl_log_header log_header;
-	int16_t content_type_size = 0; // XXX: strlen(content_type) + 1
 	int16_t metadata_size = 0; // XXX: compute size of metadata
 	log_header.magic = GCL_LOG_MAGIC;
 	log_header.version = GCL_VERSION;
-	log_header.header_size = sizeof(gcl_log_header) + content_type_size + metadata_size;
+	log_header.header_size = sizeof(gcl_log_header) + metadata_size;
 	log_header.log_type = 0; // XXX: define different log types
 	fwrite(&log_header, sizeof(log_header), 1, data_fp);
-	// XXX: write content_type string
 	// XXX: write metadata
 
 	// TODO: will probably need creation date or some such later
@@ -464,7 +462,6 @@ gcl_open(gcl_name_t gcl_name,
 	flockfile(data_fp);
 	fseek(data_fp, 0, SEEK_SET);
 	fread(&log_header, sizeof(log_header), 1, data_fp);
-	// XXX: read content_type string
 	// XXX: read metadata entries
 	funlockfile(data_fp);
 

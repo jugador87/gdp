@@ -49,11 +49,15 @@ typedef struct gcl_log_record {
 	char data[];
 } gcl_log_record;
 
-typedef struct gcl_log_header_metadata {
-	int16_t type;
-	int16_t length;
-	char name_value_pair[];
-} gcl_log_header_metadata;
+/*
+ * The GCL metadata consists of num_metadata_entires (N), followed by
+ * N lengths (l_1, l_2, ... , l_N), followed by N **non-null-terminated**
+ * strings of lengths l_1, ... , l_N. It is up to the user application to
+ * interpret the metadata strings.
+ *
+ * num_metadata_entries is a int16_t
+ * l_1, ... , l_N are int16_t
+ */
 
 typedef struct gcl_log_header {
 	int64_t magic;
@@ -61,8 +65,7 @@ typedef struct gcl_log_header {
 	int16_t header_size; 	// the total size of the header such that
 							// the data records begin at offset header_size
 	int16_t log_type;
-							// content_type goes between log_type and metadata
-	gcl_log_header_metadata metadata[];
+	int16_t num_metadata_entries;
 } gcl_log_header;
 
 typedef struct gcl_index_record {
