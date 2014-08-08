@@ -12,7 +12,7 @@
 #include <ep/ep_hash.h>
 #include <ep/ep_prflags.h>
 #include <ep/ep_string.h>
-#include <pthread.h>
+#include <ep/ep_thr.h>
 #include <event2/bufferevent.h>
 #include <event2/event.h>
 #include <event2/thread.h>
@@ -179,6 +179,7 @@ drop_all_rid_info(conn_t *conn)
 
 static EP_HASH		*OpenGCLCache;
 
+static EP_THR_RWLOCK OpenGCLCacheLock EP_THR_RWLOCK_INITIALIZER;
 
 EP_STAT
 gdp_gcl_cache_init(void)
@@ -761,7 +762,7 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 	struct evbuffer *ievb = bufferevent_get_input(bev);
 	struct gdp_conn_ctx *conn = ctx;
 	gcl_handle_t *gclh;
-//	  rid_info_t *rif;
+//	rid_info_t *rif;
 	dispatch_ent_t *d;
 
 	ep_dbg_cprintf(Dbg, 50, "gdp_read_cb: fd %d\n", bufferevent_getfd(bev));
@@ -783,14 +784,14 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 		return;
 	}
 
-//	  // find the associated GCL handle based on rid
-//	  if (pkt.rid == GDP_PKT_NO_RID)
-//	  {
+//	// find the associated GCL handle based on rid
+//	if (pkt.rid == GDP_PKT_NO_RID)
+//	{
 //		gclh = NULL;
 //		rif = NULL;
-//	  }
-//	  else
-//	  {
+//	}
+//	else
+//	{
 //		rif = get_rid_info(pkt.rid, conn);
 //		if (rif == NULL)
 //		{
@@ -799,7 +800,7 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 //		}
 //		gclh = rif->gclh;
 //		rif->flags &= ~RINFO_KEEP_MAPPING;
-//	  }
+//	}
 	if (EP_UT_BITSET(GDP_PKT_HAS_ID, pkt.flags))
 	{
 		gclh = gdp_gcl_cache_get(pkt.gcl_name, 0);
@@ -821,13 +822,13 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 		return;
 	}
 
-//	  // if this a response and the RID isn't persistent, we're done with it
-//	  if (rif != NULL && pkt.cmd >= GDP_ACK_MIN &&
+//	// if this a response and the RID isn't persistent, we're done with it
+//	if (rif != NULL && pkt.cmd >= GDP_ACK_MIN &&
 //			!EP_UT_BITSET(RINFO_PERSISTENT | RINFO_KEEP_MAPPING, rif->flags))
 //		drop_rid_mapping(pkt.rid, conn);
 
 	// return our status via the GCL handle
-	pthread_mutex_lock(&gclh->mutex);
+	ep_thr_mutex_lock(&gclh->mutex);
 	gclh->estat = estat;
 	gclh->flags |= GCLH_DONE;
 	if (ep_dbg_test(Dbg, 44))
@@ -839,8 +840,8 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 		ep_dbg_printf("gdp_read_cb: returning stat %s\n\tGCL %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf), pbuf);
 	}
-	pthread_cond_signal(&gclh->cond);
-	pthread_mutex_unlock(&gclh->mutex);
+	ep_thr_cond_signal(&gclh->cond);
+	ep_thr_mutex_unlock(&gclh->mutex);
 
 	// shouldn't have to use event_base_loop{exit,break} here because
 	// event_base_loop should have been called with EVLOOP_ONCE
@@ -911,12 +912,15 @@ init_error(const char *msg)
 /*
 **	Base loop to be called for event-driven systems.
 **	Their events should have already been added to the event base.
+**
+**		GdpIoEventLoopThread is also used by gdpd, hence non-static.
 */
 
-static pthread_t	EventLoopThread;
+static pthread_t	AcceptEventLoopThread;
+pthread_t			GdpIoEventLoopThread;
 
 void *
-gdp_run_event_loop(void *ctx)
+gdp_run_accept_event_loop(void *ctx)
 {
 	struct event_base *evb = ctx;
 	long evdelay = ep_adm_getlongparam("gdp.rest.event.loopdelay", 100000);
@@ -931,6 +935,41 @@ gdp_run_event_loop(void *ctx)
 			ep_dbg_printf("gdp_event_loop: starting up base loop\n");
 			event_base_dump_events(evb, ep_dbg_getfile());
 		}
+#ifdef EVLOOP_NO_EXIT_ON_EMPTY
+		event_base_loop(evb, EVLOOP_NO_EXIT_ON_EMPTY);
+#else
+// XXX removed, not portable, and not clear performance will suffer at all:
+//#message("your version of libevent doesn't support EVLOOP_NO_EXIT_ON_EMPTY, performance may suffer")
+		event_base_loop(evb, 0);
+#endif
+		// shouldn't happen (?)
+		if (ep_dbg_test(Dbg, 1))
+		{
+			ep_dbg_printf("gdp_event_loop: event_base_loop returned\n");
+			if (event_base_got_break(evb))
+				ep_dbg_printf(" ... as a result of loopbreak\n");
+			if (event_base_got_exit(evb))
+				ep_dbg_printf(" ... as a result of loopexit\n");
+		}
+		if (evdelay > 0)
+			ep_time_nanosleep(evdelay * 1000LL);		// avoid CPU hogging
+	}
+}
+
+void *
+gdp_run_io_event_loop(void *ctx)
+{
+	struct event_base *evb = ctx;
+	long evdelay = ep_adm_getlongparam("gdp.rest.event.loopdelay", 100000);
+
+	if (evb == NULL)
+	{
+		gdp_log(EP_STAT_ERROR, "gdp_run_io_event_loop: null event_base");
+		return NULL;
+	}
+	while (true)
+	{
+		// TODO: what if user compiling doesn't have libevent 2.1-alpha?
 #ifdef EVLOOP_NO_EXIT_ON_EMPTY
 		event_base_loop(evb, EVLOOP_NO_EXIT_ON_EMPTY);
 #else
@@ -950,14 +989,28 @@ gdp_run_event_loop(void *ctx)
 	}
 }
 
-
 EP_STAT
-_gdp_start_event_loop_thread(struct event_base *evb)
+_gdp_start_accept_event_loop_thread(struct event_base *evb)
 {
-	if (pthread_create(&EventLoopThread, NULL, gdp_run_event_loop, evb) != 0)
+	if (pthread_create(&AcceptEventLoopThread, NULL,
+				gdp_run_accept_event_loop, evb) != 0)
 		return init_error("cannot create event loop thread");
 	else
 		return EP_STAT_OK;
+}
+
+EP_STAT
+_gdp_start_io_event_loop_thread(struct event_base *evb)
+{
+	if (pthread_create(&GdpIoEventLoopThread, NULL,
+						gdp_run_io_event_loop, evb) != 0)
+	{
+		return init_error("cannot create io event loop thread");
+	}
+	else
+	{
+		return EP_STAT_OK;
+	}
 }
 
 
@@ -991,9 +1044,6 @@ gdp_init(bool run_event_loop)
 	if (inited)
 		return EP_STAT_OK;
 	inited = true;
-
-	// initialize the EP library
-	ep_lib_init(EP_LIB_USEPTHREADS);
 
 	ep_dbg_cprintf(Dbg, 4, "gdp_init: initializing\n");
 
@@ -1073,7 +1123,7 @@ gdp_init(bool run_event_loop)
 
 	// create a thread to run the event loop
 	if (run_event_loop)
-		estat = _gdp_start_event_loop_thread(GdpEventBase);
+		estat = _gdp_start_accept_event_loop_thread(GdpEventBase);
 	EP_STAT_CHECK(estat, goto fail1);
 
 	ep_dbg_cprintf(Dbg, 4, "gdp_init: success\n");
@@ -1111,8 +1161,8 @@ gcl_handle_new(gcl_handle_t **pgclh)
 	gclh = ep_mem_zalloc(sizeof *gclh);
 	if (gclh == NULL)
 		goto fail1;
-	pthread_mutex_init(&gclh->mutex, NULL);
-	pthread_cond_init(&gclh->cond, NULL);
+	ep_thr_mutex_init(&gclh->mutex);
+	ep_thr_cond_init(&gclh->cond);
 	gclh->ts.stamp.tv_sec = TT_NOTIME;
 
 	// success
@@ -1155,10 +1205,10 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	gdp_gcl_cache_add(gclh, 0);
 
 	// write the message out
-	pthread_mutex_lock(&gclh->mutex);
+	ep_thr_mutex_lock(&gclh->mutex);
 	gclh->flags &= ~GCLH_DONE;
-	pthread_cond_signal(&gclh->cond);
-	pthread_mutex_unlock(&gclh->mutex);
+	ep_thr_cond_signal(&gclh->cond);
+	ep_thr_mutex_unlock(&gclh->mutex);
 	if (msg != NULL)
 	{
 		pkt.dlen = msg->len;
@@ -1171,10 +1221,10 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 
 	// run the event loop until we have a result
 	ep_dbg_cprintf(Dbg, 37, "gdp_invoke: waiting\n");
-	pthread_mutex_lock(&gclh->mutex);
+	ep_thr_mutex_lock(&gclh->mutex);
 	while (!EP_UT_BITSET(GCLH_DONE, gclh->flags))
 	{
-		pthread_cond_wait(&gclh->cond, &gclh->mutex);
+		ep_thr_cond_wait(&gclh->cond, &gclh->mutex);
 	}
 
 	//XXX what status will/should we return?
@@ -1192,7 +1242,7 @@ gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	}
 
 	// ok, done!
-	pthread_mutex_unlock(&gclh->mutex);
+	ep_thr_mutex_unlock(&gclh->mutex);
 fail0:
 	{
 		char ebuf[200];
@@ -1371,8 +1421,8 @@ gdp_gcl_close(gcl_handle_t *gclh)
 	//XXX should probably check status
 
 	// release resources held by this handle
-	pthread_mutex_destroy(&gclh->mutex);
-	pthread_cond_destroy(&gclh->cond);
+	ep_thr_mutex_destroy(&gclh->mutex);
+	ep_thr_cond_destroy(&gclh->cond);
 //	  free_all_mappings(gclh->rids);
 	gdp_gcl_cache_drop(gclh->gcl_name, 0);
 	ep_mem_free(gclh);
@@ -1406,7 +1456,7 @@ gdp_gcl_append(gcl_handle_t *gclh,
 
 EP_STAT
 gdp_gcl_read(gcl_handle_t *gclh,
-			long msgno,
+			gdp_msgno_t msgno,
 			gdp_msg_t *msg,
 			struct evbuffer *revb)
 {

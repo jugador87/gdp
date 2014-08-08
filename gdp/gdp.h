@@ -89,88 +89,88 @@ struct event_base		*GdpEventBase;	// the base for all GDP events
 
 // initialize the library
 extern EP_STAT	gdp_init(
-				bool run_event_loop);	// run event loop in thread
+					bool run_event_loop);	// run event loop in thread
 
 // run event loop (normally run from gdp_init; never returns)
-extern void		*gdp_run_event_loop(
-				void *);				// unused
+extern void		*gdp_run_accept_event_loop(
+					void *);				// unused
 
 // create a new GCL
 extern EP_STAT	gdp_gcl_create(
-				gcl_t *,				// type information (unused)
-				gcl_name_t,
-				gcl_handle_t **);		// pointer to result GCL handle
+					gcl_t *,				// type information (unused)
+					gcl_name_t,
+					gcl_handle_t **);		// pointer to result GCL handle
 
 // open an existing GCL
 extern EP_STAT	gdp_gcl_open(
-				gcl_name_t name,		// GCL name to open
-				gdp_iomode_t rw,		// read/write (append)
-				gcl_handle_t **gclh);	// pointer to result GCL handle
+					gcl_name_t name,		// GCL name to open
+					gdp_iomode_t rw,		// read/write (append)
+					gcl_handle_t **gclh);	// pointer to result GCL handle
 
 // close an open GCL
 extern EP_STAT	gdp_gcl_close(
-				gcl_handle_t *gclh);	// GCL handle to close
+					gcl_handle_t *gclh);	// GCL handle to close
 
 // create a new GCL message
 extern EP_STAT	gdp_gcl_msg_new(
-				gcl_handle_t *gclh,
-				gdp_msg_t **);			// result area for message
+					gcl_handle_t *gclh,
+					gdp_msg_t **);			// result area for message
 
 // append to a writable GCL
 extern EP_STAT	gdp_gcl_append(
-				gcl_handle_t *gclh,		// writable GCL handle
-				gdp_msg_t *);			// message to write
+					gcl_handle_t *gclh,		// writable GCL handle
+					gdp_msg_t *);			// message to write
 
 // read from a readable GCL
 extern EP_STAT	gdp_gcl_read(
-				gcl_handle_t *gclh,		// readable GCL handle
-				long msgno,				// offset into GCL (msg number)
-				gdp_msg_t *msg,			// pointer to result message
-				struct evbuffer *revb); // reply buffer to receive data
+					gcl_handle_t *gclh,		// readable GCL handle
+					gdp_msgno_t msgno,		// offset into GCL (msg number)
+					gdp_msg_t *msg,			// pointer to result message
+					struct evbuffer *revb); // reply buffer to receive data
 
 // subscribe to a readable GCL
 typedef void	(*gdp_gcl_sub_cbfunc_t)(  // the callback function
-				gcl_handle_t *gclh,		// the GCL handle triggering the call
-				gdp_msg_t *msg,			// the message triggering the call
-				void *cbarg);			// an arbitrary argument
+					gcl_handle_t *gclh,		// the GCL handle triggering the call
+					gdp_msg_t *msg,			// the message triggering the call
+					void *cbarg);			// an arbitrary argument
 
 extern EP_STAT	gdp_gcl_subscribe(
-				gcl_handle_t *gclh,		// readable GCL handle
-				gdp_gcl_sub_cbfunc_t cbfunc,
-										// callback function for next msg
-				long off,				// starting offset
-				void *buf,				// buffer space for msg
-				size_t buflen,			// length of buf
-				void *cbarg);			// argument passed to callback
+					gcl_handle_t *gclh,		// readable GCL handle
+					gdp_gcl_sub_cbfunc_t cbfunc,
+											// callback function for next msg
+					long off,				// starting offset
+					void *buf,				// buffer space for msg
+					size_t buflen,			// length of buf
+					void *cbarg);			// argument passed to callback
 
 // return the name of a GCL
 //		XXX: should this be in a more generic "getstat" function?
 extern const gcl_name_t *gdp_gcl_getname(
-				const gcl_handle_t *gclh);		// open GCL handle
+					const gcl_handle_t *gclh);		// open GCL handle
 
 // check to see if a GCL name is valid
-extern bool gdp_gcl_name_is_zero(const gcl_name_t);
+extern bool		gdp_gcl_name_is_zero(const gcl_name_t);
 
 // print a GCL (for debugging)
-extern EP_STAT gdp_gcl_print(
-				const gcl_handle_t *gclh,		// GCL handle to print
-				FILE *fp,				// file to print it to
-				int detail,				// not used at this time
-				int indent);			// not used at this time
+extern EP_STAT	gdp_gcl_print(
+					const gcl_handle_t *gclh,	// GCL handle to print
+					FILE *fp,				// file to print it to
+					int detail,				// not used at this time
+					int indent);			// not used at this time
 
 // print a GCL message (for debugging)
 extern void		gdp_gcl_msg_print(
-				const gdp_msg_t *msg,	// message to print
-				FILE *fp);				// file to print it to
+					const gdp_msg_t *msg,	// message to print
+					FILE *fp);				// file to print it to
 
 // make a printable GCL name from a binary version
-void	gdp_gcl_printable_name(
-				const gcl_name_t internal,
-				gcl_pname_t external);
+void			gdp_gcl_printable_name(
+					const gcl_name_t internal,
+					gcl_pname_t external);
 
 // make a binary GCL name from a printable version
-EP_STAT gdp_gcl_internal_name(
-				const gcl_pname_t external,
-				gcl_name_t internal);
+EP_STAT			gdp_gcl_internal_name(
+					const gcl_pname_t external,
+					gcl_name_t internal);
 
 #endif // _GDP_H_

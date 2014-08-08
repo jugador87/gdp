@@ -58,6 +58,7 @@ strlcat(
 		return 0;
 	while (n > 0 && *dst++ != '\0')
 		n--;
+	--dst; // needed because dst points to the char after the null terminator
 	while (*src != '\0' && --n > 0)
 	{
 		*dst++ = *src++;

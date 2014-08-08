@@ -8,17 +8,19 @@
 #define _GDP_PRIV_H_
 
 #include <gdp/gdp_timestamp.h>
-#include <pthread.h>
+#include <ep/ep_thr.h>
 #include <event2/event.h>
 #include <event2/bufferevent.h>
 
 #include <stdio.h>
 
+extern pthread_t	GdpIoEventLoopThread;
+
 struct gcl_handle_t
 {
 	// fields used by GDP library
-	pthread_mutex_t		mutex;			// lock on this data structure
-	pthread_cond_t		cond;			// pthread wakeup signal
+	EP_THR_MUTEX		mutex;			// lock on this data structure
+	EP_THR_COND			cond;			// pthread wakeup signal
 	gcl_name_t			gcl_name;		// the internal name
 	gdp_iomode_t		iomode;			// read only or append only
 
@@ -35,6 +37,8 @@ struct gcl_handle_t
 	off_t				*offcache;		// offsets of records we have seen
 	long				cachesize;		// size of offcache array
 	gdp_msgno_t			maxmsgno;		// last msgno that we have read/written
+	void				*log_index;
+	off_t				data_offset;	// offset for end of header and start of data
 };
 
 // GCL flags
@@ -64,5 +68,10 @@ EP_STAT			_gdp_start_event_loop_thread(
 
 void			gdp_gcl_newname(
 								gcl_name_t gcl_name);
+
+EP_STAT		_gdp_start_accept_event_loop_thread(struct event_base *evb);
+
+
+EP_STAT		_gdp_start_io_event_loop_thread(struct event_base *evb);
 
 #endif // _GDP_PRIV_H_

@@ -175,7 +175,7 @@ show_gcl(char *gclpname,
 */
 
 EP_STAT
-read_msg(char *gclpname, long msgno, scgi_request *req)
+read_msg(char *gclpname, gdp_msgno_t msgno, scgi_request *req)
 {
 	EP_STAT estat;
 	gcl_handle_t *gclh = NULL;
