@@ -453,16 +453,10 @@ gcl_open(gcl_name_t gcl_name,
 	EP_STAT_CHECK(estat, goto fail0);
 	strlcat(index_pbuf, GCL_INDEX_SUFFIX, sizeof(index_pbuf));
 
-	if ((data_fd = open(data_pbuf, O_RDWR | O_APPEND, 0644)) < 0)
+	if ((data_fp = fopen(data_pbuf, openmode)) == NULL)
 	{
 		estat = ep_stat_from_errno(errno);
 		goto fail1;
-	}
-
-	if ((data_fp = fdopen(data_fd, openmode)) == NULL)
-	{
-		estat = ep_stat_from_errno(errno);
-		goto fail2;
 	}
 
 	gcl_log_header log_header;
@@ -481,17 +475,10 @@ gcl_open(gcl_name_t gcl_name,
 		goto fail3;
 	}
 
-	if ((index_fd = open(index_pbuf, O_RDWR | O_APPEND, 0644)) < 0)
+	if ((index_fp = fopen(index_pbuf, openmode)) == NULL)
 	{
-		// XXX: recreate index instead of failing
 		estat = ep_stat_from_errno(errno);
 		goto fail4;
-	}
-
-	if ((index_fp = fdopen(index_fd, openmode)) == NULL)
-	{
-		estat = ep_stat_from_errno(errno);
-		goto fail5;
 	}
 
 	gclh->ver = log_header.version;
