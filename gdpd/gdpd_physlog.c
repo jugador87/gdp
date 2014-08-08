@@ -48,7 +48,7 @@ typedef struct index_entry
 	int64_t				max_data_offset;
 	int64_t				max_index_offset;
 	CIRCULAR_BUFFER		*index_cache;
-} index_entry;
+} gcl_log_index;
 
 EP_STAT
 gcl_physlog_init()
@@ -63,9 +63,9 @@ gcl_physlog_init()
 }
 
 static EP_STAT
-index_entry_new(gcl_handle_t *gclh, index_entry **out)
+gcl_log_index_new(gcl_handle_t *gclh, gcl_log_index **out)
 {
-	*out = malloc(sizeof(index_entry));
+	*out = malloc(sizeof(gcl_log_index));
 	if (*out == NULL)
 	{
 		return EP_STAT_ERROR;
@@ -118,7 +118,7 @@ get_gcl_path(gcl_handle_t *gclh, char *pbuf, int pbufsiz)
 */
 
 EP_STAT
-gcl_index_find_cache(gcl_handle_t *gclh, index_entry **out)
+gcl_index_find_cache(gcl_handle_t *gclh, gcl_log_index **out)
 {
 	EP_STAT estat = EP_STAT_OK;
 	pthread_rwlock_rdlock(&table_lock);
@@ -129,22 +129,22 @@ gcl_index_find_cache(gcl_handle_t *gclh, index_entry **out)
 }
 
 EP_STAT
-gcl_index_create_cache(gcl_handle_t *gclh, index_entry **out)
+gcl_index_create_cache(gcl_handle_t *gclh, gcl_log_index **out)
 {
 	EP_STAT estat = EP_STAT_OK;
 
 	pthread_rwlock_wrlock(&table_lock);
-	estat = index_entry_new(gclh, out);
+	estat = gcl_log_index_new(gclh, out);
 	EP_STAT_CHECK(estat, goto fail0);
 	ep_hash_insert(name_index_table, sizeof(gcl_name_t), gclh->gcl_name, *out);
-	gclh->index_entry = *out;
+	gclh->log_index = *out;
 fail0:
 	pthread_rwlock_unlock(&table_lock);
 	return estat;
 }
 
 EP_STAT
-gcl_index_cache_get(index_entry *entry, int64_t msgno, int64_t *out)
+gcl_index_cache_get(gcl_log_index *entry, int64_t msgno, int64_t *out)
 {
 	EP_STAT estat = EP_STAT_OK;
 
@@ -164,7 +164,7 @@ gcl_index_cache_get(index_entry *entry, int64_t msgno, int64_t *out)
 }
 
 EP_STAT
-gcl_index_cache_put(index_entry *entry, int64_t msgno, int64_t offset)
+gcl_index_cache_put(gcl_log_index *entry, int64_t msgno, int64_t offset)
 {
 	EP_STAT estat = EP_STAT_OK;
 	LONG_LONG_PAIR new_pair;
@@ -198,7 +198,7 @@ gcl_read(gcl_handle_t *gclh,
 		struct evbuffer *evb)
 {
 	EP_STAT estat = EP_STAT_OK;
-	index_entry *entry = gclh->index_entry;
+	gcl_log_index *entry = gclh->log_index;
 	LONG_LONG_PAIR *long_pair;
 	int64_t offset = LLONG_MAX;
 
@@ -371,16 +371,16 @@ gcl_create(gcl_name_t gcl_name,
 	gclh->ver = log_header.version;
 	gclh->data_offset = log_header.header_size;
 
-	index_entry *new_entry = NULL;
-	estat = gcl_index_create_cache(gclh, &new_entry);
+	gcl_log_index *new_index = NULL;
+	estat = gcl_index_create_cache(gclh, &new_index);
 	EP_STAT_CHECK(estat, goto fail3);
 
 	// success!
 	fflush(data_fp);
 	flock(data_fd, LOCK_UN);
-	new_entry->fp = index_fp;
+	new_index->fp = index_fp;
 	gclh->fp = data_fp;
-	gclh->index_entry = new_entry;
+	gclh->log_index = new_index;
 	*pgclh = gclh;
 	if (ep_dbg_test(Dbg, 10))
 	{
@@ -497,18 +497,18 @@ gcl_open(gcl_name_t gcl_name,
 	gclh->ver = log_header.version;
 	gclh->data_offset = log_header.header_size;
 
-	index_entry* entry;
-	gcl_index_find_cache(gclh, &entry);
-	if (entry == NULL)
+	gcl_log_index* index;
+	gcl_index_find_cache(gclh, &index);
+	if (index == NULL)
 	{
-		estat = gcl_index_create_cache(gclh, &entry);
+		estat = gcl_index_create_cache(gclh, &index);
 		EP_STAT_CHECK(estat, goto fail5);
 	}
 
 	gclh->fp = data_fp;
-	gclh->index_entry = entry;
+	gclh->log_index = index;
 
-	entry->fp = index_fp;
+	index->fp = index_fp;
 
 	*pgclh = gclh;
 
@@ -586,7 +586,7 @@ gcl_append(gcl_handle_t *gclh,
 	gcl_log_record log_record;
 	gcl_index_record index_record;
 	int64_t record_size = sizeof(gcl_log_record) + msg->len;
-	index_entry *entry = (index_entry *)(gclh->index_entry);
+	gcl_log_index *entry = (gcl_log_index *)(gclh->log_index);
 
 	pthread_rwlock_wrlock(&entry->lock);
 

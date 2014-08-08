@@ -37,7 +37,7 @@ struct gcl_handle_t
 	off_t				*offcache;		// offsets of records we have seen
 	long				cachesize;		// size of offcache array
 	gdp_msgno_t			maxmsgno;		// last msgno that we have read/written
-	void				*index_entry;
+	void				*log_index;
 	off_t				data_offset;	// offset for end of header and start of data
 };
 
