@@ -47,31 +47,40 @@ struct gcl_handle_t
 
 #define GCL_NEXT_MSG	(-1)			// sentinel for next available message
 
-gcl_handle_t	*gdp_gcl_cache_get(
-								gcl_name_t gcl_name,
-								gdp_iomode_t mode);
+gcl_handle_t	*_gdp_gcl_cache_get(
+						gcl_name_t gcl_name,
+						gdp_iomode_t mode);
 
-void			gdp_gcl_cache_add(
-								gcl_handle_t *gclh,
-								gdp_iomode_t mode);
+void			_gdp_gcl_cache_add(
+						gcl_handle_t *gclh,
+						gdp_iomode_t mode);
 
-void			gdp_gcl_cache_drop(
-								gcl_name_t gcl_name,
-								gdp_iomode_t mode);
+void			_gdp_gcl_cache_drop(
+						gcl_name_t gcl_name,
+						gdp_iomode_t mode);
 
-EP_STAT			gdp_gcl_cache_init(void);
+EP_STAT			_gdp_gcl_cache_init(void);
 
 const char		*_gdp_proto_cmd_name(uint8_t cmd);
 
 EP_STAT			_gdp_start_event_loop_thread(
-								struct event_base *evb);
+						struct event_base *evb);
 
-void			gdp_gcl_newname(
-								gcl_name_t gcl_name);
+void			_gdp_gcl_newname(
+						gcl_name_t gcl_name);
 
-EP_STAT		_gdp_start_accept_event_loop_thread(struct event_base *evb);
+EP_STAT			_gdp_start_accept_event_loop_thread(
+						struct event_base *evb);
 
+EP_STAT			_gdp_start_io_event_loop_thread(
+						struct event_base *evb);
 
-EP_STAT		_gdp_start_io_event_loop_thread(struct event_base *evb);
+EP_STAT			_gdp_do_init(bool run_event_loop);
+
+EP_STAT			_gdp_gcl_newhandle(gcl_handle_t **gclhp);
+
+EP_STAT			_gdp_invoke(int cmd,
+						gcl_handle_t *gclh,
+						gdp_msg_t *msg);
 
 #endif // _GDP_PRIV_H_

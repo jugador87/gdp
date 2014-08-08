@@ -1,14 +1,16 @@
 
 OBJS=	\
+	gdp_api.o \
 	gdp_gcl.o \
 	gdp_log.o \
-	gdp_protocol.o \
+	gdp_pkt.o \
+	gdp_proto.o \
 	gdp_stat.o \
 	gdp_timestamp.o \
 
 HFILES=	\
 	gdp.h \
-	gdp_protocol.h \
+	gdp_pkt.h \
 	gdp_stat.h \
 	gdp_timestamp.h \
 

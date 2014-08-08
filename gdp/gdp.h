@@ -81,6 +81,7 @@ typedef struct
 	GDP_MSG_EXTRA					// used by gdpd
 } gdp_msg_t;
 
+
 /**********************************************************************
 **	Public globals and functions
 */

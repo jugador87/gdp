@@ -7,8 +7,6 @@
 #include <ep/ep_string.h>
 #include <ep/ep_hexdump.h>
 
-#include <gdp/gdp_protocol.h>
-
 #include <event2/event.h>
 #include <event2/listener.h>
 #include <event2/thread.h>
@@ -95,7 +93,7 @@ cmd_create(struct bufferevent *bev, conn_t *c,
 	{
 		// cache the open GCL Handle for possible future use
 		EP_ASSERT_INSIST(!gdp_gcl_name_is_zero(gclh->gcl_name));
-		gdp_gcl_cache_add(gclh, GDP_MODE_AO);
+		_gdp_gcl_cache_add(gclh, GDP_MODE_AO);
 
 		// pass the name back to the caller
 		memcpy(rpkt->gcl_name, gclh->gcl_name, sizeof rpkt->gcl_name);
@@ -110,7 +108,7 @@ cmd_open_xx(struct bufferevent *bev, conn_t *c,
 	EP_STAT estat;
 	gcl_handle_t *gclh;
 
-	gclh = gdp_gcl_cache_get(cpkt->gcl_name, iomode);
+	gclh = _gdp_gcl_cache_get(cpkt->gcl_name, iomode);
 	if (gclh != NULL)
 	{
 		if (ep_dbg_test(Dbg, 12))
@@ -132,7 +130,7 @@ cmd_open_xx(struct bufferevent *bev, conn_t *c,
 	}
 	estat = gcl_open(cpkt->gcl_name, iomode, &gclh);
 	if (EP_STAT_ISOK(estat))
-		gdp_gcl_cache_add(gclh, iomode);
+		_gdp_gcl_cache_add(gclh, iomode);
 	return estat;
 }
 
@@ -156,7 +154,7 @@ cmd_close(struct bufferevent *bev, conn_t *c,
 {
 	gcl_handle_t *gclh;
 
-	gclh = gdp_gcl_cache_get(cpkt->gcl_name, GDP_MODE_ANY);
+	gclh = _gdp_gcl_cache_get(cpkt->gcl_name, GDP_MODE_ANY);
 	if (gclh == NULL)
 	{
 		return gdpd_gcl_error(cpkt->gcl_name, "cmd_close: GCL not open",
@@ -173,7 +171,7 @@ cmd_read(struct bufferevent *bev, conn_t *c,
 	gdp_msg_t msg;
 	EP_STAT estat;
 
-	gclh = gdp_gcl_cache_get(cpkt->gcl_name, GDP_MODE_RO);
+	gclh = _gdp_gcl_cache_get(cpkt->gcl_name, GDP_MODE_RO);
 	if (gclh == NULL)
 	{
 		return gdpd_gcl_error(cpkt->gcl_name, "cmd_read: GCL not open",
@@ -203,7 +201,7 @@ cmd_publish(struct bufferevent *bev, conn_t *c,
 	EP_STAT estat;
 	int i;
 
-	gclh = gdp_gcl_cache_get(cpkt->gcl_name, GDP_MODE_AO);
+	gclh = _gdp_gcl_cache_get(cpkt->gcl_name, GDP_MODE_AO);
 	if (gclh == NULL)
 	{
 		return gdpd_gcl_error(cpkt->gcl_name, "cmd_publish: GCL not open",
@@ -247,7 +245,7 @@ cmd_subscribe(struct bufferevent *bev, conn_t *c,
 {
 	gcl_handle_t *gclh;
 
-	gclh = gdp_gcl_cache_get(cpkt->gcl_name, GDP_MODE_RO);
+	gclh = _gdp_gcl_cache_get(cpkt->gcl_name, GDP_MODE_RO);
 	if (gclh == NULL)
 	{
 		return gdpd_gcl_error(cpkt->gcl_name, "cmd_subscribe: GCL not open",
@@ -630,7 +628,7 @@ lev_read_cb_continue(void *continue_data)
 	{
 		gcl_handle_t *gclh;
 
-		gclh = gdp_gcl_cache_get(rpktbuf.gcl_name, 0);
+		gclh = _gdp_gcl_cache_get(rpktbuf.gcl_name, 0);
 		if (gclh != NULL)
 		{
 			evb = gclh->revb;
@@ -874,7 +872,7 @@ gdpd_init(int listenport)
 		}
 	}
 
-	gdp_gcl_cache_init();
+	_gdp_gcl_cache_init();
 
 	// set up the incoming evconnlistener
 	if (listenport <= 0)

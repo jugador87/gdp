@@ -1,7 +1,7 @@
 /* vim: set ai sw=4 sts=4 ts=4 :*/
 
 /*
-**	GDP_PROTOCOL.C --- internal <=> external translations
+**	GDP_PKT.C --- low-level packet internal <=> external translations
 **
 **		Everything is read and written in network byte order.
 **
@@ -20,7 +20,7 @@
 #include <gdp/gdp.h>
 #include <gdp/gdp_log.h>
 #include <gdp/gdp_priv.h>
-#include <gdp/gdp_protocol.h>
+#include <gdp/gdp_pkt.h>
 #include <gdp/gdp_timestamp.h>
 #include <event2/buffer.h>
 #include <string.h>

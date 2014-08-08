@@ -35,7 +35,7 @@ HDEPS=	\
 		gdp_circular_buffer.h \
 		thread_pool.h \
 		../gdp/gdp.h \
-		../gdp/gdp_protocol.h \
+		../gdp/gdp_pkt.h \
 
 LIBDEPS= \
 	 	../gdp/libgdp.a \

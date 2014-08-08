@@ -12,7 +12,7 @@
 #include <gdp/gdp.h>
 #include <gdp/gdp_log.h>
 #include <gdp/gdp_priv.h>
-#include <gdp/gdp_protocol.h>
+#include <gdp/gdp_pkt.h>
 #include <gdp/gdp_stat.h>
 
 #include <unistd.h>

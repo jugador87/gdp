@@ -8,8 +8,6 @@
 #include <ep/ep_hash.h>
 #include <ep/ep_mem.h>
 
-#include <gdp/gdp_protocol.h>
-
 //#include <linux/limits.h>		XXX NOT PORTABLE!!!
 #include <sys/file.h>
 #include <ep/ep_thr.h>
@@ -303,7 +301,7 @@ gcl_create(gcl_name_t gcl_name,
 	// allocate a name
 	if (gdp_gcl_name_is_zero(gcl_name))
 	{
-		gdp_gcl_newname(gcl_name);
+		_gdp_gcl_newname(gcl_name);
 	}
 	memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
 
@@ -554,7 +552,7 @@ gcl_close(gcl_handle_t *gclh)
 	evbuffer_free(gclh->revb);
 	ep_mem_free(gclh->offcache);
 	// XXX: when do we remove the index cache for optimal performance?
-	gdp_gcl_cache_drop(gclh->gcl_name, 0);
+	_gdp_gcl_cache_drop(gclh->gcl_name, 0);
 	ep_mem_free(gclh);
 
 	return estat;
