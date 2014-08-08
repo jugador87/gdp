@@ -4,9 +4,6 @@
 **	Headers for the GDP Daemon
 */
 
-#define GDP_MSG_EXTRA \
-			off_t offset;
-
 #include <ep/ep.h>
 #include <ep/ep_app.h>
 #include <ep/ep_dbg.h>
@@ -21,7 +18,8 @@
 #include <unistd.h>
 #include <string.h>
 
-typedef struct lev_read_cb_continue_data {
+typedef struct lev_read_cb_continue_data
+{
 	gdp_pkt_hdr_t *cpktbuf;
 	struct bufferevent *bev;
 	void *ctx;

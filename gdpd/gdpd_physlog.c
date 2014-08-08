@@ -292,12 +292,8 @@ gcl_create(gcl_name_t gcl_name,
 {
 	EP_STAT estat = EP_STAT_OK;
 	gcl_handle_t *gclh = NULL;
-	int data_fd = -1;
-	int index_fd = -1;
 	FILE *data_fp;
 	FILE *index_fp;
-	char data_pbuf[GCL_PATH_MAX];
-	char index_pbuf[GCL_PATH_MAX];
 
 	// allocate the memory to hold the GCL Handle
 	// Note that ep_mem_* always returns, hence no test here
@@ -312,46 +308,60 @@ gcl_create(gcl_name_t gcl_name,
 	memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
 
 	// create a file node representing the gcl
-	// XXX: this is where we start to seriously cheat
-	estat = get_gcl_path(gclh, data_pbuf, sizeof data_pbuf);
-	EP_STAT_CHECK(estat, goto fail1);
-	strlcat(data_pbuf, GCL_DATA_SUFFIX, sizeof(data_pbuf));
+	{
+		int data_fd;
+		char data_pbuf[GCL_PATH_MAX];
 
-	estat = get_gcl_path(gclh, index_pbuf, sizeof index_pbuf);
-	EP_STAT_CHECK(estat, goto fail2);
-	strlcat(index_pbuf, GCL_INDEX_SUFFIX, sizeof(index_pbuf));
+		estat = get_gcl_path(gclh, data_pbuf, sizeof data_pbuf);
+		EP_STAT_CHECK(estat, goto fail1);
+		strlcat(data_pbuf, GCL_DATA_SUFFIX, sizeof(data_pbuf));
 
-	if ((data_fd = open(data_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644)) < 0 ||
-		(flock(data_fd, LOCK_EX) < 0))
-	{
-		estat = ep_stat_from_errno(errno);
-		gdp_log(estat, "gcl_create: cannot create %s: %s",
-			data_pbuf, strerror(errno));
-		goto fail1;
-	}
-	data_fp = fdopen(data_fd, "a+");
-	if (data_fp == NULL)
-	{
-		estat = ep_stat_from_errno(errno);
-		gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
-			data_pbuf, strerror(errno));
-		goto fail1;
+		data_fd = open(data_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644);
+		if (data_fd < 0 ||
+			(flock(data_fd, LOCK_EX) < 0))
+		{
+			estat = ep_stat_from_errno(errno);
+			gdp_log(estat, "gcl_create: cannot create %s: %s",
+				data_pbuf, strerror(errno));
+			goto fail1;
+		}
+		data_fp = fdopen(data_fd, "a+");
+		if (data_fp == NULL)
+		{
+			estat = ep_stat_from_errno(errno);
+			gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
+				data_pbuf, strerror(errno));
+			(void) close(data_fd);
+			goto fail1;
+		}
 	}
 
-	if ((index_fd = open(index_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644)) < 0)
+	// create an offset index for that gcl
 	{
-		estat = ep_stat_from_errno(errno);
-		gdp_log(estat, "gcl_create: cannot create %s: %s",
-			index_pbuf, strerror(errno));
-		goto fail2;
-	}
-	index_fp = fdopen(index_fd, "a+");
-	if (index_fp == NULL)
-	{
-		estat = ep_stat_from_errno(errno);
-		gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
-			index_pbuf, strerror(errno));
-		goto fail3;
+		int index_fd;
+		char index_pbuf[GCL_PATH_MAX];
+
+		estat = get_gcl_path(gclh, index_pbuf, sizeof index_pbuf);
+		EP_STAT_CHECK(estat, goto fail2);
+		strlcat(index_pbuf, GCL_INDEX_SUFFIX, sizeof(index_pbuf));
+
+		index_fd = open(index_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644);
+		if (index_fd < 0)
+		{
+			estat = ep_stat_from_errno(errno);
+			gdp_log(estat, "gcl_create: cannot create %s: %s",
+				index_pbuf, strerror(errno));
+			goto fail2;
+		}
+		index_fp = fdopen(index_fd, "a+");
+		if (index_fp == NULL)
+		{
+			estat = ep_stat_from_errno(errno);
+			gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
+				index_pbuf, strerror(errno));
+			(void) close(index_fd);
+			goto fail2;
+		}
 	}
 
 	// write the header
@@ -375,7 +385,7 @@ gcl_create(gcl_name_t gcl_name,
 
 	// success!
 	fflush(data_fp);
-	flock(data_fd, LOCK_UN);
+	flock(fileno(data_fp), LOCK_UN);
 	new_index->fp = index_fp;
 	gclh->fp = data_fp;
 	gclh->log_index = new_index;
@@ -390,15 +400,10 @@ gcl_create(gcl_name_t gcl_name,
 	return estat;
 
 fail3:
+	fclose(index_fp);
 fail2:
-	if (index_fd >= 0)
-	{
-		close(index_fd);
-	}
-
+	fclose(data_fp);
 fail1:
-	if (data_fd >= 0)
-			close(data_fd);
 	ep_mem_free(gclh);
 fail0:
 	if (ep_dbg_test(Dbg, 8))
@@ -429,8 +434,6 @@ gcl_open(gcl_name_t gcl_name,
 {
 	EP_STAT estat = EP_STAT_OK;
 	gcl_handle_t *gclh = NULL;
-	int data_fd = -1;
-	int index_fd = -1;
 	FILE *data_fp;
 	FILE *index_fp;
 	char data_pbuf[GCL_PATH_MAX];
@@ -462,9 +465,9 @@ gcl_open(gcl_name_t gcl_name,
 	flockfile(data_fp);
 	fseek(data_fp, 0, SEEK_SET);
 	fread(&log_header, sizeof(log_header), 1, data_fp);
-	// XXX: read metadata entries
 	funlockfile(data_fp);
 
+	// XXX: read metadata entries
 	if (log_header.magic != GCL_LOG_MAGIC)
 	{
 		fprintf(stderr, "gcl_open: magic mismatch - found: %" PRId64 ", expected: %" PRId64 "\n",
@@ -504,8 +507,6 @@ fail4:
 
 fail3:
 	fclose(data_fp);
-fail2:
-	close(data_fd);
 fail1:
 fail0:
 	if (gclh == NULL)

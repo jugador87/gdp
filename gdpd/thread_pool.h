@@ -6,7 +6,8 @@
 //XXX This forward declaration is C11 only.  We are using C99.
 //typedef struct thread_pool_job thread_pool_job;
 
-typedef struct thread_pool {
+typedef struct thread_pool
+{
 	EP_THR_MUTEX mutex;
 	EP_THR_COND is_full;
 	EP_THR_COND is_empty;
@@ -16,7 +17,8 @@ typedef struct thread_pool {
 
 typedef void (*thread_pool_job_callback)(void *);
 
-typedef struct thread_pool_job {
+typedef struct thread_pool_job
+{
 	thread_pool_job_callback callback;
 	void *data;
 } thread_pool_job;

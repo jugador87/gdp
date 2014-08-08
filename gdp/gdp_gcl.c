@@ -179,8 +179,6 @@ drop_all_rid_info(conn_t *conn)
 
 static EP_HASH		*OpenGCLCache;
 
-static EP_THR_RWLOCK OpenGCLCacheLock EP_THR_RWLOCK_INITIALIZER;
-
 EP_STAT
 gdp_gcl_cache_init(void)
 {
