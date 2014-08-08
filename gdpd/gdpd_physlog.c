@@ -65,27 +65,27 @@ gcl_physlog_init()
 static EP_STAT
 gcl_log_index_new(gcl_handle_t *gclh, gcl_log_index **out)
 {
-	*out = malloc(sizeof(gcl_log_index));
-	if (*out == NULL)
+	gcl_log_index *new_index = malloc(sizeof(gcl_log_index));
+	if (new_index == NULL)
 	{
 		return EP_STAT_ERROR;
 	}
-	if (pthread_rwlock_init(&(*out)->lock, NULL) != 0)
+	if (pthread_rwlock_init(&new_index->lock, NULL) != 0)
 	{
 		goto fail0;
 	}
-	(*out)->fp = NULL;
-	(*out)->max_msgno = 0;
-	(*out)->max_data_offset = gclh->data_offset;
-	(*out)->max_index_offset = 0;
+	new_index->fp = NULL;
+	new_index->max_msgno = 0;
+	new_index->max_data_offset = gclh->data_offset;
+	new_index->max_index_offset = 0;
 	int cache_size = ep_adm_getintparam("swarm.gdp.index.cachesize", 65536);
 								// 1 MiB index cache
-	(*out)->index_cache = circular_buffer_new(cache_size);
+	new_index->index_cache = circular_buffer_new(cache_size);
+	*out = new_index;
 	return EP_STAT_OK;
 
 fail0:
-	free(*out);
-	*out = NULL;
+	free(new_index);
 	return EP_STAT_ERROR;
 }
 
