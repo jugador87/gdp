@@ -63,11 +63,11 @@ typedef struct gdp_pkt_hdr
 	uint32_t		dlen;		//	4 length of following data
 
 	// variable part of packet
-	gdp_rid_t		rid;		//	8 sequence number (GDP_PKT_NO_RID => none)
+	gdp_rid_t		rid;		//	4 sequence number (GDP_PKT_NO_RID => none)
 	gcl_name_t		gcl_name;	// 32 name of the GCL of interest (0 => none)
 	uint32_t		msgno;		//	4 record number (GDP_PKT_NO_RECNO => none)
 	tt_interval_t	ts;			// 16 commit timestamp (tv_sec = 0 => none)
-	uint8_t			*data;		//	  dlen octets of data
+	gdp_buf_t		*dbuf;		//	  dlen octets of data
 } gdp_pkt_hdr_t;
 
 /***** values for gdp_pkg_hdr cmd field *****/
@@ -123,29 +123,29 @@ typedef struct gdp_pkt_hdr
 #define GDP_PKT_HAS_TS		0x08	// has a timestamp field
 
 /***** dummy values for other fields *****/
-#define GDP_PKT_NO_RID		UINT64_MAX	// no request id
+#define GDP_PKT_NO_RID		0L			// no request id
 #define GDP_PKT_NO_RECNO	UINT32_MAX	// no record number
 
 
-void	gdp_pkt_hdr_init(			// initialize a packet header structure
+void	_gdp_pkt_hdr_init(			// initialize a packet header structure
 				gdp_pkt_hdr_t *,		// the header to initialize
 				int cmd,				// the command to put in the packet
 				gdp_rid_t rid,			// the rid itself
 				gcl_name_t gcl_name);	// the name of the GCL
 
-EP_STAT gdp_pkt_out(				// send a packet to a network buffer
+EP_STAT _gdp_pkt_out(				// send a packet to a network buffer
 				gdp_pkt_hdr_t *,		// the header for the data
-				struct evbuffer *);		// the output buffer
+				gdp_buf_t *);			// the output buffer
 
-void	gdp_pkt_out_hard(			// send a packet to a network buffer
+void	_gdp_pkt_out_hard(			// send a packet to a network buffer
 				gdp_pkt_hdr_t *,		// the header for the data
-				struct evbuffer *);		// the output buffer
+				gdp_buf_t *);			// the output buffer
 
-EP_STAT gdp_pkt_in(					// read a packet from a network buffer
+EP_STAT _gdp_pkt_in(				// read a packet from a network buffer
 				gdp_pkt_hdr_t *,		// the buffer to store the result
-				struct evbuffer *);		// the input buffer
+				gdp_buf_t *);			// the input buffer
 
-void	gdp_pkt_dump_hdr(
+void	_gdp_pkt_dump_hdr(
 				gdp_pkt_hdr_t *pp,
 				FILE *fp);
 

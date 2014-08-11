@@ -125,40 +125,6 @@ _gdp_gcl_cache_drop(gcl_name_t gcl_name, gdp_iomode_t mode)
 }
 
 
-
-/*
-**	_GDP_GCL_NEWHANDLE --- create a new gcl_handle & initialize
-*/
-
-EP_STAT
-_gdp_gcl_newhandle(gcl_handle_t **pgclh)
-{
-	EP_STAT estat = EP_STAT_OK;
-	gcl_handle_t *gclh;
-
-	// allocate the memory to hold the gcl_handle
-	gclh = ep_mem_zalloc(sizeof *gclh);
-	if (gclh == NULL)
-		goto fail1;
-	ep_thr_mutex_init(&gclh->mutex);
-	ep_thr_cond_init(&gclh->cond);
-	gclh->ts.stamp.tv_sec = TT_NOTIME;
-
-	// success
-	*pgclh = gclh;
-	return estat;
-
-fail1:
-	estat = ep_stat_from_errno(errno);
-	return estat;
-}
-
-
-
-/************************  PUBLIC  ************************/
-
-
-
 /*
 **	CREATE_GCL_NAME -- create a name for a new GCL
 */
@@ -169,4 +135,53 @@ _gdp_gcl_newname(gcl_name_t np)
 	evutil_secure_rng_get_bytes(np, sizeof (gcl_name_t));
 }
 
+/*
+**	_GDP_GCL_NEWHANDLE --- create a new gcl_handle & initialize
+*/
 
+EP_STAT
+_gdp_gcl_newhandle(gcl_name_t gcl_name, gcl_handle_t **pgclh)
+{
+	EP_STAT estat = EP_STAT_OK;
+	gcl_handle_t *gclh;
+
+	// allocate the memory to hold the gcl_handle
+	gclh = ep_mem_zalloc(sizeof *gclh);
+	if (gclh == NULL)
+		goto fail1;
+	ep_thr_mutex_init(&gclh->mutex);
+	LIST_INIT(&gclh->reqs);
+	memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
+
+	// success
+	*pgclh = gclh;
+	return estat;
+
+fail1:
+	estat = ep_stat_from_errno(errno);
+	return estat;
+}
+
+/*
+**  _GDP_GCL_FREEHANDLE --- drop an existing handle
+*/
+
+void
+_gdp_gcl_freehandle(gcl_handle_t *gclh)
+{
+	// release any remaining requests
+	if (!LIST_EMPTY(&gclh->reqs))
+	{
+		ep_dbg_cprintf(Dbg, 1, "gdp_gcl_freehandle: non-null request list\n");
+	}
+
+	// release any remaining requests (shouldn't be any left)
+	_gdp_req_freeall(&gclh->reqs);
+
+	// release the locks and cache entry
+	ep_thr_mutex_destroy(&gclh->mutex);
+	_gdp_gcl_cache_drop(gclh->gcl_name, 0);
+
+	// finally release the memory for the handle itself
+	ep_mem_free(gclh);
+}

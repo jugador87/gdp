@@ -1,4 +1,4 @@
-/* vim: set ai sw=8 sts=8 ts=8 : */
+/* vim: set ai sw=4 sts=4 ts=4 : */
 
 /***********************************************************************
 **		Copyright (c) 2008-2014, Eric P. Allman.  All rights reserved.
@@ -120,7 +120,10 @@ gdp_log_syslog(EP_STAT estat, char *fmt, va_list ap)
 
 		}
 
-		ep_stat_tostr(estat, ebuf, sizeof ebuf);
+		if (EP_STAT_ISOK(estat))
+			strlcpy(ebuf, "OK", sizeof ebuf);
+		else
+			ep_stat_tostr(estat, ebuf, sizeof ebuf);
 		vsnprintf(mbuf, sizeof mbuf, fmt, ap);
 		syslog(logsev, "%s: %s", ebuf, mbuf);
 		fprintf(stderr, "%s: %s\n", ebuf, mbuf);

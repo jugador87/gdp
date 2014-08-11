@@ -22,46 +22,7 @@ static EP_DBG Dbg = EP_DBG_INIT("gdp.gdpd", "GDP Daemon");
 static struct event_base *GdpIoEventBase;
 static struct thread_pool *cpu_job_thread_pool;
 
-/*
-**	A handle on an open connection.
-*/
 
-typedef struct
-{
-	int		dummy;			// unused
-} conn_t;
-
-EP_STAT
-implement_me(char *s)
-{
-	ep_app_error("Not implemented: %s", s);
-	return GDP_STAT_NOT_IMPLEMENTED;
-}
-
-/*
-**	GDP_GCL_MSG_PRINT --- print a message (for debugging)
-*/
-
-void
-gcl_msg_print(const gdp_msg_t *msg,
-			FILE *fp)
-{
-	int i;
-
-	fprintf(fp, "GCL Message %d, len %zu", msg->msgno, msg->len);
-	if (msg->ts.stamp.tv_sec != TT_NOTIME)
-	{
-		fprintf(fp, ", timestamp ");
-		tt_print_interval(&msg->ts, fp, true);
-	}
-	else
-	{
-		fprintf(fp, ", no timestamp");
-	}
-	i = msg->len;
-	fprintf(fp, "\n	 %s%.*s%s\n", EpChar->lquote, i,
-					(char *) msg->data, EpChar->rquote);
-}
 
 /*
 **	GDPD_GCL_ERROR --- helper routine for returning errors
@@ -80,6 +41,13 @@ gdpd_gcl_error(gcl_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
 /*
 **	Command implementations
 */
+
+EP_STAT
+implement_me(char *s)
+{
+	ep_app_error("Not implemented: %s", s);
+	return GDP_STAT_NOT_IMPLEMENTED;
+}
 
 EP_STAT
 cmd_create(struct bufferevent *bev, conn_t *c,
@@ -178,7 +146,7 @@ cmd_read(struct bufferevent *bev, conn_t *c,
 							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 
-	estat = gcl_read(gclh, cpkt->msgno, &msg, gclh->revb);
+	estat = gcl_read(gclh, cpkt->msgno, &msg, req->dbuf);
 	EP_STAT_CHECK(estat, goto fail0);
 	rpkt->dlen = EP_STAT_TO_LONG(estat);
 	rpkt->ts = msg.ts;
@@ -262,7 +230,7 @@ cmd_not_implemented(struct bufferevent *bev, conn_t *c,
 	//XXX print/log something here?
 
 	rpkt->cmd = GDP_NAK_S_INTERNAL;
-	gdp_pkt_out_hard(rpkt, bufferevent_get_output(bev));
+	_gdp_pkt_out_hard(rpkt, bufferevent_get_output(bev));
 	return GDP_STAT_NOT_IMPLEMENTED;
 }
 
@@ -598,21 +566,30 @@ dispatch_cmd(dispatch_ent_t *d,
 		ep_dbg_printf("dispatch_cmd: <<< %d, status %d (%s)\n",
 				cpkt->cmd, rpkt->cmd, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		if (ep_dbg_test(Dbg, 30))
-			gdp_pkt_dump_hdr(rpkt, ep_dbg_getfile());
+			_gdp_pkt_dump_hdr(rpkt, ep_dbg_getfile());
 	}
 	return estat;
 }
 
 
 /*
-**	LEV_READ_CB_CONTINUE --- handle reads on command sockets
+**	CMD_THREAD --- per-request thread
+**
+**		Reads and processes a command from the network port
 */
 
-void
-lev_read_cb_continue(void *continue_data)
+typedef struct
 {
-	lev_read_cb_continue_data *cdata =
-			(lev_read_cb_continue_data *) continue_data;
+	gdp_pkt_hdr_t		*cpktbuf;
+	struct bufferevent	*bev;
+	void				*ctx;
+	EP_STAT				estat;
+} cmd_thread_data_t;
+
+void
+cmd_thread(void *continue_data)
+{
+	cmd_thread_data_t *cdata = (cmd_thread_data_t *) continue_data;
 	gdp_pkt_hdr_t rpktbuf;
 	dispatch_ent_t *d;
 	struct evbuffer *evb = NULL;
@@ -637,7 +614,7 @@ lev_read_cb_continue(void *continue_data)
 				gcl_pname_t pname;
 
 				gdp_gcl_printable_name(gclh->gcl_name, pname);
-				ep_dbg_printf("lev_read_cb: using evb %p from %s\n", evb,
+				ep_dbg_printf("cmd_thread: using evb %p from %s\n", evb,
 				        pname);
 			}
 		}
@@ -646,14 +623,14 @@ lev_read_cb_continue(void *continue_data)
 	// see if we have any return data
 	rpktbuf.dlen = (evb == NULL ? 0 : evbuffer_get_length(evb));
 
-	ep_dbg_cprintf(Dbg, 41, "lev_read_cb: sending %d bytes\n", rpktbuf.dlen);
+	ep_dbg_cprintf(Dbg, 41, "cmd_thread: sending %d bytes\n", rpktbuf.dlen);
 
 	// make sure nothing sneaks in...
 	if (rpktbuf.dlen > 0)
 		evbuffer_lock(evb);
 
 	// send the response packet header
-	cdata->estat = gdp_pkt_out(&rpktbuf, bufferevent_get_output(cdata->bev));
+	cdata->estat = _gdp_pkt_out(&rpktbuf, bufferevent_get_output(cdata->bev));
 	//XXX anything to do with estat here?
 
 	// copy any data
@@ -677,7 +654,7 @@ lev_read_cb_continue(void *continue_data)
 			if (i < len)
 			{
 				ep_dbg_cprintf(Dbg, 2,
-						"lev_read_cb: short read (wanted %d, got %d)\n", len, i);
+						"cmd_thread: short read (wanted %d, got %d)\n", len, i);
 				cdata->estat = GDP_STAT_SHORTMSG;
 			}
 			if (i <= 0)
@@ -698,6 +675,9 @@ lev_read_cb_continue(void *continue_data)
 
 /*
 **  LEV_READ_CB --- handle reads on command sockets
+**
+**		The ctx argument is unused, but we pass it down anyway in case
+**		we ever want to make use of it.
 */
 
 void
@@ -706,16 +686,16 @@ lev_read_cb(struct bufferevent *bev, void *ctx)
 	EP_STAT estat;
 	gdp_pkt_hdr_t *cpktbuf = malloc(sizeof(gdp_pkt_hdr_t));
 
-	estat = gdp_pkt_in(cpktbuf, bufferevent_get_input(bev));
+	estat = _gdp_pkt_in(cpktbuf, bufferevent_get_input(bev));
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
 		return;
 
-	lev_read_cb_continue_data *data = malloc(sizeof(lev_read_cb_continue_data));
+	cmd_thread_data_t *data = malloc(sizeof(cmd_thread_data_t));
 	data->bev = bev;
 	data->cpktbuf = cpktbuf;
 	data->ctx = ctx;
 	data->estat = estat;
-	thread_pool_job *new_job = thread_pool_job_new(&lev_read_cb_continue, data);
+	thread_pool_job *new_job = thread_pool_job_new(&cmd_thread, data);
 
 	thread_pool_add_job(cpu_job_thread_pool, new_job);
 }
@@ -973,6 +953,6 @@ main(int argc, char **argv)
 	_gdp_start_accept_event_loop_thread(GdpEventBase);
 
 	// should never get here
-	pthread_join(GdpIoEventLoopThread, NULL);
+	pthread_join(_GdpIoEventLoopThread, NULL);
 	ep_app_abort("Fell out of event loop");
 }

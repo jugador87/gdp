@@ -17,11 +17,3 @@
 
 #include <unistd.h>
 #include <string.h>
-
-typedef struct lev_read_cb_continue_data
-{
-	gdp_pkt_hdr_t *cpktbuf;
-	struct bufferevent *bev;
-	void *ctx;
-	EP_STAT estat;
-} lev_read_cb_continue_data;

@@ -8,23 +8,29 @@
 #define _GDP_H_
 
 #include <stdbool.h>
+#include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <ep/ep_stat.h>
 #include <event2/event.h>
 #include <event2/bufferevent.h>
-#include <gdp/gdp_timestamp.h>
+#include <gdp/gdp_buf.h>
 #include <gdp/gdp_stat.h>
+#include <gdp/gdp_timestamp.h>
 
 /**********************************************************************
 **	Opaque structures
 */
 
 // XXX not clear if we need this publicly exposed (or even what's in it)
-typedef struct gcl_t		gcl_t;
+typedef struct gcl			gcl_t;
 
 // an open handle on a GCL (opaque)
-typedef struct gcl_handle_t gcl_handle_t;
+typedef struct gcl_handle	gcl_handle_t;
+
+/**********************************************************************
+**	Other data types
+*/
 
 // the internal name of a GCL
 typedef uint8_t				gcl_name_t[32];
@@ -33,10 +39,10 @@ typedef uint8_t				gcl_name_t[32];
 #define GCL_PNAME_LEN		43			// length of an encoded pname
 typedef char				gcl_pname_t[GCL_PNAME_LEN + 1];
 
-// a request id (used for correlating commands and responses)
-typedef uint64_t			gdp_rid_t;
+// a GDP request id (used for correlating commands and responses)
+typedef uint32_t			gdp_rid_t;
 
-// a message number
+// a GCL record number
 typedef int32_t				gdp_msgno_t;
 
 /*
@@ -57,6 +63,10 @@ typedef enum
 
 
 /**********************************************************************
+**  Non-Opaque data types
+*/
+
+/*
 **	 Messages
 **		These are the underlying unit that is passed through a GCL.
 **
@@ -68,17 +78,17 @@ typedef enum
 */
 
 // this is a horrid hack for use only by gdpd
-#ifndef GDP_MSG_EXTRA
-# define GDP_MSG_EXTRA
-#endif
+//XXX currently unused
+//#ifndef GDP_MSG_EXTRA
+//# define GDP_MSG_EXTRA
+//#endif
 
-typedef struct
+typedef struct gdp_msg
 {
-	tt_interval_t	ts;				// timestamp for this message
 	gdp_msgno_t		msgno;			// the message number
-	void			*data;			// pointer to data
-	size_t			len;			// length of data
-	GDP_MSG_EXTRA					// used by gdpd
+	tt_interval_t	ts;				// timestamp for this message
+	gdp_buf_t		*dbuf;			// data buffer
+//	GDP_MSG_EXTRA					// used by gdpd
 } gdp_msg_t;
 
 
@@ -125,10 +135,11 @@ extern EP_STAT	gdp_gcl_append(
 // read from a readable GCL
 extern EP_STAT	gdp_gcl_read(
 					gcl_handle_t *gclh,		// readable GCL handle
-					gdp_msgno_t msgno,		// offset into GCL (msg number)
-					gdp_msg_t *msg,			// pointer to result message
-					struct evbuffer *revb); // reply buffer to receive data
+					gdp_msgno_t recno,		// GCL record number
+					gdp_buf_t *dbuf,		// reply buffer to receive data
+					gdp_msg_t *msg);		// pointer to result message
 
+#if 0
 // subscribe to a readable GCL
 typedef void	(*gdp_gcl_sub_cbfunc_t)(  // the callback function
 					gcl_handle_t *gclh,		// the GCL handle triggering the call
@@ -143,6 +154,7 @@ extern EP_STAT	gdp_gcl_subscribe(
 					void *buf,				// buffer space for msg
 					size_t buflen,			// length of buf
 					void *cbarg);			// argument passed to callback
+#endif
 
 // return the name of a GCL
 //		XXX: should this be in a more generic "getstat" function?
@@ -153,7 +165,7 @@ extern const gcl_name_t *gdp_gcl_getname(
 extern bool		gdp_gcl_name_is_zero(const gcl_name_t);
 
 // print a GCL (for debugging)
-extern EP_STAT	gdp_gcl_print(
+extern void		gdp_gcl_print(
 					const gcl_handle_t *gclh,	// GCL handle to print
 					FILE *fp,				// file to print it to
 					int detail,				// not used at this time
@@ -165,7 +177,7 @@ extern void		gdp_gcl_msg_print(
 					FILE *fp);				// file to print it to
 
 // make a printable GCL name from a binary version
-void			gdp_gcl_printable_name(
+char			*gdp_gcl_printable_name(
 					const gcl_name_t internal,
 					gcl_pname_t external);
 

@@ -10,7 +10,9 @@ OBJS=	\
 
 HFILES=	\
 	gdp.h \
+	gdp_buf.h \
 	gdp_pkt.h \
+	gdp_priv.h \
 	gdp_stat.h \
 	gdp_timestamp.h \
 

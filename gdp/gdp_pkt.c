@@ -39,7 +39,7 @@ EP_DBG	Dbg = EP_DBG_INIT("gdp.pkt", "GDP packet traffic");
 */
 
 void
-gdp_pkt_hdr_init(gdp_pkt_hdr_t *pp,
+_gdp_pkt_hdr_init(gdp_pkt_hdr_t *pp,
 				int cmd,
 				gdp_rid_t rid,
 				gcl_name_t gcl_name)
@@ -95,18 +95,19 @@ gdp_pkt_hdr_init(gdp_pkt_hdr_t *pp,
 		}
 
 EP_STAT
-gdp_pkt_out(gdp_pkt_hdr_t *pp, struct evbuffer *obuf)
+_gdp_pkt_out(gdp_pkt_hdr_t *pp, gdp_buf_t *obuf)
 {
 	EP_STAT estat = EP_STAT_OK;
 	uint8_t pbuf[sizeof *pp];		// overkill, but it works
 	uint8_t *pbp = pbuf;
+	uint32_t dlen;
 
 	EP_ASSERT_POINTER_VALID(pp);
 
 	if (ep_dbg_test(Dbg, 22))
 	{
 		ep_dbg_printf("gdp_pkt_out:\n\t");
-		gdp_pkt_dump_hdr(pp, ep_dbg_getfile());
+		_gdp_pkt_dump_hdr(pp, ep_dbg_getfile());
 	}
 
 	// version number
@@ -125,16 +126,17 @@ gdp_pkt_out(gdp_pkt_hdr_t *pp, struct evbuffer *obuf)
 	*pbp++ = 0;						// XXX usable for expansion
 
 	// data length
-	PUT32(pp->dlen);
+	dlen = evbuffer_get_length(pp->dbuf);
+	PUT32(dlen);
 
 	// request id
 	if (pp->rid != GDP_PKT_NO_RID)
 	{
 		pbuf[2] |= GDP_PKT_HAS_RID;
-		PUT64(pp->rid);
+		PUT32(pp->rid);
 	}
 
-	// usc name
+	// GCL name
 	if (!gdp_gcl_name_is_zero(pp->gcl_name))
 	{
 		pbuf[2] |= GDP_PKT_HAS_ID;
@@ -166,19 +168,24 @@ gdp_pkt_out(gdp_pkt_hdr_t *pp, struct evbuffer *obuf)
 		ep_hexdump(pbuf, pbp - pbuf, ep_dbg_getfile(), 0);
 	}
 
-	if (evbuffer_add(obuf, pbuf, pbp - pbuf) < 0)
+	size_t written;
+
+	if ((written = gdp_buf_write(obuf, pbuf, pbp - pbuf)) < (pbp - pbuf))
 	{
 		// couldn't write, bad juju
-		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: header write failure: %s\n",
-				strerror(errno));
+		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: header write failure: %s\n"
+				"  wanted %zd, got %zd\n",
+				strerror(errno), pbp - pbuf, written);
 		estat = GDP_STAT_PKT_WRITE_FAIL;
 	}
-	else if (pp->data != NULL && pp->dlen > 0 &&
-			evbuffer_add(obuf, pp->data, pp->dlen) < 0)
+	else if (pp->dbuf != NULL && pp->dlen > 0 &&
+			(written = evbuffer_remove_buffer(pp->dbuf, obuf, pp->dlen))
+				< pp->dlen)
 	{
 		// couldn't write data
-		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: data write failure: %s\n",
-				strerror(errno));
+		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: data write failure: %s\n"
+				"  wanted %zd, got %zd\n",
+				strerror(errno), pp->dlen, written);
 		estat = GDP_STAT_PKT_WRITE_FAIL;
 	}
 
@@ -191,9 +198,9 @@ gdp_pkt_out(gdp_pkt_hdr_t *pp, struct evbuffer *obuf)
 */
 
 void
-gdp_pkt_out_hard(gdp_pkt_hdr_t *pkt, struct evbuffer *evb)
+_gdp_pkt_out_hard(gdp_pkt_hdr_t *pkt, gdp_buf_t *obuf)
 {
-	EP_STAT estat = gdp_pkt_out(pkt, evb);
+	EP_STAT estat = _gdp_pkt_out(pkt, obuf);
 
 	if (!EP_STAT_ISOK(estat))
 	{
@@ -232,7 +239,7 @@ gdp_pkt_out_hard(gdp_pkt_hdr_t *pkt, struct evbuffer *evb)
 		}
 
 EP_STAT
-gdp_pkt_in(gdp_pkt_hdr_t *pp, struct evbuffer *ibuf)
+_gdp_pkt_in(gdp_pkt_hdr_t *pp, gdp_buf_t *ibuf)
 {
 	EP_STAT estat = EP_STAT_OK;
 	size_t needed;
@@ -248,12 +255,12 @@ gdp_pkt_in(gdp_pkt_hdr_t *pp, struct evbuffer *ibuf)
 	// see if the fixed part of the header is all in
 	needed = FIXEDHDRSZ;			// ver, cmd, flags, reserved1, dlen
 
-	if (evbuffer_copyout(ibuf, pbuf, needed) < needed)
+	if (gdp_buf_read(ibuf, pbuf, needed) < needed)
 	{
 		// try again after we read more in
 		ep_dbg_cprintf(Dbg, 42,
 						"gdp_pkt_in: keep reading (have %zd, need %zd)\n",
-						evbuffer_get_length(ibuf), needed);
+						gdp_buf_getlength(ibuf), needed);
 		return GDP_STAT_KEEP_READING;
 	}
 	pbp = pbuf;
@@ -273,7 +280,7 @@ gdp_pkt_in(gdp_pkt_hdr_t *pp, struct evbuffer *ibuf)
 
 	// figure out how much additional data we will need
 	if (EP_UT_BITSET(GDP_PKT_HAS_RID, pp->flags))
-		needed += 8;				// sizeof pp->rid;
+		needed += 4;				// sizeof pp->rid;
 	if (EP_UT_BITSET(GDP_PKT_HAS_ID, pp->flags))
 		needed += 32;				// sizeof pp->gcl_name;
 	if (EP_UT_BITSET(GDP_PKT_HAS_RECNO, pp->flags))
@@ -283,7 +290,7 @@ gdp_pkt_in(gdp_pkt_hdr_t *pp, struct evbuffer *ibuf)
 	needed += pp->dlen;
 
 	// see if the entire packet (header + data) is available
-	if (evbuffer_get_length(ibuf) < needed)
+	if (gdp_buf_getlength(ibuf) < needed)
 	{
 		// still not enough data
 		if (ep_dbg_test(Dbg, 42))
@@ -291,25 +298,28 @@ gdp_pkt_in(gdp_pkt_hdr_t *pp, struct evbuffer *ibuf)
 			char xbuf[256];
 			size_t s;
 
-			s = evbuffer_get_length(ibuf);
+			s = gdp_buf_getlength(ibuf);
 			ep_dbg_printf("gdp_pkt_in: keep reading (have %zd, need %zd)\n",
 						s, needed);
 			if (s > sizeof xbuf)
 				s = sizeof xbuf;
-			evbuffer_copyout(ibuf, xbuf, s);
+			gdp_buf_peek(ibuf, xbuf, s);
 			ep_hexdump(xbuf, s, ep_dbg_getfile(), 0);
 		}
 		return GDP_STAT_KEEP_READING;
 	}
 
+	// the entire packet is now in ibuf
+
 	// now drain the data we have processed
-	sz = evbuffer_remove(ibuf, pbuf, needed - pp->dlen);
+	sz = gdp_buf_read(ibuf, pbuf, needed - pp->dlen);
 	if (sz < needed - pp->dlen)
 	{
-		ep_dbg_cprintf(Dbg, 1,
-				"gdp_pkt_in: evbuffer_drain failed, sz = %zu, needed = %zu\n",
+		// shouldn't happen, since it's already in memory
+		estat = GDP_STAT_BUFFER_FAILURE;
+		gdp_log(estat,
+				"gdp_pkt_in: gdp_buf_drain failed, sz = %zu, needed = %zu\n",
 				sz, needed);
-		estat = GDP_STAT_PKT_READ_FAIL;
 		// buffer is now out of sync; not clear if we can continue
 	}
 
@@ -323,7 +333,7 @@ gdp_pkt_in(gdp_pkt_hdr_t *pp, struct evbuffer *ibuf)
 	if (!EP_UT_BITSET(GDP_PKT_HAS_RID, pp->flags))
 		pp->rid = GDP_PKT_NO_RID;
 	else
-		GET64(pp->rid);
+		GET32(pp->rid);
 
 	// GCL name
 	if (!EP_UT_BITSET(GDP_PKT_HAS_ID, pp->flags))
@@ -356,10 +366,12 @@ gdp_pkt_in(gdp_pkt_hdr_t *pp, struct evbuffer *ibuf)
 	//XXX soak up any padding bytes?
 
 	// buffer now points at the data block
+	//		(but no guarantee all data has been read)
+	//		XXX is this appropriate?
 	if (ep_dbg_test(Dbg, 22))
 	{
 		ep_dbg_printf("gdp_pkt_in: ");
-		gdp_pkt_dump_hdr(pp, ep_dbg_getfile());
+		_gdp_pkt_dump_hdr(pp, ep_dbg_getfile());
 	}
 
 	return estat;
@@ -376,7 +388,7 @@ static EP_PRFLAGS_DESC	PktFlags[] =
 };
 
 void
-gdp_pkt_dump_hdr(gdp_pkt_hdr_t *pp, FILE *fp)
+_gdp_pkt_dump_hdr(gdp_pkt_hdr_t *pp, FILE *fp)
 {
 	int len = FIXEDHDRSZ;
 
@@ -389,7 +401,7 @@ gdp_pkt_dump_hdr(gdp_pkt_hdr_t *pp, FILE *fp)
 		fprintf(fp, "(none)");
 	else
 	{
-		fprintf(fp, "%016llx", pp->rid);
+		fprintf(fp, "%u", pp->rid);
 		len += sizeof pp->rid;
 	}
 	fprintf(fp, ", msgno=");
