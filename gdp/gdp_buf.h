@@ -19,6 +19,12 @@ gdp_buf_new(void)
 	return evbuffer_new();
 }
 
+inline int
+gdp_buf_reset(gdp_buf_t *b)
+{
+	return evbuffer_drain(b, evbuffer_get_length(b));
+}
+
 inline void
 gdp_buf_free(gdp_buf_t *b)
 {
@@ -49,7 +55,7 @@ gdp_buf_peek(gdp_buf_t *buf, void *out, size_t sz)
 	return evbuffer_copyout(buf, out, sz);
 }
 
-inline size_t
+inline int
 gdp_buf_drain(gdp_buf_t *buf, size_t sz)
 {
 	return evbuffer_drain(buf, sz);
@@ -61,10 +67,16 @@ gdp_buf_getptr(gdp_buf_t *buf, size_t sz)
 	return evbuffer_pullup(buf, sz);
 }
 
-inline size_t
+inline int
 gdp_buf_write(gdp_buf_t *buf, void *in, size_t sz)
 {
 	return evbuffer_add(buf, in, sz);
+}
+
+inline int
+gdp_buf_copy(gdp_buf_t *ibuf, gdp_buf_t *obuf)
+{
+	return evbuffer_add_buffer(obuf, ibuf);
 }
 
 #define gdp_buf_printf			evbuffer_add_printf

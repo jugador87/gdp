@@ -21,7 +21,7 @@ static bool	_EpThrUsePthreads = false;
 */
 
 static void
-diagnose_err(int err, const char *where)
+diagnose_thr_err(int err, const char *where)
 {
 	ep_dbg_cprintf(Dbg, 4, "ep_thr_%s: %s\n", where, strerror(err));
 }
@@ -45,7 +45,7 @@ ep_thr_mutex_init(EP_THR_MUTEX *mtx)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_mutex_init(mtx, NULL)) != 0)
-		diagnose_err(err, "mutex_init");
+		diagnose_thr_err(err, "mutex_init");
 	return err;
 }
 
@@ -57,7 +57,7 @@ ep_thr_mutex_destroy(EP_THR_MUTEX *mtx)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_mutex_destroy(mtx)) != 0)
-		diagnose_err(err, "mutex_destroy");
+		diagnose_thr_err(err, "mutex_destroy");
 	return err;
 }
 
@@ -69,7 +69,7 @@ ep_thr_mutex_lock(EP_THR_MUTEX *mtx)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_mutex_lock(mtx)) != 0)
-		diagnose_err(err, "mutex_lock");
+		diagnose_thr_err(err, "mutex_lock");
 	return err;
 }
 
@@ -81,7 +81,7 @@ ep_thr_mutex_trylock(EP_THR_MUTEX *mtx)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_mutex_trylock(mtx)) != 0)
-		diagnose_err(err, "mutex_trylock");
+		diagnose_thr_err(err, "mutex_trylock");
 	return err;
 }
 
@@ -93,7 +93,7 @@ ep_thr_mutex_unlock(EP_THR_MUTEX *mtx)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_mutex_unlock(mtx)) != 0)
-		diagnose_err(err, "mutex_unlock");
+		diagnose_thr_err(err, "mutex_unlock");
 	return err;
 }
 
@@ -110,7 +110,7 @@ ep_thr_cond_init(EP_THR_COND *cv)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_cond_init(cv, NULL)) != 0)
-		diagnose_err(err, "cond_init");
+		diagnose_thr_err(err, "cond_init");
 	return err;
 }
 
@@ -122,7 +122,7 @@ ep_thr_cond_destroy(EP_THR_COND *cv)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_cond_destroy(cv)) != 0)
-		diagnose_err(err, "cond_destroy");
+		diagnose_thr_err(err, "cond_destroy");
 	return err;
 }
 
@@ -134,7 +134,7 @@ ep_thr_cond_signal(EP_THR_COND *cv)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_cond_signal(cv)) != 0)
-		diagnose_err(err, "cond_signal");
+		diagnose_thr_err(err, "cond_signal");
 	return err;
 }
 
@@ -146,7 +146,7 @@ ep_thr_cond_wait(EP_THR_COND *cv, EP_THR_MUTEX *mtx)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_cond_wait(cv, mtx)) != 0)
-		diagnose_err(err, "cond_wait");
+		diagnose_thr_err(err, "cond_wait");
 	return err;
 }
 
@@ -158,7 +158,7 @@ ep_thr_cond_broadcast(EP_THR_COND *cv)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_cond_broadcast(cv)) != 0)
-		diagnose_err(err, "cond_broadcast");
+		diagnose_thr_err(err, "cond_broadcast");
 	return err;
 }
 
@@ -175,7 +175,7 @@ ep_thr_rwlock_init(EP_THR_RWLOCK *rwl)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_init(rwl, NULL)) != 0)
-		diagnose_err(err, "rwlock_init");
+		diagnose_thr_err(err, "rwlock_init");
 	return err;
 }
 
@@ -187,7 +187,7 @@ ep_thr_rwlock_destroy(EP_THR_RWLOCK *rwl)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_destroy(rwl)) != 0)
-		diagnose_err(err, "rwlock_destroy");
+		diagnose_thr_err(err, "rwlock_destroy");
 	return err;
 }
 
@@ -199,7 +199,7 @@ ep_thr_rwlock_rdlock(EP_THR_RWLOCK *rwl)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_rdlock(rwl)) != 0)
-		diagnose_err(err, "rwlock_rdlock");
+		diagnose_thr_err(err, "rwlock_rdlock");
 	return err;
 }
 
@@ -211,7 +211,7 @@ ep_thr_rwlock_tryrdlock(EP_THR_RWLOCK *rwl)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_tryrdlock(rwl)) != 0)
-		diagnose_err(err, "rwlock_tryrdlock");
+		diagnose_thr_err(err, "rwlock_tryrdlock");
 	return err;
 }
 
@@ -223,7 +223,7 @@ ep_thr_rwlock_wrlock(EP_THR_RWLOCK *rwl)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_wrlock(rwl)) != 0)
-		diagnose_err(err, "rwlock_wrlock");
+		diagnose_thr_err(err, "rwlock_wrlock");
 	return err;
 }
 
@@ -235,7 +235,7 @@ ep_thr_rwlock_trywrlock(EP_THR_RWLOCK *rwl)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_trywrlock(rwl)) != 0)
-		diagnose_err(err, "rwlock_trywrlock");
+		diagnose_thr_err(err, "rwlock_trywrlock");
 	return err;
 }
 
@@ -247,7 +247,7 @@ ep_thr_rwlock_unlock(EP_THR_RWLOCK *rwl)
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_unlock(rwl)) != 0)
-		diagnose_err(err, "rwlock_unlock");
+		diagnose_thr_err(err, "rwlock_unlock");
 	return err;
 }
 

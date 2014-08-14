@@ -16,7 +16,7 @@ main(int argc, char **argv)
 	char *gclpname = NULL;
 	int opt;
 	EP_STAT estat;
-	gdp_msgno_t msgno = 1;
+	gdp_recno_t recno = 1;
 	char buf[200];
 
 	while ((opt = getopt(argc, argv, "a:D:")) > 0)
@@ -33,7 +33,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	estat = gdp_init(true);
+	estat = gdp_init();
 	if (!EP_STAT_ISOK(estat))
 	{
 		ep_app_error("GDP Initialization failed");
@@ -67,9 +67,8 @@ main(int argc, char **argv)
 		fprintf(stdout, "Got input %s%s%s\n", EpChar->lquote, buf,
 				EpChar->rquote);
 		memset(&msg, '\0', sizeof msg);
-		msg.data = buf;
-		msg.len = strlen(buf);
-		msg.msgno = msgno++;
+		gdp_buf_write(msg.dbuf, buf, strlen(buf));
+		msg.recno = recno++;
 
 		estat = gdp_gcl_append(gclh, &msg);
 		EP_STAT_CHECK(estat, goto fail1);

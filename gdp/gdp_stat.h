@@ -11,6 +11,8 @@
 
 #include <ep/ep_stat.h>
 
+extern void		_gdp_stat_init(void);
+
 // XXX	should really be in an include shared with other projects
 //		to avoid conflicts in the future
 #define GDP_MODULE			1

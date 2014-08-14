@@ -42,7 +42,7 @@ gdp_log_set(const char *tag,	// NULL => use program name
 }
 
 
-void
+static void
 gdp_log_file(EP_STAT estat,
 		char *fmt,
 		va_list ap,

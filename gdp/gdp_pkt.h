@@ -65,7 +65,7 @@ typedef struct gdp_pkt_hdr
 	// variable part of packet
 	gdp_rid_t		rid;		//	4 sequence number (GDP_PKT_NO_RID => none)
 	gcl_name_t		gcl_name;	// 32 name of the GCL of interest (0 => none)
-	uint32_t		msgno;		//	4 record number (GDP_PKT_NO_RECNO => none)
+	gdp_recno_t		recno;		//	4 record number (GDP_PKT_NO_RECNO => none)
 	tt_interval_t	ts;			// 16 commit timestamp (tv_sec = 0 => none)
 	gdp_buf_t		*dbuf;		//	  dlen octets of data
 } gdp_pkt_hdr_t;

@@ -140,14 +140,18 @@ ep_hash_search(
 	const void *key)
 {
 	struct node **npp;
+	void *val;
 
 	EP_ASSERT_POINTER_VALID(hp);
 
+	ep_thr_mutex_lock(&hp->mutex);
 	npp = find_node_ptr(hp, keylen, key);
 	if (*npp == NULL)
-		return NULL;
+		val = NULL;
 	else
-		return (*npp)->val;
+		val = (*npp)->val;
+	ep_thr_mutex_unlock(&hp->mutex);
+	return val;
 }
 
 
@@ -164,6 +168,7 @@ ep_hash_insert(
 
 	EP_ASSERT_POINTER_VALID(hp);
 
+	ep_thr_mutex_lock(&hp->mutex);
 	npp = find_node_ptr(hp, keylen, key);
 	if (*npp != NULL)
 	{
@@ -173,6 +178,7 @@ ep_hash_insert(
 		n = *npp;
 		oldval = n->val;
 		n->val = val;
+		ep_thr_mutex_unlock(&hp->mutex);
 		return oldval;
 	}
 
@@ -185,6 +191,7 @@ ep_hash_insert(
 	n->val = val;
 	n->next = NULL;
 	*npp = n;
+	ep_thr_mutex_unlock(&hp->mutex);
 	return NULL;
 }
 
@@ -201,10 +208,12 @@ ep_hash_delete(
 
 	EP_ASSERT_POINTER_VALID(hp);
 
+	ep_thr_mutex_lock(&hp->mutex);
 	npp = find_node_ptr(hp, keylen, key);
 	if (*npp == NULL)
 	{
 		// entry does not exist
+		ep_thr_mutex_unlock(&hp->mutex);
 		return NULL;
 	}
 
@@ -213,6 +222,7 @@ ep_hash_delete(
 	v = n->val;
 	ep_rpool_mfree(hp->rpool, n->key);
 	ep_rpool_mfree(hp->rpool, n);
+	ep_thr_mutex_unlock(&hp->mutex);
 	return v;
 }
 
@@ -235,6 +245,7 @@ ep_hash_forall(
 
 	EP_ASSERT_POINTER_VALID(hp);
 
+	ep_thr_mutex_lock(&hp->mutex);
 	for (i = 0; i < hp->tabsize; i++)
 	{
 		for (n = hp->tab[i]; n != NULL; n = n->next)
@@ -247,4 +258,5 @@ ep_hash_forall(
 	}
 
 	va_end(av);
+	ep_thr_mutex_unlock(&hp->mutex);
 }

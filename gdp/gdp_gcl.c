@@ -149,9 +149,11 @@ _gdp_gcl_newhandle(gcl_name_t gcl_name, gcl_handle_t **pgclh)
 	gclh = ep_mem_zalloc(sizeof *gclh);
 	if (gclh == NULL)
 		goto fail1;
+
 	ep_thr_mutex_init(&gclh->mutex);
 	LIST_INIT(&gclh->reqs);
-	memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
+	if (gcl_name != NULL)
+		memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
 
 	// success
 	*pgclh = gclh;

@@ -38,7 +38,7 @@ static struct ep_stat_to_string Stats[] =
 };
 
 void
-gdp_stat_init(void)
+_gdp_stat_init(void)
 {
 	ep_stat_reg_strings(Stats);
 }

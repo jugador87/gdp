@@ -9,7 +9,7 @@
  * Specialized circular buffer implementation for an index cache that only
  * gets updated when a new record is appended to the GCL. This maintains the
  * invariant that the circular buffer is always sorted, assuming the key
- * (msgno in this case) is always increasing.
+ * (recno in this case) is always increasing.
  *
  */
 

@@ -16,8 +16,8 @@ extern void	_ep_thr_init(void);
 EP_STAT
 ep_lib_init(uint32_t flags)
 {
-	_ep_stat_init();
 	if (EP_UT_BITSET(EP_LIB_USEPTHREADS, flags))
 		_ep_thr_init();
+	_ep_stat_init();
 	return EP_STAT_OK;
 }

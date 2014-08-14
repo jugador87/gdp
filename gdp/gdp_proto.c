@@ -39,15 +39,16 @@
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.proto", "GDP protocol processing");
 
 
-typedef struct gdp_conn_ctx
-{
-	const char			*peername;
-} conn_t;
-
-static struct bufferevent	*GdpPortBufferEvent;	// our primary protocol port
+//XXX this really shouldn't be global: restricts us to one port
+static gdp_chan_t	*GdpChannel;	// our primary protocol port
 
 
 /***********************************************************************
+**
+**	Request ID handling
+**
+**		Very simplistic for now.  RIDs really only need to be unique
+**		within a given GCL.
 */
 
 static gdp_rid_t	MaxRid = 0;
@@ -72,7 +73,7 @@ gdp_rid_tostr(gdp_rid_t rid, char *buf, size_t len)
 */
 
 // unused request structures
-static struct req_list	ReqFreeList = LIST_HEAD_INITIALIZER(ReqFreeList);
+static struct req_head	ReqFreeList = LIST_HEAD_INITIALIZER(ReqFreeList);
 static EP_THR_MUTEX		ReqFreeListMutex	EP_THR_MUTEX_INITIALIZER;
 
 /*
@@ -110,25 +111,28 @@ _gdp_req_new(int cmd,
 	{
 		req = ep_mem_zalloc(sizeof *req);
 		ep_thr_mutex_init(&req->mutex);
-		req->dbuf = gdp_buf_new();
-		gdp_buf_setlock(req->dbuf, &req->mutex);
+		ep_thr_cond_init(&req->cond);
+		req->pkt.dbuf = gdp_buf_new();
+		gdp_buf_setlock(req->pkt.dbuf, &req->mutex);
 	}
 
-	req->cmd = cmd;
 	req->gclh = gclh;
-	req->recno = GDP_PKT_NO_RECNO;
-	req->ts.stamp.tv_sec = TT_NOTIME;
-	req->dlen = 0;
 	req->stat = EP_STAT_OK;
+	req->pkt.cmd = cmd;
+	req->pkt.recno = GDP_PKT_NO_RECNO;
+	req->pkt.ts.stamp.tv_sec = TT_NOTIME;
+	req->pkt.dlen = 0;
+	if (gclh != NULL)
+		memcpy(req->pkt.gcl_name, gclh->gcl_name, sizeof req->pkt.gcl_name);
 	if (gclh == NULL || EP_UT_BITSET(GDP_REQ_SYNC, flags))
 	{
 		// just use constant zero; any value would be fine
-		req->rid = GDP_PKT_NO_RID;
+		req->pkt.rid = GDP_PKT_NO_RID;
 	}
 	else
 	{
 		// allocate a new unique request id
-		req->rid = _gdp_rid_new(gclh);
+		req->pkt.rid = _gdp_rid_new(gclh);
 	}
 
 	// success
@@ -144,10 +148,11 @@ _gdp_req_free(gdp_req_t *req)
 
 	// remove it from the old list
 	if (req->gclh != NULL)
+	{
 		ep_thr_mutex_lock(&req->gclh->mutex);
-	LIST_REMOVE(req, list);
-	if (req->gclh != NULL)
+		LIST_REMOVE(req, list);
 		ep_thr_mutex_unlock(&req->gclh->mutex);
+	}
 
 	// add it to the free list
 	ep_thr_mutex_lock(&ReqFreeListMutex);
@@ -158,7 +163,7 @@ _gdp_req_free(gdp_req_t *req)
 }
 
 void
-_gdp_req_freeall(struct req_list *reqlist)
+_gdp_req_freeall(struct req_head *reqlist)
 {
 	gdp_req_t *r1 = LIST_FIRST(reqlist);
 
@@ -180,7 +185,7 @@ _gdp_req_find(gcl_handle_t *gclh, gdp_rid_t rid)
 	ep_thr_mutex_lock(&gclh->mutex);
 	LIST_FOREACH_SAFE(req, &gclh->reqs, list, rcursor)
 	{
-		if (req->rid != rid)
+		if (req->pkt.rid != rid)
 			continue;
 		if (!EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
 			LIST_REMOVE(req, list);
@@ -201,20 +206,19 @@ EP_STAT
 _gdp_req_send(gdp_req_t *req, gdp_msg_t *msg)
 {
 	EP_STAT estat;
-	gdp_pkt_hdr_t pkt;
 	gcl_handle_t *gclh = req->gclh;
 
-	ep_dbg_cprintf(Dbg, 45, "gdp_req_send: cmd=%d\n", req->cmd);
+	ep_dbg_cprintf(Dbg, 45, "gdp_req_send: cmd=%d (%s)\n",
+			req->pkt.cmd, _gdp_proto_cmd_name(req->pkt.cmd));
 	EP_ASSERT(gclh != NULL);
 
-	// initialize packet header
-	_gdp_pkt_hdr_init(&pkt, req->cmd, (gdp_rid_t) gclh, gclh->gcl_name);
-	pkt.rid = req->rid;
 	if (msg != NULL)
 	{
-		pkt.msgno = msg->msgno;
-		pkt.ts = msg->ts;
-		pkt.dbuf = msg->dbuf;
+		EP_ASSERT(msg->dbuf != NULL);
+		EP_ASSERT(req->pkt.dbuf != NULL);
+		req->pkt.recno = msg->recno;
+		req->pkt.ts = msg->ts;
+		gdp_buf_copy(msg->dbuf, req->pkt.dbuf);
 	}
 
 	// register this handle so we can process the results
@@ -227,9 +231,10 @@ _gdp_req_send(gdp_req_t *req, gdp_msg_t *msg)
 	ep_thr_mutex_unlock(&gclh->mutex);
 
 	// write the message out
-	estat = _gdp_pkt_out(&pkt, bufferevent_get_output(GdpPortBufferEvent));
+	estat = _gdp_pkt_out(&req->pkt, bufferevent_get_output(GdpChannel));
 	return estat;
 }
+
 
 
 /*
@@ -248,7 +253,8 @@ _gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	gdp_req_t *req;
 
 	EP_ASSERT_POINTER_VALID(gclh);
-	ep_dbg_cprintf(Dbg, 43, "gdp_invoke: cmd=%d\n", cmd);
+	ep_dbg_cprintf(Dbg, 43, "gdp_invoke: cmd=%d (%s)\n",
+			cmd, _gdp_proto_cmd_name(cmd));
 
 	/*
 	**  Top Half: sending the command
@@ -258,7 +264,7 @@ _gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	estat = _gdp_req_new(cmd, gclh, GDP_REQ_SYNC, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	req->cmd = cmd;
+	req->pkt.cmd = cmd;
 
 	estat = _gdp_req_send(req, msg);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -278,7 +284,7 @@ _gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	// mutex is released below
 
 	//XXX what status will/should we return?
-	if (event_base_got_exit(GdpEventBase))
+	if (event_base_got_exit(GdpIoEventBase))
 	{
 		ep_dbg_cprintf(Dbg, 1, "gdp_invoke: exiting on loopexit\n");
 		estat = GDP_STAT_INTERNAL_ERROR;
@@ -289,8 +295,8 @@ _gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 		estat = req->stat;
 		if (msg != NULL)
 		{
-			msg->msgno = req->recno;
-			msg->ts = req->ts;
+			msg->recno = req->pkt.recno;
+			msg->ts = req->pkt.ts;
 		}
 	}
 
@@ -315,10 +321,8 @@ fail0:
 **	Protocol processing (ACK/NAK)
 **
 **		All of these take as parameters:
-**			pkt --- the incoming packet off the wire.
-**			req --- ??? XXX
-**			bev --- the libevent channel from which this pdu came
-**			conn --- the connection context (used for anything? XXX)
+**			req --- the request information (including packet header)
+**			chan --- the libevent channel from which this pdu came
 **
 **		They can return GDP_STAT_KEEP_READING to tell the upper
 **		layer that the whole packet hasn't been read yet.
@@ -326,54 +330,53 @@ fail0:
 ***********************************************************************/
 
 static EP_STAT
-ack_success(gdp_pkt_hdr_t *pkt,
-		gdp_req_t *req,
-		struct bufferevent *bev,
-		struct gdp_conn_ctx *conn)
+ack_success(gdp_req_t *req,
+		gdp_chan_t *chan)
 {
-	EP_STAT estat = GDP_STAT_FROM_ACK(pkt->cmd);
-	size_t tocopy = pkt->dlen;
-	gcl_handle_t *gclh = req->gclh;
+	EP_STAT estat;
+	size_t tocopy;
+	gcl_handle_t *gclh;
 
 	// we require a request
 	if (req == NULL)
 	{
 		estat = GDP_STAT_PROTOCOL_FAIL;
 		gdp_log(estat, "ack_success: null request");
+		goto fail0;
 	}
+
+	estat = GDP_STAT_FROM_ACK(req->pkt.cmd);
+	tocopy = req->pkt.dlen;
+	gclh = req->gclh;
 
 	//	If we started with no gcl id, adopt from incoming packet.
 	//	This can happen when creating a GCL.
 	if (gclh != NULL)
 	{
 		if (gdp_gcl_name_is_zero(gclh->gcl_name))
-			memcpy(gclh->gcl_name, pkt->gcl_name, sizeof gclh->gcl_name);
+			memcpy(gclh->gcl_name, req->pkt.gcl_name, sizeof gclh->gcl_name);
 
-		req->ts = pkt->ts;
-
-		if (req->dbuf != NULL)
+		while (tocopy > 0)
 		{
-			while (tocopy > 0)
-			{
-				int i;
+			int i;
 
-				i = evbuffer_remove_buffer(bufferevent_get_input(bev),
-						req->dbuf, tocopy);
-				if (i > 0)
-				{
-					tocopy -= i;
-				}
-				else
-				{
-					// XXX should give some error here
-					break;
-				}
+			if (req->pkt.dbuf != NULL)
+				i = evbuffer_remove_buffer(bufferevent_get_input(chan),
+						req->pkt.dbuf, tocopy);
+			else
+				i = gdp_buf_drain(bufferevent_get_input(chan), tocopy);
+			if (i <= 0)
+			{
+				ep_dbg_cprintf(Dbg, 4,
+						"ack_success: data copy failure: %s\n",
+						strerror(errno));
+				break;
 			}
+			tocopy -= i;
 		}
-		else
-			gdp_buf_drain(bufferevent_get_input(bev), tocopy);
 	}
 
+fail0:
 	return estat;
 }
 
@@ -387,22 +390,18 @@ nak(int cmd, const char *where)
 
 
 static EP_STAT
-nak_client(gdp_pkt_hdr_t *pkt,
-		gdp_req_t *req,
-		struct bufferevent *bev,
-		struct gdp_conn_ctx *conn)
+nak_client(gdp_req_t *req,
+		gdp_chan_t *chan)
 {
-	return nak(pkt->cmd, "client");
+	return nak(req->pkt.cmd, "client");
 }
 
 
 static EP_STAT
-nak_server(gdp_pkt_hdr_t *pkt,
-		gdp_req_t *req,
-		struct bufferevent *bev,
-		struct gdp_conn_ctx *conn)
+nak_server(gdp_req_t *req,
+		gdp_chan_t *chan)
 {
-	return nak(pkt->cmd, "server");
+	return nak(req->pkt.cmd, "server");
 }
 
 
@@ -411,23 +410,17 @@ nak_server(gdp_pkt_hdr_t *pkt,
 **	Command/Ack/Nak Dispatch Table
 */
 
-typedef EP_STAT cmdfunc_t(gdp_pkt_hdr_t *pkt,
-						gdp_req_t *req,
-						struct bufferevent *bev,
-						struct gdp_conn_ctx *conn);
-
 typedef struct
 {
 	cmdfunc_t	*func;		// function to call
 	const char	*name;		// name of command (for debugging)
-	int			dummy;		// unused as yet
 } dispatch_ent_t;
 
-#define NOENT		{ NULL, NULL, 0 }
+#define NOENT		{ NULL, NULL }
 
 static dispatch_ent_t	DispatchTable[256] =
 {
-	{ NULL,		"CMD_KEEPALIVE",		0 },			// 0
+	{ NULL,				"CMD_KEEPALIVE" },			// 0
 	NOENT,				// 1
 	NOENT,				// 2
 	NOENT,				// 3
@@ -491,15 +484,15 @@ static dispatch_ent_t	DispatchTable[256] =
 	NOENT,				// 61
 	NOENT,				// 62
 	NOENT,				// 63
-	{ NULL,				"CMD_PING",				0 },			// 64
-	{ NULL,				"CMD_HELLO",			0 },			// 65
-	{ NULL,				"CMD_CREATE",			0 },			// 66
-	{ NULL,				"CMD_OPEN_AO",			0 },			// 67
-	{ NULL,				"CMD_OPEN_RO",			0 },			// 68
-	{ NULL,				"CMD_CLOSE",			0 },			// 69
-	{ NULL,				"CMD_READ",				0 },			// 70
-	{ NULL,				"CMD_PUBLISH",			0 },			// 71
-	{ NULL,				"CMD_SUBSCRIBE",		0 },			// 72
+	{ NULL,				"CMD_PING"				},			// 64
+	{ NULL,				"CMD_HELLO"				},			// 65
+	{ NULL,				"CMD_CREATE"			},			// 66
+	{ NULL,				"CMD_OPEN_AO"			},			// 67
+	{ NULL,				"CMD_OPEN_RO"			},			// 68
+	{ NULL,				"CMD_CLOSE"				},			// 69
+	{ NULL,				"CMD_READ"				},			// 70
+	{ NULL,				"CMD_PUBLISH"			},			// 71
+	{ NULL,				"CMD_SUBSCRIBE"			},			// 72
 	NOENT,				// 73
 	NOENT,				// 74
 	NOENT,				// 75
@@ -555,12 +548,12 @@ static dispatch_ent_t	DispatchTable[256] =
 	NOENT,				// 125
 	NOENT,				// 126
 	NOENT,				// 127
-	{ ack_success,		"ACK_SUCCESS",			0 },			// 128
-	{ ack_success,		"ACK_DATA_CREATED",		0 },			// 129
-	{ ack_success,		"ACK_DATA_DEL",			0 },			// 130
-	{ ack_success,		"ACK_DATA_VALID",		0 },			// 131
-	{ ack_success,		"ACK_DATA_CHANGED",		0 },			// 132
-	{ ack_success,		"ACK_DATA_CONTENT",		0 },			// 133
+	{ ack_success,		"ACK_SUCCESS"			},			// 128
+	{ ack_success,		"ACK_DATA_CREATED"		},			// 129
+	{ ack_success,		"ACK_DATA_DEL"			},			// 130
+	{ ack_success,		"ACK_DATA_VALID"		},			// 131
+	{ ack_success,		"ACK_DATA_CHANGED"		},			// 132
+	{ ack_success,		"ACK_DATA_CONTENT"		},			// 133
 	NOENT,				// 134
 	NOENT,				// 135
 	NOENT,				// 136
@@ -619,22 +612,22 @@ static dispatch_ent_t	DispatchTable[256] =
 	NOENT,				// 189
 	NOENT,				// 190
 	NOENT,				// 191
-	{ nak_client,		"NAK_C_BADREQ",			0 },			// 192
-	{ nak_client,		"NAK_C_UNAUTH",			0 },			// 193
-	{ nak_client,		"NAK_C_BADOPT",			0 },			// 194
-	{ nak_client,		"NAK_C_FORBIDDEN",		0 },			// 195
-	{ nak_client,		"NAK_C_NOTFOUND",		0 },			// 196
-	{ nak_client,		"NAK_C_METHNOTALLOWED", 0 },			// 197
-	{ nak_client,		"NAK_C_NOTACCEPTABLE",	0 },			// 198
+	{ nak_client,		"NAK_C_BADREQ"			},			// 192
+	{ nak_client,		"NAK_C_UNAUTH"			},			// 193
+	{ nak_client,		"NAK_C_BADOPT"			},			// 194
+	{ nak_client,		"NAK_C_FORBIDDEN"		},			// 195
+	{ nak_client,		"NAK_C_NOTFOUND"		},			// 196
+	{ nak_client,		"NAK_C_METHNOTALLOWED"	},			// 197
+	{ nak_client,		"NAK_C_NOTACCEPTABLE"	},			// 198
 	NOENT,				// 199
 	NOENT,				// 200
 	NOENT,				// 201
 	NOENT,				// 202
 	NOENT,				// 203
-	{ nak_client,		"NAK_C_PRECONFAILED",	0 },			// 204
-	{ nak_client,		"NAK_C_TOOLARGE",		0 },			// 205
+	{ nak_client,		"NAK_C_PRECONFAILED"	},			// 204
+	{ nak_client,		"NAK_C_TOOLARGE"		},			// 205
 	NOENT,				// 206
-	{ nak_client,		"NAK_C_UNSUPMEDIA",		0 },			// 207
+	{ nak_client,		"NAK_C_UNSUPMEDIA"		},			// 207
 	NOENT,				// 208
 	NOENT,				// 209
 	NOENT,				// 210
@@ -651,12 +644,12 @@ static dispatch_ent_t	DispatchTable[256] =
 	NOENT,				// 221
 	NOENT,				// 222
 	NOENT,				// 223
-	{ nak_server,		"NAK_S_INTERNAL",		0 },			// 224
-	{ nak_server,		"NAK_S_NOTIMPL",		0 },			// 225
-	{ nak_server,		"NAK_S_BADGATEWAY",		0 },			// 226
-	{ nak_server,		"NAK_S_SVCUNAVAIL",		0 },			// 227
-	{ nak_server,		"NAK_S_GWTIMEOUT",		0 },			// 228
-	{ nak_server,		"NAK_S_PROXYNOTSUP",	0 },			// 229
+	{ nak_server,		"NAK_S_INTERNAL"		},			// 224
+	{ nak_server,		"NAK_S_NOTIMPL"			},			// 225
+	{ nak_server,		"NAK_S_BADGATEWAY"		},			// 226
+	{ nak_server,		"NAK_S_SVCUNAVAIL"		},			// 227
+	{ nak_server,		"NAK_S_GWTIMEOUT"		},			// 228
+	{ nak_server,		"NAK_S_PROXYNOTSUP"		},			// 229
 	NOENT,				// 230
 	NOENT,				// 231
 	NOENT,				// 232
@@ -702,32 +695,54 @@ _gdp_proto_cmd_name(uint8_t cmd)
 }
 
 
-EP_STAT
-cmd_not_implemented(gdp_pkt_hdr_t *pkt,
-		gdp_req_t *req,
-		struct bufferevent *bev,
-		struct gdp_conn_ctx *conn)
+void
+_gdp_register_cmdfuncs(struct cmdfuncs *cf)
 {
-	const char *peer = conn->peername;
+	for (; cf->func != NULL; cf++)
+	{
+		DispatchTable[cf->cmd].func = cf->func;
+	}
+}
+
+
+static EP_STAT
+cmd_not_implemented(gdp_req_t *req,
+		gdp_chan_t *chan)
+{
+	const char *peer = "(unknown)";
 	size_t dl;
 
-	if (peer == NULL)
-		peer = "(unknown)";
 	// just ignore unknown commands
 	ep_dbg_cprintf(Dbg, 1, "gdp_read_cb: Unknown packet cmd %d from %s\n",
-			pkt->cmd, peer);
+			req->pkt.cmd, peer);
 
 	// consume and discard remaining data
-	if ((dl = gdp_buf_drain(bufferevent_get_input(bev), pkt->dlen)) < pkt->dlen)
+	dl = gdp_buf_drain(bufferevent_get_input(chan), req->pkt.dlen);
+	if (dl < req->pkt.dlen)
 	{
 		// "can't happen" since that data is already in memory
 		gdp_log(GDP_STAT_BUFFER_FAILURE,
 			"gdp_read_cb: gdp_buf_drain failed:"
 			" dlen = %u, drained = %zu\n",
-			pkt->dlen, dl);
+			req->pkt.dlen, dl);
 		// we are now probably out of sync; can we continue?
 	}
 	return GDP_STAT_NOT_IMPLEMENTED;
+}
+
+
+EP_STAT
+_gdp_req_dispatch(gdp_req_t *req, gdp_chan_t *chan)
+{
+	EP_STAT estat;
+	dispatch_ent_t *d;
+
+	d = &DispatchTable[req->pkt.cmd];
+	if (d->func == NULL)
+		estat = cmd_not_implemented(req, chan);
+	else
+		estat = (*d->func)(req, chan);
+	return estat;
 }
 
 
@@ -736,17 +751,15 @@ cmd_not_implemented(gdp_pkt_hdr_t *pkt,
 */
 
 static void
-gdp_read_cb(struct bufferevent *bev, void *ctx)
+gdp_read_cb(gdp_chan_t *chan, void *ctx)
 {
 	EP_STAT estat;
 	gdp_pkt_hdr_t pkt;
-	gdp_buf_t *ievb = bufferevent_get_input(bev);
-	struct gdp_conn_ctx *conn = ctx;
+	gdp_buf_t *ievb = bufferevent_get_input(chan);
 	gcl_handle_t *gclh;
 	gdp_req_t *req;
-	dispatch_ent_t *d;
 
-	ep_dbg_cprintf(Dbg, 50, "gdp_read_cb: fd %d\n", bufferevent_getfd(bev));
+	ep_dbg_cprintf(Dbg, 50, "gdp_read_cb: fd %d\n", bufferevent_getfd(chan));
 
 	estat = _gdp_pkt_in(&pkt, ievb);
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
@@ -770,52 +783,31 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 	}
 
 	// find the request
-	if (EP_UT_BITSET(GDP_PKT_NO_RID, pkt.flags))
-	{
+	if (gclh == NULL)
 		req = NULL;
-	}
-	else if (gclh == NULL)
-	{
-		char rbuf[100];
+	else
+		req = _gdp_req_find(gclh, pkt.rid);
 
-		gdp_log(GDP_STAT_PROTOCOL_FAIL,
-				"gdp_read_cb: rid %s with no GCL ID",
-				gdp_rid_tostr(pkt.rid, rbuf, sizeof rbuf));
-		req = NULL;
-	}
-	else if ((req = _gdp_req_find(gclh, pkt.rid)) == NULL)
+	if (req == NULL)
 	{
-		gcl_pname_t gbuf;
-		char rbuf[100];
-
-		gdp_log(GDP_STAT_PROTOCOL_FAIL,
-				"gdp_read_cb: cannot find rid %s, GCL %s",
-				gdp_rid_tostr(pkt.rid, rbuf, sizeof rbuf),
-				gdp_gcl_printable_name(gclh->gcl_name, gbuf));
+		estat = _gdp_req_new(pkt.cmd, gclh, 0, &req);
+		if (!EP_STAT_ISOK(estat))
+		{
+			gdp_log(estat, "gdp_read_cb: cannot allocate request");
+			return;
+		}
+		
+		//XXX link request into GCL list??
 	}
 
-	// associate the request with the gcl
-	if (req != NULL)
-	{
-		req->gclh = gclh;
-	}
-	else if (gclh != NULL)
-	{
-		gcl_pname_t gbuf;
-
-		gdp_log(GDP_STAT_PROTOCOL_FAIL,
-				"gdp_read_cb: no rid for gcl %s",
-				gdp_gcl_printable_name(gclh->gcl_name, gbuf));
-	}
+	// copy the temporary packet into the request
+	pkt.dbuf = req->pkt.dbuf;
+	memcpy(&req->pkt, &pkt, sizeof req->pkt);
 
 	// invoke the command-specific (or ack-specific) function
-	d = &DispatchTable[pkt.cmd];
-	if (d->func == NULL)
-		estat = cmd_not_implemented(&pkt, req, bev, conn);
-	else
-		estat = (*d->func)(&pkt, req, bev, conn);
+	_gdp_req_dispatch(req, chan);
 
-	// ASSERT all data from bev has been consumed
+	// ASSERT all data from chan has been consumed
 
 //	XXX KEEP_READING is not an option, since the header has been consumed
 //	if (gclh == NULL || EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
@@ -829,27 +821,24 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 //			!EP_UT_BITSET(RINFO_PERSISTENT | RINFO_KEEP_MAPPING, rif->flags))
 //		drop_rid_mapping(pkt.rid, conn);
 
-	if (req != NULL)
+	// return our status via the request
+	ep_thr_mutex_lock(&req->mutex);
+	req->stat = estat;
+	req->flags |= GDP_REQ_DONE;
+	if (ep_dbg_test(Dbg, 44))
 	{
-		// return our status via the request
-		ep_thr_mutex_lock(&req->mutex);
-		req->stat = estat;
-		req->flags |= GDP_REQ_DONE;
-		if (ep_dbg_test(Dbg, 44))
-		{
-			gcl_pname_t pbuf;
-			char ebuf[200];
+		gcl_pname_t pbuf;
+		char ebuf[200];
 
-			if (req->gclh != NULL)
-				gdp_gcl_printable_name(req->gclh->gcl_name, pbuf);
-			else
-				(void) strlcpy(pbuf, "(none)", sizeof pbuf);
-			ep_dbg_printf("gdp_read_cb: returning stat %s\n\tGCL %s\n",
-					ep_stat_tostr(estat, ebuf, sizeof ebuf), pbuf);
-		}
-		ep_thr_cond_signal(&req->cond);
-		ep_thr_mutex_unlock(&req->mutex);
+		if (req->gclh != NULL)
+			gdp_gcl_printable_name(req->gclh->gcl_name, pbuf);
+		else
+			(void) strlcpy(pbuf, "(none)", sizeof pbuf);
+		ep_dbg_printf("gdp_read_cb: returning stat %s\n\tGCL %s\n",
+				ep_stat_tostr(estat, ebuf, sizeof ebuf), pbuf);
 	}
+	ep_thr_cond_signal(&req->cond);
+	ep_thr_mutex_unlock(&req->mutex);
 }
 
 
@@ -869,19 +858,19 @@ static EP_PRFLAGS_DESC	EventWhatFlags[] =
 };
 
 static void
-gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
+gdp_event_cb(gdp_chan_t *chan, short events, void *ctx)
 {
 	bool exitloop = false;
 
 	if (ep_dbg_test(Dbg, 25))
 	{
-		ep_dbg_printf("gdp_event_cb: fd %d: ", bufferevent_getfd(bev));
+		ep_dbg_printf("gdp_event_cb: fd %d: ", bufferevent_getfd(chan));
 		ep_prflags(events, EventWhatFlags, ep_dbg_getfile());
 		ep_dbg_printf("\n");
 	}
 	if (EP_UT_BITSET(BEV_EVENT_EOF, events))
 	{
-		gdp_buf_t *ievb = bufferevent_get_input(bev);
+		gdp_buf_t *ievb = bufferevent_get_input(chan);
 		size_t l = gdp_buf_getlength(ievb);
 
 		ep_dbg_cprintf(Dbg, 1, "gdpd_event_cb: got EOF, %zu bytes left\n", l);
@@ -894,7 +883,7 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 		exitloop = true;
 	}
 	if (exitloop)
-		event_base_loopexit(GdpEventBase, NULL);
+		event_base_loopexit(GdpIoEventBase, NULL);
 }
 
 
@@ -902,14 +891,14 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 **	INITIALIZATION ROUTINES
 */
 
-EP_STAT
-init_error(const char *msg)
+static EP_STAT
+init_error(const char *msg, const char *where)
 {
 	int eno = errno;
 	EP_STAT estat = ep_stat_from_errno(eno);
 
-	gdp_log(estat, "gdp_init: %s", msg);
-	ep_app_error("gdp_init: %s: %s", msg, strerror(eno));
+	gdp_log(estat, "gdp_init: %s: %s", where, msg);
+	ep_app_error("gdp_init: %s: %s: %s", where, msg, strerror(eno));
 	return estat;
 }
 
@@ -921,67 +910,50 @@ init_error(const char *msg)
 **		GdpIoEventLoopThread is also used by gdpd, hence non-static.
 */
 
-static pthread_t	AcceptEventLoopThread;
-pthread_t			GdpIoEventLoopThread;
+pthread_t		_GdpIoEventLoopThread;
 
-void *
-gdp_run_accept_event_loop(void *ctx)
+static void
+event_loop_timeout(int fd, short what, void *ctx)
 {
-	struct event_base *evb = ctx;
-	long evdelay = ep_adm_getlongparam("gdp.rest.event.loopdelay", 100000);
+	struct event_loop_info *eli = ctx;
 
-	if (evb == NULL)
-		evb = GdpEventBase;
+	ep_dbg_cprintf(Dbg, 49, "%s event loop timeout\n", eli->where);
+}
+
+static void *
+run_event_loop(void *ctx)
+{
+	struct event_loop_info *eli = ctx;
+	struct event_base *evb = eli->evb;
+	long evdelay = ep_adm_getlongparam("gdp.rest.event.loopdelay", 100000L);
+	
+	// keep the loop alive if EVLOOP_NO_EXIT_ON_EMPTY isn't available
+	long ev_timeout = ep_adm_getlongparam("gdp.rest.event.looptimeout", 30L);
+	struct timeval tv = { ev_timeout, 0 };
+	struct event *evtimer = event_new(evb, -1, EV_PERSIST,
+			&event_loop_timeout, eli);
+	event_add(evtimer, &tv);
 
 	for (;;)
 	{
 		if (ep_dbg_test(Dbg, 20))
 		{
-			ep_dbg_printf("gdp_event_loop: starting up base loop\n");
+			ep_dbg_printf("gdp_event_loop: starting up %s base loop\n",
+					eli->where);
 			event_base_dump_events(evb, ep_dbg_getfile());
 		}
+
 #ifdef EVLOOP_NO_EXIT_ON_EMPTY
 		event_base_loop(evb, EVLOOP_NO_EXIT_ON_EMPTY);
 #else
 		event_base_loop(evb, 0);
 #endif
+
 		// shouldn't happen (?)
 		if (ep_dbg_test(Dbg, 1))
 		{
-			ep_dbg_printf("gdp_event_loop: event_base_loop returned\n");
-			if (event_base_got_break(evb))
-				ep_dbg_printf(" ... as a result of loopbreak\n");
-			if (event_base_got_exit(evb))
-				ep_dbg_printf(" ... as a result of loopexit\n");
-		}
-		if (evdelay > 0)
-			ep_time_nanosleep(evdelay * 1000LL);		// avoid CPU hogging
-	}
-}
-
-void *
-gdp_run_io_event_loop(void *ctx)
-{
-	struct event_base *evb = ctx;
-	long evdelay = ep_adm_getlongparam("gdp.rest.event.loopdelay", 100000);
-
-	if (evb == NULL)
-	{
-		gdp_log(EP_STAT_ERROR, "gdp_run_io_event_loop: null event_base");
-		return NULL;
-	}
-	while (true)
-	{
-		// TODO: what if user compiling doesn't have libevent 2.1-alpha?
-#ifdef EVLOOP_NO_EXIT_ON_EMPTY
-		event_base_loop(evb, EVLOOP_NO_EXIT_ON_EMPTY);
-#else
-		event_base_loop(evb, 0);
-#endif
-		// shouldn't happen (?)
-		if (ep_dbg_test(Dbg, 1))
-		{
-			ep_dbg_printf("gdp_event_loop: event_base_loop returned\n");
+			ep_dbg_printf("gdp_event_loop: %s event_base_loop returned\n",
+					eli->where);
 			if (event_base_got_break(evb))
 				ep_dbg_printf(" ... as a result of loopbreak\n");
 			if (event_base_got_exit(evb))
@@ -993,27 +965,18 @@ gdp_run_io_event_loop(void *ctx)
 }
 
 EP_STAT
-_gdp_start_accept_event_loop_thread(struct event_base *evb)
+_gdp_start_event_loop_thread(pthread_t *thr,
+		struct event_base *evb,
+		const char *where)
 {
-	if (pthread_create(&AcceptEventLoopThread, NULL,
-				gdp_run_accept_event_loop, evb) != 0)
-		return init_error("cannot create event loop thread");
-	else
-		return EP_STAT_OK;
-}
+	struct event_loop_info *eli = ep_mem_malloc(sizeof *eli);
 
-EP_STAT
-_gdp_start_io_event_loop_thread(struct event_base *evb)
-{
-	if (pthread_create(&GdpIoEventLoopThread, NULL,
-						gdp_run_io_event_loop, evb) != 0)
-	{
-		return init_error("cannot create io event loop thread");
-	}
+	eli->evb = evb;
+	eli->where = where;
+	if (pthread_create(thr, NULL, run_event_loop, eli) != 0)
+		return init_error("cannot create event loop thread", where);
 	else
-	{
 		return EP_STAT_OK;
-	}
 }
 
 
@@ -1036,17 +999,17 @@ evlib_log_cb(int severity, const char *msg)
 	ep_dbg_cprintf(EvlibDbg, (4 - severity) * 10, "[%s] %s\n", sev, msg);
 }
 
-EP_STAT
-_gdp_do_init(bool run_event_loop)
-{
-	static bool inited = false;
-	EP_STAT estat = EP_STAT_OK;
-	struct bufferevent *bev;
-	extern void gdp_stat_init(void);
+/*
+**  Initialization, Part 1:
+**		Initialize the various external libraries.
+**		Set up the I/O event loop base.
+**		Initialize the GCL cache.
+*/
 
-	if (inited)
-		return EP_STAT_OK;
-	inited = true;
+EP_STAT
+_gdp_do_init_1(void)
+{
+	EP_STAT estat = EP_STAT_OK;
 
 	ep_dbg_cprintf(Dbg, 4, "gdp_init: initializing\n");
 
@@ -1054,14 +1017,14 @@ _gdp_do_init(bool run_event_loop)
 	ep_lib_init(EP_LIB_USEPTHREADS);
 
 	// register status strings
-	gdp_stat_init();
+	_gdp_stat_init();
 
-	// tell it we're using pthreads
+	// tell the event library that we're using pthreads
 	if (evthread_use_pthreads() < 0)
-		return init_error("cannot use pthreads");
+		return init_error("cannot use pthreads", "gdp_init");
 
 	// set up the event base
-	if (GdpEventBase == NULL)
+	if (GdpIoEventBase == NULL)
 	{
 		if (ep_dbg_test(EvlibDbg, 40))
 		{
@@ -1071,14 +1034,14 @@ _gdp_do_init(bool run_event_loop)
 			event_enable_debug_mode();
 		}
 
-		// Initialize the EVENT library
+		// Initialize for I/O events
 		{
 			struct event_config *ev_cfg = event_config_new();
 
 			event_config_require_features(ev_cfg, 0);
-			GdpEventBase = event_base_new_with_config(ev_cfg);
-			if (GdpEventBase == NULL)
-				estat = init_error("could not create event base");
+			GdpIoEventBase = event_base_new_with_config(ev_cfg);
+			if (GdpIoEventBase == NULL)
+				estat = init_error("could not create event base", "gdp_init");
 			event_config_free(ev_cfg);
 			EP_STAT_CHECK(estat, goto fail0);
 
@@ -1087,56 +1050,74 @@ _gdp_do_init(bool run_event_loop)
 	}
 
 	estat = _gdp_gcl_cache_init();
-	EP_STAT_CHECK(estat, goto fail0);
+
+fail0:
+	return estat;
+}
+
+
+/*
+**	Initialization, Part 2:
+**		Open the connection to gdpd.
+**		Start the event loop to service that connection.
+**
+**	This code is not called by gdpd.
+*/
+
+EP_STAT
+_gdp_do_init_2(void)
+{
+	gdp_chan_t *chan;
+	EP_STAT estat = EP_STAT_OK;
 
 	// set up the bufferevent
-	bev = bufferevent_socket_new(GdpEventBase,
+	chan = bufferevent_socket_new(GdpIoEventBase,
 						-1,
-						BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
-	if (bev == NULL)
+						BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE |
+						BEV_OPT_DEFER_CALLBACKS);
+	if (chan == NULL)
 	{
-		estat = init_error("could not allocate bufferevent");
+		estat = init_error("could not allocate bufferevent", "gdp_init");
 		goto fail0;
 	}
 	else
 	{
 		// attach it to a socket
-		conn_t *conn = ep_mem_zalloc(sizeof *conn);
 		struct sockaddr_in sa;
 		int gdpd_port = ep_adm_getintparam("swarm.gdp.controlport",
 										GDP_PORT_DEFAULT);
-
-		conn->peername = ep_adm_getstrparam("swarm.gdp.controlhost",
+		const char *peername = ep_adm_getstrparam("swarm.gdp.controlhost",
 										"127.0.0.1");
-		bufferevent_setcb(bev, gdp_read_cb, NULL, gdp_event_cb, conn);
-		bufferevent_enable(bev, EV_READ | EV_WRITE);
+
+		bufferevent_setcb(chan, gdp_read_cb, NULL, gdp_event_cb, NULL);
+		bufferevent_enable(chan, EV_READ | EV_WRITE);
 
 		// TODO at the moment just attaches to localhost; should
 		//		do discovery or at least have a run time parameter
 		sa.sin_family = AF_INET;
-		sa.sin_addr.s_addr = inet_addr(conn->peername);
+		sa.sin_addr.s_addr = inet_addr(peername);
 		sa.sin_port = htons(gdpd_port);
-		if (bufferevent_socket_connect(bev, (struct sockaddr *) &sa,
+		if (bufferevent_socket_connect(chan, (struct sockaddr *) &sa,
 									sizeof sa) < 0)
 		{
-			estat = init_error("could not connect to IPv4 socket");
+			estat = init_error("could not connect to IPv4 socket", "gdp_init");
 			goto fail1;
 		}
-		GdpPortBufferEvent = bev;
+		GdpChannel = chan;
 		ep_dbg_cprintf(Dbg, 10, "gdp_init: listening on port %d, fd %d\n",
-				gdpd_port, bufferevent_getfd(bev));
+				gdpd_port, bufferevent_getfd(chan));
 	}
 
 	// create a thread to run the event loop
-	if (run_event_loop)
-		estat = _gdp_start_accept_event_loop_thread(GdpEventBase);
+	estat = _gdp_start_event_loop_thread(&_GdpIoEventLoopThread,
+										GdpIoEventBase, "I/O");
 	EP_STAT_CHECK(estat, goto fail1);
 
 	ep_dbg_cprintf(Dbg, 4, "gdp_init: success\n");
 	return estat;
 
 fail1:
-	bufferevent_free(bev);
+	bufferevent_free(chan);
 
 fail0:
 	{

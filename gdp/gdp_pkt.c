@@ -22,6 +22,7 @@
 #include <gdp/gdp_priv.h>
 #include <gdp/gdp_pkt.h>
 #include <gdp/gdp_timestamp.h>
+#include <event2/event.h>
 #include <event2/buffer.h>
 #include <string.h>
 #include <sys/errno.h>
@@ -53,7 +54,7 @@ _gdp_pkt_hdr_init(gdp_pkt_hdr_t *pp,
 	pp->cmd = cmd;
 	pp->rid = rid;
 	memcpy(pp->gcl_name, gcl_name, sizeof pp->gcl_name);
-	pp->msgno = GDP_PKT_NO_RECNO;
+	pp->recno = GDP_PKT_NO_RECNO;
 }
 
 
@@ -145,10 +146,10 @@ _gdp_pkt_out(gdp_pkt_hdr_t *pp, gdp_buf_t *obuf)
 	}
 
 	// record number
-	if (pp->msgno != GDP_PKT_NO_RECNO)
+	if (pp->recno != GDP_PKT_NO_RECNO)
 	{
 		pbuf[2] |= GDP_PKT_HAS_RECNO;
-		PUT32(pp->msgno);
+		PUT32(pp->recno);
 	}
 
 	// timestamp
@@ -170,12 +171,12 @@ _gdp_pkt_out(gdp_pkt_hdr_t *pp, gdp_buf_t *obuf)
 
 	size_t written;
 
-	if ((written = gdp_buf_write(obuf, pbuf, pbp - pbuf)) < (pbp - pbuf))
+	evbuffer_lock(obuf);
+	if (gdp_buf_write(obuf, pbuf, pbp - pbuf) < 0)
 	{
 		// couldn't write, bad juju
-		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: header write failure: %s\n"
-				"  wanted %zd, got %zd\n",
-				strerror(errno), pbp - pbuf, written);
+		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: header write failure: %s",
+				strerror(errno));
 		estat = GDP_STAT_PKT_WRITE_FAIL;
 	}
 	else if (pp->dbuf != NULL && pp->dlen > 0 &&
@@ -188,6 +189,7 @@ _gdp_pkt_out(gdp_pkt_hdr_t *pp, gdp_buf_t *obuf)
 				strerror(errno), pp->dlen, written);
 		estat = GDP_STAT_PKT_WRITE_FAIL;
 	}
+	evbuffer_unlock(obuf);
 
 	return estat;
 }
@@ -248,14 +250,13 @@ _gdp_pkt_in(gdp_pkt_hdr_t *pp, gdp_buf_t *ibuf)
 	uint8_t *pbp;
 
 	EP_ASSERT_POINTER_VALID(pp);
-	memset((void *) pp, 0, sizeof *pp);
 
 	ep_dbg_cprintf(Dbg, 60, "gdp_pkt_in\n");	// XXX
 
 	// see if the fixed part of the header is all in
 	needed = FIXEDHDRSZ;			// ver, cmd, flags, reserved1, dlen
 
-	if (gdp_buf_read(ibuf, pbuf, needed) < needed)
+	if (gdp_buf_peek(ibuf, pbuf, needed) < needed)
 	{
 		// try again after we read more in
 		ep_dbg_cprintf(Dbg, 42,
@@ -284,7 +285,7 @@ _gdp_pkt_in(gdp_pkt_hdr_t *pp, gdp_buf_t *ibuf)
 	if (EP_UT_BITSET(GDP_PKT_HAS_ID, pp->flags))
 		needed += 32;				// sizeof pp->gcl_name;
 	if (EP_UT_BITSET(GDP_PKT_HAS_RECNO, pp->flags))
-		needed += 4;				// sizeof pp->msgno;
+		needed += 4;				// sizeof pp->recno;
 	if (EP_UT_BITSET(GDP_PKT_HAS_TS, pp->flags))
 		needed += 16;				// sizeof pp->ts;
 	needed += pp->dlen;
@@ -346,9 +347,9 @@ _gdp_pkt_in(gdp_pkt_hdr_t *pp, gdp_buf_t *ibuf)
 
 	// record number
 	if (!EP_UT_BITSET(GDP_PKT_HAS_RECNO, pp->flags))
-		pp->msgno = GDP_PKT_NO_RECNO;
+		pp->recno = GDP_PKT_NO_RECNO;
 	else
-		GET32(pp->msgno)
+		GET32(pp->recno)
 
 	// timestamp
 	if (!EP_UT_BITSET(GDP_PKT_HAS_TS, pp->flags))
@@ -404,13 +405,13 @@ _gdp_pkt_dump_hdr(gdp_pkt_hdr_t *pp, FILE *fp)
 		fprintf(fp, "%u", pp->rid);
 		len += sizeof pp->rid;
 	}
-	fprintf(fp, ", msgno=");
-	if (pp->msgno == GDP_PKT_NO_RECNO)
+	fprintf(fp, ", recno=");
+	if (pp->recno == GDP_PKT_NO_RECNO)
 		fprintf(fp, "(none)");
 	else
 	{
-		fprintf(fp, "%u", pp->msgno);
-		len += sizeof pp->msgno;
+		fprintf(fp, "%u", pp->recno);
+		len += sizeof pp->recno;
 	}
 	fprintf(fp, "\n\tgcl_name=");
 	if (gdp_gcl_name_is_zero(pp->gcl_name))

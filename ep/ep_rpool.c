@@ -140,7 +140,7 @@ ep_rpool_new(const char *name,
 	size_t qsize)
 {
 	EP_RPOOL *rp;
-	int pagesize = EP_OSCF_MEM_PAGESIZE;		// XXX too large on some machines?
+	int pagesize = EP_OSCF_MEM_PAGESIZE;	// XXX too large on some machines?
 
 	if (name == NULL)
 		name = "anonymous rpool";
@@ -152,8 +152,6 @@ ep_rpool_new(const char *name,
 	{
 		// get a default quantum that seems reasonable
 		qsize = ep_adm_getintparam("libep.rpool.quantum", 0);
-		if (qsize > sizeof (struct rpseg))
-			qsize -= sizeof (struct rpseg);
 	}
 
 	// tweak qsize to allow for malloc and segment headers,

@@ -420,6 +420,19 @@ ep_stat_tostr(EP_STAT stat,
 	char *module = NULL;
 	char *rname;
 	char rbuf[50];
+	char mbuf[30];
+
+	// dispose of OK status quickly
+	if (EP_STAT_ISOK(stat))
+	{
+		if (EP_STAT_TO_LONG(stat) == 0)
+			snprintf(buf, blen, "OK");
+		else
+			snprintf(buf, blen, "OK [%ld = 0x%lx]",
+				EP_STAT_TO_LONG(stat),
+				EP_STAT_TO_LONG(stat));
+		return buf;
+	}
 
 	// @@@ this really needs to be made configurable somehow
 	switch (reg)
@@ -486,43 +499,23 @@ ep_stat_tostr(EP_STAT stat,
 			detail = s;
 	}
 
-	if (EP_STAT_ISOK(stat))
+	if (module == NULL)
+		snprintf(mbuf, sizeof mbuf, "%ld", EP_STAT_MODULE(stat));
+	if (detail != NULL)
 	{
-		snprintf(buf, blen, "OK [%ld = 0x%lx]",
-				EP_STAT_TO_LONG(stat),
-				EP_STAT_TO_LONG(stat));
-	}
-	else if (detail != NULL)
-	{
-		snprintf(buf, blen, "%s: %s [%s:%ld:%ld]",
+		snprintf(buf, blen, "%s: %s [%s:%s:%ld]",
 				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
 				detail,
 				rname,
-				EP_STAT_MODULE(stat),
+				module,
 				EP_STAT_DETAIL(stat));
 	}
-	else if (module != NULL)
+	else
 	{
 		snprintf(buf, blen, "%s: [%s:%s:%ld]",
 				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
 				rname,
 				module,
-				EP_STAT_DETAIL(stat));
-	}
-	else if (rname != NULL)
-	{
-		snprintf(buf, blen, "%s: [%s:%ld:%ld]",
-				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
-				rname,
-				EP_STAT_MODULE(stat),
-				EP_STAT_DETAIL(stat));
-	}
-	else
-	{
-		snprintf(buf, blen, "%s: [%ld:%ld:%ld]",
-				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
-				EP_STAT_REGISTRY(stat),
-				EP_STAT_MODULE(stat),
 				EP_STAT_DETAIL(stat));
 	}
 	return buf;

@@ -67,7 +67,7 @@ gdp_gcl_msg_print(const gdp_msg_t *msg,
 	unsigned char *d;
 	int l;
 
-	fprintf(fp, "GCL Message %d, ", msg->msgno);
+	fprintf(fp, "GCL Record %d, ", msg->recno);
 	if (msg->dbuf == NULL)
 	{
 		fprintf(fp, "no data");
@@ -227,10 +227,21 @@ gdp_gcl_print(
 */
 
 EP_STAT
-gdp_init(bool run_event_loop)
+gdp_init(void)
 {
+	static bool inited = false;
+	EP_STAT estat;
+	extern EP_STAT _gdp_do_init_1(void);
+	extern EP_STAT _gdp_do_init_2(void);
+
+	if (inited)
+		return EP_STAT_OK;
+	inited = true;
+
 	// pass it on to the internal module
-	return _gdp_do_init(run_event_loop);
+	estat = _gdp_do_init_1();
+	EP_STAT_CHECK(estat, return estat);
+	return _gdp_do_init_2();
 }
 
 
@@ -409,7 +420,7 @@ gdp_gcl_append(gcl_handle_t *gclh,
 
 EP_STAT
 gdp_gcl_read(gcl_handle_t *gclh,
-			gdp_msgno_t msgno,
+			gdp_recno_t recno,
 			gdp_buf_t *reb,
 			gdp_msg_t *msg)
 {
@@ -417,7 +428,7 @@ gdp_gcl_read(gcl_handle_t *gclh,
 
 	EP_ASSERT_POINTER_VALID(gclh);
 
-	msg->msgno = msgno;
+	msg->recno = recno;
 	msg->ts.stamp.tv_sec = TT_NOTIME;
 	msg->dbuf = reb;
 	estat = _gdp_invoke(GDP_CMD_READ, gclh, msg);

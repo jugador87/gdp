@@ -43,7 +43,7 @@ typedef char				gcl_pname_t[GCL_PNAME_LEN + 1];
 typedef uint32_t			gdp_rid_t;
 
 // a GCL record number
-typedef int32_t				gdp_msgno_t;
+typedef int32_t				gdp_recno_t;
 
 /*
 **	I/O modes
@@ -85,7 +85,7 @@ typedef enum
 
 typedef struct gdp_msg
 {
-	gdp_msgno_t		msgno;			// the message number
+	gdp_recno_t		recno;			// the record number
 	tt_interval_t	ts;				// timestamp for this message
 	gdp_buf_t		*dbuf;			// data buffer
 //	GDP_MSG_EXTRA					// used by gdpd
@@ -96,11 +96,10 @@ typedef struct gdp_msg
 **	Public globals and functions
 */
 
-struct event_base		*GdpEventBase;	// the base for all GDP events
+struct event_base		*GdpIoEventBase;	// the base for GDP I/O events
 
 // initialize the library
-extern EP_STAT	gdp_init(
-					bool run_event_loop);	// run event loop in thread
+extern EP_STAT	gdp_init(void);
 
 // run event loop (normally run from gdp_init; never returns)
 extern void		*gdp_run_accept_event_loop(
@@ -135,7 +134,7 @@ extern EP_STAT	gdp_gcl_append(
 // read from a readable GCL
 extern EP_STAT	gdp_gcl_read(
 					gcl_handle_t *gclh,		// readable GCL handle
-					gdp_msgno_t recno,		// GCL record number
+					gdp_recno_t recno,		// GCL record number
 					gdp_buf_t *dbuf,		// reply buffer to receive data
 					gdp_msg_t *msg);		// pointer to result message
 

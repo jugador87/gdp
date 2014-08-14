@@ -17,7 +17,7 @@ main(int argc, char **argv)
 	gcl_name_t gclname;
 	char *gclpname;
 	int opt;
-	uint32_t msgno;
+	uint32_t recno;
 	struct evbuffer *evb;
 
 	while ((opt = getopt(argc, argv, "D:")) > 0)
@@ -39,7 +39,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	estat = gdp_init(true);
+	estat = gdp_init();
 	if (!EP_STAT_ISOK(estat))
 	{
 		ep_app_error("GDP Initialization failed");
@@ -69,18 +69,15 @@ main(int argc, char **argv)
 
 	evb = evbuffer_new();
 
-	msgno = 1;
+	recno = 1;
 	for (;;)
 	{
 		gdp_msg_t msg;
-		char mbuf[1024 * 1024];
 
-		estat = gdp_gcl_read(gclh, msgno, &msg, evb);
+		estat = gdp_gcl_read(gclh, recno, evb, &msg);
 		EP_STAT_CHECK(estat, break);
-		msg.len = evbuffer_remove(evb, mbuf, sizeof mbuf);
-		msg.data = mbuf;
 		gdp_gcl_msg_print(&msg, stdout);
-		msgno++;
+		recno++;
 
 		// flush any left over data
 		evbuffer_drain(evb, UINT32_MAX);

@@ -12,7 +12,7 @@ EP_STAT			gcl_offset_cache_init(
 
 EP_STAT			gcl_read(
 						gcl_handle_t *gclh,
-						gdp_msgno_t msgno,
+						gdp_recno_t recno,
 						gdp_msg_t *msg,
 						struct evbuffer *evb);
 
@@ -42,11 +42,12 @@ EP_STAT			gcl_append(
 
 #define GCL_READ_BUFFER_SIZE 4096
 
-typedef struct gcl_log_record {
-	int64_t msgno;
-	tt_interval_t timestamp;
-	int64_t data_length;
-	char data[];
+typedef struct gcl_log_record
+{
+	int64_t			recno;
+	tt_interval_t	timestamp;
+	int64_t			data_length;
+	char			data[];
 } gcl_log_record;
 
 /*
@@ -59,7 +60,8 @@ typedef struct gcl_log_record {
  * l_1, ... , l_N are int16_t
  */
 
-typedef struct gcl_log_header {
+typedef struct gcl_log_header
+{
 	int64_t magic;
 	int64_t version;
 	int16_t header_size; 	// the total size of the header such that
@@ -68,7 +70,8 @@ typedef struct gcl_log_header {
 	int16_t num_metadata_entries;
 } gcl_log_header;
 
-typedef struct gcl_index_record {
-	int64_t msgno;
+typedef struct gcl_index_record
+{
+	int64_t recno;
 	int64_t offset;
 } gcl_index_record;

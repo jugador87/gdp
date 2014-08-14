@@ -175,7 +175,7 @@ show_gcl(char *gclpname,
 */
 
 EP_STAT
-read_msg(char *gclpname, gdp_msgno_t msgno, scgi_request *req)
+read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
 {
 	EP_STAT estat;
 	gcl_handle_t *gclh = NULL;
@@ -192,7 +192,7 @@ read_msg(char *gclpname, gdp_msgno_t msgno, scgi_request *req)
 
 	revb = evbuffer_new();
 
-	estat = gdp_gcl_read(gclh, msgno, &msg, revb);
+	estat = gdp_gcl_read(gclh, recno, revb, &msg);
 	if (!EP_STAT_ISOK(estat))
 		goto fail0;
 
@@ -215,7 +215,7 @@ read_msg(char *gclpname, gdp_msgno_t msgno, scgi_request *req)
 						"GDP-USC-Name: %s\r\n"
 						"GDP-Message-Number: %ld\r\n",
 						gclpname,
-						msgno);
+						recno);
 			if (msg.ts.stamp.tv_sec != TT_NOTIME)
 			{
 				fprintf(fp, "GDP-Commit-Timestamp: ");
@@ -415,8 +415,8 @@ process_scgi_req(scgi_request *req,
 						"Content-Type: application/json\r\n"
 						"\r\n"
 						"{\r\n"
-						"	 \"msgno\": \"%d\"",
-						msg.msgno);
+						"	 \"recno\": \"%d\"",
+						msg.recno);
 				if (msg.ts.stamp.tv_sec != TT_NOTIME)
 				{
 					fprintf(fp,
