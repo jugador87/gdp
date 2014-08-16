@@ -14,8 +14,9 @@
 #include <ep/ep_stat.h>
 #include <ep/ep_string.h>
 #include <ep/ep_time.h>
-#include <syslog.h>
 #include <stdio.h>
+#include <syslog.h>
+#include <inttypes.h>
 #include <time.h>
 #include <sys/time.h>
 
@@ -57,7 +58,7 @@ gdp_log_file(EP_STAT estat,
 		ep_stat_tostr(estat, ebuf, sizeof ebuf);
 		tvsec = tv->tv_sec;				//XXX may overflow if time_t is 32 bits!
 		if ((tm = localtime(&tvsec)) == NULL)
-				snprintf(tbuf, sizeof tbuf, "%lld.%06lu",
+				snprintf(tbuf, sizeof tbuf, "%"PRIu64".%06lu",
 								tv->tv_sec, tv->tv_nsec / 1000L);
 		else
 		{

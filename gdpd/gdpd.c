@@ -40,14 +40,14 @@ gdpd_gcl_error(gcl_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
 void
 flush_input_data(gdp_req_t *req, char *where)
 {
-	int i = gdp_buf_getlength(req->pkt.dbuf);
+	int i;
 
-	if (i > 0)
+	if (req->pkt.msg != NULL && (i = gdp_buf_getlength(req->pkt.msg->dbuf)) > 0)
 	{
 		ep_dbg_cprintf(Dbg, 4,
 				"flush_input_data: %s: flushing %d bytes of unexpected input\n",
 				where, i);
-		gdp_buf_reset(req->pkt.dbuf);
+		gdp_buf_reset(req->pkt.msg->dbuf);
 	}
 }
 
@@ -177,11 +177,11 @@ cmd_close(gdp_req_t *req, gdp_chan_t *chan)
 	return gcl_close(gclh);
 }
 
+
 EP_STAT
 cmd_read(gdp_req_t *req, gdp_chan_t *chan)
 {
 	gcl_handle_t *gclh;
-	gdp_msg_t msg;
 	EP_STAT estat;
 
 	req->pkt.cmd = GDP_ACK_DATA_CONTENT;
@@ -196,13 +196,9 @@ cmd_read(gdp_req_t *req, gdp_chan_t *chan)
 							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 
-	gdp_buf_reset(req->pkt.dbuf);
-	estat = gcl_read(gclh, req->pkt.recno, &msg, req->pkt.dbuf);
-	EP_STAT_CHECK(estat, goto fail0);
-	req->pkt.dlen = EP_STAT_TO_LONG(estat);
-	req->pkt.ts = msg.ts;
+	gdp_buf_reset(req->pkt.msg->dbuf);
+	estat = gcl_read(gclh, req->pkt.msg);
 
-fail0:
 	if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
 		req->pkt.cmd = GDP_NAK_C_NOTFOUND;
 	return estat;
@@ -213,9 +209,7 @@ EP_STAT
 cmd_publish(gdp_req_t *req, gdp_chan_t *chan)
 {
 	gcl_handle_t *gclh;
-	gdp_msg_t msg;
 	EP_STAT estat;
-	int i;
 
 	req->pkt.cmd = GDP_ACK_DATA_CREATED;
 
@@ -226,25 +220,9 @@ cmd_publish(gdp_req_t *req, gdp_chan_t *chan)
 							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 
-	// read in the data from the bufferevent
-	i = evbuffer_remove_buffer(bufferevent_get_input(chan),
-			req->pkt.dbuf, req->pkt.dlen);
-	if (i < req->pkt.dlen)
-	{
-		return gdpd_gcl_error(req->pkt.gcl_name, "cmd_publish: short read",
-							GDP_STAT_SHORTMSG, GDP_NAK_S_INTERNAL);
-	}
-
 	// create the message
-	memset(&msg, 0, sizeof msg);
-	msg.dbuf = req->pkt.dbuf;
-	msg.recno = req->pkt.recno;
-	memcpy(&msg.ts, &req->pkt.ts, sizeof msg.ts);
+	estat = gcl_append(gclh, req->pkt.msg);
 
-	estat = gcl_append(gclh, &msg);
-
-	// fill in return information
-	req->pkt.recno = msg.recno;
 	return estat;
 }
 
@@ -298,7 +276,8 @@ dispatch_cmd(gdp_req_t *req,
 	EP_STAT estat;
 	int cmd = req->pkt.cmd;
 
-	ep_dbg_cprintf(Dbg, 18, "dispatch_cmd: >>> command %d\n", req->pkt.cmd);
+	ep_dbg_cprintf(Dbg, 18, "dispatch_cmd: >>> command %d (%s)\n",
+			cmd, _gdp_proto_cmd_name(cmd));
 
 	estat = _gdp_req_dispatch(req, chan);
 
@@ -323,11 +302,11 @@ dispatch_cmd(gdp_req_t *req,
 	{
 		char ebuf[200];
 
-		ep_dbg_printf("dispatch_cmd: <<< %d, status %d (%s)\n",
-				cmd, req->pkt.cmd,
+		ep_dbg_printf("dispatch_cmd: <<< %s, status %s (%s)\n",
+				_gdp_proto_cmd_name(cmd), _gdp_proto_cmd_name(req->pkt.cmd),
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		if (ep_dbg_test(Dbg, 30))
-			_gdp_pkt_dump_hdr(&req->pkt, ep_dbg_getfile());
+			_gdp_pkt_dump(&req->pkt, ep_dbg_getfile());
 	}
 	return estat;
 }
@@ -346,6 +325,8 @@ gdp_req_thread(void *continue_data)
 	gdp_req_t *req = continue_data;
 	gdp_chan_t *chan = req->udata;
 
+	ep_dbg_cprintf(Dbg, 18, "gdp_req_thread: starting\n");
+
 	// find the GCL handle (if any)
 	req->gclh = _gdp_gcl_cache_get(req->pkt.gcl_name, 0);
 
@@ -353,62 +334,18 @@ gdp_req_thread(void *continue_data)
 	req->stat = dispatch_cmd(req, chan);
 	//XXX anything to do with estat here?
 
-#if 0
-	// find the GCL handle, if any
-	{
-		gcl_handle_t *gclh;
-
-		gclh = _gdp_gcl_cache_get(req->pkt.gcl_name, 0);
-		if (gclh != NULL)
-		{
-			evb = req->pkt.dbuf;
-			if (ep_dbg_test(Dbg, 40))
-			{
-				gcl_pname_t pname;
-
-				gdp_gcl_printable_name(gclh->gcl_name, pname);
-				ep_dbg_printf("gdp_req_thread: using evb %p from %s\n", evb,
-				        pname);
-			}
-		}
-	}
-#endif
-
 	// see if we have any return data
-	req->pkt.dlen = evbuffer_get_length(req->pkt.dbuf);
-	ep_dbg_cprintf(Dbg, 41, "gdp_req_thread: sending %d bytes\n",
-			req->pkt.dlen);
-
-	// make sure nothing sneaks in...
-	//XXX I think BEV_OPT_DEFER_CALLBACKS does the trick
-//	if (req->pkt.dlen > 0)
-//		evbuffer_lock(req->pkt.dbuf);
+	ep_dbg_cprintf(Dbg, 41, "gdp_req_thread: sending %zd bytes\n",
+			evbuffer_get_length(req->pkt.msg->dbuf));
 
 	// send the response packet header
 	req->stat = _gdp_pkt_out(&req->pkt, bufferevent_get_output(chan));
 	//XXX anything to do with estat here?
 
-	// copy any data
-	if (req->pkt.dlen > 0)
-	{
-		int i;
+	// we can now unlock and free resources
+	_gdp_req_free(req);
 
-		//XXX evbuffer_add_buffer_reference might be faster
-		i = evbuffer_remove_buffer(req->pkt.dbuf,
-				bufferevent_get_output(chan),
-				req->pkt.dlen);
-		if (i < req->pkt.dlen)
-		{
-			ep_dbg_cprintf(Dbg, 2,
-					"gdp_req_thread: short read (wanted %d, got %d)\n",
-					req->pkt.dlen, i);
-			req->stat = GDP_STAT_SHORTMSG;
-		}
-	}
-
-	// we can now unlock
-//	if (req->pkt.dlen > 0)
-//		evbuffer_unlock(evb);
+	ep_dbg_cprintf(Dbg, 19, "gdp_req_thread: returning to pool\n");
 }
 
 
@@ -438,6 +375,7 @@ lev_read_cb(gdp_chan_t *chan, void *ctx)
 		gdp_log(estat, "lev_read_cb: cannot allocate request");
 		return;
 	}
+	req->pkt.msg = gdp_msg_new();
 
 	estat = _gdp_pkt_in(&req->pkt, bufferevent_get_input(chan));
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
@@ -486,10 +424,13 @@ accept_cb(struct evconnlistener *lev,
 		void *ctx)
 {
 	struct event_base *evbase = GdpIoEventBase;
-	gdp_chan_t *chan = bufferevent_socket_new(evbase, sockfd,
-					BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+	gdp_chan_t *chan;
 	union sockaddr_xx saddr;
 	socklen_t slen = sizeof saddr;
+
+	evutil_make_socket_nonblocking(sockfd);
+	chan = bufferevent_socket_new(evbase, sockfd,
+					BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
 
 	if (chan == NULL)
 	{

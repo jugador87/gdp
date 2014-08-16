@@ -17,7 +17,7 @@
 
 extern pthread_t	_GdpIoEventLoopThread;
 
-// declare the type of the linked list (used multiple places)
+// declare the type of the gdp_req linked list (used multiple places)
 LIST_HEAD(req_head, gdp_req);
 
 struct gcl_handle
@@ -40,9 +40,6 @@ struct gcl_handle
 	// fields used only by gdpd
 	long				ver;			// version number of on-disk file
 	FILE				*fp;			// pointer to the on-disk file
-//	off_t				*offcache;		// offsets of records we have seen
-//	long				cachesize;		// size of offcache array
-//	gdp_recno_t			maxrecno;		// last recno that we have read/written
 	void				*log_index;
 	off_t				data_offset;	// offset for end of header and start of data
 };
@@ -81,7 +78,7 @@ typedef struct gdp_req
 	EP_THR_COND			cond;		// pthread wakeup condition variable
 	LIST_ENTRY(gdp_req)	list;		// linked list for cache management
 	gcl_handle_t		*gclh;		// the corresponding GCL handle
-	gdp_pkt_hdr_t		pkt;		// packet header buffer
+	gdp_pkt_t			pkt;		// packet buffer
 	EP_STAT				stat;		// status code from last operation
 	uint32_t			flags;		// see below
 	void				(*cb)(void *);	// callback (see above)
@@ -91,6 +88,10 @@ typedef struct gdp_req
 #define GDP_REQ_DONE	0x00000001	// operation complete
 #define GDP_REQ_SYNC	0x00000002	// request deleted after response
 #define GDP_REQ_PERSIST	0x00000004	// request persists even after response
+#define GDP_REQ_OWN_MSG	0x00000008	// we own the msg field (in pkt)
+
+extern gdp_req_t	*_gdp_req_find(gcl_handle_t *gclh, gdp_rid_t rid);
+extern gdp_rid_t	_gdp_rid_new(gcl_handle_t *gclh);
 
 /*
 **  Structure used for registering command functions

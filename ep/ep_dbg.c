@@ -8,9 +8,9 @@
 #include <ep.h>
 #include <ep_dbg.h>
 #include <ep_string.h>
-#include <ep_thr.h>
 #include <ep_assert.h>
 #include <fnmatch.h>
+#include <pthread.h>
 
 EP_SRC_ID("@(#)$Id: ep_dbg.c 287 2014-04-29 18:18:23Z eric $");
 
@@ -23,7 +23,15 @@ struct FLAGPAT
 	FLAGPAT		*next;		// next in chain
 };
 
-static EP_THR_MUTEX	FlagListMutex	EP_THR_MUTEX_INITIALIZER;
+/*
+**  This intentionally uses pthread primitives instead of ep_thr_*
+**  to avoid recursive locks when calling ep_dbg_test.
+*/
+
+#if EP_OSCF_USE_PTHREADS
+extern bool	_EpThrUsePthreads;
+static pthread_rwlock_t	FlagListRwlock	= PTHREAD_RWLOCK_INITIALIZER;
+#endif
 static FLAGPAT	*FlagList;
 FILE		*DebugFile;
 int		__EpDbgCurGen;		// current generation number
@@ -89,11 +97,17 @@ ep_dbg_setto(const char *fpat,
 	fp->lev = lev;
 
 	// link to front of chain
-	ep_thr_mutex_lock(&FlagListMutex);
+#if EP_OSCF_USE_PTHREADS
+	if (_EpThrUsePthreads)
+		pthread_rwlock_wrlock(&FlagListRwlock);
+#endif
 	fp->next = FlagList;
 	FlagList = fp;
 	__EpDbgCurGen++;
-	ep_thr_mutex_unlock(&FlagListMutex);
+#if EP_OSCF_USE_PTHREADS
+	if (_EpThrUsePthreads)
+		pthread_rwlock_unlock(&FlagListRwlock);
+#endif
 }
 
 
@@ -115,7 +129,10 @@ ep_dbg_flaglevel(EP_DBG *flag)
 {
 	FLAGPAT *fp;
 
-	ep_thr_mutex_lock(&FlagListMutex);
+#if EP_OSCF_USE_PTHREADS
+	if (_EpThrUsePthreads)
+		pthread_rwlock_rdlock(&FlagListRwlock);
+#endif
 	flag->gen = __EpDbgCurGen;
 	for (fp = FlagList; fp != NULL; fp = fp->next)
 	{
@@ -126,7 +143,10 @@ ep_dbg_flaglevel(EP_DBG *flag)
 		flag->level = 0;
 	else
 		flag->level = fp->lev;
-	ep_thr_mutex_unlock(&FlagListMutex);
+#if EP_OSCF_USE_PTHREADS
+	if (_EpThrUsePthreads)
+		pthread_rwlock_unlock(&FlagListRwlock);
+#endif
 
 	return flag->level;
 }

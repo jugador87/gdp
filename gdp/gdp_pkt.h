@@ -3,10 +3,11 @@
 #ifndef _GDP_PROTOCOL_H_
 #define _GDP_PROTOCOL_H_
 
-#include <gdp/gdp_timestamp.h>
+#include <stdio.h>
+#include <netinet/in.h>
 #include <event2/event.h>
 #include <event2/buffer.h>
-#include <stdio.h>
+#include <gdp/gdp_timestamp.h>
 
 #define GDP_PORT_DEFAULT		2468	// default IP port
 
@@ -50,25 +51,32 @@
 **			"seq" since this is a lower-level concept that is
 **			subsumed by TCP.
 **
-**		XXX should msgno be 64 bits?
+**		The structure of an on-the-wire packet is:
+**			1	protocol version
+**			1	command or ack/nak
+**			1	flags (indicate presence/lack of additional fields)
+**			1	reserved (must be zero on send, ignored on receive
+**			4	length of data portion
+**			[4	request id (optional)]
+**			[32	GCL name (optional)]
+**			[4	record number (optional)]
+**			[16	commit timestamp (optional)]
+**			N	data (length indicated above)
+**		The structure shown below is the in-memory version
 */
 
-typedef struct gdp_pkt_hdr
+typedef struct gdp_pkt
 {
-	// fixed part of packet
-	uint8_t			ver;		//	1 protocol version
-	uint8_t			cmd;		//	1 command or ack/nak
-	uint8_t			flags;		//	1 see below
-	uint8_t			reserved1;	//	1 must be zero on send, ignored on receive
-	uint32_t		dlen;		//	4 length of following data
+	uint8_t			ver;		// protocol version
+	uint8_t			cmd;		// command or ack/nak
+	uint8_t			flags;		// see below
+	uint8_t			reserved1;	// must be zero on send, ignored on receive
+	gdp_rid_t		rid;		// sequence number (GDP_PKT_NO_RID => none)
+	gcl_name_t		gcl_name;	// name of the GCL of interest (0 => none)
+	gdp_msg_t		*msg;		// pointer to data record
+} gdp_pkt_t;
 
-	// variable part of packet
-	gdp_rid_t		rid;		//	4 sequence number (GDP_PKT_NO_RID => none)
-	gcl_name_t		gcl_name;	// 32 name of the GCL of interest (0 => none)
-	gdp_recno_t		recno;		//	4 record number (GDP_PKT_NO_RECNO => none)
-	tt_interval_t	ts;			// 16 commit timestamp (tv_sec = 0 => none)
-	gdp_buf_t		*dbuf;		//	  dlen octets of data
-} gdp_pkt_hdr_t;
+#define _GDP_MAX_PKT_HDR		128		// max size of on-wire packet header
 
 /***** values for gdp_pkg_hdr cmd field *****/
 /*	 note that the ack/nak values (128-254) also have STAT codes		*/
@@ -127,26 +135,24 @@ typedef struct gdp_pkt_hdr
 #define GDP_PKT_NO_RECNO	UINT32_MAX	// no record number
 
 
-void	_gdp_pkt_hdr_init(			// initialize a packet header structure
-				gdp_pkt_hdr_t *,		// the header to initialize
-				int cmd,				// the command to put in the packet
-				gdp_rid_t rid,			// the rid itself
-				gcl_name_t gcl_name);	// the name of the GCL
+void	_gdp_pkt_init(				// initialize a packet structure
+				gdp_pkt_t *,			// the packet to initialize
+				gdp_msg_t *);			// the message to use for data
 
 EP_STAT _gdp_pkt_out(				// send a packet to a network buffer
-				gdp_pkt_hdr_t *,		// the header for the data
-				gdp_buf_t *);			// the output buffer
+				gdp_pkt_t *,			// the packet information
+				gdp_buf_t *);			// the network buffer
 
 void	_gdp_pkt_out_hard(			// send a packet to a network buffer
-				gdp_pkt_hdr_t *,		// the header for the data
-				gdp_buf_t *);			// the output buffer
+				gdp_pkt_t *,			// the packet information
+				gdp_buf_t *);			// the network buffer
 
 EP_STAT _gdp_pkt_in(				// read a packet from a network buffer
-				gdp_pkt_hdr_t *,		// the buffer to store the result
-				gdp_buf_t *);			// the input buffer
+				gdp_pkt_t *,			// the buffer to store the result
+				gdp_buf_t *);			// the network buffer
 
-void	_gdp_pkt_dump_hdr(
-				gdp_pkt_hdr_t *pp,
+void	_gdp_pkt_dump(
+				gdp_pkt_t *pkt,
 				FILE *fp);
 
 // generic sockaddr union	XXX does this belong in this header file?

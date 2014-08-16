@@ -16,7 +16,6 @@ main(int argc, char **argv)
 	char *gclpname = NULL;
 	int opt;
 	EP_STAT estat;
-	gdp_recno_t recno = 1;
 	char buf[200];
 
 	while ((opt = getopt(argc, argv, "a:D:")) > 0)
@@ -43,7 +42,7 @@ main(int argc, char **argv)
 	if (gclpname == NULL)
 	{
 		// create a new GCL handle
-		estat = gdp_gcl_create(NULL, NULL, &gclh);
+		estat = gdp_gcl_create(NULL, &gclh);
 	}
 	else
 	{
@@ -56,24 +55,23 @@ main(int argc, char **argv)
 	gdp_gcl_print(gclh, stdout, 0, 0);
 	fprintf(stdout, "\nStarting to read input\n");
 
+	gdp_msg_t *msg = gdp_msg_new();
+
 	while (fgets(buf, sizeof buf, stdin) != NULL)
 	{
 		char *p = strchr(buf, '\n');
-		gdp_msg_t msg;
 
 		if (p != NULL)
 			*p++ = '\0';
 
 		fprintf(stdout, "Got input %s%s%s\n", EpChar->lquote, buf,
 				EpChar->rquote);
-		memset(&msg, '\0', sizeof msg);
-		gdp_buf_write(msg.dbuf, buf, strlen(buf));
-		msg.recno = recno++;
-
-		estat = gdp_gcl_append(gclh, &msg);
+		gdp_buf_write(msg->dbuf, buf, strlen(buf));
+		estat = gdp_gcl_append(gclh, msg);
 		EP_STAT_CHECK(estat, goto fail1);
-		gdp_gcl_msg_print(&msg, stdout);
+		gdp_gcl_msg_print(msg, stdout);
 	}
+	gdp_msg_free(msg);
 	goto done;
 
 fail1:

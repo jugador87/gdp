@@ -22,9 +22,6 @@
 **	Opaque structures
 */
 
-// XXX not clear if we need this publicly exposed (or even what's in it)
-typedef struct gcl			gcl_t;
-
 // an open handle on a GCL (opaque)
 typedef struct gcl_handle	gcl_handle_t;
 
@@ -77,18 +74,14 @@ typedef enum
 **			But that's true of the location as well.
 */
 
-// this is a horrid hack for use only by gdpd
-//XXX currently unused
-//#ifndef GDP_MSG_EXTRA
-//# define GDP_MSG_EXTRA
-//#endif
-
 typedef struct gdp_msg
 {
-	gdp_recno_t		recno;			// the record number
-	tt_interval_t	ts;				// timestamp for this message
-	gdp_buf_t		*dbuf;			// data buffer
-//	GDP_MSG_EXTRA					// used by gdpd
+	EP_THR_MUTEX		mutex;		// locking mutex (mostly for dbuf)
+	LIST_ENTRY(gdp_msg)	list;		// linked list for free list management
+	gdp_recno_t			recno;		// the record number
+	tt_interval_t		ts;			// timestamp for this message
+	size_t				dlen;		// length of data buffer (redundant)
+	gdp_buf_t			*dbuf;		// data buffer
 } gdp_msg_t;
 
 
@@ -107,7 +100,6 @@ extern void		*gdp_run_accept_event_loop(
 
 // create a new GCL
 extern EP_STAT	gdp_gcl_create(
-					gcl_t *,				// type information (unused)
 					gcl_name_t,
 					gcl_handle_t **);		// pointer to result GCL handle
 
@@ -184,5 +176,11 @@ char			*gdp_gcl_printable_name(
 EP_STAT			gdp_gcl_internal_name(
 					const gcl_pname_t external,
 					gcl_name_t internal);
+
+// allocate a new message
+gdp_msg_t		*gdp_msg_new(void);
+
+// free a message
+void			gdp_msg_free(gdp_msg_t *);
 
 #endif // _GDP_H_

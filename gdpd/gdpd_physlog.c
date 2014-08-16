@@ -180,6 +180,8 @@ gcl_index_cache_put(gcl_log_index *entry, int64_t recno, int64_t offset)
 /*
 **	GCL_READ --- read a message from a gcl
 **
+**		Reads in a message indicated by msg->recno into msg.
+**
 **		In theory we should be positioned at the head of the next message.
 **		But that might not be the correct message.	If we have specified a
 **		message number there are two cases:
@@ -192,9 +194,7 @@ gcl_index_cache_put(gcl_log_index *entry, int64_t recno, int64_t offset)
 
 EP_STAT
 gcl_read(gcl_handle_t *gclh,
-		gdp_recno_t recno,
-		gdp_msg_t *msg,
-		struct evbuffer *evb)
+		gdp_msg_t *msg)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gcl_log_index *entry = gclh->log_index;
@@ -206,7 +206,7 @@ gcl_read(gcl_handle_t *gclh,
 	pthread_rwlock_rdlock(&entry->lock);
 
 	// first check if recno is in the index
-	long_pair = circular_buffer_search(entry->index_cache, recno);
+	long_pair = circular_buffer_search(entry->index_cache, msg->recno);
 	if (long_pair == NULL)
 	{
 		// recno is not in the index
@@ -226,11 +226,11 @@ gcl_read(gcl_handle_t *gclh,
 			mid = start + (end - start) / 2;
 			fseek(entry->fp, mid * sizeof(gcl_index_record), SEEK_SET);
 			fread(&index_record, sizeof(gcl_index_record), 1, entry->fp);
-			if (recno < index_record.recno)
+			if (msg->recno < index_record.recno)
 			{
 				end = mid;
 			}
-			else if (recno > index_record.recno)
+			else if (msg->recno > index_record.recno)
 			{
 				start = mid + 1;
 			}
@@ -261,19 +261,20 @@ gcl_read(gcl_handle_t *gclh,
 	fseek(gclh->fp, offset, SEEK_SET);
 	fread(&log_record, sizeof(log_record), 1, gclh->fp);
 	offset += sizeof(log_record);
-	int64_t data_length = log_record.data_length;
+	memcpy(&msg->ts, &log_record.timestamp, sizeof msg->ts);
 
 	// read data in chunks and add it to the evbuffer
+	int64_t data_length = log_record.data_length;
 	while (data_length >= sizeof(read_buffer))
 	{
 		fread(&read_buffer, sizeof(read_buffer), 1, gclh->fp);
-		evbuffer_add(evb, &read_buffer, sizeof(read_buffer));
+		gdp_buf_write(msg->dbuf, &read_buffer, sizeof(read_buffer));
 		data_length -= sizeof(read_buffer);
 	}
 	if (data_length > 0)
 	{
 		fread(&read_buffer, data_length, 1, gclh->fp);
-		evbuffer_add(evb, &read_buffer, data_length);
+		gdp_buf_write(msg->dbuf, &read_buffer, data_length);
 	}
 
 	// done
@@ -467,7 +468,7 @@ gcl_open(gcl_name_t gcl_name,
 	// XXX: read metadata entries
 	if (log_header.magic != GCL_LOG_MAGIC)
 	{
-		fprintf(stderr, "gcl_open: magic mismatch - found: %" PRId64 ", expected: %" PRId64 "\n",
+		fprintf(stderr, "gcl_open: magic mismatch - found: %" PRIx64 ", expected: %" PRIx64 "\n",
 			log_header.magic, GCL_LOG_MAGIC);
 		goto fail3;
 	}

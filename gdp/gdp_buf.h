@@ -13,6 +13,7 @@
 
 typedef struct evbuffer	gdp_buf_t;
 
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ > 199900L
 inline gdp_buf_t *
 gdp_buf_new(void)
 {
@@ -78,6 +79,22 @@ gdp_buf_copy(gdp_buf_t *ibuf, gdp_buf_t *obuf)
 {
 	return evbuffer_add_buffer(obuf, ibuf);
 }
+
+#else
+
+#define gdp_buf_new()			evbuffer_new()
+#define gdp_buf_reset(b)		evbuffer_drain(b, evbuffer_get_length(b))
+#define gdp_buf_free(b)			evbuffer_free(b)
+#define gdp_buf_setlock(b, m)	evbuffer_enable_locking(b, m)
+#define gdp_buf_getlength(b)	evbuffer_get_length(b)
+#define gdp_buf_read(b, o, z)	evbuffer_remove(b, o, z)
+#define gdp_buf_peek(b, o, z)	evbuffer_copyout(b, o, z)
+#define gdp_buf_drain(b, z)		evbuffer_drain(b, z)
+#define gdp_buf_getptr(b, z)	evbuffer_pullup(b, z)
+#define gdp_buf_write(b, i, z)	evbuffer_add(b, i, z)
+#define gdp_buf_copy(i, o)		evbuffer_add_buffer(o, i)
+
+#endif
 
 #define gdp_buf_printf			evbuffer_add_printf
 

@@ -1,10 +1,9 @@
-/* vim: set ai sw=4 sts=4 ts=4 : */
+/* vim: set ai sw=8 sts=8 ts=8 : */
 
 #include <ep/ep_stat.h>
 
 static struct ep_stat_to_string	Stats[] =
 {
-
     // module name
     { _EP_STAT_INTERNAL(OK, EP_STAT_MOD_GENERIC, 0), "EPlib-generic" },
 

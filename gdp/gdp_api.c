@@ -93,8 +93,9 @@ gdp_gcl_msg_print(const gdp_msg_t *msg,
 
 	if (l > 0)
 	{
-		fprintf(fp, "\n	 %s%.*s%s\n", EpChar->lquote, l, d, EpChar->rquote);
+		fprintf(fp, "\n	 %s%.*s%s", EpChar->lquote, l, d, EpChar->rquote);
 	}
+	fprintf(fp, "\n");
 }
 
 
@@ -252,8 +253,7 @@ gdp_init(void)
 */
 
 EP_STAT
-gdp_gcl_create(gcl_t *gcl_type,
-				gcl_name_t gcl_name,
+gdp_gcl_create(gcl_name_t gcl_name,
 				gcl_handle_t **pgclh)
 {
 	gcl_handle_t *gclh = NULL;

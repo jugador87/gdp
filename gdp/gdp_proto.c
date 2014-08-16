@@ -43,159 +43,6 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.proto", "GDP protocol processing");
 static gdp_chan_t	*GdpChannel;	// our primary protocol port
 
 
-/***********************************************************************
-**
-**	Request ID handling
-**
-**		Very simplistic for now.  RIDs really only need to be unique
-**		within a given GCL.
-*/
-
-static gdp_rid_t	MaxRid = 0;
-
-gdp_rid_t
-_gdp_rid_new(gcl_handle_t *gclh)
-{
-	return ++MaxRid;
-}
-
-char *
-gdp_rid_tostr(gdp_rid_t rid, char *buf, size_t len)
-{
-	snprintf(buf, len, "%d", rid);
-	return buf;
-}
-
-
-/***********************************************************************
-**
-**  GDP Request handling
-*/
-
-// unused request structures
-static struct req_head	ReqFreeList = LIST_HEAD_INITIALIZER(ReqFreeList);
-static EP_THR_MUTEX		ReqFreeListMutex	EP_THR_MUTEX_INITIALIZER;
-
-/*
-**  _GDP_REQ_NEW --- allocate a new request
-**
-**	Parameters:
-**		cmd --- the command to be issued
-**		gclh --- the associated GCL handle
-**		reqp --- a pointer to the output area
-**
-**	Returns:
-**		status
-**		The request has been allocated an id (possibly unique to gclh),
-**			but the request has not been linked onto the GCL's request list.
-**			This allows the caller to adjust the request without locking it.
-*/
-
-EP_STAT
-_gdp_req_new(int cmd,
-		gcl_handle_t *gclh,
-		uint32_t flags,
-		gdp_req_t **reqp)
-{
-	EP_STAT estat = EP_STAT_OK;
-	gdp_req_t *req;
-
-	// get memory, off free list if possible
-	ep_thr_mutex_lock(&ReqFreeListMutex);
-	if ((req = LIST_FIRST(&ReqFreeList)) != NULL)
-	{
-		LIST_REMOVE(req, list);
-	}
-	ep_thr_mutex_unlock(&ReqFreeListMutex);
-	if (req == NULL)
-	{
-		req = ep_mem_zalloc(sizeof *req);
-		ep_thr_mutex_init(&req->mutex);
-		ep_thr_cond_init(&req->cond);
-		req->pkt.dbuf = gdp_buf_new();
-		gdp_buf_setlock(req->pkt.dbuf, &req->mutex);
-	}
-
-	req->gclh = gclh;
-	req->stat = EP_STAT_OK;
-	req->pkt.cmd = cmd;
-	req->pkt.recno = GDP_PKT_NO_RECNO;
-	req->pkt.ts.stamp.tv_sec = TT_NOTIME;
-	req->pkt.dlen = 0;
-	if (gclh != NULL)
-		memcpy(req->pkt.gcl_name, gclh->gcl_name, sizeof req->pkt.gcl_name);
-	if (gclh == NULL || EP_UT_BITSET(GDP_REQ_SYNC, flags))
-	{
-		// just use constant zero; any value would be fine
-		req->pkt.rid = GDP_PKT_NO_RID;
-	}
-	else
-	{
-		// allocate a new unique request id
-		req->pkt.rid = _gdp_rid_new(gclh);
-	}
-
-	// success
-	*reqp = req;
-	return estat;
-}
-
-
-void
-_gdp_req_free(gdp_req_t *req)
-{
-	ep_thr_mutex_lock(&req->mutex);
-
-	// remove it from the old list
-	if (req->gclh != NULL)
-	{
-		ep_thr_mutex_lock(&req->gclh->mutex);
-		LIST_REMOVE(req, list);
-		ep_thr_mutex_unlock(&req->gclh->mutex);
-	}
-
-	// add it to the free list
-	ep_thr_mutex_lock(&ReqFreeListMutex);
-	LIST_INSERT_HEAD(&ReqFreeList, req, list);
-	ep_thr_mutex_unlock(&ReqFreeListMutex);
-
-	ep_thr_mutex_unlock(&req->mutex);
-}
-
-void
-_gdp_req_freeall(struct req_head *reqlist)
-{
-	gdp_req_t *r1 = LIST_FIRST(reqlist);
-
-	while (r1 != NULL)
-	{
-		gdp_req_t *r2 = LIST_NEXT(r1, list);
-		_gdp_req_free(r1);
-		r1 = r2;
-	}
-}
-
-
-gdp_req_t *
-_gdp_req_find(gcl_handle_t *gclh, gdp_rid_t rid)
-{
-	gdp_req_t *req;
-	gdp_req_t *rcursor;
-
-	ep_thr_mutex_lock(&gclh->mutex);
-	LIST_FOREACH_SAFE(req, &gclh->reqs, list, rcursor)
-	{
-		if (req->pkt.rid != rid)
-			continue;
-		if (!EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
-			LIST_REMOVE(req, list);
-		break;
-	}
-	ep_thr_mutex_unlock(&gclh->mutex);
-	return req;
-}
-
-
 /*
 **   GDP_REQ_SEND --- send a request to the GDP daemon
 **
@@ -203,7 +50,7 @@ _gdp_req_find(gcl_handle_t *gclh, gdp_rid_t rid)
 */
 
 EP_STAT
-_gdp_req_send(gdp_req_t *req, gdp_msg_t *msg)
+_gdp_req_send(gdp_req_t *req)
 {
 	EP_STAT estat;
 	gcl_handle_t *gclh = req->gclh;
@@ -212,26 +59,22 @@ _gdp_req_send(gdp_req_t *req, gdp_msg_t *msg)
 			req->pkt.cmd, _gdp_proto_cmd_name(req->pkt.cmd));
 	EP_ASSERT(gclh != NULL);
 
-	if (msg != NULL)
-	{
-		EP_ASSERT(msg->dbuf != NULL);
-		EP_ASSERT(req->pkt.dbuf != NULL);
-		req->pkt.recno = msg->recno;
-		req->pkt.ts = msg->ts;
-		gdp_buf_copy(msg->dbuf, req->pkt.dbuf);
-	}
-
-	// register this handle so we can process the results
-	//		(it's likely that it's already in the cache)
-	_gdp_gcl_cache_add(gclh, 0);
-
 	// link the request to the GCL
 	ep_thr_mutex_lock(&gclh->mutex);
 	LIST_INSERT_HEAD(&gclh->reqs, req, list);
 	ep_thr_mutex_unlock(&gclh->mutex);
 
+	// register this handle so we can process the results
+	//		(it's likely that it's already in the cache)
+	_gdp_gcl_cache_add(gclh, 0);
+
 	// write the message out
 	estat = _gdp_pkt_out(&req->pkt, bufferevent_get_output(GdpChannel));
+
+	// at this point we can forget about the message
+	req->pkt.msg = NULL;
+
+	// done
 	return estat;
 }
 
@@ -264,9 +107,20 @@ _gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	estat = _gdp_req_new(cmd, gclh, GDP_REQ_SYNC, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	req->pkt.cmd = cmd;
+	if (req->pkt.msg != NULL && EP_UT_BITSET(GDP_REQ_OWN_MSG, req->flags))
+		gdp_msg_free(req->pkt.msg);
+	if (msg == NULL)
+	{
+		req->pkt.msg = msg = gdp_msg_new();
+		req->flags |= GDP_REQ_OWN_MSG;
+	}
+	else
+	{
+		req->pkt.msg = msg;
+		req->flags &= ~GDP_REQ_OWN_MSG;
+	}
 
-	estat = _gdp_req_send(req, msg);
+	estat = _gdp_req_send(req);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	/*
@@ -295,8 +149,8 @@ _gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 		estat = req->stat;
 		if (msg != NULL)
 		{
-			msg->recno = req->pkt.recno;
-			msg->ts = req->pkt.ts;
+			msg->recno = req->pkt.msg->recno;
+			msg->ts = req->pkt.msg->ts;
 		}
 	}
 
@@ -346,7 +200,7 @@ ack_success(gdp_req_t *req,
 	}
 
 	estat = GDP_STAT_FROM_ACK(req->pkt.cmd);
-	tocopy = req->pkt.dlen;
+	tocopy = gdp_buf_getlength(req->pkt.msg->dbuf);
 	gclh = req->gclh;
 
 	//	If we started with no gcl id, adopt from incoming packet.
@@ -360,9 +214,9 @@ ack_success(gdp_req_t *req,
 		{
 			int i;
 
-			if (req->pkt.dbuf != NULL)
+			if (req->pkt.msg->dbuf != NULL)
 				i = evbuffer_remove_buffer(bufferevent_get_input(chan),
-						req->pkt.dbuf, tocopy);
+						req->pkt.msg->dbuf, tocopy);
 			else
 				i = gdp_buf_drain(bufferevent_get_input(chan), tocopy);
 			if (i <= 0)
@@ -710,23 +564,11 @@ cmd_not_implemented(gdp_req_t *req,
 		gdp_chan_t *chan)
 {
 	const char *peer = "(unknown)";
-	size_t dl;
 
 	// just ignore unknown commands
 	ep_dbg_cprintf(Dbg, 1, "gdp_read_cb: Unknown packet cmd %d from %s\n",
 			req->pkt.cmd, peer);
 
-	// consume and discard remaining data
-	dl = gdp_buf_drain(bufferevent_get_input(chan), req->pkt.dlen);
-	if (dl < req->pkt.dlen)
-	{
-		// "can't happen" since that data is already in memory
-		gdp_log(GDP_STAT_BUFFER_FAILURE,
-			"gdp_read_cb: gdp_buf_drain failed:"
-			" dlen = %u, drained = %zu\n",
-			req->pkt.dlen, dl);
-		// we are now probably out of sync; can we continue?
-	}
 	return GDP_STAT_NOT_IMPLEMENTED;
 }
 
@@ -754,16 +596,22 @@ static void
 gdp_read_cb(gdp_chan_t *chan, void *ctx)
 {
 	EP_STAT estat;
-	gdp_pkt_hdr_t pkt;
+	gdp_pkt_t pkt;		// temporary space, copied into request
+	gdp_msg_t *msg;		// temporary space, copied into request
 	gdp_buf_t *ievb = bufferevent_get_input(chan);
 	gcl_handle_t *gclh;
 	gdp_req_t *req;
 
 	ep_dbg_cprintf(Dbg, 50, "gdp_read_cb: fd %d\n", bufferevent_getfd(chan));
 
+	msg = gdp_msg_new();
+	_gdp_pkt_init(&pkt, msg);
 	estat = _gdp_pkt_in(&pkt, ievb);
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
+	{
+		gdp_msg_free(msg);
 		return;
+	}
 
 	// find the handle for the associated GCL
 	if (EP_UT_BITSET(GDP_PKT_HAS_ID, pkt.flags))
@@ -794,15 +642,42 @@ gdp_read_cb(gdp_chan_t *chan, void *ctx)
 		if (!EP_STAT_ISOK(estat))
 		{
 			gdp_log(estat, "gdp_read_cb: cannot allocate request");
+			gdp_msg_free(msg);
 			return;
 		}
 		
 		//XXX link request into GCL list??
 	}
 
+	if (req->pkt.msg == NULL)
+	{
+		req->pkt.msg = gdp_msg_new();
+		req->flags |= GDP_REQ_OWN_MSG;
+	}
+
 	// copy the temporary packet into the request
-	pkt.dbuf = req->pkt.dbuf;
+	//  ... slightly tricky because we want to re-use the existing msg
+	//		buffer, which will be freed later
+	req->pkt.msg->dlen = pkt.msg->dlen;
+	req->pkt.msg->recno = pkt.msg->recno;
+	memcpy(&req->pkt.msg->ts, &pkt.msg->ts, sizeof req->pkt.msg->ts);
+
+	// copy over the entire packet, retaining the msg buffer
+	pkt.msg = req->pkt.msg;
 	memcpy(&req->pkt, &pkt, sizeof req->pkt);
+
+	// can free the temporary msg now
+	gdp_msg_free(msg);
+	pkt.msg = NULL;			// paranoia
+
+	// read in the data that is still in the network buffer
+	size_t l;
+	l = evbuffer_remove_buffer(ievb, req->pkt.msg->dbuf, req->pkt.msg->dlen);
+	if (l < req->pkt.msg->dlen)
+	{
+		ep_dbg_cprintf(Dbg, 2, "gdp_read_cb: cannot read all data; wanted %zd, got %zd\n",
+				req->pkt.msg->dlen, l);
+	}
 
 	// invoke the command-specific (or ack-specific) function
 	_gdp_req_dispatch(req, chan);
@@ -839,6 +714,8 @@ gdp_read_cb(gdp_chan_t *chan, void *ctx)
 	}
 	ep_thr_cond_signal(&req->cond);
 	ep_thr_mutex_unlock(&req->mutex);
+
+	ep_dbg_cprintf(Dbg, 19, "gdp_read_cb: done");
 }
 
 
@@ -962,6 +839,9 @@ run_event_loop(void *ctx)
 		if (evdelay > 0)
 			ep_time_nanosleep(evdelay * 1000LL);		// avoid CPU hogging
 	}
+
+	// should never get here, but make gcc happy....
+	return NULL;
 }
 
 EP_STAT
@@ -1104,7 +984,7 @@ _gdp_do_init_2(void)
 			goto fail1;
 		}
 		GdpChannel = chan;
-		ep_dbg_cprintf(Dbg, 10, "gdp_init: listening on port %d, fd %d\n",
+		ep_dbg_cprintf(Dbg, 10, "gdp_init: talking on port %d, fd %d\n",
 				gdpd_port, bufferevent_getfd(chan));
 	}
 

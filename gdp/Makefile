@@ -3,8 +3,10 @@ OBJS=	\
 	gdp_api.o \
 	gdp_gcl.o \
 	gdp_log.o \
+	gdp_msg.o \
 	gdp_pkt.o \
 	gdp_proto.o \
+	gdp_req.o \
 	gdp_stat.o \
 	gdp_timestamp.o \
 

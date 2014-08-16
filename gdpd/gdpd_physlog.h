@@ -12,9 +12,7 @@ EP_STAT			gcl_offset_cache_init(
 
 EP_STAT			gcl_read(
 						gcl_handle_t *gclh,
-						gdp_recno_t recno,
-						gdp_msg_t *msg,
-						struct evbuffer *evb);
+						gdp_msg_t *msg);
 
 EP_STAT			gcl_create(
 						gcl_name_t gcl_name,
@@ -35,7 +33,7 @@ EP_STAT			gcl_append(
 #define GCL_DIR				"/var/tmp/gcl"
 #define GCL_VERSION			0
 
-#define GCL_LOG_MAGIC		0x8F4E39104A803299LL
+#define GCL_LOG_MAGIC		UINT64_C(0x8F4E39104A803299)
 
 #define GCL_DATA_SUFFIX		".data"
 #define GCL_INDEX_SUFFIX	".index"
