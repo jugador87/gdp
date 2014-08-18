@@ -11,6 +11,7 @@
 
 //#include <linux/limits.h>		XXX NOT PORTABLE!!!
 #include <sys/file.h>
+#include <sys/stat.h>
 #include <ep/ep_thr.h>
 
 #include <errno.h>
@@ -23,7 +24,7 @@
 /************************  PRIVATE	************************/
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdpd.physlog",
-								"GDP Daemon Physical Log Implementation");
+								"GDP Daemon Physical Log");
 
 #define GCL_PATH_MAX		200		// max length of pathname
 #define GCL_DIR				"/var/tmp/gcl"
@@ -178,6 +179,25 @@ gcl_index_cache_put(gcl_log_index *entry, int64_t recno, int64_t offset)
 
 
 /*
+**  FSIZEOF --- return the size of a file
+*/
+
+static off_t
+fsizeof(FILE *fp)
+{
+	struct stat st;
+
+	if (fstat(fileno(fp), &st) < 0)
+	{
+		ep_dbg_cprintf(Dbg, 1, "gcl_read: fstat failure: %s\n",
+				strerror(errno));
+		return -1;
+	}
+
+	return st.st_size;
+}
+
+/*
 **	GCL_READ --- read a message from a gcl
 **
 **		Reads in a message indicated by msg->recno into msg.
@@ -192,6 +212,8 @@ gcl_index_cache_put(gcl_log_index *entry, int64_t recno, int64_t offset)
 **				assuming it exists.
 */
 
+#define SIZEOF_INDEX_HEADER		0	//XXX no header yet, but there should be
+
 EP_STAT
 gcl_read(gcl_handle_t *gclh,
 		gdp_msg_t *msg)
@@ -203,6 +225,8 @@ gcl_read(gcl_handle_t *gclh,
 
 	EP_ASSERT_POINTER_VALID(gclh);
 
+	ep_dbg_cprintf(Dbg, 14, "gcl_read(%" PRIgdp_recno "): ", msg->recno);
+
 	pthread_rwlock_rdlock(&entry->lock);
 
 	// first check if recno is in the index
@@ -211,19 +235,35 @@ gcl_read(gcl_handle_t *gclh,
 	{
 		// recno is not in the index
 		// now binary search through the disk index
+		flockfile(entry->fp);
 
-		off_t file_size = entry->max_index_offset;
-		int64_t record_count = (file_size - sizeof(gcl_log_header)) /
+		off_t file_size = fsizeof(entry->fp);
+		if (file_size < 0)
+		{
+			estat = ep_stat_from_errno(errno);
+			gdp_log(estat, "gcl_read: ftell failed");
+			goto fail1;
+		}
+		int64_t record_count = (file_size - SIZEOF_INDEX_HEADER) /
 								sizeof(gcl_index_record);
 		gcl_index_record index_record;
 		size_t start = 0;
 		size_t end = record_count;
 		size_t mid;
 
-		flockfile(entry->fp);
+		ep_dbg_cprintf(Dbg, 14,
+				"searching index, rec_count=%" PRId64 ", file_size=%llu\n",
+				record_count, file_size);
+		if (file_size <= sizeof (gcl_log_header))
+		{
+			estat = GDP_STAT_CORRUPT_INDEX;
+			goto fail1;
+		}
+
 		while (start < end)
 		{
 			mid = start + (end - start) / 2;
+			ep_dbg_cprintf(Dbg, 47, "\t%zu ... %zu ... %zu\n", start, mid, end);
 			fseek(entry->fp, mid * sizeof(gcl_index_record), SEEK_SET);
 			fread(&index_record, sizeof(gcl_index_record), 1, entry->fp);
 			if (msg->recno < index_record.recno)
@@ -245,6 +285,7 @@ gcl_read(gcl_handle_t *gclh,
 	else
 	{
 		offset = long_pair->value;
+		ep_dbg_cprintf(Dbg, 14, "found in memory at %lld\n", offset);
 	}
 
 	if (offset == LLONG_MAX) // didn't find message
@@ -279,8 +320,9 @@ gcl_read(gcl_handle_t *gclh,
 
 	// done
 
-fail0:
+fail1:
 	funlockfile(gclh->fp);
+fail0:
 	pthread_rwlock_unlock(&entry->lock);
 
 	return estat;
@@ -468,8 +510,9 @@ gcl_open(gcl_name_t gcl_name,
 	// XXX: read metadata entries
 	if (log_header.magic != GCL_LOG_MAGIC)
 	{
-		fprintf(stderr, "gcl_open: magic mismatch - found: %" PRIx64 ", expected: %" PRIx64 "\n",
-			log_header.magic, GCL_LOG_MAGIC);
+		fprintf(stderr, "gcl_open: magic mismatch - found: %" PRIu64 "x,"
+				" expected: %" PRIu64 "x\n",
+				log_header.magic, GCL_LOG_MAGIC);
 		goto fail3;
 	}
 
@@ -599,6 +642,7 @@ gcl_append(gcl_handle_t *gclh,
 	fwrite(&index_record, sizeof(index_record), 1, entry->fp);
 
 	// commit
+	fflush(gclh->fp);
 	fflush(entry->fp);
 	gcl_index_cache_put(entry, index_record.recno, index_record.offset);
 	++entry->max_recno;
@@ -607,6 +651,7 @@ gcl_append(gcl_handle_t *gclh,
 
 	pthread_rwlock_unlock(&entry->lock);
 
+	msg->recno = log_record.recno;
 	return EP_STAT_OK;
 }
 

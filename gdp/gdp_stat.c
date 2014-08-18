@@ -36,6 +36,8 @@ static struct ep_stat_to_string Stats[] =
 	{ GDP_STAT_BUFFER_FAILURE,			"gdp_buf I/O failure",			},
 	{ GDP_STAT_NULL_GCL,				"GCL name required",			},
 	{ GDP_STAT_PROTOCOL_FAIL,			"GDP protocol failure",			},
+	{ GDP_STAT_CORRUPT_INDEX,			"corrupt GCL index",			},
+
 	{ NAKSTAT(C_BADREQ),				"4.00 bad request",				},
 	{ NAKSTAT(C_UNAUTH),				"4.01 unauthorized",			},
 	{ NAKSTAT(C_BADOPT),				"4.02 bad option",				},

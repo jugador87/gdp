@@ -42,7 +42,7 @@ EP_STAT			gcl_append(
 
 typedef struct gcl_log_record
 {
-	int64_t			recno;
+	gdp_recno_t		recno;
 	tt_interval_t	timestamp;
 	int64_t			data_length;
 	char			data[];
@@ -70,6 +70,6 @@ typedef struct gcl_log_header
 
 typedef struct gcl_index_record
 {
-	int64_t recno;
+	gdp_recno_t recno;
 	int64_t offset;
 } gcl_index_record;
