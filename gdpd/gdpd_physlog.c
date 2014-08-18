@@ -177,157 +177,6 @@ gcl_index_cache_put(gcl_log_index *entry, int64_t recno, int64_t offset)
 	return estat;
 }
 
-
-/*
-**  FSIZEOF --- return the size of a file
-*/
-
-static off_t
-fsizeof(FILE *fp)
-{
-	struct stat st;
-
-	if (fstat(fileno(fp), &st) < 0)
-	{
-		ep_dbg_cprintf(Dbg, 1, "gcl_read: fstat failure: %s\n",
-				strerror(errno));
-		return -1;
-	}
-
-	return st.st_size;
-}
-
-/*
-**	GCL_READ --- read a message from a gcl
-**
-**		Reads in a message indicated by msg->recno into msg.
-**
-**		In theory we should be positioned at the head of the next message.
-**		But that might not be the correct message.	If we have specified a
-**		message number there are two cases:
-**			(a) We've already seen the message -> use the cached offset.
-**				Of course we check to see if we got the record we expected.
-**			(b) We haven't (yet) seen the message in this GCL Handle -> starting
-**				from the last message we have seen, read up to this message,
-**				assuming it exists.
-*/
-
-#define SIZEOF_INDEX_HEADER		0	//XXX no header yet, but there should be
-
-EP_STAT
-gcl_read(gcl_handle_t *gclh,
-		gdp_msg_t *msg)
-{
-	EP_STAT estat = EP_STAT_OK;
-	gcl_log_index *entry = gclh->log_index;
-	LONG_LONG_PAIR *long_pair;
-	int64_t offset = LLONG_MAX;
-
-	EP_ASSERT_POINTER_VALID(gclh);
-
-	ep_dbg_cprintf(Dbg, 14, "gcl_read(%" PRIgdp_recno "): ", msg->recno);
-
-	pthread_rwlock_rdlock(&entry->lock);
-
-	// first check if recno is in the index
-	long_pair = circular_buffer_search(entry->index_cache, msg->recno);
-	if (long_pair == NULL)
-	{
-		// recno is not in the index
-		// now binary search through the disk index
-		flockfile(entry->fp);
-
-		off_t file_size = fsizeof(entry->fp);
-		if (file_size < 0)
-		{
-			estat = ep_stat_from_errno(errno);
-			gdp_log(estat, "gcl_read: ftell failed");
-			goto fail1;
-		}
-		int64_t record_count = (file_size - SIZEOF_INDEX_HEADER) /
-								sizeof(gcl_index_record);
-		gcl_index_record index_record;
-		size_t start = 0;
-		size_t end = record_count;
-		size_t mid;
-
-		ep_dbg_cprintf(Dbg, 14,
-				"searching index, rec_count=%" PRId64 ", file_size=%llu\n",
-				record_count, file_size);
-		if (file_size <= sizeof (gcl_log_header))
-		{
-			estat = GDP_STAT_CORRUPT_INDEX;
-			goto fail1;
-		}
-
-		while (start < end)
-		{
-			mid = start + (end - start) / 2;
-			ep_dbg_cprintf(Dbg, 47, "\t%zu ... %zu ... %zu\n", start, mid, end);
-			fseek(entry->fp, mid * sizeof(gcl_index_record), SEEK_SET);
-			fread(&index_record, sizeof(gcl_index_record), 1, entry->fp);
-			if (msg->recno < index_record.recno)
-			{
-				end = mid;
-			}
-			else if (msg->recno > index_record.recno)
-			{
-				start = mid + 1;
-			}
-			else
-			{
-				offset = index_record.offset;
-				break;
-			}
-		}
-		funlockfile(entry->fp);
-	}
-	else
-	{
-		offset = long_pair->value;
-		ep_dbg_cprintf(Dbg, 14, "found in memory at %lld\n", offset);
-	}
-
-	if (offset == LLONG_MAX) // didn't find message
-	{
-		estat = EP_STAT_END_OF_FILE;
-		goto fail0;
-	}
-
-	char read_buffer[GCL_READ_BUFFER_SIZE];
-	gcl_log_record log_record;
-
-	// read header
-	flockfile(gclh->fp);
-	fseek(gclh->fp, offset, SEEK_SET);
-	fread(&log_record, sizeof(log_record), 1, gclh->fp);
-	offset += sizeof(log_record);
-	memcpy(&msg->ts, &log_record.timestamp, sizeof msg->ts);
-
-	// read data in chunks and add it to the evbuffer
-	int64_t data_length = log_record.data_length;
-	while (data_length >= sizeof(read_buffer))
-	{
-		fread(&read_buffer, sizeof(read_buffer), 1, gclh->fp);
-		gdp_buf_write(msg->dbuf, &read_buffer, sizeof(read_buffer));
-		data_length -= sizeof(read_buffer);
-	}
-	if (data_length > 0)
-	{
-		fread(&read_buffer, data_length, 1, gclh->fp);
-		gdp_buf_write(msg->dbuf, &read_buffer, data_length);
-	}
-
-	// done
-
-fail1:
-	funlockfile(gclh->fp);
-fail0:
-	pthread_rwlock_unlock(&entry->lock);
-
-	return estat;
-}
-
 EP_STAT
 gcl_create(gcl_name_t gcl_name,
 		gcl_handle_t **pgclh)
@@ -595,6 +444,157 @@ gcl_close(gcl_handle_t *gclh)
 	// XXX: when do we remove the index cache for optimal performance?
 	_gdp_gcl_cache_drop(gclh->gcl_name, 0);
 	ep_mem_free(gclh);
+
+	return estat;
+}
+
+
+/*
+**  FSIZEOF --- return the size of a file
+*/
+
+static off_t
+fsizeof(FILE *fp)
+{
+	struct stat st;
+
+	if (fstat(fileno(fp), &st) < 0)
+	{
+		ep_dbg_cprintf(Dbg, 1, "gcl_read: fstat failure: %s\n",
+				strerror(errno));
+		return -1;
+	}
+
+	return st.st_size;
+}
+
+/*
+**	GCL_READ --- read a message from a gcl
+**
+**		Reads in a message indicated by msg->recno into msg.
+**
+**		In theory we should be positioned at the head of the next message.
+**		But that might not be the correct message.	If we have specified a
+**		message number there are two cases:
+**			(a) We've already seen the message -> use the cached offset.
+**				Of course we check to see if we got the record we expected.
+**			(b) We haven't (yet) seen the message in this GCL Handle -> starting
+**				from the last message we have seen, read up to this message,
+**				assuming it exists.
+*/
+
+#define SIZEOF_INDEX_HEADER		0	//XXX no header yet, but there should be
+
+EP_STAT
+gcl_read(gcl_handle_t *gclh,
+		gdp_msg_t *msg)
+{
+	EP_STAT estat = EP_STAT_OK;
+	gcl_log_index *entry = gclh->log_index;
+	LONG_LONG_PAIR *long_pair;
+	int64_t offset = LLONG_MAX;
+
+	EP_ASSERT_POINTER_VALID(gclh);
+
+	ep_dbg_cprintf(Dbg, 14, "gcl_read(%" PRIgdp_recno "): ", msg->recno);
+
+	pthread_rwlock_rdlock(&entry->lock);
+
+	// first check if recno is in the index
+	long_pair = circular_buffer_search(entry->index_cache, msg->recno);
+	if (long_pair == NULL)
+	{
+		// recno is not in the index
+		// now binary search through the disk index
+		flockfile(entry->fp);
+
+		off_t file_size = fsizeof(entry->fp);
+		if (file_size < 0)
+		{
+			estat = ep_stat_from_errno(errno);
+			gdp_log(estat, "gcl_read: fsizeof failed");
+			goto fail1;
+		}
+		int64_t record_count = (file_size - SIZEOF_INDEX_HEADER) /
+								sizeof(gcl_index_record);
+		gcl_index_record index_record;
+		size_t start = 0;
+		size_t end = record_count;
+		size_t mid;
+
+		ep_dbg_cprintf(Dbg, 14,
+				"searching index, rec_count=%" PRId64 ", file_size=%llu\n",
+				record_count, file_size);
+		if (file_size <= sizeof (gcl_log_header))
+		{
+			estat = GDP_STAT_CORRUPT_INDEX;
+			goto fail1;
+		}
+
+		while (start < end)
+		{
+			mid = start + (end - start) / 2;
+			ep_dbg_cprintf(Dbg, 47, "\t%zu ... %zu ... %zu\n", start, mid, end);
+			fseek(entry->fp, mid * sizeof(gcl_index_record), SEEK_SET);
+			fread(&index_record, sizeof(gcl_index_record), 1, entry->fp);
+			if (msg->recno < index_record.recno)
+			{
+				end = mid;
+			}
+			else if (msg->recno > index_record.recno)
+			{
+				start = mid + 1;
+			}
+			else
+			{
+				offset = index_record.offset;
+				break;
+			}
+		}
+		funlockfile(entry->fp);
+	}
+	else
+	{
+		offset = long_pair->value;
+		ep_dbg_cprintf(Dbg, 14, "found in memory at %lld\n", offset);
+	}
+
+	if (offset == LLONG_MAX) // didn't find message
+	{
+		estat = EP_STAT_END_OF_FILE;
+		goto fail0;
+	}
+
+	char read_buffer[GCL_READ_BUFFER_SIZE];
+	gcl_log_record log_record;
+
+	// read header
+	flockfile(gclh->fp);
+	fseek(gclh->fp, offset, SEEK_SET);
+	fread(&log_record, sizeof(log_record), 1, gclh->fp);
+	offset += sizeof(log_record);
+	memcpy(&msg->ts, &log_record.timestamp, sizeof msg->ts);
+
+	// read data in chunks and add it to the evbuffer
+	int64_t data_length = log_record.data_length;
+	while (data_length >= sizeof(read_buffer))
+	{
+		fread(&read_buffer, sizeof(read_buffer), 1, gclh->fp);
+		gdp_buf_write(msg->dbuf, &read_buffer, sizeof(read_buffer));
+		data_length -= sizeof(read_buffer);
+	}
+	if (data_length > 0)
+	{
+		fread(&read_buffer, data_length, 1, gclh->fp);
+		gdp_buf_write(msg->dbuf, &read_buffer, data_length);
+	}
+
+	// done
+
+fail1:
+	funlockfile(gclh->fp);
+fail0:
+	pthread_rwlock_unlock(&entry->lock);
 
 	return estat;
 }
