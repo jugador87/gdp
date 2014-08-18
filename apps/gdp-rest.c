@@ -179,9 +179,8 @@ read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
 {
 	EP_STAT estat;
 	gcl_handle_t *gclh = NULL;
-	gdp_msg_t msg;
+	gdp_msg_t *msg = gdp_msg_new();
 	gcl_name_t gcliname;
-	struct evbuffer *revb;
 
 	// for printing below
 	estat = gdp_gcl_internal_name(gclpname, gcliname);
@@ -190,9 +189,7 @@ read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
 	estat = gdp_gcl_open(gcliname, GDP_MODE_RO, &gclh);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	revb = evbuffer_new();
-
-	estat = gdp_gcl_read(gclh, recno, revb, &msg);
+	estat = gdp_gcl_read(gclh, recno, msg);
 	if (!EP_STAT_ISOK(estat))
 		goto fail0;
 
@@ -213,13 +210,13 @@ read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
 			fprintf(fp, "HTTP/1.1 200 GCL Message\r\n"
 						"Content-Type: application/json\r\n"
 						"GDP-USC-Name: %s\r\n"
-						"GDP-Message-Number: %ld\r\n",
+						"GDP-Message-Number: %" PRIgdp_recno "\r\n",
 						gclpname,
 						recno);
-			if (msg.ts.stamp.tv_sec != TT_NOTIME)
+			if (msg->ts.stamp.tv_sec != TT_NOTIME)
 			{
 				fprintf(fp, "GDP-Commit-Timestamp: ");
-				tt_print_interval(&msg.ts, fp, false);
+				tt_print_interval(&msg->ts, fp, false);
 				fprintf(fp, "\r\n");
 			}
 			fprintf(fp, "\r\n");				// end of header
@@ -230,7 +227,7 @@ read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
 		// finish up sending the data out --- the extra copy is annoying
 		{
 			size_t rlen = strlen(rbuf);
-			size_t dlen = evbuffer_get_length(revb);
+			size_t dlen = msg->dlen;
 			char obuf[1024];
 			char *obp = obuf;
 
@@ -242,7 +239,7 @@ read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
 						strerror(errno));
 
 			memcpy(obp, rbuf, rlen);
-			evbuffer_remove(revb, obp + rlen, dlen);
+			gdp_buf_read(msg->dbuf, obp + rlen, dlen);
 			scgi_send(req, obp, rlen + dlen);
 			if (obp != obuf)
 				ep_mem_free(obp);
@@ -250,7 +247,7 @@ read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
 	}
 
 	// finished
-	evbuffer_free(revb);
+	gdp_msg_free(msg);
 	gdp_gcl_close(gclh);
 	return estat;
 
@@ -332,7 +329,7 @@ process_scgi_req(scgi_request *req,
 			// create a new GCL
 			ep_dbg_cprintf(Dbg, 5, "=== Create new GCL\n");
 			gcl_handle_t *gclh;
-			EP_STAT estat = gdp_gcl_create(NULL, NULL, &gclh);
+			EP_STAT estat = gdp_gcl_create(NULL, &gclh);
 
 			if (EP_STAT_ISOK(estat))
 			{
@@ -367,7 +364,7 @@ process_scgi_req(scgi_request *req,
 		else if (req->request_method == SCGI_METHOD_POST)
 		{
 			// append value to GCL
-			gdp_msg_t msg;
+			gdp_msg_t *msg = gdp_msg_new();
 			struct sockstate *ss = req->descriptor->cbdata;
 
 			ep_dbg_cprintf(Dbg, 5, "=== Add value to GCL\n");
@@ -383,10 +380,10 @@ process_scgi_req(scgi_request *req,
 			}
 			if (EP_STAT_ISOK(estat))
 			{
-				memset(&msg, 0, sizeof msg);
-				msg.data = req->body;
-				msg.len = req->scgi_content_length;
-				estat = gdp_gcl_append(ss->gcl_handle, &msg);
+				memset(msg, 0, sizeof *msg);
+				msg->data = req->body;
+				msg->dlen = req->scgi_content_length;
+				estat = gdp_gcl_append(ss->gcl_handle, msg);
 			}
 			if (!EP_STAT_ISOK(estat))
 			{
@@ -416,13 +413,13 @@ process_scgi_req(scgi_request *req,
 						"\r\n"
 						"{\r\n"
 						"	 \"recno\": \"%d\"",
-						msg.recno);
-				if (msg.ts.stamp.tv_sec != TT_NOTIME)
+						msg->recno);
+				if (msg->ts.stamp.tv_sec != TT_NOTIME)
 				{
 					fprintf(fp,
 							",\r\n"
 							"	 \"timestamp\": ");
-					tt_print_interval(&msg.ts, fp, false);
+					tt_print_interval(&msg->ts, fp, false);
 				}
 				fprintf(fp, "\r\n}");
 				fputc('\0', fp);
@@ -499,7 +496,7 @@ fd_newfd_cb(int fd, enum scgi_fd_type fdtype)
 	ss = ep_mem_zalloc(sizeof *ss);
 
 	// create an event
-	ss->event = event_new(GdpEventBase, fd, EV_READ|EV_WRITE|EV_PERSIST,
+	ss->event = event_new(GdpIoEventBase, fd, EV_READ|EV_WRITE|EV_PERSIST,
 			process_scgi_activity, NULL);
 	event_add(ss->event, &tv);
 
@@ -556,7 +553,7 @@ main(int argc, char **argv, char **env)
 	// Initialize the GDP library
 	//		Also initializes the EVENT library
 	{
-		EP_STAT estat = gdp_init(true);
+		EP_STAT estat = gdp_init();
 		char ebuf[100];
 
 		if (!EP_STAT_ISOK(estat))

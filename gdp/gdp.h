@@ -7,6 +7,7 @@
 #ifndef _GDP_H_
 #define _GDP_H_
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include <sys/queue.h>
 #include <sys/types.h>
@@ -38,9 +39,11 @@ typedef char				gcl_pname_t[GCL_PNAME_LEN + 1];
 
 // a GDP request id (used for correlating commands and responses)
 typedef uint32_t			gdp_rid_t;
+#define PRIgdp_rid			PRIu32
 
 // a GCL record number
 typedef int32_t				gdp_recno_t;
+#define PRIgdp_recno		PRId32
 
 /*
 **	I/O modes
@@ -113,11 +116,6 @@ extern EP_STAT	gdp_gcl_open(
 extern EP_STAT	gdp_gcl_close(
 					gcl_handle_t *gclh);	// GCL handle to close
 
-// create a new GCL message
-extern EP_STAT	gdp_gcl_msg_new(
-					gcl_handle_t *gclh,
-					gdp_msg_t **);			// result area for message
-
 // append to a writable GCL
 extern EP_STAT	gdp_gcl_append(
 					gcl_handle_t *gclh,		// writable GCL handle
@@ -127,7 +125,6 @@ extern EP_STAT	gdp_gcl_append(
 extern EP_STAT	gdp_gcl_read(
 					gcl_handle_t *gclh,		// readable GCL handle
 					gdp_recno_t recno,		// GCL record number
-					gdp_buf_t *dbuf,		// reply buffer to receive data
 					gdp_msg_t *msg);		// pointer to result message
 
 #if 0
@@ -162,11 +159,6 @@ extern void		gdp_gcl_print(
 					int detail,				// not used at this time
 					int indent);			// not used at this time
 
-// print a GCL message (for debugging)
-extern void		gdp_gcl_msg_print(
-					const gdp_msg_t *msg,	// message to print
-					FILE *fp);				// file to print it to
-
 // make a printable GCL name from a binary version
 char			*gdp_gcl_printable_name(
 					const gcl_name_t internal,
@@ -182,5 +174,10 @@ gdp_msg_t		*gdp_msg_new(void);
 
 // free a message
 void			gdp_msg_free(gdp_msg_t *);
+
+// print a message (for debugging)
+extern void		gdp_msg_print(
+					const gdp_msg_t *msg,	// message to print
+					FILE *fp);				// file to print it to
 
 #endif // _GDP_H_

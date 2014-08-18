@@ -6,6 +6,7 @@
 #include <ep/ep_string.h>
 #include <gdp/gdp_timestamp.h>
 #include <errno.h>
+#include <inttypes.h>
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.timestamp", "GDP Timestamping");
 
@@ -60,7 +61,7 @@ tt_print_stamp(const tt_stamp_t *ts, FILE *fp)
 		tvsec = ts->tv_sec;				//XXX may overflow if time_t is 32 bits!
 		gmtime_r(&tvsec, &tm);
 		strftime(tbuf, sizeof tbuf, "%Y-%m-%dT%H:%M:%S", &tm);
-		fprintf(fp, "%s.%09uldZ", tbuf, ts->tv_nsec);
+		fprintf(fp, "%s.%09" PRIu32 "Z", tbuf, ts->tv_nsec);
 	}
 }
 

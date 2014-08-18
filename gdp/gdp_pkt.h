@@ -114,7 +114,7 @@ typedef struct gdp_pkt
 #define GDP_NAK_C_TOOLARGE		205		// request entity too large (4.13, 413)
 #define GDP_NAK_C_UNSUPMEDIA	207		// unsupported media type (4.15, 415)
 //		224-254			Negative acks, server side (CoAP, HTTP)
-#define GDP_NAK_S_INTERNAL		224		// internal server error (5.01, 500)
+#define GDP_NAK_S_INTERNAL		224		// internal server error (5.00, 500)
 #define GDP_NAK_S_NOTIMPL		225		// not implemented (5.01, 501)
 #define GDP_NAK_S_BADGATEWAY	226		// bad gateway (5.02, 502)
 #define GDP_NAK_S_SVCUNAVAIL	227		// service unavailable (5.03, 503)
@@ -125,10 +125,10 @@ typedef struct gdp_pkt
 
 
 /***** values for gdp_pkg_hdr flags field *****/
-#define GDP_PKT_HAS_RID		0x01	// has a rid field
-#define GDP_PKT_HAS_ID		0x02	// has a gcl_name field
-#define GDP_PKT_HAS_RECNO	0x04	// has a msgno field
-#define GDP_PKT_HAS_TS		0x08	// has a timestamp field
+#define GDP_PKT_HAS_RID		0x01		// has a rid field
+#define GDP_PKT_HAS_ID		0x02		// has a gcl_name field
+#define GDP_PKT_HAS_RECNO	0x04		// has a msgno field
+#define GDP_PKT_HAS_TS		0x08		// has a timestamp field
 
 /***** dummy values for other fields *****/
 #define GDP_PKT_NO_RID		0L			// no request id

@@ -166,6 +166,9 @@ EP_STAT			_gdp_req_dispatch(gdp_req_t *req,
 
 void			_gdp_req_freeall(struct req_head *reqlist);
 
+void			_gdp_req_dump(gdp_req_t *req,
+						FILE *fp);
+
 void			_gdp_chan_drain_input(gdp_chan_t *chan);
 
 EP_STAT			_gdp_invoke(int cmd,

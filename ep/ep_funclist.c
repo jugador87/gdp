@@ -68,7 +68,7 @@ ep_funclist_new(
 
 	flp->flags = flags;
 	flp->rpool = rp;
-	ep_thr_mutex_init(&flp->mutex);
+	ep_thr_mutex_init(&flp->mutex, EP_THR_MUTEX_DEFAULT);
 
 	return flp;
 }

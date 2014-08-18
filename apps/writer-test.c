@@ -69,7 +69,7 @@ main(int argc, char **argv)
 		gdp_buf_write(msg->dbuf, buf, strlen(buf));
 		estat = gdp_gcl_append(gclh, msg);
 		EP_STAT_CHECK(estat, goto fail1);
-		gdp_gcl_msg_print(msg, stdout);
+		gdp_msg_print(msg, stdout);
 	}
 	gdp_msg_free(msg);
 	goto done;

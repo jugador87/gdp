@@ -39,7 +39,7 @@ thread_pool_new(int num_threads)
 
 	new_tp->new_job = NULL;
 	new_tp->num_threads = num_threads;
-	ep_thr_mutex_init(&new_tp->mutex);
+	ep_thr_mutex_init(&new_tp->mutex, EP_THR_MUTEX_DEFAULT);
 	ep_thr_cond_init(&new_tp->is_empty);
 	ep_thr_cond_init(&new_tp->is_full);
 
@@ -103,7 +103,7 @@ thread_pool_job_new(thread_pool_job_callback callback,
 	{
 		// free list empty; allocate a new one
 		new_job = ep_mem_zalloc(sizeof *new_job);
-		ep_thr_mutex_init(&new_job->mutex);
+		ep_thr_mutex_init(&new_job->mutex, EP_THR_MUTEX_DEFAULT);
 	}
 
 	new_job->callback = callback;

@@ -35,6 +35,7 @@ typedef struct
 
 // a sentinel value for stamp.tv_sec to indicate invalidity
 #define TT_NOTIME				EP_TIME_NOTIME
+#define TT_ISVALID(ts)			((ts).stamp.tv_sec != TT_NOTIME)
 
 extern EP_STAT	tt_now(tt_interval_t *t);		// return current time
 extern bool		tt_before(const tt_stamp_t t);	// true if t has passed
@@ -44,5 +45,6 @@ extern EP_STAT	tt_parse_stamp(const char *, tt_stamp_t *);
 extern void		tt_print_interval(const tt_interval_t *t, FILE *fp, bool human);
 extern EP_STAT	tt_parse_interval(const char *, tt_interval_t *);
 extern void		tt_set_clock_accuracy(long nsec);
+
 
 #endif // _GDP_TIMESTAMP_H_

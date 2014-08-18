@@ -200,7 +200,7 @@ cmd_read(gdp_req_t *req, gdp_chan_t *chan)
 	estat = gcl_read(gclh, req->pkt.msg);
 
 	if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
-		req->pkt.cmd = GDP_NAK_C_NOTFOUND;
+		estat = GDP_STAT_FROM_NAK(GDP_NAK_C_NOTFOUND);
 	return estat;
 }
 
@@ -324,8 +324,19 @@ gdp_req_thread(void *continue_data)
 {
 	gdp_req_t *req = continue_data;
 	gdp_chan_t *chan = req->udata;
+	size_t l;
 
 	ep_dbg_cprintf(Dbg, 18, "gdp_req_thread: starting\n");
+
+	// extract any data left in input
+	l = evbuffer_remove_buffer(bufferevent_get_input(chan),
+			req->pkt.msg->dbuf, req->pkt.msg->dlen);
+	if (l < req->pkt.msg->dlen)
+	{
+		ep_dbg_cprintf(Dbg, 2, "gdp_req_thread: cannot read all data;"
+				" wanted %zd, got %zd\n",
+				req->pkt.msg->dlen, l);
+	}
 
 	// find the GCL handle (if any)
 	req->gclh = _gdp_gcl_cache_get(req->pkt.gcl_name, 0);
@@ -585,8 +596,9 @@ main(int argc, char **argv)
 	int listenport = -1;
 	bool run_in_foreground = false;
 	EP_STAT estat;
+	long nworkers = sysconf(_SC_NPROCESSORS_ONLN);
 
-	while ((opt = getopt(argc, argv, "D:FP:")) > 0)
+	while ((opt = getopt(argc, argv, "D:Fn:P:")) > 0)
 	{
 		switch (opt)
 		{
@@ -597,6 +609,10 @@ main(int argc, char **argv)
 
 		case 'F':
 			run_in_foreground = true;
+			break;
+
+		case 'n':
+			nworkers = atoi(optarg);
 			break;
 
 		case 'P':
@@ -626,8 +642,9 @@ main(int argc, char **argv)
 		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 
-	long ncpu = sysconf(_SC_NPROCESSORS_ONLN);
-	CpuJobThreadPool = thread_pool_new(ncpu);
+	if (nworkers <= 0)
+		nworkers = 1;
+	CpuJobThreadPool = thread_pool_new(nworkers);
 	thread_pool_init(CpuJobThreadPool);
 
 	// start the event threads

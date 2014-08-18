@@ -92,7 +92,7 @@ ep_hash_new(
 	hash->hfunc = hfunc;
 	hash->flags = flags;
 	hash->tabsize = tabsize;
-	ep_thr_mutex_init(&hash->mutex);
+	ep_thr_mutex_init(&hash->mutex, EP_THR_MUTEX_DEFAULT);
 
 	return hash;
 }

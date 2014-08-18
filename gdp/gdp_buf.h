@@ -98,4 +98,6 @@ gdp_buf_copy(gdp_buf_t *ibuf, gdp_buf_t *obuf)
 
 #define gdp_buf_printf			evbuffer_add_printf
 
+extern void		gdp_buf_dump(gdp_buf_t *buf, FILE *fp);
+
 #endif // _GDP_BUF_H_

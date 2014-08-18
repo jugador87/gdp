@@ -55,14 +55,14 @@ ep_app_warn(
 	const char *progname;
 
 	va_start(av, fmt);
-	fprintf(stderr, "%sWARNING: ", EpVid->vidinv);
+	fprintf(stderr, "%sWARNING:%s ", EpVid->vidinv, EpVid->vidnorm);
 	if ((progname = ep_app_getprogname()) != NULL)
 		fprintf(stderr, "%s: ", progname);
 	if (fmt != NULL)
 		vfprintf(stderr, fmt, av);
 	else
 		fprintf(stderr, "unknown warning");
-	fprintf(stderr, "%s\n", EpVid->vidnorm);
+	fprintf(stderr, "\n");
 	va_end(av);
 }
 
@@ -89,14 +89,14 @@ ep_app_error(
 	const char *progname;
 
 	va_start(av, fmt);
-	fprintf(stderr, "%sERROR: ", EpVid->vidinv);
+	fprintf(stderr, "%sERROR:%s ", EpVid->vidinv, EpVid->vidnorm);
 	if ((progname = ep_app_getprogname()) != NULL)
 		fprintf(stderr, "%s: ", progname);
 	if (fmt != NULL)
 		vfprintf(stderr, fmt, av);
-	else
-		fprintf(stderr, "%s", strerror(errno));
-	fprintf(stderr, "%s\n", EpVid->vidnorm);
+	if (errno != 0)
+		fprintf(stderr, "\n\t(%s)", strerror(errno));
+	fprintf(stderr, "\n");
 	va_end(av);
 }
 
@@ -122,14 +122,14 @@ ep_app_abort(
 	const char *progname;
 
 	va_start(av, fmt);
-	fprintf(stderr, "%sABORT: ", EpVid->vidinv);
+	fprintf(stderr, "%sFATAL:%s ", EpVid->vidinv, EpVid->vidnorm);
 	if ((progname = ep_app_getprogname()) != NULL)
 		fprintf(stderr, "%s: ", progname);
 	if (fmt != NULL)
 		vfprintf(stderr, fmt, av);
-	else
-		fprintf(stderr, "exiting");
-	fprintf(stderr, "%s\n", EpVid->vidnorm);
+	if (errno != 0)
+		fprintf(stderr, "\n\t(%s)", strerror(errno));
+	fprintf(stderr, "\n\t(exiting)\n");
 	va_end(av);
 
 	abort();

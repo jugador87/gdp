@@ -27,15 +27,15 @@ diagnose_thr_err(int err, const char *where)
 }
 
 static void
-printtrace(void *lock, int err, const char *where)
+printtrace(void *lock, const char *where)
 {
 	pthread_t self = pthread_self();
 
-	ep_dbg_printf("ep_thr_%s %p [%p]: %d\n", where, lock, self, err);
+	ep_dbg_printf("ep_thr_%s %p [%p]\n", where, lock, self);
 }
 
-#define TRACE(lock, where, res)	\
-		if (ep_dbg_test(Dbg, 60)) printtrace(lock, res, where)
+#define TRACE(lock, where)	\
+		if (ep_dbg_test(Dbg, 60)) printtrace(lock, where)
 
 void
 _ep_thr_init(void)
@@ -49,18 +49,19 @@ _ep_thr_init(void)
 */
 
 int
-ep_thr_mutex_init(EP_THR_MUTEX *mtx)
+ep_thr_mutex_init(EP_THR_MUTEX *mtx, int type)
 {
 	int err;
 	pthread_mutexattr_t attr;
 
+	TRACE(mtx, "mutex_init");
 	if (!_EpThrUsePthreads)
 		return 0;
 	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutexattr_settype(&attr, type);
 	if ((err = pthread_mutex_init(mtx, &attr)) != 0)
 		diagnose_thr_err(err, "mutex_init");
-	TRACE(mtx, "mutex_init", err);
+	pthread_mutexattr_destroy(&attr);
 	return err;
 }
 
@@ -69,11 +70,11 @@ ep_thr_mutex_destroy(EP_THR_MUTEX *mtx)
 {
 	int err;
 
+	TRACE(mtx, "mutex_destroy");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_mutex_destroy(mtx)) != 0)
 		diagnose_thr_err(err, "mutex_destroy");
-	TRACE(mtx, "mutex_destroy", err);
 	return err;
 }
 
@@ -82,11 +83,11 @@ ep_thr_mutex_lock(EP_THR_MUTEX *mtx)
 {
 	int err;
 
+	TRACE(mtx, "mutex_lock");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_mutex_lock(mtx)) != 0)
 		diagnose_thr_err(err, "mutex_lock");
-	TRACE(mtx, "mutex_lock", err);
 	return err;
 }
 
@@ -95,11 +96,11 @@ ep_thr_mutex_trylock(EP_THR_MUTEX *mtx)
 {
 	int err;
 
+	TRACE(mtx, "mutex_trylock");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_mutex_trylock(mtx)) != 0)
 		diagnose_thr_err(err, "mutex_trylock");
-	TRACE(mtx, "mutex_trylock", err);
 	return err;
 }
 
@@ -108,11 +109,11 @@ ep_thr_mutex_unlock(EP_THR_MUTEX *mtx)
 {
 	int err;
 
+	TRACE(mtx, "mutex_unlock");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_mutex_unlock(mtx)) != 0)
 		diagnose_thr_err(err, "mutex_unlock");
-	TRACE(mtx, "mutex_unlock", err);
 	return err;
 }
 
@@ -126,11 +127,11 @@ ep_thr_cond_init(EP_THR_COND *cv)
 {
 	int err;
 
+	TRACE(cv, "cond_init");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_cond_init(cv, NULL)) != 0)
 		diagnose_thr_err(err, "cond_init");
-	TRACE(cv, "cond_init", err);
 	return err;
 }
 
@@ -139,11 +140,11 @@ ep_thr_cond_destroy(EP_THR_COND *cv)
 {
 	int err;
 
+	TRACE(cv, "cond_destroy");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_cond_destroy(cv)) != 0)
 		diagnose_thr_err(err, "cond_destroy");
-	TRACE(cv, "cond_destroy", err);
 	return err;
 }
 
@@ -152,11 +153,11 @@ ep_thr_cond_signal(EP_THR_COND *cv)
 {
 	int err;
 
+	TRACE(cv, "cond_signal");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_cond_signal(cv)) != 0)
 		diagnose_thr_err(err, "cond_signal");
-	TRACE(cv, "cond_signal", err);
 	return err;
 }
 
@@ -165,11 +166,11 @@ ep_thr_cond_wait(EP_THR_COND *cv, EP_THR_MUTEX *mtx)
 {
 	int err;
 
+	TRACE(cv, "cond_wait");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_cond_wait(cv, mtx)) != 0)
 		diagnose_thr_err(err, "cond_wait");
-	TRACE(cv, "cond_wait", err);
 	return err;
 }
 
@@ -178,11 +179,11 @@ ep_thr_cond_broadcast(EP_THR_COND *cv)
 {
 	int err;
 
+	TRACE(cv, "cond_broadcast");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_cond_broadcast(cv)) != 0)
 		diagnose_thr_err(err, "cond_broadcast");
-	TRACE(cv, "cond_broadcast", err);
 	return err;
 }
 
@@ -196,11 +197,11 @@ ep_thr_rwlock_init(EP_THR_RWLOCK *rwl)
 {
 	int err;
 
+	TRACE(rwl, "rwlock_init");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_init(rwl, NULL)) != 0)
 		diagnose_thr_err(err, "rwlock_init");
-	TRACE(rwl, "rwlock_init", err);
 	return err;
 }
 
@@ -209,11 +210,11 @@ ep_thr_rwlock_destroy(EP_THR_RWLOCK *rwl)
 {
 	int err;
 
+	TRACE(rwl, "rwlock_destroy");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_destroy(rwl)) != 0)
 		diagnose_thr_err(err, "rwlock_destroy");
-	TRACE(rwl, "rwlock_destroy", err);
 	return err;
 }
 
@@ -222,11 +223,11 @@ ep_thr_rwlock_rdlock(EP_THR_RWLOCK *rwl)
 {
 	int err;
 
+	TRACE(rwl, "rwlock_rdlock");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_rdlock(rwl)) != 0)
 		diagnose_thr_err(err, "rwlock_rdlock");
-	TRACE(rwl, "rwlock_rdlock", err);
 	return err;
 }
 
@@ -235,11 +236,11 @@ ep_thr_rwlock_tryrdlock(EP_THR_RWLOCK *rwl)
 {
 	int err;
 
+	TRACE(rwl, "rwlock_tryrdlock");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_tryrdlock(rwl)) != 0)
 		diagnose_thr_err(err, "rwlock_tryrdlock");
-	TRACE(rwl, "rwlock_tryrdlock", err);
 	return err;
 }
 
@@ -248,11 +249,11 @@ ep_thr_rwlock_wrlock(EP_THR_RWLOCK *rwl)
 {
 	int err;
 
+	TRACE(rwl, "rwlock_wrlock");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_wrlock(rwl)) != 0)
 		diagnose_thr_err(err, "rwlock_wrlock");
-	TRACE(rwl, "rwlock_wrlock", err);
 	return err;
 }
 
@@ -261,11 +262,11 @@ ep_thr_rwlock_trywrlock(EP_THR_RWLOCK *rwl)
 {
 	int err;
 
+	TRACE(rwl, "rwlock_tryrwlock");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_trywrlock(rwl)) != 0)
 		diagnose_thr_err(err, "rwlock_trywrlock");
-	TRACE(rwl, "rwlock_tryrwlock", err);
 	return err;
 }
 
@@ -274,11 +275,11 @@ ep_thr_rwlock_unlock(EP_THR_RWLOCK *rwl)
 {
 	int err;
 
+	TRACE(rwl, "rwlock_unlock");
 	if (!_EpThrUsePthreads)
 		return 0;
 	if ((err = pthread_rwlock_unlock(rwl)) != 0)
 		diagnose_thr_err(err, "rwlock_unlock");
-	TRACE(rwl, "rwlock_unlock", err);
 	return err;
 }
 

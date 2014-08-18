@@ -1,6 +1,7 @@
 
 OBJS=	\
 	gdp_api.o \
+	gdp_buf.o \
 	gdp_gcl.o \
 	gdp_log.o \
 	gdp_msg.o \

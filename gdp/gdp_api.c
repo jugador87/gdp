@@ -57,17 +57,22 @@ gdp_gcl_getname(const gcl_handle_t *gclh)
 }
 
 /*
-**	GDP_GCL_MSG_PRINT --- print a message (for debugging)
+**	GDP_MSG_PRINT --- print a message (for debugging)
 */
 
 void
-gdp_gcl_msg_print(const gdp_msg_t *msg,
+gdp_msg_print(const gdp_msg_t *msg,
 			FILE *fp)
 {
 	unsigned char *d;
 	int l;
 
-	fprintf(fp, "GCL Record %d, ", msg->recno);
+	if (msg == NULL)
+	{
+		fprintf(fp, "null message\n");
+		return;
+	}
+	fprintf(fp, "GDP record %d, ", msg->recno);
 	if (msg->dbuf == NULL)
 	{
 		fprintf(fp, "no data");
@@ -77,7 +82,7 @@ gdp_gcl_msg_print(const gdp_msg_t *msg,
 	else
 	{
 		l = gdp_buf_getlength(msg->dbuf);
-		fprintf(fp, "len %zd", l);
+		fprintf(fp, "len %zd/%zd", msg->dlen, l);
 		d = gdp_buf_getptr(msg->dbuf, l);
 	}
 
@@ -421,16 +426,14 @@ gdp_gcl_append(gcl_handle_t *gclh,
 EP_STAT
 gdp_gcl_read(gcl_handle_t *gclh,
 			gdp_recno_t recno,
-			gdp_buf_t *reb,
 			gdp_msg_t *msg)
 {
-	EP_STAT estat = EP_STAT_OK;
+	EP_STAT estat;
 
 	EP_ASSERT_POINTER_VALID(gclh);
 
 	msg->recno = recno;
 	msg->ts.stamp.tv_sec = TT_NOTIME;
-	msg->dbuf = reb;
 	estat = _gdp_invoke(GDP_CMD_READ, gclh, msg);
 
 	// ok, done!

@@ -98,7 +98,7 @@ _gdp_gcl_cache_add(gcl_handle_t *gclh, gdp_iomode_t mode)
 
 	// save it in the cache
 	(void) ep_hash_insert(OpenGCLCache,
-						sizeof (gcl_name_t), &gclh->gcl_name, gclh);
+						sizeof (gcl_name_t), gclh->gcl_name, gclh);
 	if (ep_dbg_test(Dbg, 42))
 	{
 		gcl_pname_t pbuf;
@@ -150,7 +150,7 @@ _gdp_gcl_newhandle(gcl_name_t gcl_name, gcl_handle_t **pgclh)
 	if (gclh == NULL)
 		goto fail1;
 
-	ep_thr_mutex_init(&gclh->mutex);
+	ep_thr_mutex_init(&gclh->mutex, EP_THR_MUTEX_DEFAULT);
 	LIST_INIT(&gclh->reqs);
 	if (gcl_name != NULL)
 		memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);

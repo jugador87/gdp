@@ -34,11 +34,11 @@ EP_DBG	Dbg = EP_DBG_INIT("gdp.pkt", "GDP packet traffic");
 
 static EP_PRFLAGS_DESC	PktFlags[] =
 {
-	{	GDP_PKT_HAS_RID,	GDP_PKT_HAS_RID,	"GDP_PKT_HAS_RID"	},
-	{	GDP_PKT_HAS_ID,		GDP_PKT_HAS_ID,		"GDP_PKT_HAS_NAME"	},
-	{	GDP_PKT_HAS_RECNO,	GDP_PKT_HAS_RECNO,	"GDP_PKT_HAS_RECNO" },
-	{	GDP_PKT_HAS_TS,		GDP_PKT_HAS_TS,		"GDP_PKT_HAS_TS"	},
-	{	0,					0,					NULL				}
+	{	GDP_PKT_HAS_RID,	GDP_PKT_HAS_RID,	"HAS_RID"		},
+	{	GDP_PKT_HAS_ID,		GDP_PKT_HAS_ID,		"HAS_NAME"		},
+	{	GDP_PKT_HAS_RECNO,	GDP_PKT_HAS_RECNO,	"HAS_RECNO"		},
+	{	GDP_PKT_HAS_TS,		GDP_PKT_HAS_TS,		"HAS_TS"		},
+	{	0,					0,					NULL			}
 };
 
 void
@@ -46,29 +46,10 @@ _gdp_pkt_dump(gdp_pkt_t *pkt, FILE *fp)
 {
 	int len = FIXEDHDRSZ;
 
-	fprintf(fp, "Packet @ %p: ver=%d, cmd=%d (%s), r1=%d\n\tflags=",
+	fprintf(fp, "pkt @ %p: v=%d, cmd=%d=%s, r1=%d, rid=%u\n\tflags=",
 				pkt, pkt->ver, pkt->cmd, _gdp_proto_cmd_name(pkt->cmd),
-				pkt->reserved1);
+				pkt->reserved1, pkt->rid);
 	ep_prflags(pkt->flags, PktFlags, fp);
-	fprintf(fp, "\n\trid=");
-	if (pkt->rid == GDP_PKT_NO_RID)
-		fprintf(fp, "(none)");
-	else
-	{
-		fprintf(fp, "%u", pkt->rid);
-		len += sizeof pkt->rid;
-	}
-	fprintf(fp, ", recno=");
-	if (pkt->msg == NULL || pkt->msg->recno == GDP_PKT_NO_RECNO)
-		fprintf(fp, "(none)");
-	else
-	{
-		fprintf(fp, "%u", pkt->msg->recno);
-		len += sizeof pkt->msg->recno;
-	}
-	fprintf(fp, ", msg=%p", pkt->msg);
-	if (pkt->msg != NULL)
-		fprintf(fp, ", dbuf=%p", pkt->msg->dbuf);
 	fprintf(fp, "\n\tgcl_name=");
 	if (gdp_gcl_name_is_zero(pkt->gcl_name))
 		fprintf(fp, "(none)");
@@ -80,17 +61,25 @@ _gdp_pkt_dump(gdp_pkt_t *pkt, FILE *fp)
 		fprintf(fp, "%s", pname);
 		len += sizeof pkt->gcl_name;
 	}
-	fprintf(fp, "\n\tts=");
-	if (pkt->msg == NULL)
-		fprintf(fp, "(none)");
-	else
+	fprintf(fp, "\n\tmsg=%p", pkt->msg);
+	if (pkt->msg != NULL)
 	{
+		fprintf(fp, ", recno=");
+		if (pkt->msg->recno == GDP_PKT_NO_RECNO)
+			fprintf(fp, "(none)");
+		else
+		{
+			fprintf(fp, "%u", pkt->msg->recno);
+			len += sizeof pkt->msg->recno;
+		}
+		fprintf(fp, ", dbuf=%p, dlen=%zu/%zu", pkt->msg->dbuf, pkt->msg->dlen,
+				pkt->msg->dbuf == NULL ? 0 : gdp_buf_getlength(pkt->msg->dbuf));
+		fprintf(fp, "\n\tts=");
 		tt_print_interval(&pkt->msg->ts, fp, true);
 		if (pkt->msg->ts.stamp.tv_sec != TT_NOTIME)
 			len += sizeof pkt->msg->ts;
 	}
-	fprintf(fp, "\n\tdlen=%zu; total header=%d\n",
-			pkt->msg == NULL ? 0 : gdp_buf_getlength(pkt->msg->dbuf), len);
+	fprintf(fp, "\n\ttotal header=%d\n", len);
 }
 
 
@@ -316,6 +305,8 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	EP_ASSERT_POINTER_VALID(pkt);
 
 	ep_dbg_cprintf(Dbg, 60, "gdp_pkt_in\n");	// XXX
+	EP_ASSERT(pkt->msg != NULL);
+	EP_ASSERT(pkt->msg->dbuf != NULL);
 
 	// see if the fixed part of the header is all in
 	needed = FIXEDHDRSZ;			// ver, cmd, flags, reserved1, dlen
@@ -410,35 +401,36 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 		pbp += sizeof pkt->gcl_name;
 	}
 
-	if (pkt->msg != NULL)
-	{
-		// record number
-		if (!EP_UT_BITSET(GDP_PKT_HAS_RECNO, pkt->flags))
-			pkt->msg->recno = GDP_PKT_NO_RECNO;
-		else
-			GET32(pkt->msg->recno)
 
-		// timestamp
-		if (!EP_UT_BITSET(GDP_PKT_HAS_TS, pkt->flags))
-		{
-			memset(&pkt->msg->ts, 0, sizeof pkt->msg->ts);
-			pkt->msg->ts.stamp.tv_sec = TT_NOTIME;
-		}
-		else
-		{
-			GET64(pkt->msg->ts.stamp.tv_sec);
-			GET32(pkt->msg->ts.stamp.tv_nsec);
-			GET32(pkt->msg->ts.accuracy)
-		}
+	// record number
+	if (!EP_UT_BITSET(GDP_PKT_HAS_RECNO, pkt->flags))
+		pkt->msg->recno = GDP_PKT_NO_RECNO;
+	else
+		GET32(pkt->msg->recno)
+
+	// timestamp
+	if (!EP_UT_BITSET(GDP_PKT_HAS_TS, pkt->flags))
+	{
+		memset(&pkt->msg->ts, 0, sizeof pkt->msg->ts);
+		pkt->msg->ts.stamp.tv_sec = TT_NOTIME;
+	}
+	else
+	{
+		GET64(pkt->msg->ts.stamp.tv_sec);
+		GET32(pkt->msg->ts.stamp.tv_nsec);
+		GET32(pkt->msg->ts.accuracy)
 	}
 
 	//XXX soak up any padding bytes?
 
-	// buffer now points at the data block, to be read at higher level
+	// ibuf now points at the data block
 
 	if (ep_dbg_test(Dbg, 22))
 	{
-		ep_dbg_printf("gdp_pkt_in: ");
+		char ebuf[200];
+
+		ep_dbg_printf("gdp_pkt_in => %s\n    ",
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		_gdp_pkt_dump(pkt, ep_dbg_getfile());
 	}
 

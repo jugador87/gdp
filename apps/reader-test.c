@@ -5,6 +5,7 @@
 #include <ep/ep_app.h>
 #include <event2/buffer.h>
 #include <unistd.h>
+#include <errno.h>
 #include <getopt.h>
 #include <string.h>
 
@@ -18,7 +19,7 @@ main(int argc, char **argv)
 	char *gclpname;
 	int opt;
 	uint32_t recno;
-	struct evbuffer *evb;
+	gdp_msg_t *msg;
 
 	while ((opt = getopt(argc, argv, "D:")) > 0)
 	{
@@ -46,18 +47,19 @@ main(int argc, char **argv)
 		goto fail0;
 	}
 
+	msg = gdp_msg_new();
+
 	gclpname = argv[0];
 	fprintf(stdout, "Reading GCL %s\n", gclpname);
 
 	estat = gdp_gcl_internal_name(gclpname, gclname);
 	if (!EP_STAT_ISOK(estat))
 	{
-		fprintf(stderr, "illegal GCL name syntax: %s\n", gclpname);
+		ep_app_abort("illegal GCL name syntax:\n\t%s", gclpname);
 		exit(1);
 	}
 
 	estat = gdp_gcl_open(gclname, GDP_MODE_RO, &gclh);
-	gdp_gcl_print(gclh, stderr, 0, 0);
 	if (!EP_STAT_ISOK(estat))
 	{
 		char sbuf[100];
@@ -67,20 +69,19 @@ main(int argc, char **argv)
 		goto fail0;
 	}
 
-	evb = evbuffer_new();
-
 	recno = 1;
 	for (;;)
 	{
-		gdp_msg_t msg;
-
-		estat = gdp_gcl_read(gclh, recno, evb, &msg);
+		estat = gdp_gcl_read(gclh, recno, msg);
 		EP_STAT_CHECK(estat, break);
-		gdp_gcl_msg_print(&msg, stdout);
+		fprintf(stdout, "  >>> ");
+		gdp_msg_print(msg, stdout);
 		recno++;
 
 		// flush any left over data
-		evbuffer_drain(evb, UINT32_MAX);
+		if (gdp_buf_reset(msg->dbuf) < 0)
+			printf("*** WARNING: buffer reset failed: %s\n",
+					strerror(errno));
 	}
 
 fail0:

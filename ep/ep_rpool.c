@@ -146,7 +146,7 @@ ep_rpool_new(const char *name,
 		name = "anonymous rpool";
 	rp = ep_mem_zalloc(sizeof *rp);
 	rp->name = name;
-	ep_thr_mutex_init(&rp->mutex);
+	ep_thr_mutex_init(&rp->mutex, EP_THR_MUTEX_DEFAULT);
 
 	if (qsize == 0)
 	{

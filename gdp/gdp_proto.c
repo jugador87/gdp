@@ -55,8 +55,8 @@ _gdp_req_send(gdp_req_t *req)
 	EP_STAT estat;
 	gcl_handle_t *gclh = req->gclh;
 
-	ep_dbg_cprintf(Dbg, 45, "gdp_req_send: cmd=%d (%s)\n",
-			req->pkt.cmd, _gdp_proto_cmd_name(req->pkt.cmd));
+	ep_dbg_cprintf(Dbg, 45, "gdp_req_send: cmd=%d (%s), req=%p\n",
+			req->pkt.cmd, _gdp_proto_cmd_name(req->pkt.cmd), req);
 	EP_ASSERT(gclh != NULL);
 
 	// link the request to the GCL
@@ -70,9 +70,6 @@ _gdp_req_send(gdp_req_t *req)
 
 	// write the message out
 	estat = _gdp_pkt_out(&req->pkt, bufferevent_get_output(GdpChannel));
-
-	// at this point we can forget about the message
-	req->pkt.msg = NULL;
 
 	// done
 	return estat;
@@ -93,11 +90,15 @@ EP_STAT
 _gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 {
 	EP_STAT estat;
-	gdp_req_t *req;
+	gdp_req_t *req = NULL;
 
 	EP_ASSERT_POINTER_VALID(gclh);
-	ep_dbg_cprintf(Dbg, 43, "gdp_invoke: cmd=%d (%s)\n",
-			cmd, _gdp_proto_cmd_name(cmd));
+	if (ep_dbg_test(Dbg, 22))
+	{
+		ep_dbg_printf("gdp_invoke: cmd=%d (%s)\n    gclh@%p: ",
+				cmd, _gdp_proto_cmd_name(cmd), gclh);
+		gdp_msg_print(msg, ep_dbg_getfile());
+	}
 
 	/*
 	**  Top Half: sending the command
@@ -107,8 +108,6 @@ _gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	estat = _gdp_req_new(cmd, gclh, GDP_REQ_SYNC, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	if (req->pkt.msg != NULL && EP_UT_BITSET(GDP_REQ_OWN_MSG, req->flags))
-		gdp_msg_free(req->pkt.msg);
 	if (msg == NULL)
 	{
 		req->pkt.msg = msg = gdp_msg_new();
@@ -135,6 +134,7 @@ _gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	{
 		ep_thr_cond_wait(&req->cond, &req->mutex);
 	}
+	estat = req->stat;
 	// mutex is released below
 
 	//XXX what status will/should we return?
@@ -144,27 +144,20 @@ _gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 		estat = GDP_STAT_INTERNAL_ERROR;
 	}
 
-	if (EP_UT_BITSET(GDP_REQ_DONE, req->flags))
-	{
-		estat = req->stat;
-		if (msg != NULL)
-		{
-			msg->recno = req->pkt.msg->recno;
-			msg->ts = req->pkt.msg->ts;
-		}
-	}
-
 	// ok, done!
 	ep_thr_mutex_unlock(&req->mutex);
-	_gdp_req_free(req);
 
 fail0:
+	if (ep_dbg_test(Dbg, 22))
 	{
 		char ebuf[200];
 
-		ep_dbg_cprintf(Dbg, 12, "gdp_invoke: returning %s\n",
+		ep_dbg_printf("gdp_invoke: returning %s\n  ",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		_gdp_req_dump(req, ep_dbg_getfile());
 	}
+	if (req != NULL)
+		_gdp_req_free(req);
 	return estat;
 }
 
@@ -188,19 +181,18 @@ ack_success(gdp_req_t *req,
 		gdp_chan_t *chan)
 {
 	EP_STAT estat;
-	size_t tocopy;
 	gcl_handle_t *gclh;
 
 	// we require a request
+	estat = GDP_STAT_PROTOCOL_FAIL;
 	if (req == NULL)
-	{
-		estat = GDP_STAT_PROTOCOL_FAIL;
 		gdp_log(estat, "ack_success: null request");
-		goto fail0;
-	}
+	else if (req->pkt.msg == NULL)
+		gdp_log(estat, "ack_success: null msg");
+	else
+		estat = GDP_STAT_FROM_ACK(req->pkt.cmd);
+	EP_STAT_CHECK(estat, goto fail0);
 
-	estat = GDP_STAT_FROM_ACK(req->pkt.cmd);
-	tocopy = gdp_buf_getlength(req->pkt.msg->dbuf);
 	gclh = req->gclh;
 
 	//	If we started with no gcl id, adopt from incoming packet.
@@ -209,25 +201,6 @@ ack_success(gdp_req_t *req,
 	{
 		if (gdp_gcl_name_is_zero(gclh->gcl_name))
 			memcpy(gclh->gcl_name, req->pkt.gcl_name, sizeof gclh->gcl_name);
-
-		while (tocopy > 0)
-		{
-			int i;
-
-			if (req->pkt.msg->dbuf != NULL)
-				i = evbuffer_remove_buffer(bufferevent_get_input(chan),
-						req->pkt.msg->dbuf, tocopy);
-			else
-				i = gdp_buf_drain(bufferevent_get_input(chan), tocopy);
-			if (i <= 0)
-			{
-				ep_dbg_cprintf(Dbg, 4,
-						"ack_success: data copy failure: %s\n",
-						strerror(errno));
-				break;
-			}
-			tocopy -= i;
-		}
 	}
 
 fail0:
@@ -597,19 +570,18 @@ gdp_read_cb(gdp_chan_t *chan, void *ctx)
 {
 	EP_STAT estat;
 	gdp_pkt_t pkt;		// temporary space, copied into request
-	gdp_msg_t *msg;		// temporary space, copied into request
 	gdp_buf_t *ievb = bufferevent_get_input(chan);
 	gcl_handle_t *gclh;
 	gdp_req_t *req;
+	bool keep_pmsg = false;
 
 	ep_dbg_cprintf(Dbg, 50, "gdp_read_cb: fd %d\n", bufferevent_getfd(chan));
 
-	msg = gdp_msg_new();
-	_gdp_pkt_init(&pkt, msg);
+	_gdp_pkt_init(&pkt, gdp_msg_new());
 	estat = _gdp_pkt_in(&pkt, ievb);
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
 	{
-		gdp_msg_free(msg);
+		gdp_msg_free(pkt.msg);
 		return;
 	}
 
@@ -638,11 +610,13 @@ gdp_read_cb(gdp_chan_t *chan, void *ctx)
 
 	if (req == NULL)
 	{
+		ep_dbg_cprintf(Dbg, 43,
+				"gdp_read_cb: allocating new req for gclh %p\n", gclh);
 		estat = _gdp_req_new(pkt.cmd, gclh, 0, &req);
 		if (!EP_STAT_ISOK(estat))
 		{
 			gdp_log(estat, "gdp_read_cb: cannot allocate request");
-			gdp_msg_free(msg);
+			gdp_msg_free(pkt.msg);
 			return;
 		}
 		
@@ -651,36 +625,40 @@ gdp_read_cb(gdp_chan_t *chan, void *ctx)
 
 	if (req->pkt.msg == NULL)
 	{
-		req->pkt.msg = gdp_msg_new();
-		req->flags |= GDP_REQ_OWN_MSG;
+		ep_dbg_cprintf(Dbg, 43,
+				"gdp_read_cb: allocating new msg for req %p\n", req);
+		req->pkt.msg = pkt.msg;
+		keep_pmsg = true;
 	}
 
-	// copy the temporary packet into the request
-	//  ... slightly tricky because we want to re-use the existing msg
-	//		buffer, which will be freed later
+	// copy the temporary message into the message in the request
+	//		We have to copy the contents because that msg may have been
+	//		passed in by the high level caller.
 	req->pkt.msg->dlen = pkt.msg->dlen;
 	req->pkt.msg->recno = pkt.msg->recno;
 	memcpy(&req->pkt.msg->ts, &pkt.msg->ts, sizeof req->pkt.msg->ts);
-
-	// copy over the entire packet, retaining the msg buffer
-	pkt.msg = req->pkt.msg;
-	memcpy(&req->pkt, &pkt, sizeof req->pkt);
-
-	// can free the temporary msg now
-	gdp_msg_free(msg);
-	pkt.msg = NULL;			// paranoia
-
-	// read in the data that is still in the network buffer
-	size_t l;
-	l = evbuffer_remove_buffer(ievb, req->pkt.msg->dbuf, req->pkt.msg->dlen);
+	size_t l = evbuffer_remove_buffer(ievb, req->pkt.msg->dbuf,
+						req->pkt.msg->dlen);
 	if (l < req->pkt.msg->dlen)
 	{
 		ep_dbg_cprintf(Dbg, 2, "gdp_read_cb: cannot read all data; wanted %zd, got %zd\n",
 				req->pkt.msg->dlen, l);
 	}
 
+	// copy over the rest of the packet, retaining the msg buffer
+	gdp_msg_t *pmsg = pkt.msg;
+	pkt.msg = req->pkt.msg;
+	memcpy(&req->pkt, &pkt, sizeof req->pkt);
+
+	// can free the temporary msg now
+	if (!keep_pmsg)
+	{
+		gdp_msg_free(pmsg);
+		pkt.msg = NULL;			// paranoia
+	}
+
 	// invoke the command-specific (or ack-specific) function
-	_gdp_req_dispatch(req, chan);
+	estat = _gdp_req_dispatch(req, chan);
 
 	// ASSERT all data from chan has been consumed
 
@@ -702,20 +680,11 @@ gdp_read_cb(gdp_chan_t *chan, void *ctx)
 	req->flags |= GDP_REQ_DONE;
 	if (ep_dbg_test(Dbg, 44))
 	{
-		gcl_pname_t pbuf;
-		char ebuf[200];
-
-		if (req->gclh != NULL)
-			gdp_gcl_printable_name(req->gclh->gcl_name, pbuf);
-		else
-			(void) strlcpy(pbuf, "(none)", sizeof pbuf);
-		ep_dbg_printf("gdp_read_cb: returning stat %s\n\tGCL %s\n",
-				ep_stat_tostr(estat, ebuf, sizeof ebuf), pbuf);
+		ep_dbg_printf("gdp_read_cb: on return, ");
+		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 	ep_thr_cond_signal(&req->cond);
 	ep_thr_mutex_unlock(&req->mutex);
-
-	ep_dbg_cprintf(Dbg, 19, "gdp_read_cb: done");
 }
 
 
@@ -876,7 +845,7 @@ evlib_log_cb(int severity, const char *msg)
 		sev = "?";
 	else
 		sev = sevstrings[severity];
-	ep_dbg_cprintf(EvlibDbg, (4 - severity) * 10, "[%s] %s\n", sev, msg);
+	ep_dbg_cprintf(EvlibDbg, (6 - severity) * 10, "[%s] %s\n", sev, msg);
 }
 
 /*
@@ -903,10 +872,13 @@ _gdp_do_init_1(void)
 	if (evthread_use_pthreads() < 0)
 		return init_error("cannot use pthreads", "gdp_init");
 
+	// use our debugging printer
+	event_set_log_callback(evlib_log_cb);
+
 	// set up the event base
 	if (GdpIoEventBase == NULL)
 	{
-		if (ep_dbg_test(EvlibDbg, 40))
+		if (ep_dbg_test(EvlibDbg, 51))
 		{
 			// according to the book...
 			//event_enable_debug_logging(EVENT_DBG_ALL);
@@ -924,8 +896,6 @@ _gdp_do_init_1(void)
 				estat = init_error("could not create event base", "gdp_init");
 			event_config_free(ev_cfg);
 			EP_STAT_CHECK(estat, goto fail0);
-
-			event_set_log_callback(evlib_log_cb);
 		}
 	}
 

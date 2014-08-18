@@ -98,7 +98,7 @@ typedef struct _ep_stat
 #define EP_STAT_SEVERITY(c)	(((c).code >> _EP_STAT_SEVSHIFT) & ((1UL << _EP_STAT_SEVBITS) - 1))
 #define EP_STAT_REGISTRY(c)	(((c).code >> _EP_STAT_REGSHIFT) & ((1UL << _EP_STAT_REGBITS) - 1))
 #define EP_STAT_MODULE(c)	(((c).code >> _EP_STAT_MODSHIFT) & ((1UL << _EP_STAT_MODBITS) - 1))
-#define EP_STAT_DETAIL(c)	(((c).code                     ) & ((1UL << _EP_STAT_SEVBITS) - 1))
+#define EP_STAT_DETAIL(c)	(((c).code                     ) & ((1UL << _EP_STAT_DETBITS) - 1))
 
 // predicates to query the status severity
 #define EP_STAT_ISOK(c)		(EP_STAT_SEVERITY(c) < EP_STAT_SEV_WARN)
