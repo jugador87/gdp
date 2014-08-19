@@ -29,7 +29,7 @@
 #include <sys/socket.h>
 #include <scgilib/scgilib.h>
 #include <event2/event.h>
-#include <jansson.h>
+//#include <jansson.h>
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.rest", "RESTful interface to GDP");
 
@@ -380,9 +380,10 @@ process_scgi_req(scgi_request *req,
 			}
 			if (EP_STAT_ISOK(estat))
 			{
-				memset(msg, 0, sizeof *msg);
-				msg->data = req->body;
+				gdp_msg_t *msg = gdp_msg_new();
+
 				msg->dlen = req->scgi_content_length;
+				gdp_buf_write(msg->dbuf, req->body, msg->dlen);
 				estat = gdp_gcl_append(ss->gcl_handle, msg);
 			}
 			if (!EP_STAT_ISOK(estat))
