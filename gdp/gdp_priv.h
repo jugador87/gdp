@@ -85,10 +85,10 @@ typedef struct gdp_req
 	void				*udata;		// user-supplied opaque data
 } gdp_req_t;
 
-#define GDP_REQ_DONE	0x00000001	// operation complete
-#define GDP_REQ_SYNC	0x00000002	// request deleted after response
-#define GDP_REQ_PERSIST	0x00000004	// request persists even after response
-#define GDP_REQ_OWN_MSG	0x00000008	// we own the msg field (in pkt)
+#define GDP_REQ_DONE			0x00000001	// operation complete
+#define GDP_REQ_SUBSCRIPTION	0x00000002	// request deleted after response
+#define GDP_REQ_PERSIST			0x00000004	// request persists after response
+#define GDP_REQ_OWN_MSG			0x00000008	// we own the msg field (in pkt)
 
 extern gdp_req_t	*_gdp_req_find(gcl_handle_t *gclh, gdp_rid_t rid);
 extern gdp_rid_t	_gdp_rid_new(gcl_handle_t *gclh);

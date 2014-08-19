@@ -105,7 +105,7 @@ _gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
 	*/
 
 	// get an associated request
-	estat = _gdp_req_new(cmd, gclh, GDP_REQ_SYNC, &req);
+	estat = _gdp_req_new(cmd, gclh, 0, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	if (msg == NULL)
