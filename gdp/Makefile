@@ -2,9 +2,10 @@
 OBJS=	\
 	gdp_api.o \
 	gdp_buf.o \
+	gdp_event.o \
 	gdp_gcl.o \
 	gdp_log.o \
-	gdp_msg.o \
+	gdp_datum.o \
 	gdp_pkt.o \
 	gdp_proto.o \
 	gdp_req.o \
@@ -14,6 +15,7 @@ OBJS=	\
 HFILES=	\
 	gdp.h \
 	gdp_buf.h \
+	gdp_event.h \
 	gdp_pkt.h \
 	gdp_priv.h \
 	gdp_stat.h \

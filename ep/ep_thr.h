@@ -100,7 +100,7 @@ typedef int	EP_THR_COND;
 #  define	ep_thr_cond_init(cv)		0
 #  define	ep_thr_cond_destroy(cv)		0
 #  define	ep_thr_cond_signal(cv)		0
-#  define	ep_thr_cond_wait(cv)		0
+#  define	ep_thr_cond_wait(cv, mtx)	0
 #  define	ep_thr_cond_broadcast(cv)	0
 
 typedef int	EP_THR_RWLOCK;

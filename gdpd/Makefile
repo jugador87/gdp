@@ -24,12 +24,14 @@ CFLAGS=		${COPTS} ${INCS}
 OBJS=	\
 		gdpd.o \
 		gdpd_physlog.o \
+		gdpd_pubsub.o \
 		gdp_circular_buffer.o \
 		thread_pool.o \
 
 HDEPS=	\
 		gdpd.h \
 		gdpd_physlog.h \
+		gdpd_pubsub.h \
 		gdp_circular_buffer.h \
 		thread_pool.h \
 		../gdp/gdp.h \

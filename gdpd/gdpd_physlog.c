@@ -23,8 +23,7 @@
 
 /************************  PRIVATE	************************/
 
-static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdpd.physlog",
-								"GDP Daemon Physical Log");
+static EP_DBG	Dbg = EP_DBG_INIT("gdpd.physlog", "GDP Daemon Physical Log");
 
 #define GCL_PATH_MAX		200		// max length of pathname
 #define GCL_DIR				"/var/tmp/gcl"
@@ -33,11 +32,6 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdpd.physlog",
 
 static const char	*GCLDir;		// the gcl data directory
 static EP_HASH		*name_index_table = NULL;
-
-// reading and writing to the EP_HASH mapping gcl_name -> index requires
-//		holding table_mutex
-// EP_HASH is not thread-safe
-static EP_THR_RWLOCK table_lock EP_THR_RWLOCK_INITIALIZER;
 
 typedef struct index_entry
 {
@@ -49,6 +43,32 @@ typedef struct index_entry
 	int64_t				max_index_offset;
 	CIRCULAR_BUFFER		*index_cache;
 } gcl_log_index;
+
+#define SIZEOF_INDEX_HEADER		0	//XXX no header yet, but there should be
+#define SIZEOF_INDEX_RECORD		(sizeof(gcl_index_record))
+
+
+/*
+**  FSIZEOF --- return the size of a file
+*/
+
+static off_t
+fsizeof(FILE *fp)
+{
+	struct stat st;
+
+	if (fstat(fileno(fp), &st) < 0)
+	{
+		char errnobuf[200];
+
+		strerror_r(errno, errnobuf, sizeof errnobuf);
+		ep_dbg_cprintf(Dbg, 1, "gcl_read: fstat failure: %s\n", errnobuf);
+		return -1;
+	}
+
+	return st.st_size;
+}
+
 
 EP_STAT
 gcl_physlog_init()
@@ -63,7 +83,7 @@ gcl_physlog_init()
 }
 
 static EP_STAT
-gcl_log_index_new(gcl_handle_t *gclh, gcl_log_index **out)
+gcl_log_index_new(gdp_gcl_t *gclh, gcl_log_index **out)
 {
 	gcl_log_index *new_index = malloc(sizeof(gcl_log_index));
 	if (new_index == NULL)
@@ -95,7 +115,7 @@ fail0:
 */
 
 static EP_STAT
-get_gcl_path(gcl_handle_t *gclh, char *pbuf, int pbufsiz)
+get_gcl_path(gdp_gcl_t *gclh, const char *ext, char *pbuf, int pbufsiz)
 {
 	gcl_pname_t pname;
 	int i;
@@ -103,7 +123,7 @@ get_gcl_path(gcl_handle_t *gclh, char *pbuf, int pbufsiz)
 	EP_ASSERT_POINTER_VALID(gclh);
 
 	gdp_gcl_printable_name(gclh->gcl_name, pname);
-	i = snprintf(pbuf, pbufsiz, "%s/%s", GCLDir, pname);
+	i = snprintf(pbuf, pbufsiz, "%s/%s%s", GCLDir, pname, ext);
 	if (i < pbufsiz)
 		return EP_STAT_OK;
 	else
@@ -118,28 +138,26 @@ get_gcl_path(gcl_handle_t *gclh, char *pbuf, int pbufsiz)
 */
 
 EP_STAT
-gcl_index_find_cache(gcl_handle_t *gclh, gcl_log_index **out)
+gcl_index_find_cache(gdp_gcl_t *gclh, gcl_log_index **out)
 {
-	EP_STAT estat = EP_STAT_OK;
-	pthread_rwlock_rdlock(&table_lock);
 	*out = ep_hash_search(name_index_table, sizeof(gcl_name_t), gclh->gcl_name);
-	pthread_rwlock_unlock(&table_lock);
 
-	return estat;
+	if (*out == NULL)
+		return EP_STAT_WARN;
+	else
+		return EP_STAT_OK;
 }
 
 EP_STAT
-gcl_index_create_cache(gcl_handle_t *gclh, gcl_log_index **out)
+gcl_index_create_cache(gdp_gcl_t *gclh, gcl_log_index **out)
 {
 	EP_STAT estat = EP_STAT_OK;
 
-	pthread_rwlock_wrlock(&table_lock);
 	estat = gcl_log_index_new(gclh, out);
 	EP_STAT_CHECK(estat, goto fail0);
 	ep_hash_insert(name_index_table, sizeof(gcl_name_t), gclh->gcl_name, *out);
 	gclh->log_index = *out;
 fail0:
-	pthread_rwlock_unlock(&table_lock);
 	return estat;
 }
 
@@ -179,10 +197,10 @@ gcl_index_cache_put(gcl_log_index *entry, int64_t recno, int64_t offset)
 
 EP_STAT
 gcl_create(gcl_name_t gcl_name,
-		gcl_handle_t **pgclh)
+		gdp_gcl_t **pgclh)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gcl_handle_t *gclh = NULL;
+	gdp_gcl_t *gclh = NULL;
 	FILE *data_fp;
 	FILE *index_fp;
 
@@ -202,17 +220,16 @@ gcl_create(gcl_name_t gcl_name,
 		int data_fd;
 		char data_pbuf[GCL_PATH_MAX];
 
-		estat = get_gcl_path(gclh, data_pbuf, sizeof data_pbuf);
+		estat = get_gcl_path(gclh, GCL_DATA_SUFFIX,
+						data_pbuf, sizeof data_pbuf);
 		EP_STAT_CHECK(estat, goto fail1);
-		strlcat(data_pbuf, GCL_DATA_SUFFIX, sizeof(data_pbuf));
 
 		data_fd = open(data_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644);
-		if (data_fd < 0 ||
-			(flock(data_fd, LOCK_EX) < 0))
+		if (data_fd < 0 || (flock(data_fd, LOCK_EX) < 0))
 		{
 			estat = ep_stat_from_errno(errno);
 			gdp_log(estat, "gcl_create: cannot create %s: %s",
-				data_pbuf, strerror(errno));
+					data_pbuf, strerror(errno));
 			goto fail1;
 		}
 		data_fp = fdopen(data_fd, "a+");
@@ -220,7 +237,7 @@ gcl_create(gcl_name_t gcl_name,
 		{
 			estat = ep_stat_from_errno(errno);
 			gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
-				data_pbuf, strerror(errno));
+					data_pbuf, strerror(errno));
 			(void) close(data_fd);
 			goto fail1;
 		}
@@ -231,9 +248,9 @@ gcl_create(gcl_name_t gcl_name,
 		int index_fd;
 		char index_pbuf[GCL_PATH_MAX];
 
-		estat = get_gcl_path(gclh, index_pbuf, sizeof index_pbuf);
+		estat = get_gcl_path(gclh, GCL_INDEX_SUFFIX,
+						index_pbuf, sizeof index_pbuf);
 		EP_STAT_CHECK(estat, goto fail2);
-		strlcat(index_pbuf, GCL_INDEX_SUFFIX, sizeof(index_pbuf));
 
 		index_fd = open(index_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644);
 		if (index_fd < 0)
@@ -320,10 +337,10 @@ fail0:
 EP_STAT
 gcl_open(gcl_name_t gcl_name,
 			gdp_iomode_t mode,
-			gcl_handle_t **pgclh)
+			gdp_gcl_t **pgclh)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gcl_handle_t *gclh = NULL;
+	gdp_gcl_t *gclh = NULL;
 	FILE *data_fp;
 	FILE *index_fp;
 	char data_pbuf[GCL_PATH_MAX];
@@ -335,32 +352,33 @@ gcl_open(gcl_name_t gcl_name,
 
 	const char *openmode = "a+";
 
-	estat = get_gcl_path(gclh, data_pbuf, sizeof data_pbuf);
+	estat = get_gcl_path(gclh, GCL_DATA_SUFFIX, data_pbuf, sizeof data_pbuf);
 	EP_STAT_CHECK(estat, goto fail0);
-	strlcat(data_pbuf, GCL_DATA_SUFFIX, sizeof(data_pbuf));
 
-	estat = get_gcl_path(gclh, index_pbuf, sizeof index_pbuf);
+	estat = get_gcl_path(gclh, GCL_INDEX_SUFFIX, index_pbuf, sizeof index_pbuf);
 	EP_STAT_CHECK(estat, goto fail0);
-	strlcat(index_pbuf, GCL_INDEX_SUFFIX, sizeof(index_pbuf));
 
 	if ((data_fp = fopen(data_pbuf, openmode)) == NULL)
 	{
 		estat = ep_stat_from_errno(errno);
+		gdp_log(estat, "gcl_open(%s): data file open failure", data_pbuf);
 		goto fail1;
 	}
 
 	gcl_log_header log_header;
-
-	flockfile(data_fp);
-	fseek(data_fp, 0, SEEK_SET);
-	fread(&log_header, sizeof(log_header), 1, data_fp);
-	funlockfile(data_fp);
+	if (fread(&log_header, sizeof(log_header), 1, data_fp) < 1)
+	{
+		estat = ep_stat_from_errno(errno);
+		gdp_log(estat, "gcl_open(%s): header read failure", data_pbuf);
+		goto fail3;
+	}
 
 	// XXX: read metadata entries
 	if (log_header.magic != GCL_LOG_MAGIC)
 	{
-		fprintf(stderr, "gcl_open: magic mismatch - found: %" PRIu64 "x,"
-				" expected: %" PRIu64 "x\n",
+		estat = GDP_STAT_CORRUPT_GCL;
+		gdp_log(estat, "gcl_open: bad magic: found: %" PRIx64
+				", expected: %" PRIx64 "\n",
 				log_header.magic, GCL_LOG_MAGIC);
 		goto fail3;
 	}
@@ -368,13 +386,14 @@ gcl_open(gcl_name_t gcl_name,
 	if ((index_fp = fopen(index_pbuf, openmode)) == NULL)
 	{
 		estat = ep_stat_from_errno(errno);
+		gdp_log(estat, "gcl_open(%s): index open failure", index_pbuf);
 		goto fail4;
 	}
 
 	gclh->ver = log_header.version;
 	gclh->data_offset = log_header.header_size;
 
-	gcl_log_index* index;
+	gcl_log_index *index;
 	gcl_index_find_cache(gclh, &index);
 	if (index == NULL)
 	{
@@ -386,15 +405,15 @@ gcl_open(gcl_name_t gcl_name,
 	gclh->log_index = index;
 
 	index->fp = index_fp;
+	index->max_recno = (fsizeof(index_fp) - SIZEOF_INDEX_HEADER)
+								/ SIZEOF_INDEX_RECORD;
 
 	*pgclh = gclh;
 
 	return estat;
 
 fail5:
-
 fail4:
-
 fail3:
 	fclose(data_fp);
 fail1:
@@ -426,7 +445,7 @@ fail0:
 */
 
 EP_STAT
-gcl_close(gcl_handle_t *gclh)
+gcl_close(gdp_gcl_t *gclh)
 {
 	EP_STAT estat = EP_STAT_OK;
 
@@ -450,28 +469,9 @@ gcl_close(gcl_handle_t *gclh)
 
 
 /*
-**  FSIZEOF --- return the size of a file
-*/
-
-static off_t
-fsizeof(FILE *fp)
-{
-	struct stat st;
-
-	if (fstat(fileno(fp), &st) < 0)
-	{
-		ep_dbg_cprintf(Dbg, 1, "gcl_read: fstat failure: %s\n",
-				strerror(errno));
-		return -1;
-	}
-
-	return st.st_size;
-}
-
-/*
 **	GCL_READ --- read a message from a gcl
 **
-**		Reads in a message indicated by msg->recno into msg.
+**		Reads in a message indicated by datum->recno into datum.
 **
 **		In theory we should be positioned at the head of the next message.
 **		But that might not be the correct message.	If we have specified a
@@ -483,11 +483,9 @@ fsizeof(FILE *fp)
 **				assuming it exists.
 */
 
-#define SIZEOF_INDEX_HEADER		0	//XXX no header yet, but there should be
-
 EP_STAT
-gcl_read(gcl_handle_t *gclh,
-		gdp_msg_t *msg)
+gcl_read(gdp_gcl_t *gclh,
+		gdp_datum_t *datum)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gcl_log_index *entry = gclh->log_index;
@@ -496,12 +494,12 @@ gcl_read(gcl_handle_t *gclh,
 
 	EP_ASSERT_POINTER_VALID(gclh);
 
-	ep_dbg_cprintf(Dbg, 14, "gcl_read(%" PRIgdp_recno "): ", msg->recno);
+	ep_dbg_cprintf(Dbg, 14, "gcl_read(%" PRIgdp_recno "): ", datum->recno);
 
 	pthread_rwlock_rdlock(&entry->lock);
 
 	// first check if recno is in the index
-	long_pair = circular_buffer_search(entry->index_cache, msg->recno);
+	long_pair = circular_buffer_search(entry->index_cache, datum->recno);
 	if (long_pair == NULL)
 	{
 		// recno is not in the index
@@ -516,20 +514,35 @@ gcl_read(gcl_handle_t *gclh,
 			goto fail1;
 		}
 		int64_t record_count = (file_size - SIZEOF_INDEX_HEADER) /
-								sizeof(gcl_index_record);
+								SIZEOF_INDEX_RECORD;
 		gcl_index_record index_record;
 		size_t start = 0;
 		size_t end = record_count;
 		size_t mid;
 
 		ep_dbg_cprintf(Dbg, 14,
-				"searching index, rec_count=%" PRId64 ", file_size=%llu\n",
-				record_count, file_size);
+				"searching index, rec_count=%" PRId64 ", file_size=%ju\n",
+				record_count, (uintmax_t) file_size);
 		if (file_size <= sizeof (gcl_log_header))
 		{
 			estat = GDP_STAT_CORRUPT_INDEX;
 			goto fail1;
 		}
+
+		/*
+		**  XXX Why can't this just be computed from the record number?
+		**		The on-disk format has to start at recno 1 (in fact, the
+		**		algorithm assumes that).  For that matter, the file doesn't
+		**		need the recno stored at all --- just take the offset
+		**		into the index file based on recno to get the offset into
+		**		the data file.
+		**
+		**		There is a possibility that the recnos may not start from
+		**		1.  But this is easily solved by including a header on the
+		**		index file (which should be there anyway) and storing the
+		**		initial recno in the header.  Either way it should be easy
+		**		to compute the index file offset without searching.
+		*/
 
 		while (start < end)
 		{
@@ -537,11 +550,11 @@ gcl_read(gcl_handle_t *gclh,
 			ep_dbg_cprintf(Dbg, 47, "\t%zu ... %zu ... %zu\n", start, mid, end);
 			fseek(entry->fp, mid * sizeof(gcl_index_record), SEEK_SET);
 			fread(&index_record, sizeof(gcl_index_record), 1, entry->fp);
-			if (msg->recno < index_record.recno)
+			if (datum->recno < index_record.recno)
 			{
 				end = mid;
 			}
-			else if (msg->recno > index_record.recno)
+			else if (datum->recno > index_record.recno)
 			{
 				start = mid + 1;
 			}
@@ -573,20 +586,20 @@ gcl_read(gcl_handle_t *gclh,
 	fseek(gclh->fp, offset, SEEK_SET);
 	fread(&log_record, sizeof(log_record), 1, gclh->fp);
 	offset += sizeof(log_record);
-	memcpy(&msg->ts, &log_record.timestamp, sizeof msg->ts);
+	memcpy(&datum->ts, &log_record.timestamp, sizeof datum->ts);
 
 	// read data in chunks and add it to the evbuffer
 	int64_t data_length = log_record.data_length;
 	while (data_length >= sizeof(read_buffer))
 	{
 		fread(&read_buffer, sizeof(read_buffer), 1, gclh->fp);
-		gdp_buf_write(msg->dbuf, &read_buffer, sizeof(read_buffer));
+		gdp_buf_write(datum->dbuf, &read_buffer, sizeof(read_buffer));
 		data_length -= sizeof(read_buffer);
 	}
 	if (data_length > 0)
 	{
 		fread(&read_buffer, data_length, 1, gclh->fp);
-		gdp_buf_write(msg->dbuf, &read_buffer, data_length);
+		gdp_buf_write(datum->dbuf, &read_buffer, data_length);
 	}
 
 	// done
@@ -604,19 +617,25 @@ fail0:
 */
 
 EP_STAT
-gcl_append(gcl_handle_t *gclh,
-			gdp_msg_t *msg)
+gcl_append(gdp_gcl_t *gclh,
+			gdp_datum_t *datum)
 {
 	gcl_log_record log_record;
 	gcl_index_record index_record;
-	size_t dlen = gdp_buf_getlength(msg->dbuf);
+	size_t dlen = gdp_buf_getlength(datum->dbuf);
 	int64_t record_size = sizeof(gcl_log_record) + dlen;
 	gcl_log_index *entry = (gcl_log_index *)(gclh->log_index);
+
+	if (ep_dbg_test(Dbg, 14))
+	{
+		ep_dbg_printf("gcl_append ");
+		gdp_datum_print(datum, ep_dbg_getfile());
+	}
 
 	pthread_rwlock_wrlock(&entry->lock);
 
 	log_record.recno = entry->max_recno + 1;
-	log_record.timestamp = msg->ts;
+	log_record.timestamp = datum->ts;
 	log_record.data_length = dlen;
 
 	// write log record header
@@ -630,9 +649,9 @@ gcl_append(gcl_handle_t *gclh,
 		if (dlen > sizeof buf)
 			dlen = sizeof buf;
 
-		gdp_buf_read(msg->dbuf, buf, dlen);
+		gdp_buf_read(datum->dbuf, buf, dlen);
 		fwrite(buf, dlen, 1, gclh->fp);
-		dlen = gdp_buf_getlength(msg->dbuf);
+		dlen = gdp_buf_getlength(datum->dbuf);
 	}
 
 	index_record.recno = log_record.recno;
@@ -651,7 +670,7 @@ gcl_append(gcl_handle_t *gclh,
 
 	pthread_rwlock_unlock(&entry->lock);
 
-	msg->recno = log_record.recno;
+	datum->recno = log_record.recno;
 	return EP_STAT_OK;
 }
 
@@ -677,20 +696,20 @@ gcl_sub_event_cb(evutil_socket_t fd,
 		short what,
 		void *cbarg)
 {
-	gdp_msg_t msg;
+	gdp_datum_t datum;
 	EP_STAT estat;
 	struct gdp_cb_arg *cba = cbarg;
 
 	// get the next message from this GCL Handle
-	estat = gcl_read(cba->gclh, GCL_NEXT_MSG, &msg, cba->gclh->revb);
+	estat = gcl_read(cba->gclh, GCL_NEXT_MSG, &datum, cba->gclh->revb);
 	if (EP_STAT_ISOK(estat))
-		(*cba->cbfunc)(cba->gclh, &msg, cba->cbarg);
+		(*cba->cbfunc)(cba->gclh, &datum, cba->cbarg);
 	//XXX;
 }
 
 
 EP_STAT
-gcl_subscribe(gcl_handle_t *gclh,
+gcl_subscribe(gdp_gcl_t *gclh,
 		gdp_gcl_sub_cbfunc_t cbfunc,
 		long offset,
 		void *buf,
@@ -718,8 +737,8 @@ gcl_subscribe(gcl_handle_t *gclh,
 }
 
 EP_STAT
-gcl_unsubscribe(gcl_handle_t *gclh,
-		void (*cbfunc)(gcl_handle_t *, void *),
+gcl_unsubscribe(gdp_gcl_t *gclh,
+		void (*cbfunc)(gdp_gcl_t *, void *),
 		void *arg)
 {
 	EP_ASSERT_POINTER_VALID(gclh);

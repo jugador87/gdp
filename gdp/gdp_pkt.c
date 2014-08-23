@@ -61,53 +61,32 @@ _gdp_pkt_dump(gdp_pkt_t *pkt, FILE *fp)
 		fprintf(fp, "%s", pname);
 		len += sizeof pkt->gcl_name;
 	}
-	fprintf(fp, "\n\tmsg=%p", pkt->msg);
-	if (pkt->msg != NULL)
+	fprintf(fp, "\n\tdatum=%p", pkt->datum);
+	if (pkt->datum != NULL)
 	{
 		fprintf(fp, ", recno=");
-		if (pkt->msg->recno == GDP_PKT_NO_RECNO)
+		if (pkt->datum->recno == GDP_PKT_NO_RECNO)
 			fprintf(fp, "(none)");
 		else
 		{
-			fprintf(fp, "%u", pkt->msg->recno);
-			len += sizeof pkt->msg->recno;
+			fprintf(fp, "%u", pkt->datum->recno);
+			len += sizeof pkt->datum->recno;
 		}
-		fprintf(fp, ", dbuf=%p, dlen=%zu/%zu", pkt->msg->dbuf, pkt->msg->dlen,
-				pkt->msg->dbuf == NULL ? 0 : gdp_buf_getlength(pkt->msg->dbuf));
+		fprintf(fp, ", dbuf=%p, dlen=%zu/%zu", pkt->datum->dbuf, pkt->datum->dlen,
+				pkt->datum->dbuf == NULL ? 0 : gdp_buf_getlength(pkt->datum->dbuf));
 		fprintf(fp, "\n\tts=");
-		tt_print_interval(&pkt->msg->ts, fp, true);
-		if (pkt->msg->ts.stamp.tv_sec != TT_NOTIME)
-			len += sizeof pkt->msg->ts;
+		tt_print_interval(&pkt->datum->ts, fp, true);
+		if (pkt->datum->ts.stamp.tv_sec != TT_NOTIME)
+			len += sizeof pkt->datum->ts;
 	}
 	fprintf(fp, "\n\ttotal header=%d\n", len);
 }
 
 
 /*
-**	GDP_PKT_INIT --- initialize GDP packet structure
-*/
-
-void
-_gdp_pkt_init(gdp_pkt_t *pkt,
-		gdp_msg_t *msg)
-{
-	EP_ASSERT_POINTER_VALID(pkt);
-	EP_ASSERT_POINTER_VALID(msg);
-
-	// start with an empty slate
-	memset(pkt, 0, sizeof *pkt);
-
-	pkt->ver = GDP_PROTO_CUR_VERSION;
-	pkt->msg = msg;
-}
-
-#define CANARY	UINT32_C(0x5A5A5A5A)
-
-
-/*
 **	GDP_PKT_OUT --- send a packet to a network buffer
 **
-**		Outputs packet header.	pkt->msg->dlen must be set to the number
+**		Outputs packet header.	pkt->datum->dlen must be set to the number
 **		of bytes to be added (after we return) to the output buffer
 **		obuf.
 **
@@ -148,11 +127,10 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 	uint8_t pbuf[_GDP_MAX_PKT_HDR];
 	uint8_t *pbp = pbuf;
 	size_t dlen;
-	uint32_t canary = CANARY;
 
 	EP_ASSERT_POINTER_VALID(pkt);
-	EP_ASSERT_POINTER_VALID(pkt->msg);
-	EP_ASSERT_POINTER_VALID(pkt->msg->dbuf);
+	EP_ASSERT_POINTER_VALID(pkt->datum);
+	EP_ASSERT_POINTER_VALID(pkt->datum->dbuf);
 
 	if (ep_dbg_test(Dbg, 22))
 	{
@@ -176,8 +154,8 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 	*pbp++ = 0;						// XXX usable for expansion
 
 	// data length
-	if (pkt->msg != NULL)
-		dlen = gdp_buf_getlength(pkt->msg->dbuf);
+	if (pkt->datum != NULL)
+		dlen = gdp_buf_getlength(pkt->datum->dbuf);
 	else
 		dlen = 0;
 	PUT32(dlen);
@@ -198,19 +176,19 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 	}
 
 	// record number
-	if (pkt->msg != NULL && pkt->msg->recno != GDP_PKT_NO_RECNO)
+	if (pkt->datum != NULL && pkt->datum->recno != GDP_PKT_NO_RECNO)
 	{
 		pbuf[2] |= GDP_PKT_HAS_RECNO;
-		PUT32(pkt->msg->recno);
+		PUT32(pkt->datum->recno);
 	}
 
 	// timestamp
-	if (pkt->msg != NULL && pkt->msg->ts.stamp.tv_sec != TT_NOTIME)
+	if (pkt->datum != NULL && pkt->datum->ts.stamp.tv_sec != TT_NOTIME)
 	{
 		pbuf[2] |= GDP_PKT_HAS_TS;
-		PUT64(pkt->msg->ts.stamp.tv_sec);
-		PUT32(pkt->msg->ts.stamp.tv_nsec);
-		PUT32(pkt->msg->ts.accuracy);
+		PUT64(pkt->datum->ts.stamp.tv_sec);
+		PUT32(pkt->datum->ts.stamp.tv_nsec);
+		PUT32(pkt->datum->ts.accuracy);
 	}
 
 	//XXX pad out to four octets?
@@ -231,18 +209,17 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 				strerror(errno));
 		estat = GDP_STAT_PKT_WRITE_FAIL;
 	}
-	else if (pkt->msg != NULL && pkt->msg->dbuf != NULL &&
-			(dlen = gdp_buf_getlength(pkt->msg->dbuf)) > 0 &&
-			(written = evbuffer_remove_buffer(pkt->msg->dbuf, obuf, dlen)) < dlen)
+	else if (pkt->datum != NULL && pkt->datum->dbuf != NULL &&
+			(dlen = gdp_buf_getlength(pkt->datum->dbuf)) > 0 &&
+			(written = evbuffer_remove_buffer(pkt->datum->dbuf, obuf, dlen)) < dlen)
 	{
 		// couldn't write data
 		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: data write failure: %s\n"
 				"  wanted %zd, got %zd\n",
-				strerror(errno), gdp_buf_getlength(pkt->msg->dbuf), written);
+				strerror(errno), gdp_buf_getlength(pkt->datum->dbuf), written);
 		estat = GDP_STAT_PKT_WRITE_FAIL;
 	}
 //	evbuffer_unlock(obuf);
-	EP_ASSERT(canary == CANARY);
 
 	return estat;
 }
@@ -305,8 +282,8 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	EP_ASSERT_POINTER_VALID(pkt);
 
 	ep_dbg_cprintf(Dbg, 60, "gdp_pkt_in\n");	// XXX
-	EP_ASSERT(pkt->msg != NULL);
-	EP_ASSERT(pkt->msg->dbuf != NULL);
+	EP_ASSERT(pkt->datum != NULL);
+	EP_ASSERT(pkt->datum->dbuf != NULL);
 
 	// see if the fixed part of the header is all in
 	needed = FIXEDHDRSZ;			// ver, cmd, flags, reserved1, dlen
@@ -325,7 +302,7 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	pkt->cmd = *pbp++;
 	pkt->flags = *pbp++;
 	pkt->reserved1 = *pbp++;
-	GET32(pkt->msg->dlen)
+	GET32(pkt->datum->dlen)
 
 	// do some initial error checking
 	if (pkt->ver < GDP_PROTO_MIN_VERSION || pkt->ver > GDP_PROTO_CUR_VERSION)
@@ -344,7 +321,7 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 		needed += 4;				// sizeof pkt->recno;
 	if (EP_UT_BITSET(GDP_PKT_HAS_TS, pkt->flags))
 		needed += 16;				// sizeof pkt->ts;
-	needed += pkt->msg->dlen;
+	needed += pkt->datum->dlen;
 
 	// see if the entire packet (header + data) is available
 	if (gdp_buf_getlength(ibuf) < needed)
@@ -369,8 +346,8 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	// the entire packet is now in ibuf
 
 	// now drain the data we have processed
-	sz = gdp_buf_read(ibuf, pbuf, needed - pkt->msg->dlen);
-	if (sz < needed - pkt->msg->dlen)
+	sz = gdp_buf_read(ibuf, pbuf, needed - pkt->datum->dlen);
+	if (sz < needed - pkt->datum->dlen)
 	{
 		// shouldn't happen, since it's already in memory
 		estat = GDP_STAT_BUFFER_FAILURE;
@@ -383,7 +360,7 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	if (ep_dbg_test(Dbg, 32))
 	{
 		ep_dbg_printf("gdp_pkt_in: read packet header:\n");
-		ep_hexdump(pbuf, needed - pkt->msg->dlen, ep_dbg_getfile(), 0);
+		ep_hexdump(pbuf, needed - pkt->datum->dlen, ep_dbg_getfile(), 0);
 	}
 
 	// Request Id
@@ -404,26 +381,38 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 
 	// record number
 	if (!EP_UT_BITSET(GDP_PKT_HAS_RECNO, pkt->flags))
-		pkt->msg->recno = GDP_PKT_NO_RECNO;
+		pkt->datum->recno = GDP_PKT_NO_RECNO;
 	else
-		GET32(pkt->msg->recno)
+		GET32(pkt->datum->recno)
 
 	// timestamp
 	if (!EP_UT_BITSET(GDP_PKT_HAS_TS, pkt->flags))
 	{
-		memset(&pkt->msg->ts, 0, sizeof pkt->msg->ts);
-		pkt->msg->ts.stamp.tv_sec = TT_NOTIME;
+		memset(&pkt->datum->ts, 0, sizeof pkt->datum->ts);
+		pkt->datum->ts.stamp.tv_sec = TT_NOTIME;
 	}
 	else
 	{
-		GET64(pkt->msg->ts.stamp.tv_sec);
-		GET32(pkt->msg->ts.stamp.tv_nsec);
-		GET32(pkt->msg->ts.accuracy)
+		GET64(pkt->datum->ts.stamp.tv_sec);
+		GET32(pkt->datum->ts.stamp.tv_nsec);
+		GET32(pkt->datum->ts.accuracy)
 	}
 
 	//XXX soak up any padding bytes?
 
 	// ibuf now points at the data block
+	{
+		size_t l;
+
+		l = evbuffer_remove_buffer(ibuf, pkt->datum->dbuf, pkt->datum->dlen);
+		if (l < pkt->datum->dlen)
+		{
+			// should never happen since we already have all the data in memory
+			ep_dbg_cprintf(Dbg, 2,
+					"gdp_pkt_in: cannot read all data; wanted %zd, got %zd\n",
+					pkt->datum->dlen, l);
+		}
+	}
 
 	if (ep_dbg_test(Dbg, 22))
 	{
@@ -436,3 +425,116 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 
 	return estat;
 }
+
+
+/*
+**  Active and Free packet queues
+**
+**		When packets come off the wire they are added to the Active
+**		queue; a separate consumer thread consumes them.  Normally it
+**		is the I/O thread adding to the queue and the main thread
+**		consuming, but this could be changed to have a thread pool
+**		doing the consumption.
+**
+**		The free list is just to avoid memory fragmentation.
+**
+**		Note that the Active queue is organized as a FIFO, unlike the
+**		free lists, which are managed as LIFOs in order to try to keep
+**		the hardware cache as hot as possible.
+**
+**		XXX	Packet queue is not implemented at the moment, implying
+**			that processing is single threaded.  This will be needed
+**			if we want to do processing out of a thread pool.
+*/
+
+static EP_THR_MUTEX		PktFreeListMutex	EP_THR_MUTEX_INITIALIZER;
+static TAILQ_HEAD(pkt_head, gdp_pkt)
+						PktFreeList = TAILQ_HEAD_INITIALIZER (PktFreeList);
+
+#ifdef GDP_PACKET_QUEUE
+static EP_THR_MUTEX		ActivePktMutex		EP_THR_MUTEX_INITIALIZER;
+static EP_THR_COND		ActivePktCond		EP_THR_COND_INITIALIZER;
+static TAILQ_HEAD(active_head, gdp_pkt)
+						ActivePacketQueue = TAILQ_HEAD_INITIALIZER(ActivePacketQueue);
+#endif
+
+
+/*
+**  _GDP_PKT_NEW --- allocate a packet (from free list if possible)
+**  _GDP_PKT_FREE --- return a packet to the free list
+*/
+
+gdp_pkt_t *
+_gdp_pkt_new(void)
+{
+	gdp_pkt_t *pkt;
+
+	ep_thr_mutex_lock(&PktFreeListMutex);
+	if ((pkt = TAILQ_FIRST(&PktFreeList)) != NULL)
+		TAILQ_REMOVE(&PktFreeList, pkt, list);
+	ep_thr_mutex_unlock(&PktFreeListMutex);
+
+	if (pkt == NULL)
+	{
+		pkt = ep_mem_malloc(sizeof *pkt);
+	}
+
+	// initialize the packet
+	EP_ASSERT(!pkt->inuse);
+	memset(pkt, 0, sizeof *pkt);
+	pkt->ver = GDP_PROTO_CUR_VERSION;
+	pkt->datum = gdp_datum_new();
+	pkt->inuse = true;
+
+	ep_dbg_cprintf(Dbg, 48, "gdp_pkt_new => %p\n", pkt);
+	return pkt;
+}
+
+void
+_gdp_pkt_free(gdp_pkt_t *pkt)
+{
+	ep_dbg_cprintf(Dbg, 48, "gdp_pkt_free(%p)\n", pkt);
+	EP_ASSERT(pkt->inuse);
+	if (pkt->datum != NULL)
+		gdp_datum_free(pkt->datum);
+	pkt->datum = NULL;
+	pkt->inuse = false;
+	ep_thr_mutex_lock(&PktFreeListMutex);
+	TAILQ_INSERT_HEAD(&PktFreeList, pkt, list);
+	ep_thr_mutex_unlock(&PktFreeListMutex);
+}
+
+
+#ifdef GDP_PACKET_QUEUE
+
+/*
+**  _GDP_PKT_ADD_TO_QUEUE --- add a packet to the active queue
+**  _GDP_PKT_GET_ACTIVE --- get a packet from the active queue
+*/
+
+void
+_gdp_pkt_add_to_queue(gdp_pkt_t *pkt)
+{
+	ep_thr_mutex_lock(&ActivePktMutex);
+	TAILQ_INSERT_TAIL(&ActivePacketQueue, pkt, list);
+	ep_thr_cond_signal(&ActivePktCond);
+	ep_thr_mutex_unlock(&ActivePktMutex);
+}
+
+gdp_pkt_t *
+_gdp_pkt_get_active(void)
+{
+	gdp_pkt_t *pkt;
+
+	ep_thr_mutex_lock(&ActivePktMutex);
+	while (TAILQ_EMPTY(&ActivePacketQueue))
+	{
+		ep_thr_cond_wait(&ActivePktCond, &ActivePktMutex);
+	}
+	pkt = TAILQ_FIRST(&ActivePacketQueue);
+	TAILQ_REMOVE(&ActivePacketQueue, pkt, list);
+	ep_thr_mutex_unlock(&ActivePktMutex);
+
+	return pkt;
+}
+#endif

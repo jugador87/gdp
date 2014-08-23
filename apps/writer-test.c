@@ -12,7 +12,7 @@
 int
 main(int argc, char **argv)
 {
-	gcl_handle_t *gclh;
+	gdp_gcl_t *gclh;
 	char *gclpname = NULL;
 	int opt;
 	EP_STAT estat;
@@ -55,7 +55,7 @@ main(int argc, char **argv)
 	gdp_gcl_print(gclh, stdout, 0, 0);
 	fprintf(stdout, "\nStarting to read input\n");
 
-	gdp_msg_t *msg = gdp_msg_new();
+	gdp_datum_t *datum = gdp_datum_new();
 
 	while (fgets(buf, sizeof buf, stdin) != NULL)
 	{
@@ -66,12 +66,12 @@ main(int argc, char **argv)
 
 		fprintf(stdout, "Got input %s%s%s\n", EpChar->lquote, buf,
 				EpChar->rquote);
-		gdp_buf_write(msg->dbuf, buf, strlen(buf));
-		estat = gdp_gcl_append(gclh, msg);
+		gdp_buf_write(datum->dbuf, buf, strlen(buf));
+		estat = gdp_gcl_append(gclh, datum);
 		EP_STAT_CHECK(estat, goto fail1);
-		gdp_msg_print(msg, stdout);
+		gdp_datum_print(datum, stdout);
 	}
-	gdp_msg_free(msg);
+	gdp_datum_free(datum);
 	goto done;
 
 fail1:
@@ -79,6 +79,8 @@ fail1:
 
 fail0:
 done:
+	if (EP_STAT_ISOK(estat))
+		estat = EP_STAT_OK;
 	fprintf(stderr, "exiting with status %s\n",
 			ep_stat_tostr(estat, buf, sizeof buf));
 	return !EP_STAT_ISOK(estat);

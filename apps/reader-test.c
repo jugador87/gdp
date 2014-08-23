@@ -8,25 +8,91 @@
 #include <errno.h>
 #include <getopt.h>
 #include <string.h>
+#include <sysexits.h>
+
+EP_STAT
+do_read(gdp_gcl_t *gclh)
+{
+	EP_STAT estat;
+	uint32_t recno = 1;
+	gdp_datum_t *datum = gdp_datum_new();
+
+	for (;;)
+	{
+		estat = gdp_gcl_read(gclh, recno, datum);
+		EP_STAT_CHECK(estat, break);
+		fprintf(stdout, " >>> ");
+		gdp_datum_print(datum, stdout);
+		recno++;
+
+		// flush any left over data
+		if (gdp_buf_reset(datum->dbuf) < 0)
+			printf("*** WARNING: buffer reset failed: %s\n",
+					strerror(errno));
+	}
+	return estat;
+}
+
+
+EP_STAT
+do_subscribe(gdp_gcl_t *gclh)
+{
+	EP_STAT estat;
+
+	if (EP_STAT_ISOK(estat))
+		estat = gdp_gcl_subscribe(gclh, 1, -1, NULL, NULL);
+	if (!EP_STAT_ISOK(estat))
+	{
+		char ebuf[200];
+
+		ep_app_abort("Cannot subscribe: %s",
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
+
+	for (;;)
+	{
+		gdp_event_t *gev = gdp_event_next(true);
+		switch (gdp_event_gettype(gev))
+		{
+		  case GDP_EVENT_DATA:
+			fprintf(stdout, " >>> ");
+			gdp_datum_print(gdp_event_getdatum(gev), stdout);
+			break;
+
+		  default:
+			fprintf(stderr, "Unknown event type %d\n", gdp_event_gettype(gev));
+			sleep(1);
+			break;
+		}
+		gdp_event_free(gev);
+	}
+	
+	// should never get here
+	return estat;
+}
+
 
 int
 main(int argc, char **argv)
 {
-	gcl_handle_t *gclh;
+	gdp_gcl_t *gclh;
 	EP_STAT estat;
 	char buf[200];
 	gcl_name_t gclname;
 	char *gclpname;
 	int opt;
-	uint32_t recno;
-	gdp_msg_t *msg;
+	bool subscribe = false;
 
-	while ((opt = getopt(argc, argv, "D:")) > 0)
+	while ((opt = getopt(argc, argv, "D:s")) > 0)
 	{
 		switch (opt)
 		{
 		  case 'D':
 			ep_dbg_set(optarg);
+			break;
+
+		  case 's':
+			subscribe = true;
 			break;
 		}
 	}
@@ -35,9 +101,9 @@ main(int argc, char **argv)
 
 	if (argc <= 0)
 	{
-		fprintf(stderr, "Usage: %s [-D dbgspec] <gcl_name>\n",
+		fprintf(stderr, "Usage: %s [-D dbgspec] [-s] <gcl_name>\n",
 				ep_app_getprogname());
-		exit(1);
+		exit(EX_USAGE);
 	}
 
 	estat = gdp_init();
@@ -47,7 +113,6 @@ main(int argc, char **argv)
 		goto fail0;
 	}
 
-	msg = gdp_msg_new();
 
 	gclpname = argv[0];
 	fprintf(stdout, "Reading GCL %s\n", gclpname);
@@ -69,20 +134,10 @@ main(int argc, char **argv)
 		goto fail0;
 	}
 
-	recno = 1;
-	for (;;)
-	{
-		estat = gdp_gcl_read(gclh, recno, msg);
-		EP_STAT_CHECK(estat, break);
-		fprintf(stdout, "  >>> ");
-		gdp_msg_print(msg, stdout);
-		recno++;
-
-		// flush any left over data
-		if (gdp_buf_reset(msg->dbuf) < 0)
-			printf("*** WARNING: buffer reset failed: %s\n",
-					strerror(errno));
-	}
+	if (subscribe)
+		estat = do_subscribe(gclh);
+	else
+		estat = do_read(gclh);
 
 fail0:
 	fprintf(stderr, "exiting with status %s\n",

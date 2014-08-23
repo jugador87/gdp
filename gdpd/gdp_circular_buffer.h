@@ -1,5 +1,7 @@
-#ifndef CIRCULAR_BUFFER_H_INCLUDED
-#define CIRCULAR_BUFFER_H_INCLUDED
+/* vim: set ai sw=4 sts=4 ts=4 : */
+
+#ifndef _CIRCULAR_BUFFER_H_
+#define _CIRCULAR_BUFFER_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -38,4 +40,4 @@ circular_buffer_foreach(
 	CIRCULAR_BUFFER *circular_buffer,
 	CIRCULAR_BUFFER_FOREACH_FUNC foreach_func);
 
-#endif
+#endif // _CIRCULAR_BUFFER_H_

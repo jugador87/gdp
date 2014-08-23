@@ -84,8 +84,8 @@ random_in_range(unsigned int min, unsigned int max)
 int
 main(int argc, char *argv[])
 {
-	gcl_handle_t *gclh_write;
-	gcl_handle_t *gclh_read;
+	gdp_gcl_t *gclh_write;
+	gdp_gcl_t *gclh_read;
 	int opt;
 	int num_records = 1000;
 	int min_length = 1023;
@@ -137,7 +137,7 @@ main(int argc, char *argv[])
 	size_t data_size = num_records * (max_record_size);
 	char *cur_record;
 	char *cur_record_b64;
-	gdp_msg_t msg;
+	gdp_datum_t datum;
 	gcl_name_t internal_name;
 	gcl_pname_t printable_name;
 	struct evbuffer *evb = evbuffer_new();
@@ -177,12 +177,12 @@ main(int argc, char *argv[])
 		ep_time_now(&start_time);
 		fprintf(stdout, "Writing data (start_time = %llu:%u)\n", start_time.tv_sec, start_time.tv_nsec);
 		for (i = 0; i < num_records; ++i) {
-			memset(&msg, '\0', sizeof msg);
-			msg.data = &data[(i * max_record_size)];
-			msg.len = strlen(msg.data);
-			msg.msgno = i + 1;
+			memset(&datum, '\0', sizeof datum);
+			datum.data = &data[(i * max_record_size)];
+			datum.len = strlen(datum.data);
+			datum.datumno = i + 1;
 
-			estat = gdp_gcl_append(gclh_write, &msg);
+			estat = gdp_gcl_append(gclh_write, &datum);
 			EP_STAT_CHECK(estat, goto fail1);
 		}
 		ep_time_now(&end_time);
@@ -196,12 +196,12 @@ main(int argc, char *argv[])
 		ep_time_now(&start_time);
 		fprintf(stdout, "Reading data (start_time = %llu:%u)\n", start_time.tv_sec, start_time.tv_nsec);
 		for (i = 0; i < num_records; ++i) {
-			estat = gdp_gcl_read(gclh_read, i + 1, &msg, evb);
+			estat = gdp_gcl_read(gclh_read, i + 1, &datum, evb);
 			EP_STAT_CHECK(estat, goto fail2);
-			msg.len = evbuffer_remove(evb, cur_record, max_record_size);
-			cur_record[msg.len] = '\0';
-			msg.data = cur_record;
-			if (strncmp(data + (i * max_record_size), msg.data, max_length) != 0) {
+			datum.len = evbuffer_remove(evb, cur_record, max_record_size);
+			cur_record[datum.len] = '\0';
+			datum.data = cur_record;
+			if (strncmp(data + (i * max_record_size), datum.data, max_length) != 0) {
 				fprintf(stdout, "data mismatch:\n> expected: %s\n> got     : %s\n",
 					data + (i * max_record_size), cur_record);
 			}

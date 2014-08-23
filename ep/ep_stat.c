@@ -454,10 +454,13 @@ ep_stat_tostr(EP_STAT stat,
 		switch (EP_STAT_MODULE(stat))
 		{
 		  case EP_STAT_MOD_ERRNO:
-			detail = strerror(EP_STAT_DETAIL(stat));
+			module = "errno";
+			strerror_r(EP_STAT_DETAIL(stat), rbuf, sizeof rbuf);
+			detail = rbuf;
 			break;
 
 		  case EP_STAT_MOD_GENERIC:
+			module = "generic";
 			if (EP_STAT_DETAIL(stat) <
 			    (sizeof GenericErrors / sizeof *GenericErrors))
 				detail = GenericErrors[EP_STAT_DETAIL(stat)];
@@ -483,7 +486,7 @@ ep_stat_tostr(EP_STAT stat,
 	}
 
 	// check to see if there is a string already
-	if (EpStatStrings != NULL && !EP_STAT_ISOK(stat))
+	if (module == NULL && EpStatStrings != NULL && !EP_STAT_ISOK(stat))
 	{
 		EP_STAT xstat;
 		char *s;
@@ -498,9 +501,12 @@ ep_stat_tostr(EP_STAT stat,
 		if (s != NULL)
 			detail = s;
 	}
-
 	if (module == NULL)
+	{
 		snprintf(mbuf, sizeof mbuf, "%ld", EP_STAT_MODULE(stat));
+		module = mbuf;
+	}
+
 	if (detail != NULL)
 	{
 		snprintf(buf, blen, "%s: %s [%s:%s:%ld]",

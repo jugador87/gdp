@@ -3,7 +3,7 @@
 #include <ep/ep_stat.h>
 #include "gdp.h"
 #include "gdp_stat.h"
-#include "gdp_pkt.h"
+#include "gdp_priv.h"
 
 /*
 **	Status codes to string mappings
@@ -37,6 +37,7 @@ static struct ep_stat_to_string Stats[] =
 	{ GDP_STAT_NULL_GCL,				"GCL name required",			},
 	{ GDP_STAT_PROTOCOL_FAIL,			"GDP protocol failure",			},
 	{ GDP_STAT_CORRUPT_INDEX,			"corrupt GCL index",			},
+	{ GDP_STAT_CORRUPT_GCL,				"corrupt GCL data file",		},
 
 	{ NAKSTAT(C_BADREQ),				"4.00 bad request",				},
 	{ NAKSTAT(C_UNAUTH),				"4.01 unauthorized",			},

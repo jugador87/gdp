@@ -2,6 +2,7 @@
 
 #include "gdpd.h"
 #include "gdpd_physlog.h"
+#include "gdpd_pubsub.h"
 #include "thread_pool.h"
 
 #include <ep/ep_string.h>
@@ -42,12 +43,12 @@ flush_input_data(gdp_req_t *req, char *where)
 {
 	int i;
 
-	if (req->pkt.msg != NULL && (i = gdp_buf_getlength(req->pkt.msg->dbuf)) > 0)
+	if (req->pkt->datum != NULL && (i = gdp_buf_getlength(req->pkt->datum->dbuf)) > 0)
 	{
 		ep_dbg_cprintf(Dbg, 4,
 				"flush_input_data: %s: flushing %d bytes of unexpected input\n",
 				where, i);
-		gdp_buf_reset(req->pkt.msg->dbuf);
+		gdp_buf_reset(req->pkt->datum->dbuf);
 	}
 }
 
@@ -69,7 +70,7 @@ implement_me(char *s)
 **		Each of these takes a request and an I/O channel (socket) as
 **		arguments.
 **
-**		These routines should set req->pkt.cmd to the "ACK" reply
+**		These routines should set req->pkt->cmd to the "ACK" reply
 **		code, which will be used if the command succeeds (i.e.,
 **		returns EP_STAT_OK).  Otherwise the return status is decoded
 **		to produce a NAK code.  A specific NAK code can be sent
@@ -81,18 +82,18 @@ implement_me(char *s)
 */
 
 EP_STAT
-cmd_create(gdp_req_t *req, gdp_chan_t *chan)
+cmd_create(gdp_req_t *req)
 {
 	EP_STAT estat;
-	gcl_handle_t *gclh;
+	gdp_gcl_t *gclh;
 
-	req->pkt.cmd = GDP_ACK_DATA_CREATED;
+	req->pkt->cmd = GDP_ACK_DATA_CREATED;
 
 	// no input, so we can reset the buffer just to be safe
 	flush_input_data(req, "cmd_create");
 
 	// do the physical create
-	estat = gcl_create(req->pkt.gcl_name, &gclh);
+	estat = gcl_create(req->pkt->gcl_name, &gclh);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// cache the open GCL Handle for possible future use
@@ -107,25 +108,25 @@ fail0:
 }
 
 EP_STAT
-cmd_open_xx(gdp_req_t *req, gdp_chan_t *chan, gdp_iomode_t iomode)
+cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 {
 	EP_STAT estat;
-	gcl_handle_t *gclh;
+	gdp_gcl_t *gclh;
 
-	req->pkt.cmd = GDP_ACK_SUCCESS;
+	req->pkt->cmd = GDP_ACK_SUCCESS;
 
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_open_xx");
 
 	// see if we already know about this GCL
-	gclh = _gdp_gcl_cache_get(req->pkt.gcl_name, iomode);
+	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, iomode);
 	if (gclh != NULL)
 	{
 		if (ep_dbg_test(Dbg, 12))
 		{
 			gcl_pname_t pname;
 
-			gdp_gcl_printable_name(req->pkt.gcl_name, pname);
+			gdp_gcl_printable_name(req->pkt->gcl_name, pname);
 			ep_dbg_printf("cmd_open_xx: using cached handle for %s\n", pname);
 		}
 		rewind(gclh->fp);		// make sure we can switch modes (read/write)
@@ -137,41 +138,41 @@ cmd_open_xx(gdp_req_t *req, gdp_chan_t *chan, gdp_iomode_t iomode)
 	{
 		gcl_pname_t pname;
 
-		gdp_gcl_printable_name(req->pkt.gcl_name, pname);
+		gdp_gcl_printable_name(req->pkt->gcl_name, pname);
 		ep_dbg_printf("cmd_open_xx: doing initial open for %s\n", pname);
 	}
-	estat = gcl_open(req->pkt.gcl_name, iomode, &gclh);
+	estat = gcl_open(req->pkt->gcl_name, iomode, &gclh);
 	if (EP_STAT_ISOK(estat))
 		_gdp_gcl_cache_add(gclh, iomode);
 	return estat;
 }
 
 EP_STAT
-cmd_open_ao(gdp_req_t *req, gdp_chan_t *chan)
+cmd_open_ao(gdp_req_t *req)
 {
-	return cmd_open_xx(req, chan, GDP_MODE_AO);
+	return cmd_open_xx(req, GDP_MODE_AO);
 }
 
 EP_STAT
-cmd_open_ro(gdp_req_t *req, gdp_chan_t *chan)
+cmd_open_ro(gdp_req_t *req)
 {
-	return cmd_open_xx(req, chan, GDP_MODE_RO);
+	return cmd_open_xx(req, GDP_MODE_RO);
 }
 
 EP_STAT
-cmd_close(gdp_req_t *req, gdp_chan_t *chan)
+cmd_close(gdp_req_t *req)
 {
-	gcl_handle_t *gclh;
+	gdp_gcl_t *gclh;
 
-	req->pkt.cmd = GDP_ACK_SUCCESS;
+	req->pkt->cmd = GDP_ACK_SUCCESS;
 
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_close");
 
-	gclh = _gdp_gcl_cache_get(req->pkt.gcl_name, GDP_MODE_ANY);
+	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_ANY);
 	if (gclh == NULL)
 	{
-		return gdpd_gcl_error(req->pkt.gcl_name, "cmd_close: GCL not open",
+		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_close: GCL not open",
 							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 	return gcl_close(gclh);
@@ -179,25 +180,25 @@ cmd_close(gdp_req_t *req, gdp_chan_t *chan)
 
 
 EP_STAT
-cmd_read(gdp_req_t *req, gdp_chan_t *chan)
+cmd_read(gdp_req_t *req)
 {
-	gcl_handle_t *gclh;
+	gdp_gcl_t *gclh;
 	EP_STAT estat;
 
-	req->pkt.cmd = GDP_ACK_DATA_CONTENT;
+	req->pkt->cmd = GDP_ACK_DATA_CONTENT;
 
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_read");
 
-	gclh = _gdp_gcl_cache_get(req->pkt.gcl_name, GDP_MODE_RO);
+	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_RO);
 	if (gclh == NULL)
 	{
-		return gdpd_gcl_error(req->pkt.gcl_name, "cmd_read: GCL not open",
+		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_read: GCL not open",
 							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 
-	gdp_buf_reset(req->pkt.msg->dbuf);
-	estat = gcl_read(gclh, req->pkt.msg);
+	gdp_buf_reset(req->pkt->datum->dbuf);
+	estat = gcl_read(gclh, req->pkt->datum);
 
 	if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
 		estat = GDP_STAT_FROM_NAK(GDP_NAK_C_NOTFOUND);
@@ -206,57 +207,62 @@ cmd_read(gdp_req_t *req, gdp_chan_t *chan)
 
 
 EP_STAT
-cmd_publish(gdp_req_t *req, gdp_chan_t *chan)
+cmd_publish(gdp_req_t *req)
 {
-	gcl_handle_t *gclh;
+	gdp_gcl_t *gclh;
 	EP_STAT estat;
 
-	req->pkt.cmd = GDP_ACK_DATA_CREATED;
+	req->pkt->cmd = GDP_ACK_DATA_CREATED;
 
-	gclh = _gdp_gcl_cache_get(req->pkt.gcl_name, GDP_MODE_AO);
+	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_AO);
 	if (gclh == NULL)
 	{
-		return gdpd_gcl_error(req->pkt.gcl_name, "cmd_publish: GCL not open",
+		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_publish: GCL not open",
 							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 
 	// create the message
-	estat = gcl_append(gclh, req->pkt.msg);
+	estat = gcl_append(gclh, req->pkt->datum);
+
+	// send the new data to any subscribers
+	sub_notify_all_subscribers(req);
 
 	return estat;
 }
 
 
 EP_STAT
-cmd_subscribe(gdp_req_t *req, gdp_chan_t *chan)
+cmd_subscribe(gdp_req_t *req)
 {
-	gcl_handle_t *gclh;
+	gdp_gcl_t *gclh;
 
-	req->pkt.cmd = GDP_ACK_SUCCESS;
+	req->pkt->cmd = GDP_ACK_SUCCESS;
 
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_subscribe");
 
-	gclh = _gdp_gcl_cache_get(req->pkt.gcl_name, GDP_MODE_RO);
+	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_RO);
 	if (gclh == NULL)
 	{
-		return gdpd_gcl_error(req->pkt.gcl_name, "cmd_subscribe: GCL not open",
+		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_subscribe: GCL not open",
 							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
-	return implement_me("cmd_subscribe");
+
+	req->flags |= GDP_REQ_PERSIST | GDP_REQ_SUBSCRIPTION;
+	return EP_STAT_OK;
 }
 
 
 EP_STAT
-cmd_not_implemented(gdp_req_t *req, gdp_chan_t *chan)
+cmd_not_implemented(gdp_req_t *req)
 {
 	//XXX print/log something here?
 
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_not_implemented");
 
-	req->pkt.cmd = GDP_NAK_S_INTERNAL;
-	_gdp_pkt_out_hard(&req->pkt, bufferevent_get_output(chan));
+	req->pkt->cmd = GDP_NAK_S_INTERNAL;
+	_gdp_pkt_out_hard(req->pkt, bufferevent_get_output(req->chan));
 	return GDP_STAT_NOT_IMPLEMENTED;
 }
 
@@ -270,16 +276,15 @@ cmd_not_implemented(gdp_req_t *req, gdp_chan_t *chan)
 */
 
 EP_STAT
-dispatch_cmd(gdp_req_t *req,
-			gdp_chan_t *chan)
+dispatch_cmd(gdp_req_t *req)
 {
 	EP_STAT estat;
-	int cmd = req->pkt.cmd;
+	int cmd = req->pkt->cmd;
 
 	ep_dbg_cprintf(Dbg, 18, "dispatch_cmd: >>> command %d (%s)\n",
 			cmd, _gdp_proto_cmd_name(cmd));
 
-	estat = _gdp_req_dispatch(req, chan);
+	estat = _gdp_req_dispatch(req);
 
 	// decode return status as an ACK/NAK command
 	if (!EP_STAT_ISOK(estat))
@@ -289,12 +294,12 @@ dispatch_cmd(gdp_req_t *req,
 				EP_STAT_DETAIL(estat) >= GDP_ACK_MIN &&
 				EP_STAT_DETAIL(estat) <= GDP_NAK_MAX)
 		{
-			req->pkt.cmd = EP_STAT_DETAIL(estat);
+			req->pkt->cmd = EP_STAT_DETAIL(estat);
 		}
 		else
 		{
 			// not recognized
-			req->pkt.cmd = GDP_NAK_S_INTERNAL;
+			req->pkt->cmd = GDP_NAK_S_INTERNAL;
 		}
 	}
 
@@ -303,68 +308,51 @@ dispatch_cmd(gdp_req_t *req,
 		char ebuf[200];
 
 		ep_dbg_printf("dispatch_cmd: <<< %s, status %s (%s)\n",
-				_gdp_proto_cmd_name(cmd), _gdp_proto_cmd_name(req->pkt.cmd),
+				_gdp_proto_cmd_name(cmd), _gdp_proto_cmd_name(req->pkt->cmd),
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		if (ep_dbg_test(Dbg, 30))
-			_gdp_pkt_dump(&req->pkt, ep_dbg_getfile());
+			_gdp_pkt_dump(req->pkt, ep_dbg_getfile());
 	}
 	return estat;
 }
 
 
 /*
-**	GDP_REQ_THREAD --- per-request thread
+**	GDPD_REQ_THREAD --- per-request thread
 **
 **		Reads and processes a command from the network port.  When
 **		it returns it gets put back in the thread pool.
 */
 
 void
-gdp_req_thread(void *continue_data)
+gdpd_req_thread(void *req_)
 {
-	gdp_req_t *req = continue_data;
+	gdp_req_t *req = req_;
 	gdp_chan_t *chan = req->udata;
-	size_t l;
 
-	ep_dbg_cprintf(Dbg, 18, "gdp_req_thread: starting\n");
-
-	// extract any data left in input
-	l = evbuffer_remove_buffer(bufferevent_get_input(chan),
-			req->pkt.msg->dbuf, req->pkt.msg->dlen);
-	if (l < req->pkt.msg->dlen)
-	{
-		ep_dbg_cprintf(Dbg, 2, "gdp_req_thread: cannot read all data;"
-				" wanted %zd, got %zd\n",
-				req->pkt.msg->dlen, l);
-	}
+	ep_dbg_cprintf(Dbg, 18, "gdpd_req_thread: starting\n");
 
 	// find the GCL handle (if any)
-	req->gclh = _gdp_gcl_cache_get(req->pkt.gcl_name, 0);
+	req->gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, 0);
 
 	// got the packet, dispatch it based on the command
-	req->stat = dispatch_cmd(req, chan);
+	req->stat = dispatch_cmd(req);
 	//XXX anything to do with estat here?
 
 	// see if we have any return data
-	ep_dbg_cprintf(Dbg, 41, "gdp_req_thread: sending %zd bytes\n",
-			evbuffer_get_length(req->pkt.msg->dbuf));
+	ep_dbg_cprintf(Dbg, 41, "gdpd_req_thread: sending %zd bytes\n",
+			evbuffer_get_length(req->pkt->datum->dbuf));
 
 	// send the response packet header
-	req->stat = _gdp_pkt_out(&req->pkt, bufferevent_get_output(chan));
+	req->stat = _gdp_pkt_out(req->pkt, bufferevent_get_output(chan));
 	//XXX anything to do with estat here?
 
 	// we can now unlock and free resources
 	_gdp_req_free(req);
 
-	ep_dbg_cprintf(Dbg, 19, "gdp_req_thread: returning to pool\n");
+	ep_dbg_cprintf(Dbg, 19, "gdpd_req_thread: returning to pool\n");
 }
 
-
-static void
-req_free_cb(void *req_)
-{
-	_gdp_req_free(req_);
-}
 
 /*
 **  LEV_READ_CB --- handle reads on command sockets
@@ -380,15 +368,15 @@ lev_read_cb(gdp_chan_t *chan, void *ctx)
 	gdp_req_t *req;
 
 	// allocate a request buffer
-	estat = _gdp_req_new(0, NULL, 0, &req);
+	estat = _gdp_req_new(0, NULL, chan, 0, &req);
 	if (!EP_STAT_ISOK(estat))
 	{
 		gdp_log(estat, "lev_read_cb: cannot allocate request");
 		return;
 	}
-	req->pkt.msg = gdp_msg_new();
+	req->pkt->datum = gdp_datum_new();
 
-	estat = _gdp_pkt_in(&req->pkt, bufferevent_get_input(chan));
+	estat = _gdp_pkt_in(req->pkt, bufferevent_get_input(chan));
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
 	{
 		// we don't yet have the entire packet in memory
@@ -398,8 +386,8 @@ lev_read_cb(gdp_chan_t *chan, void *ctx)
 
 	// cheat: pass channel in req structure
 	req->udata = chan;
-	thread_pool_job *new_job = thread_pool_job_new(&gdp_req_thread,
-									&req_free_cb, req);
+	thread_pool_job *new_job = thread_pool_job_new(&gdpd_req_thread,
+									NULL, req);
 	thread_pool_add_job(CpuJobThreadPool, new_job);
 }
 

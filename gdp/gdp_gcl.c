@@ -3,7 +3,6 @@
 #include <gdp/gdp.h>
 #include <gdp/gdp_log.h>
 #include <gdp/gdp_stat.h>
-#include <gdp/gdp_pkt.h>
 #include <gdp/gdp_priv.h>
 #include <ep/ep.h>
 #include <ep/ep_app.h>
@@ -71,10 +70,10 @@ _gdp_gcl_cache_init(void)
 }
 
 
-gcl_handle_t *
+gdp_gcl_t *
 _gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 {
-	gcl_handle_t *gclh;
+	gdp_gcl_t *gclh;
 
 	// see if we have a pointer to this GCL in the cache
 	gclh = ep_hash_search(OpenGCLCache, sizeof (gcl_name_t), (void *) gcl_name);
@@ -90,7 +89,7 @@ _gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 
 
 void
-_gdp_gcl_cache_add(gcl_handle_t *gclh, gdp_iomode_t mode)
+_gdp_gcl_cache_add(gdp_gcl_t *gclh, gdp_iomode_t mode)
 {
 	// sanity checks
 	EP_ASSERT_POINTER_VALID(gclh);
@@ -112,7 +111,7 @@ _gdp_gcl_cache_add(gcl_handle_t *gclh, gdp_iomode_t mode)
 void
 _gdp_gcl_cache_drop(gcl_name_t gcl_name, gdp_iomode_t mode)
 {
-	gcl_handle_t *gclh;
+	gdp_gcl_t *gclh;
 
 	gclh = ep_hash_insert(OpenGCLCache, sizeof (gcl_name_t), gcl_name, NULL);
 	if (ep_dbg_test(Dbg, 42))
@@ -140,10 +139,10 @@ _gdp_gcl_newname(gcl_name_t np)
 */
 
 EP_STAT
-_gdp_gcl_newhandle(gcl_name_t gcl_name, gcl_handle_t **pgclh)
+_gdp_gcl_newhandle(gcl_name_t gcl_name, gdp_gcl_t **pgclh)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gcl_handle_t *gclh;
+	gdp_gcl_t *gclh;
 
 	// allocate the memory to hold the gcl_handle
 	gclh = ep_mem_zalloc(sizeof *gclh);
@@ -169,7 +168,7 @@ fail1:
 */
 
 void
-_gdp_gcl_freehandle(gcl_handle_t *gclh)
+_gdp_gcl_freehandle(gdp_gcl_t *gclh)
 {
 	// release any remaining requests
 	if (!LIST_EMPTY(&gclh->reqs))

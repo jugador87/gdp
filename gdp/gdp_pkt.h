@@ -1,13 +1,14 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
-#ifndef _GDP_PROTOCOL_H_
-#define _GDP_PROTOCOL_H_
+#ifndef _GDP_PKT_H_
+#define _GDP_PKT_H_
 
 #include <stdio.h>
 #include <netinet/in.h>
 #include <event2/event.h>
 #include <event2/buffer.h>
-#include <gdp/gdp_timestamp.h>
+#include "gdp_priv.h"
+#include "gdp_timestamp.h"
 
 #define GDP_PORT_DEFAULT		2468	// default IP port
 
@@ -67,13 +68,19 @@
 
 typedef struct gdp_pkt
 {
-	uint8_t			ver;		// protocol version
-	uint8_t			cmd;		// command or ack/nak
-	uint8_t			flags;		// see below
-	uint8_t			reserved1;	// must be zero on send, ignored on receive
-	gdp_rid_t		rid;		// sequence number (GDP_PKT_NO_RID => none)
-	gcl_name_t		gcl_name;	// name of the GCL of interest (0 => none)
-	gdp_msg_t		*msg;		// pointer to data record
+	// metadata
+	TAILQ_ENTRY(gdp_pkt)	list;		// work list
+//	gdp_chan_t				*chan;		// I/O channel for this packet entry
+	bool					inuse:1;	// indicates that this is allocated
+
+	// packet data
+	uint8_t				ver;		// protocol version
+	uint8_t				cmd;		// command or ack/nak
+	uint8_t				flags;		// see below
+	uint8_t				reserved1;	// must be zero on send, ignored on receive
+	gdp_rid_t			rid;		// sequence number (GDP_PKT_NO_RID => none)
+	gcl_name_t			gcl_name;	// name of the GCL of interest (0 => none)
+	gdp_datum_t			*datum;		// pointer to data record
 } gdp_pkt_t;
 
 #define _GDP_MAX_PKT_HDR		128		// max size of on-wire packet header
@@ -127,7 +134,7 @@ typedef struct gdp_pkt
 /***** values for gdp_pkg_hdr flags field *****/
 #define GDP_PKT_HAS_RID		0x01		// has a rid field
 #define GDP_PKT_HAS_ID		0x02		// has a gcl_name field
-#define GDP_PKT_HAS_RECNO	0x04		// has a msgno field
+#define GDP_PKT_HAS_RECNO	0x04		// has a recno field
 #define GDP_PKT_HAS_TS		0x08		// has a timestamp field
 
 /***** dummy values for other fields *****/
@@ -135,23 +142,23 @@ typedef struct gdp_pkt
 #define GDP_PKT_NO_RECNO	UINT32_MAX	// no record number
 
 
-void	_gdp_pkt_init(				// initialize a packet structure
-				gdp_pkt_t *,			// the packet to initialize
-				gdp_msg_t *);			// the message to use for data
+gdp_pkt_t	*_gdp_pkt_new(void);		// allocate a new packet
 
-EP_STAT _gdp_pkt_out(				// send a packet to a network buffer
+void		_gdp_pkt_free(gdp_pkt_t *);	// free a packet
+
+EP_STAT		_gdp_pkt_out(				// send a packet to a network buffer
 				gdp_pkt_t *,			// the packet information
 				gdp_buf_t *);			// the network buffer
 
-void	_gdp_pkt_out_hard(			// send a packet to a network buffer
+void		_gdp_pkt_out_hard(			// send a packet to a network buffer
 				gdp_pkt_t *,			// the packet information
 				gdp_buf_t *);			// the network buffer
 
-EP_STAT _gdp_pkt_in(				// read a packet from a network buffer
+EP_STAT		_gdp_pkt_in(				// read a packet from a network buffer
 				gdp_pkt_t *,			// the buffer to store the result
 				gdp_buf_t *);			// the network buffer
 
-void	_gdp_pkt_dump(
+void		_gdp_pkt_dump(
 				gdp_pkt_t *pkt,
 				FILE *fp);
 
@@ -162,4 +169,5 @@ union sockaddr_xx
 	struct sockaddr_in	sin;
 	struct sockaddr_in6 sin6;
 };
-#endif // _GDP_PROTOCOL_H_
+
+#endif // _GDP_PKT_H_

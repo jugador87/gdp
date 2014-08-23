@@ -36,7 +36,8 @@ static EP_THR_MUTEX		ReqFreeListMutex	EP_THR_MUTEX_INITIALIZER;
 
 EP_STAT
 _gdp_req_new(int cmd,
-		gcl_handle_t *gclh,
+		gdp_gcl_t *gclh,
+		gdp_chan_t *chan,
 		uint32_t flags,
 		gdp_req_t **reqp)
 {
@@ -57,27 +58,29 @@ _gdp_req_new(int cmd,
 		ep_thr_cond_init(&req->cond);
 	}
 
-	EP_ASSERT(req->pkt.msg == NULL);
+	EP_ASSERT(!req->inuse);
+	req->pkt = _gdp_pkt_new();
 	req->gclh = gclh;
 	req->stat = EP_STAT_OK;
-	req->flags = 0;
-	req->pkt.cmd = cmd;
+	req->flags = flags;
+	req->pkt->cmd = cmd;
 	if (gclh != NULL)
-		memcpy(req->pkt.gcl_name, gclh->gcl_name, sizeof req->pkt.gcl_name);
+		memcpy(req->pkt->gcl_name, gclh->gcl_name, sizeof req->pkt->gcl_name);
 	if (gclh == NULL || !EP_UT_BITSET(GDP_REQ_PERSIST, flags))
 	{
 		// just use constant zero; any value would be fine
-		req->pkt.rid = GDP_PKT_NO_RID;
+		req->pkt->rid = GDP_PKT_NO_RID;
 	}
 	else
 	{
 		// allocate a new unique request id
-		req->pkt.rid = _gdp_rid_new(gclh);
+		req->pkt->rid = _gdp_rid_new(gclh);
 	}
 
 	// success
+	req->inuse = true;
 	*reqp = req;
-	ep_dbg_cprintf(Dbg, 48, "gdp_req_new(gcl=%p): %p\n", gclh, req);
+	ep_dbg_cprintf(Dbg, 48, "gdp_req_new(gcl=%p) => %p\n", gclh, req);
 	return estat;
 }
 
@@ -85,7 +88,9 @@ _gdp_req_new(int cmd,
 void
 _gdp_req_free(gdp_req_t *req)
 {
-	ep_dbg_cprintf(Dbg, 48, "gdp_req_free: %p: gclh=%p\n", req, req->gclh);
+	ep_dbg_cprintf(Dbg, 48, "gdp_req_free(%p)  gclh=%p\n", req, req->gclh);
+	EP_ASSERT(req->inuse);
+	req->inuse = false;
 
 	ep_thr_mutex_lock(&req->mutex);
 
@@ -97,13 +102,10 @@ _gdp_req_free(gdp_req_t *req)
 		ep_thr_mutex_unlock(&req->gclh->mutex);
 	}
 
-	// free the associated message, assuming we own it
-	if (EP_UT_BITSET(GDP_REQ_OWN_MSG, req->flags))
-	{
-		gdp_msg_free(req->pkt.msg);
-		req->flags &= ~GDP_REQ_OWN_MSG;
-	}
-	req->pkt.msg = NULL;
+	// free the associated packet
+	if (req->pkt != NULL)
+		_gdp_pkt_free(req->pkt);
+	req->pkt = NULL;
 
 	// add the empty request to the free list
 	ep_thr_mutex_lock(&ReqFreeListMutex);
@@ -128,14 +130,14 @@ _gdp_req_freeall(struct req_head *reqlist)
 
 
 gdp_req_t *
-_gdp_req_find(gcl_handle_t *gclh, gdp_rid_t rid)
+_gdp_req_find(gdp_gcl_t *gclh, gdp_rid_t rid)
 {
 	gdp_req_t *req;
 
 	ep_thr_mutex_lock(&gclh->mutex);
 	LIST_FOREACH(req, &gclh->reqs, list)
 	{
-		if (req->pkt.rid == rid)
+		if (req->pkt->rid == rid)
 			break;
 	}
 	if (req != NULL && !EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
@@ -151,7 +153,6 @@ static EP_PRFLAGS_DESC	ReqFlags[] =
 {
 	{ GDP_REQ_DONE,			GDP_REQ_DONE,			"DONE"			},
 	{ GDP_REQ_PERSIST,		GDP_REQ_PERSIST,		"PERSIST"		},
-	{ GDP_REQ_OWN_MSG,		GDP_REQ_OWN_MSG,		"OWN_MSG"		},
 	{ GDP_REQ_SUBSCRIPTION,	GDP_REQ_SUBSCRIPTION,	"SUBSCRIPTION"	},
 	{ 0,					0,						NULL			}
 };
@@ -170,7 +171,7 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 	fprintf(fp, "\n    ");
 	gdp_gcl_print(req->gclh, fp, 0, 0);
 	fprintf(fp, "    ");
-	_gdp_pkt_dump(&req->pkt, fp);
+	_gdp_pkt_dump(req->pkt, fp);
 	fprintf(fp, "    flags=");
 	ep_prflags(req->flags, ReqFlags, fp);
 	fprintf(fp, "\n    udata=%p, stat=%s\n",
@@ -190,7 +191,7 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 static gdp_rid_t	MaxRid = 0;
 
 gdp_rid_t
-_gdp_rid_new(gcl_handle_t *gclh)
+_gdp_rid_new(gdp_gcl_t *gclh)
 {
 	return ++MaxRid;
 }

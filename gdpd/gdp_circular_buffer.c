@@ -1,3 +1,5 @@
+/* vim: set ai sw=4 sts=4 ts=4 : */
+
 #include "gdp_circular_buffer.h"
 
 #include <assert.h>

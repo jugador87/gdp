@@ -24,7 +24,7 @@
 */
 
 // an open handle on a GCL (opaque)
-typedef struct gcl_handle	gcl_handle_t;
+typedef struct gdp_gcl		gdp_gcl_t;
 
 /**********************************************************************
 **	Other data types
@@ -67,8 +67,8 @@ typedef enum
 */
 
 /*
-**	 Messages
-**		These are the underlying unit that is passed through a GCL.
+**	 Datums
+**		These are the underlying data unit that is passed through a GCL.
 **
 **		XXX Is the timestamp the commit timestamp into the dataplane
 **			or the timestamp of the sample itself (if known)?  Do we
@@ -77,16 +77,50 @@ typedef enum
 **			But that's true of the location as well.
 */
 
-typedef struct gdp_msg
+typedef struct gdp_datum
 {
 	EP_THR_MUTEX		mutex;		// locking mutex (mostly for dbuf)
-	LIST_ENTRY(gdp_msg)	list;		// linked list for free list management
+	struct gdp_datum	*next;		// next in free list
+	bool				inuse:1;	// indicates that the datum is in use
 	gdp_recno_t			recno;		// the record number
 	tt_interval_t		ts;			// timestamp for this message
 	size_t				dlen;		// length of data buffer (redundant)
 	gdp_buf_t			*dbuf;		// data buffer
-} gdp_msg_t;
+} gdp_datum_t;
 
+
+/*
+**	Events
+**		gdp_event_t encodes an event.  Every event has a type and may
+**		optionally have a GCL handle and/or a message.  For example,
+**		data (from a subscription) has all three.
+*/
+
+typedef struct gdp_event	gdp_event_t;
+
+// event types
+#define GDP_EVENT_DATA		1	// returned data
+
+// allocate an event
+extern EP_STAT			gdp_event_new(gdp_event_t **gevp);
+
+// free an event
+extern EP_STAT			gdp_event_free(gdp_event_t *gev);
+
+// add an event to the queue
+extern void				gdp_event_add(gdp_event_t *gev);
+
+// get next event (fills in gev structure)
+extern gdp_event_t		*gdp_event_next(bool wait);
+
+// get the type of an event
+extern int				gdp_event_gettype(gdp_event_t *gev);
+
+// get the GCL handle
+extern gdp_gcl_t		*gdp_event_getgcl(gdp_event_t *gev);
+
+// get the datum
+extern gdp_datum_t		*gdp_event_getdatum(gdp_event_t *gev);
 
 /**********************************************************************
 **	Public globals and functions
@@ -104,57 +138,55 @@ extern void		*gdp_run_accept_event_loop(
 // create a new GCL
 extern EP_STAT	gdp_gcl_create(
 					gcl_name_t,
-					gcl_handle_t **);		// pointer to result GCL handle
+					gdp_gcl_t **);			// pointer to result GCL handle
 
 // open an existing GCL
 extern EP_STAT	gdp_gcl_open(
 					gcl_name_t name,		// GCL name to open
 					gdp_iomode_t rw,		// read/write (append)
-					gcl_handle_t **gclh);	// pointer to result GCL handle
+					gdp_gcl_t **gclh);		// pointer to result GCL handle
 
 // close an open GCL
 extern EP_STAT	gdp_gcl_close(
-					gcl_handle_t *gclh);	// GCL handle to close
+					gdp_gcl_t *gclh);		// GCL handle to close
 
 // append to a writable GCL
 extern EP_STAT	gdp_gcl_append(
-					gcl_handle_t *gclh,		// writable GCL handle
-					gdp_msg_t *);			// message to write
+					gdp_gcl_t *gclh,		// writable GCL handle
+					gdp_datum_t *);			// message to write
 
 // read from a readable GCL
 extern EP_STAT	gdp_gcl_read(
-					gcl_handle_t *gclh,		// readable GCL handle
+					gdp_gcl_t *gclh,		// readable GCL handle
 					gdp_recno_t recno,		// GCL record number
-					gdp_msg_t *msg);		// pointer to result message
+					gdp_datum_t *datum);	// pointer to result message
 
-#if 0
 // subscribe to a readable GCL
+//	If you don't specific cbfunc, events are generated instead
 typedef void	(*gdp_gcl_sub_cbfunc_t)(  // the callback function
-					gcl_handle_t *gclh,		// the GCL handle triggering the call
-					gdp_msg_t *msg,			// the message triggering the call
+					gdp_gcl_t *gclh,		// the GCL triggering the call
+					gdp_datum_t *datum,		// the message triggering the call
 					void *cbarg);			// an arbitrary argument
 
 extern EP_STAT	gdp_gcl_subscribe(
-					gcl_handle_t *gclh,		// readable GCL handle
+					gdp_gcl_t *gclh,		// readable GCL handle
+					gdp_recno_t start,		// first record to retrieve
+					gdp_recno_t stop,		// last record to retrieve
 					gdp_gcl_sub_cbfunc_t cbfunc,
-											// callback function for next msg
-					long off,				// starting offset
-					void *buf,				// buffer space for msg
-					size_t buflen,			// length of buf
+											// callback function for next datum
 					void *cbarg);			// argument passed to callback
-#endif
 
 // return the name of a GCL
 //		XXX: should this be in a more generic "getstat" function?
 extern const gcl_name_t *gdp_gcl_getname(
-					const gcl_handle_t *gclh);		// open GCL handle
+					const gdp_gcl_t *gclh);		// open GCL handle
 
 // check to see if a GCL name is valid
 extern bool		gdp_gcl_name_is_zero(const gcl_name_t);
 
 // print a GCL (for debugging)
 extern void		gdp_gcl_print(
-					const gcl_handle_t *gclh,	// GCL handle to print
+					const gdp_gcl_t *gclh,	// GCL handle to print
 					FILE *fp,				// file to print it to
 					int detail,				// not used at this time
 					int indent);			// not used at this time
@@ -170,14 +202,14 @@ EP_STAT			gdp_gcl_internal_name(
 					gcl_name_t internal);
 
 // allocate a new message
-gdp_msg_t		*gdp_msg_new(void);
+gdp_datum_t		*gdp_datum_new(void);
 
 // free a message
-void			gdp_msg_free(gdp_msg_t *);
+void			gdp_datum_free(gdp_datum_t *);
 
 // print a message (for debugging)
-extern void		gdp_msg_print(
-					const gdp_msg_t *msg,	// message to print
-					FILE *fp);				// file to print it to
+extern void		gdp_datum_print(
+					const gdp_datum_t *datum,	// message to print
+					FILE *fp);					// file to print it to
 
 #endif // _GDP_H_

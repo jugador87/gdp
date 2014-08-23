@@ -41,7 +41,7 @@ EP_HASH			*OpenGclCache;			// cache of open GCLs
 // used in SCGI callbacks to pass around state
 struct sockstate
 {
-	gcl_handle_t		*gcl_handle;	// associated GCL handle
+	gdp_gcl_t			*gcl;			// associated GCL handle
 	struct event		*event;			// associated event
 };
 
@@ -167,7 +167,7 @@ show_gcl(char *gclpname,
 
 
 /*
-**	READ_MSG --- read and return message from a GCL
+**	READ_DATUM --- read and return a datum from a GCL
 **
 **		XXX Currently doesn't use the GCL cache.  To make that work
 **			long term we would have to have to implement LRU in that
@@ -175,11 +175,11 @@ show_gcl(char *gclpname,
 */
 
 EP_STAT
-read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
+read_datum(char *gclpname, gdp_recno_t recno, scgi_request *req)
 {
 	EP_STAT estat;
-	gcl_handle_t *gclh = NULL;
-	gdp_msg_t *msg = gdp_msg_new();
+	gdp_gcl_t *gclh = NULL;
+	gdp_datum_t *datum = gdp_datum_new();
 	gcl_name_t gcliname;
 
 	// for printing below
@@ -189,7 +189,7 @@ read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
 	estat = gdp_gcl_open(gcliname, GDP_MODE_RO, &gclh);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	estat = gdp_gcl_read(gclh, recno, msg);
+	estat = gdp_gcl_read(gclh, recno, datum);
 	if (!EP_STAT_ISOK(estat))
 		goto fail0;
 
@@ -213,10 +213,10 @@ read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
 						"GDP-Message-Number: %" PRIgdp_recno "\r\n",
 						gclpname,
 						recno);
-			if (msg->ts.stamp.tv_sec != TT_NOTIME)
+			if (datum->ts.stamp.tv_sec != TT_NOTIME)
 			{
 				fprintf(fp, "GDP-Commit-Timestamp: ");
-				tt_print_interval(&msg->ts, fp, false);
+				tt_print_interval(&datum->ts, fp, false);
 				fprintf(fp, "\r\n");
 			}
 			fprintf(fp, "\r\n");				// end of header
@@ -227,7 +227,7 @@ read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
 		// finish up sending the data out --- the extra copy is annoying
 		{
 			size_t rlen = strlen(rbuf);
-			size_t dlen = msg->dlen;
+			size_t dlen = datum->dlen;
 			char obuf[1024];
 			char *obp = obuf;
 
@@ -239,7 +239,7 @@ read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
 						strerror(errno));
 
 			memcpy(obp, rbuf, rlen);
-			gdp_buf_read(msg->dbuf, obp + rlen, dlen);
+			gdp_buf_read(datum->dbuf, obp + rlen, dlen);
 			scgi_send(req, obp, rlen + dlen);
 			if (obp != obuf)
 				ep_mem_free(obp);
@@ -247,7 +247,7 @@ read_msg(char *gclpname, gdp_recno_t recno, scgi_request *req)
 	}
 
 	// finished
-	gdp_msg_free(msg);
+	gdp_datum_free(datum);
 	gdp_gcl_close(gclh);
 	return estat;
 
@@ -328,7 +328,7 @@ process_scgi_req(scgi_request *req,
 		{
 			// create a new GCL
 			ep_dbg_cprintf(Dbg, 5, "=== Create new GCL\n");
-			gcl_handle_t *gclh;
+			gdp_gcl_t *gclh;
 			EP_STAT estat = gdp_gcl_create(NULL, &gclh);
 
 			if (EP_STAT_ISOK(estat))
@@ -364,27 +364,27 @@ process_scgi_req(scgi_request *req,
 		else if (req->request_method == SCGI_METHOD_POST)
 		{
 			// append value to GCL
-			gdp_msg_t *msg = gdp_msg_new();
+			gdp_datum_t *datum = gdp_datum_new();
 			struct sockstate *ss = req->descriptor->cbdata;
 
 			ep_dbg_cprintf(Dbg, 5, "=== Add value to GCL\n");
 
 			// if we don't have an open GCL, get one
 			estat = EP_STAT_OK;
-			if (ss->gcl_handle == NULL)
+			if (ss->gcl == NULL)
 			{
 				gcl_name_t gcliname;
 
 				gdp_gcl_internal_name(gclpname, gcliname);
-				estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &ss->gcl_handle);
+				estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &ss->gcl);
 			}
 			if (EP_STAT_ISOK(estat))
 			{
-				gdp_msg_t *msg = gdp_msg_new();
+				gdp_datum_t *datum = gdp_datum_new();
 
-				msg->dlen = req->scgi_content_length;
-				gdp_buf_write(msg->dbuf, req->body, msg->dlen);
-				estat = gdp_gcl_append(ss->gcl_handle, msg);
+				datum->dlen = req->scgi_content_length;
+				gdp_buf_write(datum->dbuf, req->body, datum->dlen);
+				estat = gdp_gcl_append(ss->gcl, datum);
 			}
 			if (!EP_STAT_ISOK(estat))
 			{
@@ -414,13 +414,13 @@ process_scgi_req(scgi_request *req,
 						"\r\n"
 						"{\r\n"
 						"	 \"recno\": \"%d\"",
-						msg->recno);
-				if (msg->ts.stamp.tv_sec != TT_NOTIME)
+						datum->recno);
+				if (datum->ts.stamp.tv_sec != TT_NOTIME)
 				{
 					fprintf(fp,
 							",\r\n"
 							"	 \"timestamp\": ");
-					tt_print_interval(&msg->ts, fp, false);
+					tt_print_interval(&datum->ts, fp, false);
 				}
 				fprintf(fp, "\r\n}");
 				fputc('\0', fp);
@@ -437,7 +437,7 @@ process_scgi_req(scgi_request *req,
 	else if (req->request_method == SCGI_METHOD_GET && is_integer_string(uri))
 	{
 		// read message and return result
-		estat = read_msg(gclpname, atol(uri), req);
+		estat = read_datum(gclpname, atol(uri), req);
 	}
 #if 0
 	else if (req->request_method == SCGI_METHOD_POST)
@@ -514,8 +514,8 @@ fd_freefd_cb(int fd, void *cbdata)
 	event_free(ss->event);
 
 	// if we have an associated GCL handle, close it
-	if (ss->gcl_handle != NULL)
-		gdp_gcl_close(ss->gcl_handle);
+	if (ss->gcl != NULL)
+		gdp_gcl_close(ss->gcl);
 
 	ep_mem_free(ss);
 }

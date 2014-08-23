@@ -35,7 +35,7 @@ printtrace(void *lock, const char *where)
 }
 
 #define TRACE(lock, where)	\
-		if (ep_dbg_test(Dbg, 60)) printtrace(lock, where)
+		if (ep_dbg_test(Dbg, 90)) printtrace(lock, where)
 
 void
 _ep_thr_init(void)

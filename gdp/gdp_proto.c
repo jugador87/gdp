@@ -1,9 +1,9 @@
 /* vim: set ai sw=4 sts=4 ts=4 :*/
 
 #include <gdp/gdp.h>
+#include <gdp/gdp_event.h>
 #include <gdp/gdp_log.h>
 #include <gdp/gdp_stat.h>
-#include <gdp/gdp_pkt.h>
 #include <gdp/gdp_priv.h>
 #include <ep/ep.h>
 #include <ep/ep_app.h>
@@ -39,10 +39,6 @@
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.proto", "GDP protocol processing");
 
 
-//XXX this really shouldn't be global: restricts us to one port
-static gdp_chan_t	*GdpChannel;	// our primary protocol port
-
-
 /*
 **   GDP_REQ_SEND --- send a request to the GDP daemon
 **
@@ -53,10 +49,10 @@ EP_STAT
 _gdp_req_send(gdp_req_t *req)
 {
 	EP_STAT estat;
-	gcl_handle_t *gclh = req->gclh;
+	gdp_gcl_t *gclh = req->gclh;
 
 	ep_dbg_cprintf(Dbg, 45, "gdp_req_send: cmd=%d (%s), req=%p\n",
-			req->pkt.cmd, _gdp_proto_cmd_name(req->pkt.cmd), req);
+			req->pkt->cmd, _gdp_proto_cmd_name(req->pkt->cmd), req);
 	EP_ASSERT(gclh != NULL);
 
 	// link the request to the GCL
@@ -69,7 +65,7 @@ _gdp_req_send(gdp_req_t *req)
 	_gdp_gcl_cache_add(gclh, 0);
 
 	// write the message out
-	estat = _gdp_pkt_out(&req->pkt, bufferevent_get_output(GdpChannel));
+	estat = _gdp_pkt_out(req->pkt, bufferevent_get_output(_GdpChannel));
 
 	// done
 	return estat;
@@ -87,37 +83,21 @@ _gdp_req_send(gdp_req_t *req)
 */
 
 EP_STAT
-_gdp_invoke(int cmd, gcl_handle_t *gclh, gdp_msg_t *msg)
+_gdp_invoke(gdp_req_t *req)
 {
 	EP_STAT estat;
-	gdp_req_t *req = NULL;
 
-	EP_ASSERT_POINTER_VALID(gclh);
+	EP_ASSERT_POINTER_VALID(req);
 	if (ep_dbg_test(Dbg, 22))
 	{
 		ep_dbg_printf("gdp_invoke: cmd=%d (%s)\n    gclh@%p: ",
-				cmd, _gdp_proto_cmd_name(cmd), gclh);
-		gdp_msg_print(msg, ep_dbg_getfile());
+				req->pkt->cmd, _gdp_proto_cmd_name(req->pkt->cmd), req->gclh);
+		gdp_datum_print(req->pkt->datum, ep_dbg_getfile());
 	}
 
 	/*
 	**  Top Half: sending the command
 	*/
-
-	// get an associated request
-	estat = _gdp_req_new(cmd, gclh, 0, &req);
-	EP_STAT_CHECK(estat, goto fail0);
-
-	if (msg == NULL)
-	{
-		req->pkt.msg = msg = gdp_msg_new();
-		req->flags |= GDP_REQ_OWN_MSG;
-	}
-	else
-	{
-		req->pkt.msg = msg;
-		req->flags &= ~GDP_REQ_OWN_MSG;
-	}
 
 	estat = _gdp_req_send(req);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -156,8 +136,6 @@ fail0:
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
-	if (req != NULL)
-		_gdp_req_free(req);
 	return estat;
 }
 
@@ -169,7 +147,6 @@ fail0:
 **
 **		All of these take as parameters:
 **			req --- the request information (including packet header)
-**			chan --- the libevent channel from which this pdu came
 **
 **		They can return GDP_STAT_KEEP_READING to tell the upper
 **		layer that the whole packet hasn't been read yet.
@@ -177,31 +154,27 @@ fail0:
 ***********************************************************************/
 
 static EP_STAT
-ack_success(gdp_req_t *req,
-		gdp_chan_t *chan)
+ack_success(gdp_req_t *req)
 {
 	EP_STAT estat;
-	gcl_handle_t *gclh;
+	gdp_gcl_t *gclh;
 
 	// we require a request
 	estat = GDP_STAT_PROTOCOL_FAIL;
 	if (req == NULL)
 		gdp_log(estat, "ack_success: null request");
-	else if (req->pkt.msg == NULL)
-		gdp_log(estat, "ack_success: null msg");
+	else if (req->pkt->datum == NULL)
+		gdp_log(estat, "ack_success: null datum");
 	else
-		estat = GDP_STAT_FROM_ACK(req->pkt.cmd);
+		estat = GDP_STAT_FROM_ACK(req->pkt->cmd);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	gclh = req->gclh;
 
 	//	If we started with no gcl id, adopt from incoming packet.
 	//	This can happen when creating a GCL.
-	if (gclh != NULL)
-	{
-		if (gdp_gcl_name_is_zero(gclh->gcl_name))
-			memcpy(gclh->gcl_name, req->pkt.gcl_name, sizeof gclh->gcl_name);
-	}
+	if (gclh != NULL && gdp_gcl_name_is_zero(gclh->gcl_name))
+		memcpy(gclh->gcl_name, req->pkt->gcl_name, sizeof gclh->gcl_name);
 
 fail0:
 	return estat;
@@ -217,18 +190,16 @@ nak(int cmd, const char *where)
 
 
 static EP_STAT
-nak_client(gdp_req_t *req,
-		gdp_chan_t *chan)
+nak_client(gdp_req_t *req)
 {
-	return nak(req->pkt.cmd, "client");
+	return nak(req->pkt->cmd, "client");
 }
 
 
 static EP_STAT
-nak_server(gdp_req_t *req,
-		gdp_chan_t *chan)
+nak_server(gdp_req_t *req)
 {
-	return nak(req->pkt.cmd, "server");
+	return nak(req->pkt->cmd, "server");
 }
 
 
@@ -533,30 +504,147 @@ _gdp_register_cmdfuncs(struct cmdfuncs *cf)
 
 
 static EP_STAT
-cmd_not_implemented(gdp_req_t *req,
-		gdp_chan_t *chan)
+cmd_not_implemented(gdp_req_t *req)
 {
-	const char *peer = "(unknown)";
-
 	// just ignore unknown commands
-	ep_dbg_cprintf(Dbg, 1, "gdp_read_cb: Unknown packet cmd %d from %s\n",
-			req->pkt.cmd, peer);
+	if (ep_dbg_test(Dbg, 1))
+	{
+		ep_dbg_printf("gdp_req_dispatch: Unknown cmd, req:\n");
+		_gdp_req_dump(req, ep_dbg_getfile());
+	}
 
 	return GDP_STAT_NOT_IMPLEMENTED;
 }
 
 
 EP_STAT
-_gdp_req_dispatch(gdp_req_t *req, gdp_chan_t *chan)
+_gdp_req_dispatch(gdp_req_t *req)
 {
 	EP_STAT estat;
 	dispatch_ent_t *d;
 
-	d = &DispatchTable[req->pkt.cmd];
+	d = &DispatchTable[req->pkt->cmd];
 	if (d->func == NULL)
-		estat = cmd_not_implemented(req, chan);
+		estat = cmd_not_implemented(req);
 	else
-		estat = (*d->func)(req, chan);
+		estat = (*d->func)(req);
+	return estat;
+}
+
+
+/*
+**  PROCESS_PACKET --- execute the command in the packet
+*/
+
+EP_STAT
+process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
+{
+	EP_STAT estat;
+	gdp_gcl_t *gclh = NULL;
+	gdp_req_t *req = NULL;
+
+	// find the handle for the associated GCL
+	if (EP_UT_BITSET(GDP_PKT_HAS_ID, pkt->flags))
+	{
+		gclh = _gdp_gcl_cache_get(pkt->gcl_name, 0);
+		if (gclh == NULL)
+		{
+			gcl_pname_t pbuf;
+
+			gdp_gcl_printable_name(pkt->gcl_name, pbuf);
+			ep_dbg_cprintf(Dbg, 1, "gdp_read_cb: GCL %s has no handle\n", pbuf);
+		}
+	}
+
+	// find the request
+	if (gclh != NULL)
+		req = _gdp_req_find(gclh, pkt->rid);
+
+	if (req == NULL)
+	{
+		ep_dbg_cprintf(Dbg, 43,
+				"gdp_read_cb: allocating new req for gclh %p\n", gclh);
+		estat = _gdp_req_new(pkt->cmd, gclh, chan, 0, &req);
+		if (!EP_STAT_ISOK(estat))
+		{
+			gdp_log(estat, "gdp_read_cb: cannot allocate request; dropping packet");
+
+			// not much to do here other than ignore the input
+			_gdp_pkt_free(pkt);
+			return estat;
+		}
+		
+		//XXX link request into GCL list??
+	}
+
+	if (req->pkt->datum != NULL)
+	{
+		ep_dbg_cprintf(Dbg, 43,
+				"gdp_read_cb: reusing old datum for req %p\n", req);
+
+		// don't need the old dbuf
+		gdp_buf_free(req->pkt->datum->dbuf);
+
+		// copy the contents of the new message over the old
+		memcpy(req->pkt->datum, pkt->datum, sizeof *req->pkt->datum);
+
+		// we no longer need the new message
+		pkt->datum->dbuf = NULL;
+		gdp_datum_free(pkt->datum);
+
+		// point the new packet at the old datum
+		pkt->datum = req->pkt->datum;
+	}
+
+	// can now drop the old pkt and switch to the new one
+	req->pkt->datum = NULL;
+	_gdp_pkt_free(req->pkt);
+	req->pkt = pkt;
+	pkt = NULL;
+
+	// invoke the command-specific (or ack-specific) function
+	estat = _gdp_req_dispatch(req);
+
+	// ASSERT all data from chan has been consumed
+
+	ep_thr_mutex_lock(&req->mutex);
+	if (EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
+	{
+		// link the request onto the event queue
+		gdp_event_t *gev;
+
+		// for the moment we only understand data responses (for subscribe)
+		if (req->pkt->cmd != GDP_ACK_DATA_CONTENT)
+		{
+			ep_dbg_cprintf(Dbg, 3, "Got unexpected ack %d\n", req->pkt->cmd);
+			estat = GDP_STAT_PROTOCOL_FAIL;
+			goto fail1;
+		}
+
+		estat = gdp_event_new(&gev);
+		EP_STAT_CHECK(estat, goto fail1);
+
+		gev->type = GDP_EVENT_DATA;
+		gev->gcl = req->gclh;
+		gev->datum = req->pkt->datum;
+		req->pkt->datum = NULL;
+
+		gdp_event_add(gev);
+	}
+	else
+	{
+		// return our status via the request
+		req->stat = estat;
+		req->flags |= GDP_REQ_DONE;
+		if (ep_dbg_test(Dbg, 44))
+		{
+			ep_dbg_printf("gdp_read_cb: on return, ");
+			_gdp_req_dump(req, ep_dbg_getfile());
+		}
+		ep_thr_cond_signal(&req->cond);
+	}
+fail1:
+	ep_thr_mutex_unlock(&req->mutex);
 	return estat;
 }
 
@@ -569,122 +657,24 @@ static void
 gdp_read_cb(gdp_chan_t *chan, void *ctx)
 {
 	EP_STAT estat;
-	gdp_pkt_t pkt;		// temporary space, copied into request
+	gdp_pkt_t *pkt;
 	gdp_buf_t *ievb = bufferevent_get_input(chan);
-	gcl_handle_t *gclh;
-	gdp_req_t *req;
-	bool keep_pmsg = false;
 
 	ep_dbg_cprintf(Dbg, 50, "gdp_read_cb: fd %d\n", bufferevent_getfd(chan));
 
-	_gdp_pkt_init(&pkt, gdp_msg_new());
-	estat = _gdp_pkt_in(&pkt, ievb);
+	pkt = _gdp_pkt_new();
+	estat = _gdp_pkt_in(pkt, ievb);
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
 	{
-		gdp_msg_free(pkt.msg);
+		_gdp_pkt_free(pkt);
 		return;
 	}
 
-	// find the handle for the associated GCL
-	if (EP_UT_BITSET(GDP_PKT_HAS_ID, pkt.flags))
-	{
-		gclh = _gdp_gcl_cache_get(pkt.gcl_name, 0);
-		if (gclh == NULL)
-		{
-			gcl_pname_t pbuf;
-
-			gdp_gcl_printable_name(pkt.gcl_name, pbuf);
-			ep_dbg_cprintf(Dbg, 1, "gdp_read_cb: GCL %s has no handle\n", pbuf);
-		}
-	}
-	else
-	{
-		gclh = NULL;
-	}
-
-	// find the request
-	if (gclh == NULL)
-		req = NULL;
-	else
-		req = _gdp_req_find(gclh, pkt.rid);
-
-	if (req == NULL)
-	{
-		ep_dbg_cprintf(Dbg, 43,
-				"gdp_read_cb: allocating new req for gclh %p\n", gclh);
-		estat = _gdp_req_new(pkt.cmd, gclh, 0, &req);
-		if (!EP_STAT_ISOK(estat))
-		{
-			gdp_log(estat, "gdp_read_cb: cannot allocate request");
-			gdp_msg_free(pkt.msg);
-			return;
-		}
-		
-		//XXX link request into GCL list??
-	}
-
-	if (req->pkt.msg == NULL)
-	{
-		ep_dbg_cprintf(Dbg, 43,
-				"gdp_read_cb: allocating new msg for req %p\n", req);
-		req->pkt.msg = pkt.msg;
-		keep_pmsg = true;
-	}
-
-	// copy the temporary message into the message in the request
-	//		We have to copy the contents because that msg may have been
-	//		passed in by the high level caller.
-	req->pkt.msg->dlen = pkt.msg->dlen;
-	req->pkt.msg->recno = pkt.msg->recno;
-	memcpy(&req->pkt.msg->ts, &pkt.msg->ts, sizeof req->pkt.msg->ts);
-	size_t l = evbuffer_remove_buffer(ievb, req->pkt.msg->dbuf,
-						req->pkt.msg->dlen);
-	if (l < req->pkt.msg->dlen)
-	{
-		ep_dbg_cprintf(Dbg, 2, "gdp_read_cb: cannot read all data; wanted %zd, got %zd\n",
-				req->pkt.msg->dlen, l);
-	}
-
-	// copy over the rest of the packet, retaining the msg buffer
-	gdp_msg_t *pmsg = pkt.msg;
-	pkt.msg = req->pkt.msg;
-	memcpy(&req->pkt, &pkt, sizeof req->pkt);
-
-	// can free the temporary msg now
-	if (!keep_pmsg)
-	{
-		gdp_msg_free(pmsg);
-		pkt.msg = NULL;			// paranoia
-	}
-
-	// invoke the command-specific (or ack-specific) function
-	estat = _gdp_req_dispatch(req, chan);
-
-	// ASSERT all data from chan has been consumed
-
-//	XXX KEEP_READING is not an option, since the header has been consumed
-//	if (gclh == NULL || EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
-//	{
-//		ep_dbg_cprintf(Dbg, 44, "gdp_read_cb: keep reading\n");
-//		return;
-//	}
-
-//	// if this a response and the RID isn't persistent, we're done with it
-//	if (rif != NULL && pkt.cmd >= GDP_ACK_MIN &&
-//			!EP_UT_BITSET(RINFO_PERSISTENT | RINFO_KEEP_MAPPING, rif->flags))
-//		drop_rid_mapping(pkt.rid, conn);
-
-	// return our status via the request
-	ep_thr_mutex_lock(&req->mutex);
-	req->stat = estat;
-	req->flags |= GDP_REQ_DONE;
-	if (ep_dbg_test(Dbg, 44))
-	{
-		ep_dbg_printf("gdp_read_cb: on return, ");
-		_gdp_req_dump(req, ep_dbg_getfile());
-	}
-	ep_thr_cond_signal(&req->cond);
-	ep_thr_mutex_unlock(&req->mutex);
+#ifdef GDP_PACKET_QUEUE
+	_gdp_pkt_add_to_queue(pkt, chan);
+#else
+	estat = process_packet(pkt, chan);
+#endif
 }
 
 
@@ -738,13 +728,13 @@ gdp_event_cb(gdp_chan_t *chan, short events, void *ctx)
 */
 
 static EP_STAT
-init_error(const char *msg, const char *where)
+init_error(const char *datum, const char *where)
 {
 	int eno = errno;
 	EP_STAT estat = ep_stat_from_errno(eno);
 
-	gdp_log(estat, "gdp_init: %s: %s", where, msg);
-	ep_app_error("gdp_init: %s: %s: %s", where, msg, strerror(eno));
+	gdp_log(estat, "gdp_init: %s: %s", where, datum);
+	ep_app_error("gdp_init: %s: %s: %s", where, datum, strerror(eno));
 	return estat;
 }
 
@@ -845,7 +835,7 @@ evlib_log_cb(int severity, const char *msg)
 		sev = "?";
 	else
 		sev = sevstrings[severity];
-	ep_dbg_cprintf(EvlibDbg, (6 - severity) * 10, "[%s] %s\n", sev, msg);
+	ep_dbg_cprintf(EvlibDbg, ((4 - severity) * 20) + 2, "[%s] %s\n", sev, msg);
 }
 
 /*
@@ -861,6 +851,14 @@ _gdp_do_init_1(void)
 	EP_STAT estat = EP_STAT_OK;
 
 	ep_dbg_cprintf(Dbg, 4, "gdp_init: initializing\n");
+
+	if (ep_dbg_test(EvlibDbg, 80))
+	{
+		// according to the book...
+		//event_enable_debug_logging(EVENT_DBG_ALL);
+		// according to the code...
+		event_enable_debug_mode();
+	}
 
 	// initialize the EP library
 	ep_lib_init(EP_LIB_USEPTHREADS);
@@ -878,14 +876,6 @@ _gdp_do_init_1(void)
 	// set up the event base
 	if (GdpIoEventBase == NULL)
 	{
-		if (ep_dbg_test(EvlibDbg, 51))
-		{
-			// according to the book...
-			//event_enable_debug_logging(EVENT_DBG_ALL);
-			// according to the code...
-			event_enable_debug_mode();
-		}
-
 		// Initialize for I/O events
 		{
 			struct event_config *ev_cfg = event_config_new();
@@ -953,7 +943,7 @@ _gdp_do_init_2(void)
 			estat = init_error("could not connect to IPv4 socket", "gdp_init");
 			goto fail1;
 		}
-		GdpChannel = chan;
+		_GdpChannel = chan;
 		ep_dbg_cprintf(Dbg, 10, "gdp_init: talking on port %d, fd %d\n",
 				gdpd_port, bufferevent_getfd(chan));
 	}
