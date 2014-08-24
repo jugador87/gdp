@@ -17,13 +17,15 @@
 #include <ep/ep_hexdump.h>
 #include <ep/ep_prflags.h>
 #include <ep/ep_stat.h>
-#include <gdp/gdp.h>
-#include <gdp/gdp_log.h>
-#include <gdp/gdp_priv.h>
-#include <gdp/gdp_pkt.h>
-#include <gdp/gdp_timestamp.h>
+
+#include "gdp.h"
+#include "gdp_log.h"
+#include "gdp_priv.h"
+#include "gdp_pkt.h"
+#include "gdp_timestamp.h"
+
 #include <event2/event.h>
-#include <event2/buffer.h>
+
 #include <string.h>
 #include <sys/errno.h>
 

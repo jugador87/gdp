@@ -11,7 +11,7 @@
 #include <ep/ep_dbg.h>
 #include <ep/ep_thr.h>
 
-#include <gdp/gdp.h>
+#include "gdp.h"
 #include "gdp_priv.h"
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.datum", "GDP datum processing");

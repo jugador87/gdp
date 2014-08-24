@@ -384,7 +384,7 @@ process_scgi_req(scgi_request *req,
 
 				datum->dlen = req->scgi_content_length;
 				gdp_buf_write(datum->dbuf, req->body, datum->dlen);
-				estat = gdp_gcl_append(ss->gcl, datum);
+				estat = gdp_gcl_publish(ss->gcl, datum);
 			}
 			if (!EP_STAT_ISOK(estat))
 			{

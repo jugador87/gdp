@@ -8,12 +8,11 @@
 
 #include <ep/ep_hash.h>
 #include <ep/ep_mem.h>
+#include <ep/ep_thr.h>
 
 //#include <linux/limits.h>		XXX NOT PORTABLE!!!
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <ep/ep_thr.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>

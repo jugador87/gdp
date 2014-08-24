@@ -182,7 +182,7 @@ main(int argc, char *argv[])
 			datum.len = strlen(datum.data);
 			datum.datumno = i + 1;
 
-			estat = gdp_gcl_append(gclh_write, &datum);
+			estat = gdp_gcl_publish(gclh_write, &datum);
 			EP_STAT_CHECK(estat, goto fail1);
 		}
 		ep_time_now(&end_time);

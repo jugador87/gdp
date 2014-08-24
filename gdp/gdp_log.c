@@ -14,7 +14,7 @@
 #include <ep/ep_stat.h>
 #include <ep/ep_string.h>
 #include <ep/ep_time.h>
-#include <stdio.h>
+
 #include <syslog.h>
 #include <inttypes.h>
 #include <time.h>

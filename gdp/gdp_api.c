@@ -1,30 +1,19 @@
 /* vim: set ai sw=4 sts=4 ts=4 :*/
 
-#include <gdp/gdp.h>
-#include <gdp/gdp_log.h>
-#include <gdp/gdp_stat.h>
-#include <gdp/gdp_priv.h>
 #include <ep/ep.h>
 #include <ep/ep_app.h>
 #include <ep/ep_b64.h>
 #include <ep/ep_dbg.h>
-#include <ep/ep_hash.h>
-#include <ep/ep_prflags.h>
 #include <ep/ep_string.h>
-#include <ep/ep_thr.h>
-#include <event2/bufferevent.h>
+
+#include "gdp.h"
+#include "gdp_log.h"
+#include "gdp_stat.h"
+#include "gdp_priv.h"
+
 #include <event2/event.h>
-#include <event2/thread.h>
-#include <event2/util.h>
-#include <sys/file.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdio.h>
+
 #include <errno.h>
-#include <string.h>
 
 /*
 **	This implements the GDP API for C-based applications.
@@ -415,11 +404,11 @@ fail0:
 
 
 /*
-**	GDP_GCL_APPEND --- append a message to a writable GCL
+**	GDP_GCL_PUBLISH --- append a message to a writable GCL
 */
 
 EP_STAT
-gdp_gcl_append(gdp_gcl_t *gclh,
+gdp_gcl_publish(gdp_gcl_t *gclh,
 			gdp_datum_t *datum)
 {
 	EP_STAT estat;

@@ -7,7 +7,7 @@
 
 #include <string.h>
 
-#include <gdp/gdp.h>
+#include "gdp.h"
 #include "gdp_priv.h"
 
 #include <ep/ep_dbg.h>

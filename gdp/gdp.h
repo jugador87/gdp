@@ -151,7 +151,7 @@ extern EP_STAT	gdp_gcl_close(
 					gdp_gcl_t *gclh);		// GCL handle to close
 
 // append to a writable GCL
-extern EP_STAT	gdp_gcl_append(
+extern EP_STAT	gdp_gcl_publish(
 					gdp_gcl_t *gclh,		// writable GCL handle
 					gdp_datum_t *);			// message to write
 

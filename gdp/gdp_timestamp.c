@@ -4,7 +4,9 @@
 #include <ep/ep_dbg.h>
 #include <ep/ep_stat.h>
 #include <ep/ep_string.h>
-#include <gdp/gdp_timestamp.h>
+
+#include "gdp_timestamp.h"
+
 #include <errno.h>
 #include <inttypes.h>
 

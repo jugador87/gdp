@@ -39,8 +39,7 @@ do_subscribe(gdp_gcl_t *gclh)
 {
 	EP_STAT estat;
 
-	if (EP_STAT_ISOK(estat))
-		estat = gdp_gcl_subscribe(gclh, 1, -1, NULL, NULL);
+	estat = gdp_gcl_subscribe(gclh, 1, -1, NULL, NULL);
 	if (!EP_STAT_ISOK(estat))
 	{
 		char ebuf[200];
