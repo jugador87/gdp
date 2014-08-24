@@ -63,6 +63,7 @@ _gdp_req_new(int cmd,
 	req->gclh = gclh;
 	req->stat = EP_STAT_OK;
 	req->flags = flags;
+	req->chan = chan;
 	req->pkt->cmd = cmd;
 	if (gclh != NULL)
 		memcpy(req->pkt->gcl_name, gclh->gcl_name, sizeof req->pkt->gcl_name);
@@ -93,14 +94,6 @@ _gdp_req_free(gdp_req_t *req)
 	req->inuse = false;
 
 	ep_thr_mutex_lock(&req->mutex);
-
-	// remove it from the old list
-	if (req->gclh != NULL)
-	{
-		ep_thr_mutex_lock(&req->gclh->mutex);
-		LIST_REMOVE(req, list);
-		ep_thr_mutex_unlock(&req->gclh->mutex);
-	}
 
 	// free the associated packet
 	if (req->pkt != NULL)
@@ -174,8 +167,8 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 	_gdp_pkt_dump(req->pkt, fp);
 	fprintf(fp, "    flags=");
 	ep_prflags(req->flags, ReqFlags, fp);
-	fprintf(fp, "\n    udata=%p, stat=%s\n",
-			req->udata,
+	fprintf(fp, "\n    chan=%p, udata=%p, stat=%s\n",
+			req->chan, req->udata,
 			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
 }
 

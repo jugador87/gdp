@@ -279,6 +279,7 @@ gdp_gcl_create(gcl_name_t gcl_name,
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// success
+	_gdp_req_free(req);
 	*pgclh = gclh;
 	return estat;
 
@@ -498,26 +499,21 @@ gdp_gcl_subscribe(gdp_gcl_t *gclh,
 	EP_ASSERT_POINTER_VALID(gclh);
 	EP_ASSERT(cbfunc == NULL);		// callbacks aren't implemented yet
 
-	estat = _gdp_req_new(GDP_CMD_SUBSCRIBE, gclh, _GdpChannel, GDP_REQ_PERSIST, &req);
+	estat = _gdp_req_new(GDP_CMD_SUBSCRIBE, gclh, _GdpChannel,
+				GDP_REQ_PERSIST, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// add start and stop parameters to packet
 
 	// issue the subscription --- no data returned
 	estat = _gdp_invoke(req);
+	EP_ASSERT(req->inuse);		// make sure it didn't get freed
 
 	// now arrange for responses to appear as events
-	//XXX
+	req->flags |= GDP_REQ_SUBSCRIPTION;
 
-//	EP_STAT_CHECK(estat, return estat);
-//	cba = ep_mem_zalloc(sizeof *cba);
-//	cba->gcl_handle = gclh;
-//	cba->cbfunc = cbfunc;
-//	cba->cbarg = cbarg;
-//	cba->event = event_new(GdpIoEventBase, fileno(gclh->fp),
-//			EV_READ|EV_PERSIST, &gcl_sub_event_cb, cba);
-//	event_add(cba->event, &timeout);
-	//XXX;
+	// we don't free the request because it is persistent
+
 fail0:
 	return estat;
 }

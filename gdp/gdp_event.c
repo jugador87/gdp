@@ -90,7 +90,7 @@ gdp_event_next(bool wait)
 
 
 void
-gdp_event_add(gdp_event_t *gev)
+gdp_event_trigger(gdp_event_t *gev)
 {
 	EP_ASSERT_POINTER_VALID(gev);
 	EP_ASSERT(gev->next == NULL);

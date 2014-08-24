@@ -65,7 +65,7 @@ _gdp_req_send(gdp_req_t *req)
 	_gdp_gcl_cache_add(gclh, 0);
 
 	// write the message out
-	estat = _gdp_pkt_out(req->pkt, bufferevent_get_output(_GdpChannel));
+	estat = _gdp_pkt_out(req->pkt, bufferevent_get_output(req->chan));
 
 	// done
 	return estat;
@@ -608,7 +608,7 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	// ASSERT all data from chan has been consumed
 
 	ep_thr_mutex_lock(&req->mutex);
-	if (EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
+	if (EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, req->flags))
 	{
 		// link the request onto the event queue
 		gdp_event_t *gev;
@@ -629,7 +629,7 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		gev->datum = req->pkt->datum;
 		req->pkt->datum = NULL;
 
-		gdp_event_add(gev);
+		gdp_event_trigger(gev);
 	}
 	else
 	{

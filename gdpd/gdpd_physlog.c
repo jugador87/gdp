@@ -366,6 +366,7 @@ gcl_open(gcl_name_t gcl_name,
 	}
 
 	gcl_log_header log_header;
+	rewind(data_fp);
 	if (fread(&log_header, sizeof(log_header), 1, data_fp) < 1)
 	{
 		estat = ep_stat_from_errno(errno);
@@ -642,16 +643,10 @@ gcl_append(gdp_gcl_t *gclh,
 	fwrite(&log_record, sizeof(log_record), 1, gclh->fp);
 
 	// write log record data
-	while (dlen > 0)
 	{
-		char buf[1024];
-
-		if (dlen > sizeof buf)
-			dlen = sizeof buf;
-
-		gdp_buf_read(datum->dbuf, buf, dlen);
-		fwrite(buf, dlen, 1, gclh->fp);
-		dlen = gdp_buf_getlength(datum->dbuf);
+		unsigned char *p = evbuffer_pullup(datum->dbuf, datum->dlen);
+		if (p != NULL)
+			fwrite(p, datum->dlen, 1, gclh->fp);
 	}
 
 	index_record.recno = log_record.recno;

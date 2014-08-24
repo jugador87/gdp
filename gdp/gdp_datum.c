@@ -62,6 +62,11 @@ gdp_datum_free(gdp_datum_t *datum)
 	ep_dbg_cprintf(Dbg, 48, "gdp_datum_free(%p)\n", datum);
 	EP_ASSERT(datum->inuse);
 	datum->inuse = false;
+	if (datum->dbuf != NULL)
+	{
+		evbuffer_drain(datum->dbuf, evbuffer_get_length(datum->dbuf));
+		datum->dlen = 0;
+	}
 	ep_thr_mutex_lock(&DatumFreeListMutex);
 	datum->next = DatumFreeList;
 	DatumFreeList = datum;

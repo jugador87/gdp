@@ -227,6 +227,9 @@ cmd_publish(gdp_req_t *req)
 	// send the new data to any subscribers
 	sub_notify_all_subscribers(req);
 
+	// we can now let the data in the request go
+	evbuffer_drain(req->pkt->datum->dbuf, req->pkt->datum->dlen);
+
 	return estat;
 }
 
@@ -248,7 +251,14 @@ cmd_subscribe(gdp_req_t *req)
 							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 
+	// mark this as a subscription request
 	req->flags |= GDP_REQ_PERSIST | GDP_REQ_SUBSCRIPTION;
+
+	// link this request into the GCL so the subscription can be found
+	ep_thr_mutex_lock(&gclh->mutex);
+	LIST_INSERT_HEAD(&gclh->reqs, req, list);
+	ep_thr_mutex_unlock(&gclh->mutex);
+
 	return EP_STAT_OK;
 }
 
@@ -281,8 +291,13 @@ dispatch_cmd(gdp_req_t *req)
 	EP_STAT estat;
 	int cmd = req->pkt->cmd;
 
-	ep_dbg_cprintf(Dbg, 18, "dispatch_cmd: >>> command %d (%s)\n",
-			cmd, _gdp_proto_cmd_name(cmd));
+	if (ep_dbg_test(Dbg, 18))
+	{
+		ep_dbg_printf("dispatch_cmd: >>> command %d (%s)\n",
+				cmd, _gdp_proto_cmd_name(cmd));
+		if (ep_dbg_test(Dbg, 30))
+			_gdp_req_dump(req, ep_dbg_getfile());
+	}
 
 	estat = _gdp_req_dispatch(req);
 
@@ -328,7 +343,6 @@ void
 gdpd_req_thread(void *req_)
 {
 	gdp_req_t *req = req_;
-	gdp_chan_t *chan = req->udata;
 
 	ep_dbg_cprintf(Dbg, 18, "gdpd_req_thread: starting\n");
 
@@ -344,11 +358,12 @@ gdpd_req_thread(void *req_)
 			evbuffer_get_length(req->pkt->datum->dbuf));
 
 	// send the response packet header
-	req->stat = _gdp_pkt_out(req->pkt, bufferevent_get_output(chan));
+	req->stat = _gdp_pkt_out(req->pkt, bufferevent_get_output(req->chan));
 	//XXX anything to do with estat here?
 
 	// we can now unlock and free resources
-	_gdp_req_free(req);
+	if (!EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
+		_gdp_req_free(req);
 
 	ep_dbg_cprintf(Dbg, 19, "gdpd_req_thread: returning to pool\n");
 }
@@ -385,7 +400,7 @@ lev_read_cb(gdp_chan_t *chan, void *ctx)
 	}
 
 	// cheat: pass channel in req structure
-	req->udata = chan;
+	req->chan = chan;
 	thread_pool_job *new_job = thread_pool_job_new(&gdpd_req_thread,
 									NULL, req);
 	thread_pool_add_job(CpuJobThreadPool, new_job);

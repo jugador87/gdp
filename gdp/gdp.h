@@ -107,8 +107,8 @@ extern EP_STAT			gdp_event_new(gdp_event_t **gevp);
 // free an event
 extern EP_STAT			gdp_event_free(gdp_event_t *gev);
 
-// add an event to the queue
-extern void				gdp_event_add(gdp_event_t *gev);
+// add an event to the active queue
+extern void				gdp_event_trigger(gdp_event_t *gev);
 
 // get next event (fills in gev structure)
 extern gdp_event_t		*gdp_event_next(bool wait);
