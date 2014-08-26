@@ -96,7 +96,7 @@ gcl_log_index_new(gdp_gcl_t *gclh, gcl_log_index **out)
 	new_index->fp = NULL;
 	new_index->max_recno = 0;
 	new_index->max_data_offset = gclh->data_offset;
-	new_index->max_index_offset = 0;
+	new_index->max_index_offset = SIZEOF_INDEX_HEADER;
 	int cache_size = ep_adm_getintparam("swarm.gdp.index.cachesize", 65536);
 								// 1 MiB index cache
 	new_index->index_cache = circular_buffer_new(cache_size);
@@ -272,6 +272,7 @@ gcl_create(gcl_name_t gcl_name,
 
 	// write the header
 	gcl_log_header log_header;
+	log_header.num_metadata_entries = 0;
 	int16_t metadata_size = 0; // XXX: compute size of metadata
 	log_header.magic = GCL_LOG_MAGIC;
 	log_header.version = GCL_VERSION;
@@ -405,7 +406,9 @@ gcl_open(gcl_name_t gcl_name,
 	gclh->log_index = index;
 
 	index->fp = index_fp;
-	index->max_recno = (fsizeof(index_fp) - SIZEOF_INDEX_HEADER)
+	index->max_data_offset = fsizeof(data_fp);
+	index->max_index_offset = fsizeof(index_fp);
+	index->max_recno = (index->max_index_offset - SIZEOF_INDEX_HEADER)
 								/ SIZEOF_INDEX_RECORD;
 
 	*pgclh = gclh;

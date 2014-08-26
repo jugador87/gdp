@@ -16,6 +16,7 @@ static struct ep_stat_to_string	Stats[] =
     { EP_STAT_OUT_OF_MEMORY,	"out of memory",		},
     { EP_STAT_ARG_OUT_OF_RANGE,	"argument out of range",	},
     { EP_STAT_END_OF_FILE,	"end of file",			},
+    { EP_STAT_TIME_BADFORMAT,	"bad time format",		},
 
     { EP_STAT_OK,		NULL,				}
 };

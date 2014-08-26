@@ -71,14 +71,14 @@ _gdp_pkt_dump(gdp_pkt_t *pkt, FILE *fp)
 			fprintf(fp, "(none)");
 		else
 		{
-			fprintf(fp, "%u", pkt->datum->recno);
+			fprintf(fp, "%" PRIgdp_recno, pkt->datum->recno);
 			len += sizeof pkt->datum->recno;
 		}
 		fprintf(fp, ", dbuf=%p, dlen=%zu/%zu", pkt->datum->dbuf, pkt->datum->dlen,
 				pkt->datum->dbuf == NULL ? 0 : gdp_buf_getlength(pkt->datum->dbuf));
 		fprintf(fp, "\n\tts=");
-		tt_print_interval(&pkt->datum->ts, fp, true);
-		if (pkt->datum->ts.stamp.tv_sec != TT_NOTIME)
+		ep_time_print(&pkt->datum->ts, fp, true);
+		if (EP_TIME_ISVALID(&pkt->datum->ts))
 			len += sizeof pkt->datum->ts;
 	}
 	fprintf(fp, "\n\ttotal header=%d\n", len);
@@ -181,16 +181,16 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 	if (pkt->datum != NULL && pkt->datum->recno != GDP_PKT_NO_RECNO)
 	{
 		pbuf[2] |= GDP_PKT_HAS_RECNO;
-		PUT32(pkt->datum->recno);
+		PUT64(pkt->datum->recno);
 	}
 
 	// timestamp
-	if (pkt->datum != NULL && pkt->datum->ts.stamp.tv_sec != TT_NOTIME)
+	if (pkt->datum != NULL && EP_TIME_ISVALID(&pkt->datum->ts))
 	{
 		pbuf[2] |= GDP_PKT_HAS_TS;
-		PUT64(pkt->datum->ts.stamp.tv_sec);
-		PUT32(pkt->datum->ts.stamp.tv_nsec);
-		PUT32(pkt->datum->ts.accuracy);
+		PUT64(pkt->datum->ts.tv_sec);
+		PUT32(pkt->datum->ts.tv_nsec);
+		PUT32(*((uint32_t *) &pkt->datum->ts.tv_accuracy));
 	}
 
 	//XXX pad out to four octets?
@@ -317,7 +317,7 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	if (EP_UT_BITSET(GDP_PKT_HAS_ID, pkt->flags))
 		needed += 32;				// sizeof pkt->gcl_name;
 	if (EP_UT_BITSET(GDP_PKT_HAS_RECNO, pkt->flags))
-		needed += 4;				// sizeof pkt->recno;
+		needed += 8;				// sizeof pkt->recno;
 	if (EP_UT_BITSET(GDP_PKT_HAS_TS, pkt->flags))
 		needed += 16;				// sizeof pkt->ts;
 	needed += pkt->datum->dlen;
@@ -382,19 +382,19 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	if (!EP_UT_BITSET(GDP_PKT_HAS_RECNO, pkt->flags))
 		pkt->datum->recno = GDP_PKT_NO_RECNO;
 	else
-		GET32(pkt->datum->recno)
+		GET64(pkt->datum->recno)
 
 	// timestamp
 	if (!EP_UT_BITSET(GDP_PKT_HAS_TS, pkt->flags))
 	{
 		memset(&pkt->datum->ts, 0, sizeof pkt->datum->ts);
-		pkt->datum->ts.stamp.tv_sec = TT_NOTIME;
+		EP_TIME_INVALIDATE(&pkt->datum->ts);
 	}
 	else
 	{
-		GET64(pkt->datum->ts.stamp.tv_sec);
-		GET32(pkt->datum->ts.stamp.tv_nsec);
-		GET32(pkt->datum->ts.accuracy)
+		GET64(pkt->datum->ts.tv_sec);
+		GET32(pkt->datum->ts.tv_nsec);
+		GET32(*((uint32_t *) &pkt->datum->ts.tv_accuracy));
 	}
 
 	//XXX soak up any padding bytes?

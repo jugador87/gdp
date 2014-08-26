@@ -43,7 +43,7 @@ EP_STAT			gcl_append(
 typedef struct gcl_log_record
 {
 	gdp_recno_t		recno;
-	tt_interval_t	timestamp;
+	EP_TIME_SPEC	timestamp;
 	int64_t			data_length;
 	char			data[];
 } gcl_log_record;
@@ -66,6 +66,7 @@ typedef struct gcl_log_header
 							// the data records begin at offset header_size
 	int16_t log_type;
 	int16_t num_metadata_entries;
+	int16_t pad;			// the header is padded anyway by compiler
 } gcl_log_header;
 
 typedef struct gcl_index_record

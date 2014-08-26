@@ -213,10 +213,10 @@ read_datum(char *gclpname, gdp_recno_t recno, scgi_request *req)
 						"GDP-Message-Number: %" PRIgdp_recno "\r\n",
 						gclpname,
 						recno);
-			if (datum->ts.stamp.tv_sec != TT_NOTIME)
+			if (EP_TIME_ISVALID(&datum->ts))
 			{
 				fprintf(fp, "GDP-Commit-Timestamp: ");
-				tt_print_interval(&datum->ts, fp, false);
+				ep_time_print(&datum->ts, fp, false);
 				fprintf(fp, "\r\n");
 			}
 			fprintf(fp, "\r\n");				// end of header
@@ -413,14 +413,14 @@ process_scgi_req(scgi_request *req,
 						"Content-Type: application/json\r\n"
 						"\r\n"
 						"{\r\n"
-						"	 \"recno\": \"%d\"",
+						"	 \"recno\": \"%" PRIgdp_recno "d\"",
 						datum->recno);
-				if (datum->ts.stamp.tv_sec != TT_NOTIME)
+				if (EP_TIME_ISVALID(&datum->ts))
 				{
 					fprintf(fp,
 							",\r\n"
 							"	 \"timestamp\": ");
-					tt_print_interval(&datum->ts, fp, false);
+					ep_time_print(&datum->ts, fp, false);
 				}
 				fprintf(fp, "\r\n}");
 				fputc('\0', fp);

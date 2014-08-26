@@ -60,7 +60,7 @@ gdp_datum_print(const gdp_datum_t *datum,
 		fprintf(fp, "null datum\n");
 		return;
 	}
-	fprintf(fp, "GDP record %d, ", datum->recno);
+	fprintf(fp, "GDP record %" PRIgdp_recno ", ", datum->recno);
 	if (datum->dbuf == NULL)
 	{
 		fprintf(fp, "no data");
@@ -74,10 +74,10 @@ gdp_datum_print(const gdp_datum_t *datum,
 		d = gdp_buf_getptr(datum->dbuf, l);
 	}
 
-	if (datum->ts.stamp.tv_sec != TT_NOTIME)
+	if (EP_TIME_ISVALID(&datum->ts))
 	{
 		fprintf(fp, ", timestamp ");
-		tt_print_interval(&datum->ts, fp, true);
+		ep_time_print(&datum->ts, fp, true);
 	}
 	else
 	{
@@ -421,7 +421,7 @@ gdp_gcl_publish(gdp_gcl_t *gclh,
 	estat = _gdp_req_new(GDP_CMD_PUBLISH, gclh, _GdpChannel, 0, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 	gdp_datum_free(req->pkt->datum);
-	tt_now(&datum->ts);
+	(void) ep_time_now(&datum->ts);
 	req->pkt->datum = datum;
 
 	estat = _gdp_invoke(req);
@@ -456,7 +456,7 @@ gdp_gcl_read(gdp_gcl_t *gclh,
 	EP_STAT_CHECK(estat, goto fail0);
 
 	datum->recno = recno;
-	datum->ts.stamp.tv_sec = TT_NOTIME;
+	EP_TIME_INVALIDATE(&datum->ts);
 
 	gdp_datum_free(req->pkt->datum);
 	req->pkt->datum = datum;

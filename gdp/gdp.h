@@ -42,8 +42,8 @@ typedef uint32_t			gdp_rid_t;
 #define PRIgdp_rid			PRIu32
 
 // a GCL record number
-typedef int32_t				gdp_recno_t;
-#define PRIgdp_recno		PRId32
+typedef int64_t				gdp_recno_t;
+#define PRIgdp_recno		PRId64
 
 /*
 **	I/O modes
@@ -83,7 +83,7 @@ typedef struct gdp_datum
 	struct gdp_datum	*next;		// next in free list
 	bool				inuse:1;	// indicates that the datum is in use
 	gdp_recno_t			recno;		// the record number
-	tt_interval_t		ts;			// timestamp for this message
+	EP_TIME_SPEC		ts;			// timestamp for this message
 	size_t				dlen;		// length of data buffer (redundant)
 	gdp_buf_t			*dbuf;		// data buffer
 } gdp_datum_t;

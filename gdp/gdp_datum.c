@@ -44,7 +44,7 @@ gdp_datum_new(void)
 
 	// initialize metadata
 	datum->recno = GDP_PKT_NO_RECNO;
-	datum->ts.stamp.tv_sec = TT_NOTIME;
+	EP_TIME_INVALIDATE(&datum->ts);
 	if (datum->dbuf == NULL)
 	{
 		datum->dbuf = gdp_buf_new();
