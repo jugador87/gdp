@@ -10,7 +10,6 @@ OBJS=	\
 	gdp_proto.o \
 	gdp_req.o \
 	gdp_stat.o \
-#	gdp_timestamp.o \
 
 HFILES=	\
 	gdp.h \
@@ -19,7 +18,6 @@ HFILES=	\
 	gdp_pkt.h \
 	gdp_priv.h \
 	gdp_stat.h \
-#	gdp_timestamp.h \
 
 ALL=	libgdp.a
 

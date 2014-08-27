@@ -8,7 +8,6 @@
 #define _GDP_PRIV_H_
 
 #include <ep/ep_thr.h>
-#include "gdp_timestamp.h"
 #include <event2/event.h>
 #include <event2/bufferevent.h>
 

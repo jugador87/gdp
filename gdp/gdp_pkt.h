@@ -8,7 +8,6 @@
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include "gdp_priv.h"
-#include "gdp_timestamp.h"
 
 #define GDP_PORT_DEFAULT		2468	// default IP port
 

@@ -13,11 +13,11 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <ep/ep_stat.h>
+#include <ep/ep_time.h>
 #include <event2/event.h>
 #include <event2/bufferevent.h>
 #include <gdp/gdp_buf.h>
 #include <gdp/gdp_stat.h>
-#include <gdp/gdp_timestamp.h>
 
 /**********************************************************************
 **	Opaque structures

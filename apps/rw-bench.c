@@ -1,4 +1,4 @@
-/* vim: set ai sw=4 sts=4 : */
+/* vim: set ai sw=4 sts=4 ts=4 : */
 
 #include <gdp/gdp.h>
 
@@ -21,7 +21,9 @@ struct elapsed_time {
 };
 
 void
-avg_elapsed_time(struct elapsed_time *total_elapsed_time, size_t n, struct elapsed_time *out) {
+avg_elapsed_time(struct elapsed_time *total_elapsed_time,
+		size_t n, struct elapsed_time *out)
+{
 	assert(n > 0);
 	out->millis = (total_elapsed_time->seconds * 1000) + total_elapsed_time->millis;
 	out->millis /= n;
@@ -30,7 +32,9 @@ avg_elapsed_time(struct elapsed_time *total_elapsed_time, size_t n, struct elaps
 }
 
 void
-sum_elapsed_time(struct elapsed_time elapsed_time[], size_t n, struct elapsed_time *out) {
+sum_elapsed_time(struct elapsed_time elapsed_time[],
+		size_t n, struct elapsed_time *out)
+{
 	size_t i;
 	long new_seconds;
 	out->seconds = 0;
@@ -56,8 +60,10 @@ get_elapsed_time(
 }
 
 void
-print_elapsed_time(FILE *stream, struct elapsed_time *elapsed_time) {
-	fprintf(stream, "Elapsed time = %lu.%03lu s\n", elapsed_time->seconds, elapsed_time->millis);
+print_elapsed_time(FILE *stream, struct elapsed_time *elapsed_time)
+{
+	fprintf(stream, "Elapsed time = %lu.%03lu s\n",
+			elapsed_time->seconds, elapsed_time->millis);
 }
 
 int
@@ -116,7 +122,7 @@ main(int argc, char *argv[])
 		}
 	}
 
-	estat = gdp_init(true);
+	estat = gdp_init();
 	if (!EP_STAT_ISOK(estat))
 	{
 		ep_app_error("GDP Initialization failed");
@@ -137,10 +143,8 @@ main(int argc, char *argv[])
 	size_t data_size = num_records * (max_record_size);
 	char *cur_record;
 	char *cur_record_b64;
-	gdp_datum_t datum;
 	gcl_name_t internal_name;
 	gcl_pname_t printable_name;
-	struct evbuffer *evb = evbuffer_new();
 
 	data = malloc(data_size);
 	cur_record = malloc(max_record_size);
@@ -169,24 +173,28 @@ main(int argc, char *argv[])
 			//fprintf(stdout, "record length: %lu\n", strlen(&data[(i * max_record_size)]));
 		}
 
-		estat = gdp_gcl_create(NULL, NULL, &gclh_write);
+		estat = gdp_gcl_create(NULL, &gclh_write);
 
 		EP_STAT_CHECK(estat, goto fail0);
 		gdp_gcl_print(gclh_write, stdout, 0, 0);
 
 		ep_time_now(&start_time);
-		fprintf(stdout, "Writing data (start_time = %llu:%u)\n", start_time.tv_sec, start_time.tv_nsec);
-		for (i = 0; i < num_records; ++i) {
-			memset(&datum, '\0', sizeof datum);
-			datum.data = &data[(i * max_record_size)];
-			datum.len = strlen(datum.data);
-			datum.datumno = i + 1;
+		fprintf(stdout, "Writing data (start_time = %llu:%u)\n",
+				start_time.tv_sec, start_time.tv_nsec);
+		for (i = 0; i < num_records; ++i)
+		{
+			gdp_datum_t *datum = gdp_datum_new();
+			datum->recno = i + 1;
+			datum->dlen = strlen(&data[(i * max_record_size)]);
+			gdp_buf_write(datum->dbuf, &data[(i * max_record_size)], datum->dlen);
 
-			estat = gdp_gcl_publish(gclh_write, &datum);
+			estat = gdp_gcl_publish(gclh_write, datum);
+			gdp_datum_free(datum);
 			EP_STAT_CHECK(estat, goto fail1);
 		}
 		ep_time_now(&end_time);
-		fprintf(stdout, "Finished writing data (end_time = %llu:%u)\n", end_time.tv_sec, end_time.tv_nsec);
+		fprintf(stdout, "Finished writing data (end_time = %llu:%u)\n",
+				end_time.tv_sec, end_time.tv_nsec);
 		get_elapsed_time(&start_time, &end_time, &trial_write_times[t]);
 		print_elapsed_time(stdout, &trial_write_times[t]);
 		memcpy(internal_name, gdp_gcl_getname(gclh_write), sizeof internal_name);
@@ -194,22 +202,29 @@ main(int argc, char *argv[])
 		gdp_gcl_close(gclh_write);
 		estat = gdp_gcl_open(internal_name, GDP_MODE_RO, &gclh_read);
 		ep_time_now(&start_time);
-		fprintf(stdout, "Reading data (start_time = %llu:%u)\n", start_time.tv_sec, start_time.tv_nsec);
-		for (i = 0; i < num_records; ++i) {
-			estat = gdp_gcl_read(gclh_read, i + 1, &datum, evb);
+		fprintf(stdout, "Reading data (start_time = %llu:%u)\n",
+				start_time.tv_sec, start_time.tv_nsec);
+		for (i = 0; i < num_records; ++i)
+		{
+			gdp_datum_t *datum = gdp_datum_new();
+
+			estat = gdp_gcl_read(gclh_read, i + 1, datum);
 			EP_STAT_CHECK(estat, goto fail2);
-			datum.len = evbuffer_remove(evb, cur_record, max_record_size);
-			cur_record[datum.len] = '\0';
-			datum.data = cur_record;
-			if (strncmp(data + (i * max_record_size), datum.data, max_length) != 0) {
+			gdp_buf_read(datum->dbuf, cur_record, datum->dlen);
+			if (strncmp(data + (i * max_record_size),
+						cur_record,
+						datum->dlen) != 0)
+			{
 				fprintf(stdout, "data mismatch:\n> expected: %s\n> got     : %s\n",
 					data + (i * max_record_size), cur_record);
 			}
 
-			evbuffer_drain(evb, UINT_MAX);
+			gdp_datum_free(datum);
+//			evbuffer_drain(evb, UINT_MAX);
 		}
 		ep_time_now(&end_time);
-		fprintf(stdout, "Finished reading data (end_time = %llu:%u)\n", end_time.tv_sec, end_time.tv_nsec);
+		fprintf(stdout, "Finished reading data (end_time = %llu:%u)\n",
+				end_time.tv_sec, end_time.tv_nsec);
 		get_elapsed_time(&start_time, &end_time, &trial_read_times[t]);
 		print_elapsed_time(stdout, &trial_read_times[t]);
 		fprintf(stdout, "\n");
@@ -218,7 +233,8 @@ main(int argc, char *argv[])
 	sum_elapsed_time(trial_read_times, trials, &total_e_time);
 	avg_elapsed_time(&total_e_time, trials, &avg_e_time);
 
-	fprintf(stdout, "Average read time per trial: %lu.%03lu s\n", avg_e_time.seconds, avg_e_time.millis);
+	fprintf(stdout, "Average read time per trial: %lu.%03lu s\n",
+			avg_e_time.seconds, avg_e_time.millis);
 
 	sum_elapsed_time(trial_write_times, trials, &total_e_time);
 	avg_elapsed_time(&total_e_time, trials, &avg_e_time);

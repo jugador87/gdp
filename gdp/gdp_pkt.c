@@ -22,7 +22,6 @@
 #include "gdp_log.h"
 #include "gdp_priv.h"
 #include "gdp_pkt.h"
-#include "gdp_timestamp.h"
 
 #include <event2/event.h>
 
