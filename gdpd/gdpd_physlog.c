@@ -516,6 +516,11 @@ gcl_read(gdp_gcl_t *gclh,
 			gdp_log(estat, "gcl_read: fsizeof failed");
 			goto fail1;
 		}
+		if (file_size < SIZEOF_INDEX_HEADER)
+		{
+			estat = GDP_STAT_CORRUPT_INDEX;
+			goto fail1;
+		}
 		int64_t record_count = (file_size - SIZEOF_INDEX_HEADER) /
 								SIZEOF_INDEX_RECORD;
 		gcl_index_record index_record;
@@ -526,11 +531,6 @@ gcl_read(gdp_gcl_t *gclh,
 		ep_dbg_cprintf(Dbg, 14,
 				"searching index, rec_count=%" PRId64 ", file_size=%ju\n",
 				record_count, (uintmax_t) file_size);
-		if (file_size <= sizeof (gcl_log_header))
-		{
-			estat = GDP_STAT_CORRUPT_INDEX;
-			goto fail1;
-		}
 
 		/*
 		**  XXX Why can't this just be computed from the record number?
