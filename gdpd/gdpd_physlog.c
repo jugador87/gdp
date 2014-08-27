@@ -341,6 +341,7 @@ gcl_open(gcl_name_t gcl_name,
 {
 	EP_STAT estat = EP_STAT_OK;
 	gdp_gcl_t *gclh = NULL;
+	int fd;
 	FILE *data_fp;
 	FILE *index_fp;
 	char data_pbuf[GCL_PATH_MAX];
@@ -350,18 +351,20 @@ gcl_open(gcl_name_t gcl_name,
 	EP_STAT_CHECK(estat, goto fail1);
 	gclh->iomode = mode;
 
-	const char *openmode = "a+";
-
 	estat = get_gcl_path(gclh, GCL_DATA_SUFFIX, data_pbuf, sizeof data_pbuf);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	estat = get_gcl_path(gclh, GCL_INDEX_SUFFIX, index_pbuf, sizeof index_pbuf);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	if ((data_fp = fopen(data_pbuf, openmode)) == NULL)
+	fd = open(data_pbuf, O_RDWR | O_APPEND);
+	if (fd < 0 || flock(fd, LOCK_SH) < 0 ||
+			(data_fp = fdopen(fd, "a+")) == NULL)
 	{
 		estat = ep_stat_from_errno(errno);
 		gdp_log(estat, "gcl_open(%s): data file open failure", data_pbuf);
+		if (fd >= 0)
+			close(fd);
 		goto fail1;
 	}
 
@@ -384,10 +387,14 @@ gcl_open(gcl_name_t gcl_name,
 		goto fail3;
 	}
 
-	if ((index_fp = fopen(index_pbuf, openmode)) == NULL)
+	fd = open(index_pbuf, O_RDWR | O_APPEND);
+	if (fd < 0 || flock(fd, LOCK_SH) < 0 ||
+			(index_fp = fdopen(fd, "a+")) == NULL)
 	{
 		estat = ep_stat_from_errno(errno);
 		gdp_log(estat, "gcl_open(%s): index open failure", index_pbuf);
+		if (fd >= 0)
+			close(fd);
 		goto fail4;
 	}
 
