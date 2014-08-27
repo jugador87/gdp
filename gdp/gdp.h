@@ -34,8 +34,8 @@ typedef struct gdp_gcl		gdp_gcl_t;
 typedef uint8_t				gcl_name_t[32];
 
 // the printable name of a GCL
-#define GCL_PNAME_LEN		43			// length of an encoded pname
-typedef char				gcl_pname_t[GCL_PNAME_LEN + 1];
+#define GDP_GCL_PNAME_LEN	43			// length of an encoded pname
+typedef char				gcl_pname_t[GDP_GCL_PNAME_LEN + 1];
 
 // a GDP request id (used for correlating commands and responses)
 typedef uint32_t			gdp_rid_t;
@@ -199,6 +199,11 @@ char			*gdp_gcl_printable_name(
 // make a binary GCL name from a printable version
 EP_STAT			gdp_gcl_internal_name(
 					const gcl_pname_t external,
+					gcl_name_t internal);
+
+// parse a (possibly human-friendly) GCL name
+EP_STAT			gdp_gcl_parse_name(
+					const char *ext,
 					gcl_name_t internal);
 
 // allocate a new message

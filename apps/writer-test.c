@@ -7,29 +7,48 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <string.h>
+#include <sysexits.h>
 
 
 int
 main(int argc, char **argv)
 {
 	gdp_gcl_t *gclh;
-	char *gclpname = NULL;
+	gcl_name_t gcliname;
 	int opt;
 	EP_STAT estat;
+	bool append = false;
+	char *xname = NULL;
 	char buf[200];
 
-	while ((opt = getopt(argc, argv, "a:D:")) > 0)
+	while ((opt = getopt(argc, argv, "aD:")) > 0)
 	{
 		switch (opt)
 		{
 		 case 'a':
-			gclpname = optarg;
+			append = true;
 			break;
 
 		 case 'D':
 			ep_dbg_set(optarg);
 			break;
 		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc > 0)
+	{
+		xname = argv[0];
+		argc--;
+		argv++;
+	}
+	if (argc != 0 || (append && xname == NULL))
+	{
+		fprintf(stderr, "Usage: %s [-D dbgspec] [-a] [<gcl_name>]\n"
+				"  (name is required for -a)\n",
+				ep_app_getprogname());
+		exit(EX_USAGE);
 	}
 
 	estat = gdp_init();
@@ -39,19 +58,21 @@ main(int argc, char **argv)
 		goto fail0;
 	}
 
-	if (gclpname == NULL)
+	if (xname == NULL)
 	{
 		// create a new GCL handle
 		estat = gdp_gcl_create(NULL, &gclh);
 	}
 	else
 	{
-		gcl_name_t gcliname;
-
-		gdp_gcl_internal_name(gclpname, gcliname);
-		estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gclh);
+		gdp_gcl_parse_name(xname, gcliname);
+		if (append)
+			estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gclh);
+		else
+			estat = gdp_gcl_create(gcliname, &gclh);
 	}
 	EP_STAT_CHECK(estat, goto fail0);
+
 	gdp_gcl_print(gclh, stdout, 0, 0);
 	fprintf(stdout, "\nStarting to read input\n");
 

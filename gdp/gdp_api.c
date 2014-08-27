@@ -12,6 +12,7 @@
 #include "gdp_priv.h"
 
 #include <event2/event.h>
+#include <openssl/sha.h>
 
 #include <errno.h>
 
@@ -133,7 +134,7 @@ gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
 {
 	EP_STAT estat;
 
-	if (strlen(external) != GCL_PNAME_LEN)
+	if (strlen(external) != GDP_GCL_PNAME_LEN)
 	{
 		estat = GDP_STAT_GCL_NAME_INVALID;
 	}
@@ -162,6 +163,30 @@ gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
 	}
 
 	return estat;
+}
+
+/*
+**	GDP_GCL_PARSENAME --- parse a (possibily human-friendly) GCL name
+**
+**		An externally printable version of an internal name must be
+**		exactly GDP_GCL_PNAME_LEN (43) characters long and contain only
+**		valid URL-Base64 characters.  These are base64 decoded.
+**		All other names are considered human-friendly and are
+**		sha256-encoded to get the internal name.
+*/
+
+EP_STAT
+gdp_gcl_parse_name(const char *ext, gcl_name_t gcl_name)
+{
+	if (strlen(ext) == GDP_GCL_PNAME_LEN &&
+			EP_STAT_ISOK(ep_b64_decode(ext, sizeof (gcl_pname_t) - 1,
+								gcl_name, sizeof (gcl_name_t), EP_B64_ENC_URL)))
+		return EP_STAT_OK;
+
+	// must be human-oriented name
+	SHA256((const uint8_t *) ext, strlen(ext), gcl_name);
+	gcl_name[GDP_GCL_PNAME_LEN] = '\0';
+	return EP_STAT_OK;
 }
 
 /*

@@ -78,7 +78,7 @@ main(int argc, char **argv)
 	EP_STAT estat;
 	char buf[200];
 	gcl_name_t gclname;
-	char *gclpname;
+	gcl_pname_t gclpname;
 	int opt;
 	bool subscribe = false;
 
@@ -112,16 +112,15 @@ main(int argc, char **argv)
 		goto fail0;
 	}
 
-
-	gclpname = argv[0];
-	fprintf(stdout, "Reading GCL %s\n", gclpname);
-
-	estat = gdp_gcl_internal_name(gclpname, gclname);
+	estat = gdp_gcl_parse_name(argv[0], gclname);
 	if (!EP_STAT_ISOK(estat))
 	{
-		ep_app_abort("illegal GCL name syntax:\n\t%s", gclpname);
+		ep_app_abort("illegal GCL name syntax:\n\t%s", argv[0]);
 		exit(1);
 	}
+
+	gdp_gcl_printable_name(gclname, gclpname);
+	fprintf(stdout, "Reading GCL %s\n", gclpname);
 
 	estat = gdp_gcl_open(gclname, GDP_MODE_RO, &gclh);
 	if (!EP_STAT_ISOK(estat))
