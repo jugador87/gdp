@@ -1,5 +1,7 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
+#include "gdpd.h"
+
 /*
 **	Headers for the physical log implementation.
 **		This is how bytes are actually laid out on the disk.
