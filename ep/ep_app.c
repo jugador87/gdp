@@ -95,7 +95,12 @@ ep_app_error(
 	if (fmt != NULL)
 		vfprintf(stderr, fmt, av);
 	if (errno != 0)
-		fprintf(stderr, "\n\t(%s)", strerror(errno));
+	{
+		char nbuf[40];
+
+		strerror_r(errno, nbuf, sizeof nbuf);
+		fprintf(stderr, "\n\t(%s)", nbuf);
+	}
 	fprintf(stderr, "\n");
 	va_end(av);
 }
@@ -128,7 +133,12 @@ ep_app_abort(
 	if (fmt != NULL)
 		vfprintf(stderr, fmt, av);
 	if (errno != 0)
-		fprintf(stderr, "\n\t(%s)", strerror(errno));
+	{
+		char nbuf[40];
+
+		strerror_r(errno, nbuf, sizeof nbuf);
+		fprintf(stderr, "\n\t(%s)", nbuf);
+	}
 	fprintf(stderr, "\n\t(exiting)\n");
 	va_end(av);
 

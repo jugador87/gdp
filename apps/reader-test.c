@@ -27,8 +27,13 @@ do_read(gdp_gcl_t *gclh)
 
 		// flush any left over data
 		if (gdp_buf_reset(datum->dbuf) < 0)
+		{
+			char nbuf[40];
+
+			strerror_r(errno, nbuf, sizeof nbuf);
 			printf("*** WARNING: buffer reset failed: %s\n",
-					strerror(errno));
+					nbuf);
+		}
 	}
 
 	// if we've reached the end of file, that's not an error, at least

@@ -68,7 +68,7 @@ void
 ep_assert_abort(const char *msg)
 {
 	const char *msg0 = "!!!ABORT: ";
-	const char *msg1;
+	char msg1[40];
 	const char *msg2 = ": ";
 
 	// give the application an opportunity to do something else
@@ -76,7 +76,7 @@ ep_assert_abort(const char *msg)
 		(*EpAbortFunc)();
 
 	// no?  OK then, let's bail out near line 1
-	msg1 = strerror(errno);
+	strerror_r(errno, msg1, sizeof msg1);
 	(void) write(2, msg0, strlen(msg0));
 	(void) write(2, msg1, strlen(msg1));
 	(void) write(2, msg2, strlen(msg2));

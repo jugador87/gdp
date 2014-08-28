@@ -23,7 +23,10 @@ bool	_EpThrUsePthreads = false;	// also used by ep_dbg_*
 static void
 diagnose_thr_err(int err, const char *where)
 {
-	ep_dbg_cprintf(Dbg, 4, "ep_thr_%s: %s\n", where, strerror(err));
+	char nbuf[40];
+
+	strerror_r(err, nbuf, sizeof nbuf);
+	ep_dbg_cprintf(Dbg, 4, "ep_thr_%s: %s\n", where, nbuf);
 }
 
 static void

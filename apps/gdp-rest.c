@@ -92,9 +92,11 @@ write_scgi(scgi_request *req,
 	if (i == 0)
 	{
 		char obuf[40];
+		char nbuf[40];
 
+		strerror_r(errno, nbuf, sizeof nbuf);
 		ep_app_error("scgi_write (%s) failed: %s",
-				ep_pcvt_str(obuf, sizeof obuf, sbuf), strerror(errno));
+				ep_pcvt_str(obuf, sizeof obuf, sbuf), nbuf);
 	}
 	else if (dead)
 	{
@@ -204,8 +206,11 @@ read_datum(char *gclpname, gdp_recno_t recno, scgi_request *req)
 			fp = ep_fopensmem(rbuf, sizeof rbuf, "w");
 			if (fp == NULL)
 			{
+				char nbuf[40];
+
+				strerror_r(errno, nbuf, sizeof nbuf);
 				ep_app_abort("Cannot open memory for GCL read response: %s",
-						strerror(errno));
+						nbuf);
 			}
 			fprintf(fp, "HTTP/1.1 200 GCL Message\r\n"
 						"Content-Type: application/json\r\n"
@@ -235,8 +240,13 @@ read_datum(char *gclpname, gdp_recno_t recno, scgi_request *req)
 				obp = ep_mem_malloc(rlen + dlen);
 
 			if (obp == NULL)
+			{
+				char nbuf[40];
+
+				strerror_r(errno, nbuf, sizeof nbuf);
 				ep_app_abort("Cannot allocate memory for GCL read response: %s",
-						strerror(errno));
+						nbuf);
+			}
 
 			memcpy(obp, rbuf, rlen);
 			gdp_buf_read(datum->dbuf, obp + rlen, dlen);
@@ -460,8 +470,13 @@ process_scgi_req(scgi_request *req,
 	return estat;
 
  error500:
-	estat = gdp_failure(req, "500", "Internal Server Error", "s",
-			"errno", strerror(errno));
+	{
+		char nbuf[40];
+
+		strerror_r(errno, nbuf, sizeof nbuf);
+		estat = gdp_failure(req, "500", "Internal Server Error", "s",
+				"errno", nbuf);
+	}
 	return estat;
 }
 
@@ -573,8 +588,11 @@ main(int argc, char **argv, char **env)
 	}
 	else
 	{
+		char nbuf[40];
+
+		strerror_r(errno, nbuf, sizeof nbuf);
 		ep_app_error("could not initialize SCGI port %d: %s",
-				listenport, strerror(errno));
+				listenport, nbuf);
 		return EX_OSERR;
 	}
 

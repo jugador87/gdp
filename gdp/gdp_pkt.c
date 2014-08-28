@@ -203,18 +203,22 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 //	evbuffer_lock(obuf);
 	if (gdp_buf_write(obuf, pbuf, pbp - pbuf) < 0)
 	{
+		char nbuf[40];
+
 		// couldn't write, bad juju
-		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: header write failure: %s",
-				strerror(errno));
+		strerror_r(errno, nbuf, sizeof nbuf);
+		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: header write failure: %s", nbuf);
 		estat = GDP_STAT_PKT_WRITE_FAIL;
 	}
 	else if (dlen > 0 &&
 			((pbp = evbuffer_pullup(pkt->datum->dbuf, dlen)) == NULL ||
 			  evbuffer_add(obuf, pbp, dlen)))
 	{
+		char nbuf[40];
+
 		// couldn't write data
-		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: data write failure: %s\n",
-				strerror(errno));
+		strerror_r(errno, nbuf, sizeof nbuf);
+		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: data write failure: %s\n", nbuf);
 		estat = GDP_STAT_PKT_WRITE_FAIL;
 	}
 //	evbuffer_unlock(obuf);

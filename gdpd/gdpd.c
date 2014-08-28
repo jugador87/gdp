@@ -509,11 +509,12 @@ listener_error_cb(struct evconnlistener *lev, void *ctx)
 static EP_STAT
 init_error(const char *msg)
 {
-	int eno = errno;
-	EP_STAT estat = ep_stat_from_errno(eno);
+	EP_STAT estat = ep_stat_from_errno(errno);
+	char nbuf[40];
 
+	strerror_r(errno, nbuf, sizeof nbuf);
 	gdp_log(estat, "gdpd_init: %s", msg);
-	ep_app_error("gdpd_init: %s: %s", msg, strerror(eno));
+	ep_app_error("gdpd_init: %s: %s", msg, nbuf);
 	return estat;
 }
 

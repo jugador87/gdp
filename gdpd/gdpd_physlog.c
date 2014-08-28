@@ -227,17 +227,23 @@ gcl_create(gcl_name_t gcl_name,
 		data_fd = open(data_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644);
 		if (data_fd < 0 || (flock(data_fd, LOCK_EX) < 0))
 		{
+			char nbuf[40];
+
 			estat = ep_stat_from_errno(errno);
+			strerror_r(errno, nbuf, sizeof nbuf);
 			gdp_log(estat, "gcl_create: cannot create %s: %s",
-					data_pbuf, strerror(errno));
+					data_pbuf, nbuf);
 			goto fail1;
 		}
 		data_fp = fdopen(data_fd, "a+");
 		if (data_fp == NULL)
 		{
+			char nbuf[40];
+
 			estat = ep_stat_from_errno(errno);
+			strerror_r(errno, nbuf, sizeof nbuf);
 			gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
-					data_pbuf, strerror(errno));
+					data_pbuf, nbuf);
 			(void) close(data_fd);
 			goto fail1;
 		}
@@ -255,17 +261,23 @@ gcl_create(gcl_name_t gcl_name,
 		index_fd = open(index_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644);
 		if (index_fd < 0)
 		{
+			char nbuf[40];
+
 			estat = ep_stat_from_errno(errno);
+			strerror_r(errno, nbuf, sizeof nbuf);
 			gdp_log(estat, "gcl_create: cannot create %s: %s",
-				index_pbuf, strerror(errno));
+				index_pbuf, nbuf);
 			goto fail2;
 		}
 		index_fp = fdopen(index_fd, "a+");
 		if (index_fp == NULL)
 		{
+			char nbuf[40];
+
 			estat = ep_stat_from_errno(errno);
+			strerror_r(errno, nbuf, sizeof nbuf);
 			gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
-				index_pbuf, strerror(errno));
+				index_pbuf, nbuf);
 			(void) close(index_fd);
 			goto fail2;
 		}
