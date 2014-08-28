@@ -3,7 +3,6 @@
 #include <ep/ep_stat.h>
 #include "gdp.h"
 #include "gdp_stat.h"
-#include "gdp_priv.h"
 
 /*
 **	Status codes to string mappings
@@ -39,22 +38,22 @@ static struct ep_stat_to_string Stats[] =
 	{ GDP_STAT_CORRUPT_INDEX,			"corrupt GCL index",			},
 	{ GDP_STAT_CORRUPT_GCL,				"corrupt GCL data file",		},
 
-	{ NAKSTAT(C_BADREQ),				"4.00 bad request",				},
-	{ NAKSTAT(C_UNAUTH),				"4.01 unauthorized",			},
-	{ NAKSTAT(C_BADOPT),				"4.02 bad option",				},
-	{ NAKSTAT(C_FORBIDDEN),				"4.03 forbidden",				},
-	{ NAKSTAT(C_NOTFOUND),				"4.04 not found",				},
-	{ NAKSTAT(C_METHNOTALLOWED),		"4.05 method not allowed",		},
-	{ NAKSTAT(C_NOTACCEPTABLE),			"4.06 not acceptable",			},
-	{ NAKSTAT(C_PRECONFAILED),			"4.12 precondition failed",		},
-	{ NAKSTAT(C_TOOLARGE),				"4.13 request entity too large", },
-	{ NAKSTAT(C_UNSUPMEDIA),			"4.15 unsupported media type",	},
-	{ NAKSTAT(S_INTERNAL),				"5.00 internal server error",	},
-	{ NAKSTAT(S_NOTIMPL),				"5.01 not implemented",			},
-	{ NAKSTAT(S_BADGATEWAY),			"5.02 bad gateway",				},
-	{ NAKSTAT(S_SVCUNAVAIL),			"5.03 service unavailable",		},
-	{ NAKSTAT(S_GWTIMEOUT),				"5.04 gateway timeout",			},
-	{ NAKSTAT(S_PROXYNOTSUP),			"5.05 proxying not supported",	},
+	{ GDP_STAT_NAK_BADREQ,				"4.00 bad request",				},
+	{ GDP_STAT_NAK_UNAUTH,				"4.01 unauthorized",			},
+	{ GDP_STAT_NAK_BADOPT,				"4.02 bad option",				},
+	{ GDP_STAT_NAK_FORBIDDEN,			"4.03 forbidden",				},
+	{ GDP_STAT_NAK_NOTFOUND,			"4.04 not found",				},
+	{ GDP_STAT_NAK_METHNOTALLOWED,		"4.05 method not allowed",		},
+	{ GDP_STAT_NAK_NOTACCEPTABLE,		"4.06 not acceptable",			},
+	{ GDP_STAT_NAK_PRECONFAILED,		"4.12 precondition failed",		},
+	{ GDP_STAT_NAK_TOOLARGE,			"4.13 request entity too large", },
+	{ GDP_STAT_NAK_UNSUPMEDIA,			"4.15 unsupported media type",	},
+	{ GDP_STAT_NAK_INTERNAL,			"5.00 internal server error",	},
+	{ GDP_STAT_NAK_NOTIMPL,				"5.01 not implemented",			},
+	{ GDP_STAT_NAK_BADGATEWAY,			"5.02 bad gateway",				},
+	{ GDP_STAT_NAK_SVCUNAVAIL,			"5.03 service unavailable",		},
+	{ GDP_STAT_NAK_GWTIMEOUT,			"5.04 gateway timeout",			},
+	{ GDP_STAT_NAK_PROXYNOTSUP,			"5.05 proxying not supported",	},
 
 	// end of list sentinel
 	{ EP_STAT_OK,						NULL							},

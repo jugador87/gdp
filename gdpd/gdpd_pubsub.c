@@ -28,7 +28,7 @@ sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum)
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
-	req->pkt->cmd = GDP_ACK_DATA_CONTENT;
+	req->pkt->cmd = GDP_ACK_CONTENT;
 	req->pkt->datum = datum;
 
 	estat = _gdp_pkt_out(req->pkt, bufferevent_get_output(req->chan));

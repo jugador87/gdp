@@ -35,7 +35,7 @@ gdpd_gcl_error(gcl_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
 
 	gdp_gcl_printable_name(gcl_name, pname);
 	gdp_log(logstat, "%s: %s", msg, pname);
-	return GDP_STAT_FROM_NAK(GDP_NAK_C_BADREQ);
+	return GDP_STAT_NAK_BADREQ;
 }
 
 void
@@ -87,7 +87,7 @@ cmd_create(gdp_req_t *req)
 	EP_STAT estat;
 	gdp_gcl_t *gclh;
 
-	req->pkt->cmd = GDP_ACK_DATA_CREATED;
+	req->pkt->cmd = GDP_ACK_CREATED;
 
 	// no input, so we can reset the buffer just to be safe
 	flush_input_data(req, "cmd_create");
@@ -185,7 +185,7 @@ cmd_read(gdp_req_t *req)
 	gdp_gcl_t *gclh;
 	EP_STAT estat;
 
-	req->pkt->cmd = GDP_ACK_DATA_CONTENT;
+	req->pkt->cmd = GDP_ACK_CONTENT;
 
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_read");
@@ -201,7 +201,7 @@ cmd_read(gdp_req_t *req)
 	estat = gcl_read(gclh, req->pkt->datum);
 
 	if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
-		estat = GDP_STAT_FROM_NAK(GDP_NAK_C_NOTFOUND);
+		estat = GDP_STAT_NAK_NOTFOUND;
 	return estat;
 }
 
@@ -212,7 +212,7 @@ cmd_publish(gdp_req_t *req)
 	gdp_gcl_t *gclh;
 	EP_STAT estat;
 
-	req->pkt->cmd = GDP_ACK_DATA_CREATED;
+	req->pkt->cmd = GDP_ACK_CREATED;
 
 	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_AO);
 	if (gclh == NULL)
@@ -271,9 +271,9 @@ cmd_not_implemented(gdp_req_t *req)
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_not_implemented");
 
-	req->pkt->cmd = GDP_NAK_S_INTERNAL;
+	req->pkt->cmd = GDP_NAK_S_NOTIMPL;
 	_gdp_pkt_out_hard(req->pkt, bufferevent_get_output(req->chan));
-	return GDP_STAT_NOT_IMPLEMENTED;
+	return GDP_STAT_NAK_NOTIMPL;
 }
 
 
@@ -304,17 +304,18 @@ dispatch_cmd(gdp_req_t *req)
 	// decode return status as an ACK/NAK command
 	if (!EP_STAT_ISOK(estat))
 	{
+		req->pkt->cmd = GDP_NAK_S_INTERNAL;
 		if (EP_STAT_REGISTRY(estat) == EP_REGISTRY_UCB &&
-				EP_STAT_MODULE(estat) == GDP_MODULE &&
-				EP_STAT_DETAIL(estat) >= GDP_ACK_MIN &&
-				EP_STAT_DETAIL(estat) <= GDP_NAK_MAX)
+			EP_STAT_MODULE(estat) == GDP_MODULE)
 		{
-			req->pkt->cmd = EP_STAT_DETAIL(estat);
-		}
-		else
-		{
-			// not recognized
-			req->pkt->cmd = GDP_NAK_S_INTERNAL;
+			int d = EP_STAT_DETAIL(estat);
+
+			if (d >= 400 && d < (400 + GDP_NAK_C_MAX - GDP_NAK_C_MIN))
+				req->pkt->cmd = d - 400 + GDP_NAK_C_MIN;
+			else if (d >= 500 && d < (500 + GDP_NAK_S_MAX - GDP_NAK_S_MIN))
+				req->pkt->cmd = d - 500 + GDP_NAK_S_MIN;
+			else
+				req->pkt->cmd = GDP_NAK_S_INTERNAL;
 		}
 	}
 

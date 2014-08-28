@@ -30,6 +30,11 @@ do_read(gdp_gcl_t *gclh)
 			printf("*** WARNING: buffer reset failed: %s\n",
 					strerror(errno));
 	}
+
+	// if we've reached the end of file, that's not an error, at least
+	// as far as the user is concerned
+	if (EP_STAT_IS_SAME(estat, GDP_STAT_NAK_NOTFOUND))
+		estat = EP_STAT_END_OF_FILE;
 	return estat;
 }
 
@@ -127,7 +132,7 @@ main(int argc, char **argv)
 	{
 		char sbuf[100];
 
-		ep_app_error("Cannot open GCL: %s",
+		ep_app_error("Cannot open GCL:\n    %s",
 				ep_stat_tostr(estat, sbuf, sizeof sbuf));
 		goto fail0;
 	}

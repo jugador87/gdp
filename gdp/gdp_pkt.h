@@ -84,8 +84,18 @@ typedef struct gdp_pkt
 
 #define _GDP_MAX_PKT_HDR		128		// max size of on-wire packet header
 
-/***** values for gdp_pkg_hdr cmd field *****/
-/*	 note that the ack/nak values (128-254) also have STAT codes		*/
+/*
+**  Protocol command values
+**
+**		The ACK and NAK values are tightly coupled with EP_STAT codes
+**		and with COAP status codes, hence the somewhat baroque approach
+**		here.
+*/
+
+#define _GDP_ACK_FROM_COAP(c)	(GDP_COAP_##c - 200 + GDP_ACK_MIN)
+#define _GDP_NAK_C_FROM_COAP(c)	(GDP_COAP_##c - 400 + GDP_NAK_C_MIN)
+#define _GDP_NAK_S_FROM_COAP(c)	(GDP_COAP_##c - 500 + GDP_NAK_S_MIN)
+
 //		0-63			Blind commands
 #define GDP_CMD_KEEPALIVE		0		// used for keepalives
 //		64-127			Acknowledged commands
@@ -98,35 +108,37 @@ typedef struct gdp_pkt
 #define GDP_CMD_READ			70		// read a given record by index
 #define GDP_CMD_PUBLISH			71		// append a record
 #define GDP_CMD_SUBSCRIBE		72		// subscribe to a GCL
-//		128-191			Positive acks (with CoAP, HTTP equivalents)
+//		128-191			Positive acks
 #define GDP_ACK_MIN			128				// minimum ack code
-#define GDP_ACK_SUCCESS			128		// general success response (none, 200)
-#define GDP_ACK_DATA_CREATED	129		// datum created (2.01, 201)
-#define GDP_ACK_DATA_DEL		130		// datam deleted (2.02, 202)
-#define GDP_ACK_DATA_VALID		131		// data valid (2.03, none)
-#define GDP_ACK_DATA_CHANGED	132		// data changed (2.04, ~204)
-#define GDP_ACK_DATA_CONTENT	133		// content (2.05, ~200)
+#define GDP_ACK_SUCCESS			_GDP_ACK_FROM_COAP(SUCCESS)
+#define GDP_ACK_CREATED			_GDP_ACK_FROM_COAP(CREATED)
+#define GDP_ACK_DELETED			_GDP_ACK_FROM_COAP(DELETED)
+#define GDP_ACK_VALID			_GDP_ACK_FROM_COAP(VALID)
+#define GDP_ACK_CHANGED			_GDP_ACK_FROM_COAP(CHANGED)
+#define GDP_ACK_CONTENT			_GDP_ACK_FROM_COAP(CONTENT)
 #define GDP_ACK_MAX			191				// maximum ack code
 //		192-223			Negative acks, client side (CoAP, HTTP)
-#define GDP_NAK_MIN			192				// minimum nak code
-#define GDP_NAK_C_BADREQ		192		// bad request (4.00, 400)
-#define GDP_NAK_C_UNAUTH		193		// unauthorized (4.01, 401)
-#define GDP_NAK_C_BADOPT		194		// bad option (4.02, none)
-#define GDP_NAK_C_FORBIDDEN		195		// forbidden (4.03, 403)
-#define GDP_NAK_C_NOTFOUND		196		// not found (4.04, 404)
-#define GDP_NAK_C_METHNOTALLOWED 197	// method not allowed (4.05, 405)
-#define GDP_NAK_C_NOTACCEPTABLE 198		// not acceptable (4.06, 406)
-#define GDP_NAK_C_PRECONFAILED	204		// precondition failed (4.12, 412)
-#define GDP_NAK_C_TOOLARGE		205		// request entity too large (4.13, 413)
-#define GDP_NAK_C_UNSUPMEDIA	207		// unsupported media type (4.15, 415)
+#define GDP_NAK_C_MIN		192				// minimum client-side nak code
+#define GDP_NAK_C_BADREQ		_GDP_NAK_C_FROM_COAP(BADREQ)
+#define GDP_NAK_C_UNAUTH		_GDP_NAK_C_FROM_COAP(UNAUTH)
+#define GDP_NAK_C_BADOPT		_GDP_NAK_C_FROM_COAP(BADOPT)
+#define GDP_NAK_C_FORBIDDEN		_GDP_NAK_C_FROM_COAP(FORBIDDEN)
+#define GDP_NAK_C_NOTFOUND		_GDP_NAK_C_FROM_COAP(NOTFOUND)
+#define GDP_NAK_C_METHNOTALLOWED _GDP_NAK_C_FROM_COAP(METHNOTALLOWED)
+#define GDP_NAK_C_NOTACCEPTABLE _GDP_NAK_C_FROM_COAP(NOTACCEPTABLE)
+#define GDP_NAK_C_PRECONFAILED	_GDP_NAK_C_FROM_COAP(PRECONFAILED)
+#define GDP_NAK_C_TOOLARGE		_GDP_NAK_C_FROM_COAP(TOOLARGE)
+#define GDP_NAK_C_UNSUPMEDIA	_GDP_NAK_C_FROM_COAP(UNSUPMEDIA)
+#define GDP_NAK_C_MAX		223				// maximum client-side nak code
 //		224-254			Negative acks, server side (CoAP, HTTP)
-#define GDP_NAK_S_INTERNAL		224		// internal server error (5.00, 500)
-#define GDP_NAK_S_NOTIMPL		225		// not implemented (5.01, 501)
-#define GDP_NAK_S_BADGATEWAY	226		// bad gateway (5.02, 502)
-#define GDP_NAK_S_SVCUNAVAIL	227		// service unavailable (5.03, 503)
-#define GDP_NAK_S_GWTIMEOUT		228		// gateway timeout (5.04, 504)
-#define GDP_NAK_S_PROXYNOTSUP	229		// proxying not supported (5.05, none)
-#define GDP_NAK_MAX			254				// maximum nak code
+#define GDP_NAK_S_MIN		224				// minimum server-side nak code
+#define GDP_NAK_S_INTERNAL		_GDP_NAK_S_FROM_COAP(INTERNAL)
+#define GDP_NAK_S_NOTIMPL		_GDP_NAK_S_FROM_COAP(NOTIMPL)
+#define GDP_NAK_S_BADGATEWAY	_GDP_NAK_S_FROM_COAP(BADGATEWAY)
+#define GDP_NAK_S_SVCUNAVAIL	_GDP_NAK_S_FROM_COAP(SVCUNAVAIL)
+#define GDP_NAK_S_GWTIMEOUT		_GDP_NAK_S_FROM_COAP(GWTIMEOUT)
+#define GDP_NAK_S_PROXYNOTSUP	_GDP_NAK_S_FROM_COAP(PROXYNOTSUP)
+#define GDP_NAK_S_MAX		254				// maximum server-side nak code
 //		255				Reserved
 
 

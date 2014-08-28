@@ -178,24 +178,18 @@ fail0:
 
 
 static EP_STAT
-nak(int cmd, const char *where)
-{
-	ep_dbg_cprintf(Dbg, 2, "nak_%s: received %d\n", where, cmd);
-	return GDP_STAT_FROM_NAK(cmd);
-}
-
-
-static EP_STAT
 nak_client(gdp_req_t *req)
 {
-	return nak(req->pkt->cmd, "client");
+	ep_dbg_cprintf(Dbg, 2, "nak_client: received %d\n", req->pkt->cmd);
+	return GDP_STAT_FROM_C_NAK(req->pkt->cmd);
 }
 
 
 static EP_STAT
 nak_server(gdp_req_t *req)
 {
-	return nak(req->pkt->cmd, "server");
+	ep_dbg_cprintf(Dbg, 2, "nak_server: received %d\n", req->pkt->cmd);
+	return GDP_STAT_FROM_S_NAK(req->pkt->cmd);
 }
 
 
@@ -610,7 +604,7 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		gdp_event_t *gev;
 
 		// for the moment we only understand data responses (for subscribe)
-		if (req->pkt->cmd != GDP_ACK_DATA_CONTENT)
+		if (req->pkt->cmd != GDP_ACK_CONTENT)
 		{
 			ep_dbg_cprintf(Dbg, 3, "Got unexpected ack %d\n", req->pkt->cmd);
 			estat = GDP_STAT_PROTOCOL_FAIL;

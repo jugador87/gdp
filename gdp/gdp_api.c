@@ -350,7 +350,7 @@ gdp_gcl_open(gcl_name_t gcl_name,
 	if (gdp_gcl_name_is_zero(gcl_name))
 	{
 		// illegal GCL name
-		ep_app_error("gdp_gcl_open: null GCL name");
+		ep_dbg_cprintf(Dbg, 6, "gdp_gcl_open: null GCL name\n");
 		return GDP_STAT_NULL_GCL;
 	}
 
@@ -378,8 +378,6 @@ gdp_gcl_open(gcl_name_t gcl_name,
 	return estat;
 
 fail0:
-	estat = ep_stat_from_errno(errno);
-
 	if (gclh != NULL)
 		ep_mem_free(gclh);
 	if (req != NULL)
@@ -391,7 +389,6 @@ fail0:
 		char ebuf[100];
 
 		gdp_gcl_printable_name(gcl_name, pname);
-		gdp_log(estat, "gdp_gcl_open: couldn't open GCL %s", pname);
 		ep_dbg_cprintf(Dbg, 10,
 				"Couldn't open GCL %s: %s\n",
 				pname, ep_stat_tostr(estat, ebuf, sizeof ebuf));

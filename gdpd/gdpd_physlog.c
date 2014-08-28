@@ -5,6 +5,7 @@
 #include "gdpd_physlog.h"
 
 #include <gdp/gdp_buf.h>
+#include <gdp/gdp_pkt.h>
 
 #include <ep/ep_hash.h>
 #include <ep/ep_mem.h>
@@ -430,6 +431,10 @@ fail1:
 fail0:
 	if (gclh == NULL)
 		ep_mem_free(gclh);
+
+	// map errnos to appropriate NAK codes
+	if (EP_STAT_IS_SAME(estat, ep_stat_from_errno(ENOENT)))
+		estat = GDP_STAT_NAK_NOTFOUND;
 
 	{
 		char ebuf[100];
