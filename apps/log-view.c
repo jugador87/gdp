@@ -1,3 +1,5 @@
+/* vim: set ai sw=4 sts=4 ts=4 :*/
+
 #include <ep/ep.h>
 #include <ep/ep_string.h>
 #include <gdpd/gdpd_physlog.h>
@@ -227,7 +229,7 @@ int main(int argc, char *argv[]) {
 	while (fread(&record, sizeof(record), 1, data_fp) == 1)
 	{
 		fprintf(stdout, "\n");
-		fprintf(stdout, "Record number: %d\n", record.recno);
+		fprintf(stdout, "Record number: %" PRIgdp_recno "\n", record.recno);
 		fprintf(stdout, "Human readable timestamp: %s", ctime(&record.timestamp.stamp.tv_sec));
 		fprintf(stdout, "Raw timestamp seconds: %" PRIi64 "\n", record.timestamp.stamp.tv_sec);
 		fprintf(stdout, "Raw Timestamp ns: %" PRIi32 "\n", record.timestamp.stamp.tv_nsec);
