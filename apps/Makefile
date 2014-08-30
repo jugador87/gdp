@@ -1,4 +1,5 @@
-ALL=	writer-test reader-test gdp-rest rw-bench
+//ALL=	writer-test reader-test gdp-rest rw-bench
+ALL=	writer-test reader-test gdp-rest log-view
 
 INCROOT=..
 LIBROOT=	${INCROOT}
@@ -36,6 +37,9 @@ gdp-rest:	gdp-rest.o ../scgilib/scgilib.o
 
 rw-bench:	rw-bench.o
 	$(CC) -o $@ rw-bench.o $(LDFLAGS)
+
+log-view:	log-view.o
+	$(CC) -o $@ log-view.o $(LDFLAGS)
 
 ${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 
