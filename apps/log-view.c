@@ -231,7 +231,7 @@ int main(int argc, char *argv[]) {
 	while (fread(&record, sizeof(record), 1, data_fp) == 1)
 	{
 		fprintf(stdout, "\n");
-		fprintf(stdout, "Record number: %ld\n", record.recno);
+		fprintf(stdout, "Record number: %" PRIgdp_recno "\n", record.recno);
 		fprintf(stdout, "Human readable timestamp: ");
 		ep_time_print(&record.timestamp, stdout, true);
 		fprintf(stdout, "\n");
