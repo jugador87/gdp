@@ -13,4 +13,4 @@ clean:
 	(cd apps; make clean)
 
 tags:
-	ctags ep/*.[ch] gdp/*.[ch] gdpd/*.[ch] apps/*.[ch]
+	ctags ep/*.[ch] gdp/*.[ch] gdpd/*.[ch] scgilib/scgilib.[ch] apps/*.[ch]

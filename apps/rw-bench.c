@@ -179,7 +179,7 @@ main(int argc, char *argv[])
 		gdp_gcl_print(gclh_write, stdout, 0, 0);
 
 		ep_time_now(&start_time);
-		fprintf(stdout, "Writing data (start_time = %llu:%u)\n",
+		fprintf(stdout, "Writing data (start_time = %" PRIu64 ":%u)\n",
 				start_time.tv_sec, start_time.tv_nsec);
 		for (i = 0; i < num_records; ++i)
 		{
@@ -193,7 +193,7 @@ main(int argc, char *argv[])
 			EP_STAT_CHECK(estat, goto fail1);
 		}
 		ep_time_now(&end_time);
-		fprintf(stdout, "Finished writing data (end_time = %llu:%u)\n",
+		fprintf(stdout, "Finished writing data (end_time = %" PRIu64 ":%u)\n",
 				end_time.tv_sec, end_time.tv_nsec);
 		get_elapsed_time(&start_time, &end_time, &trial_write_times[t]);
 		print_elapsed_time(stdout, &trial_write_times[t]);
@@ -202,7 +202,7 @@ main(int argc, char *argv[])
 		gdp_gcl_close(gclh_write);
 		estat = gdp_gcl_open(internal_name, GDP_MODE_RO, &gclh_read);
 		ep_time_now(&start_time);
-		fprintf(stdout, "Reading data (start_time = %llu:%u)\n",
+		fprintf(stdout, "Reading data (start_time = %" PRIu64 ":%u)\n",
 				start_time.tv_sec, start_time.tv_nsec);
 		for (i = 0; i < num_records; ++i)
 		{
@@ -223,7 +223,7 @@ main(int argc, char *argv[])
 //			evbuffer_drain(evb, UINT_MAX);
 		}
 		ep_time_now(&end_time);
-		fprintf(stdout, "Finished reading data (end_time = %llu:%u)\n",
+		fprintf(stdout, "Finished reading data (end_time = %" PRIu64 ":%u)\n",
 				end_time.tv_sec, end_time.tv_nsec);
 		get_elapsed_time(&start_time, &end_time, &trial_read_times[t]);
 		print_elapsed_time(stdout, &trial_read_times[t]);

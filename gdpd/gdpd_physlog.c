@@ -596,7 +596,7 @@ gcl_read(gdp_gcl_t *gclh,
 	else
 	{
 		offset = long_pair->value;
-		ep_dbg_cprintf(Dbg, 14, "found in memory at %lld\n", offset);
+		ep_dbg_cprintf(Dbg, 14, "found in memory at %" PRId64 "\n", offset);
 	}
 
 	if (offset == LLONG_MAX) // didn't find message

@@ -92,7 +92,7 @@ typedef enum
 
 enum scgi_fd_type
 {
-    SCGI_FD_TYPE_ACCEPT,	// accept file descriptor
+    SCGI_FD_TYPE_LISTEN,	// listen file descriptor
     SCGI_FD_TYPE_DATA,		// data file descriptor
 };
 

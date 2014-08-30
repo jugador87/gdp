@@ -16,9 +16,12 @@
  *  Copyright/license:  This code is released into the public domain.
  */
 
-#define _POSIX_SOURCE		1
+#if __linux__
+# define _POSIX_SOURCE		1
+#endif
 
 #include "scgilib.h"
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
@@ -374,6 +377,9 @@ int resize_buffer( scgi_desc *d, char **buf )
     return 0;
   }
 
+#if SCGI_DEBUG
+  assert(strlen(*buf) <= *size);	//XXX just checking....
+#endif
   sprintf( tmp, "%s", *buf );
   free( *buf );
   *buf = tmp;
@@ -858,7 +864,7 @@ int scgi_initialize(int port)
   p->port = port;
   p->sock = sock;
   if (scgi_fd_newfd_cb != NULL)
-      p->cbdata = (*scgi_fd_newfd_cb)(sock, SCGI_FD_TYPE_ACCEPT);
+      p->cbdata = (*scgi_fd_newfd_cb)(sock, SCGI_FD_TYPE_LISTEN);
 
   SCGI_LINK(p, first_scgi_port, last_scgi_port, next, prev );
 

@@ -20,7 +20,9 @@ Required Packages:
 		[At this moment this is not being used, but it probably
 		will be in the future.]
 	libevent2 --- Event handling library available from
-		http://libevent.org.
+		http://libevent.org.  On linux you have to install the
+		package libevent-dev.
+	libssl-dev --- for the sha256 implementation.
 
 Directory Structure:
 	ep --- A library of C utility functions.  This is a stripped

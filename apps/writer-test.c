@@ -1,9 +1,10 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
-#include <gdp/gdp.h>
+#include <ep/ep.h>
 #include <ep/ep_app.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_string.h>
+#include <gdp/gdp.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <string.h>

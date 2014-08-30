@@ -8,22 +8,22 @@
 ** 	the same thing.
 */
 
-#include <ep.h>
-#include <string.h>
-#include <stdio.h>
-#include <sys/errno.h>
-
 #if __FreeBSD__ || __APPLE__
 #   define IORESULT_T	int
 #   define IOBLOCK_T	int
 #elif __linux__
 #   define IORESULT_T	ssize_t
 #   define IOBLOCK_T	size_t
-#   define _GNU_SOURCE	1
+#   define _GNU_SOURCE	1	// required to get fopencookie
 #   include <libio.h>
 #else
 #   error Cannot determine use of funopen vs fopencookie
 #endif
+
+#include <ep.h>
+#include <string.h>
+#include <stdio.h>
+#include <sys/errno.h>
 
 struct meminfo
 {
