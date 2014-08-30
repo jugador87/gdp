@@ -1,5 +1,6 @@
 #include <ep/ep.h>
 #include <ep/ep_string.h>
+#include <ep/ep_time.h>
 #include <gdpd/gdpd_physlog.h>
 
 #include <dirent.h>
@@ -38,21 +39,24 @@ void hexdump(FILE *stream, void *buf, size_t n, int start_label, bool show_ascii
 		}
 	}
 
-	fprintf(stream, "%08lx", start_label + end);
-	for (size_t i = end; i < n; ++i)
+	if (end < n)
 	{
-		fprintf(stream, " %02x", char_buf[i]);
-	}
-	fprintf(stream, "\n");
-
-	if (show_ascii)
-	{
-		fprintf(stream, "%-8s", "");
+		fprintf(stream, "%08lx", start_label + end);
 		for (size_t i = end; i < n; ++i)
 		{
-			fprintf(stream, " %c ", char_buf[i]);
+			fprintf(stream, " %02x", char_buf[i]);
 		}
 		fprintf(stream, "\n");
+
+		if (show_ascii)
+		{
+			fprintf(stream, "%-8s", "");
+			for (size_t i = end; i < n; ++i)
+			{
+				fprintf(stream, " %c ", char_buf[i]);
+			}
+			fprintf(stream, "\n");
+		}
 	}
 }
 
@@ -227,11 +231,13 @@ int main(int argc, char *argv[]) {
 	while (fread(&record, sizeof(record), 1, data_fp) == 1)
 	{
 		fprintf(stdout, "\n");
-		fprintf(stdout, "Record number: %d\n", record.recno);
-		fprintf(stdout, "Human readable timestamp: %s", ctime(&record.timestamp.stamp.tv_sec));
-		fprintf(stdout, "Raw timestamp seconds: %" PRIi64 "\n", record.timestamp.stamp.tv_sec);
-		fprintf(stdout, "Raw Timestamp ns: %" PRIi32 "\n", record.timestamp.stamp.tv_nsec);
-		fprintf(stdout, "Time accuracy (ns): %" PRIu32 "\n", record.timestamp.accuracy);
+		fprintf(stdout, "Record number: %ld\n", record.recno);
+		fprintf(stdout, "Human readable timestamp: ");
+		ep_time_print(&record.timestamp, stdout, true);
+		fprintf(stdout, "\n");
+		fprintf(stdout, "Raw timestamp seconds: %" PRIi64 "\n", record.timestamp.tv_sec);
+		fprintf(stdout, "Raw Timestamp ns: %" PRIi32 "\n", record.timestamp.tv_nsec);
+		fprintf(stdout, "Time accuracy (s): %8f\n", record.timestamp.tv_accuracy);
 		fprintf(stdout, "Data length: %" PRIi64 "\n", record.data_length);
 
 		if (print_raw)
