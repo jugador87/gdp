@@ -200,7 +200,7 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 		ep_hexdump(pbuf, pbp - pbuf, ep_dbg_getfile(), 0);
 	}
 
-//	evbuffer_lock(obuf);
+	evbuffer_lock(obuf);
 	if (gdp_buf_write(obuf, pbuf, pbp - pbuf) < 0)
 	{
 		char nbuf[40];
@@ -211,8 +211,7 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 		estat = GDP_STAT_PKT_WRITE_FAIL;
 	}
 	else if (dlen > 0 &&
-			((pbp = evbuffer_pullup(pkt->datum->dbuf, dlen)) == NULL ||
-			  evbuffer_add(obuf, pbp, dlen)))
+			evbuffer_remove_buffer(pkt->datum->dbuf, obuf, dlen) < dlen)
 	{
 		char nbuf[40];
 
@@ -221,7 +220,7 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: data write failure: %s\n", nbuf);
 		estat = GDP_STAT_PKT_WRITE_FAIL;
 	}
-//	evbuffer_unlock(obuf);
+	evbuffer_unlock(obuf);
 
 	return estat;
 }
