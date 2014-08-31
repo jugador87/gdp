@@ -1,3 +1,5 @@
+/* vim: set ai sw=4 sts=4 ts=4 : */
+
 #include <ep/ep.h>
 #include <ep/ep_string.h>
 #include <ep/ep_time.h>
@@ -21,7 +23,7 @@ void hexdump(FILE *stream, void *buf, size_t n, int start_label, bool show_ascii
 
 	for (size_t i = 0; i < end; i += width)
 	{
-		fprintf(stream, "%08lx", start_label + i);
+		fprintf(stream, "%08zx", start_label + i);
 		for (size_t j = i; j < i + width; ++j)
 		{
 			fprintf(stream, " %02x", char_buf[j]);
@@ -41,7 +43,7 @@ void hexdump(FILE *stream, void *buf, size_t n, int start_label, bool show_ascii
 
 	if (end < n)
 	{
-		fprintf(stream, "%08lx", start_label + end);
+		fprintf(stream, "%08zx", start_label + end);
 		for (size_t i = end; i < n; ++i)
 		{
 			fprintf(stream, " %02x", char_buf[i]);
