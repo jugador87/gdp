@@ -43,7 +43,17 @@ Directory Structure:
 	doc --- Some documentation, woefully incomplete.
 
 Compiling:
-	Should just be a matter of typing "make all" in the root.
+	Should just be a matter of typing "make" in the root.
+	Note: gcc on linux has a bug that causes it to complain about
+	non-constant expressions in an initializer.  Those same expressions
+	are constant in Clang and even in gcc without the -std=c99 flag,
+	so you'll have to do "make STD=" (or install clang and use
+	"make CC=clang") until such time as gcc gets fixed.  Hint:
+	clang is faster and gives MUCH better error messages.
+
+	As of this writing, GDP works on MacOS 10.9 (using clang),
+	Ubuntu 12.04 (using gcc or clang), and Freebsd 10.0 (using
+	clang).
 
 Running a GDP-based program:
 	For anything interesting to happen, an instance of the GDP
@@ -64,12 +74,50 @@ Running a GDP-based program:
 		parameter.  See "Changing Parameters" below for more
 		information.
 
+	You also have to create the directory "/var/tmp/gcl" to store
+	the data repository.
+
+Getting Started:
+   1.	Install the prerequisites described above.  For the base system
+	all you'll need are libevent2 and libssl-dev, but the others are
+	needed for full functionality.
+
+   2.	Compile the code as described above.
+
+   3.	Start the GDP daemon (see above).  At this time some callers
+	will loop waiting for the daemon to start, but it's always
+	best to have it running before trying anything else (not just
+	the REST interface).
+
+   4.	Create the directory /var/tmp/gcl.  This is where the data
+	files are kept.  It should be owned by whatever user will be
+	running gdpd.  For security reasons, this should NOT be root!!
+
+   5.	Create your first GCL using apps/writer-test.  You can run
+	this without arguments and it will create a (random) 256-bit
+	name, or with an argument which will be sha-256'd to create
+	the internal name.  It will accept text from the input and
+	write that text to the GCL.
+
+   6.	Check success by running apps/reader-test giving it the
+	internal (256-bit) name printed by writer-test.  If you
+	gave writer-test an argument you can use that instead.
+
+
+Subscriptions:
+	You can "subscribe" to a GCL, which will produce an output
+	whenever that GCL has a record written to it.  To subscribe,
+	use "apps/reader-test -s <name>".
+
+
 Running the GDP RESTful Interface:
 	(In these instructions, <gcl-name> is a URI-base-64-encoded
-	string of length 43 characters.  A <msg-no> is a positive
+	string of length 43 characters.  A <recno> is a positive
 	non-zero integer.)
 
-   1.	The instructions for SCGI configuration for lighttpd are totally
+   1.	Do the "Getting Started" steps described above.
+
+   2.	The instructions for SCGI configuration for lighttpd are totally
 	wrong.  The configuration file you actually need is:
 
 		server.modules += ( "mod_scgi" )
@@ -94,40 +142,14 @@ Running the GDP RESTful Interface:
 	port 8080 instead of the default port 80, and the rest of these
 	instructions will reflect that.
 
-   2.	Compile the code if you haven't already.
-
-   3.	Create the directory /var/tmp/gcl.  This will hold the data
-	for GCLs that get created.
-
-   4.	Start the GDP daemon (see above).  At this time some callers
-	will loop waiting for the daemon to start, but it's always
-	best to have it running before trying anything else (not just
-	the REST interface).
-
-   5.	[Optional] Test the GDP/GCL code using apps/writer-test and
-	apps/reader-test.
-
-	First run writer-test without arguments.  This will create a
-	new GCL in the temporary directory and print its name.  Each
-	line of text you type is added to the GCL as a separate
-	message.  Control-D will terminate the program.
-
-	Second run reader-test with the GCL name printed by
-	writer-test as the argument.  This should dump the GCL.  At
-	the moment it will terminate when it reaches the end of the
-	GCL; there is no "subscribe" interface yet.
-
-	If you're curious you can view the file in /var/tmp/gcl;
-	it is text.
-
-   6.	Start up the GDP RESTful interface server in apps/gdp-rest.
+   3.	Start up the GDP RESTful interface server in apps/gdp-rest.
 	It will run in foreground and spit out some debugging
 	information.  For even more, use -D\*=20 on the command
 	line.  This sets all debug flags to level 20.  The backslash
 	is just to keep the Unix shell from trying to glob the
 	asterisk.
 
-   7.	Start the lighttpd server, for example using:
+   4.	Start the lighttpd server, for example using:
 	"lighttpd -f /usr/local/etc/lighttpd/lighttpd.conf -D".
 	This assumes that your configuration is in
 	/usr/local/etc/lighttpd.  The -D says to run in foreground
@@ -135,10 +157,10 @@ Running the GDP RESTful Interface:
 	some debugging inside the daemon to help you understand the
 	interactions.  See .../etc/lighttpd/conf.d/debug.conf.
 
-   8.	All of your URIs will start with http://localhost:8080/gdp/v1/gcl,
+   5.	All of your URIs will start with http://localhost:8080/gdp/v1/gcl,
 	so I'll just abbreviate this part as "...".  Your options are:
 
-	* GET .../<gcl-name>/<msg-no>
+	* GET .../<gcl-name>/<recno>
 		Returns a JSON object with three fields: gcl_name,
 		message_number, and value.  Value will have 8-bit
 		characters and those that would break JSON syntax
