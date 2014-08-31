@@ -8,8 +8,6 @@
 **		with Sam Alexander's SCGI C Library, http://www.xamuel.com/scgilib/
 */
 
-#include <scgilib/scgilib.h>
-#include <gdp/gdp.h>
 #include <ep/ep.h>
 #include <ep/ep_app.h>
 #include <ep/ep_hash.h>
@@ -17,7 +15,8 @@
 #include <ep/ep_pcvt.h>
 #include <ep/ep_stat.h>
 #include <ep/ep_xlate.h>
-#include <event2/buffer.h>
+#include <gdp/gdp.h>
+#include <gdp/gdp_priv.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -38,12 +37,20 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.rest", "RESTful interface to GDP");
 const char		*GclUriPrefix;			// prefix on all REST calls
 EP_HASH			*OpenGclCache;			// cache of open GCLs
 
-// used in SCGI callbacks to pass around state
-struct sockstate
+
+/*
+**  LOG_ERROR --- generic error logging routine
+*/
+
+void
+log_error(const char *fmt, ...)
 {
-	gdp_gcl_t			*gcl;			// associated GCL handle
-	struct event		*event;			// associated event
-};
+	va_list av;
+
+	va_start(av, fmt);
+	vfprintf(stderr, fmt, av);
+	fprintf(stderr, ": %s\n", strerror(errno));
+}
 
 /*
 **	SCGI_METHOD_NAME --- return printable name of method
@@ -169,6 +176,27 @@ show_gcl(char *gclpname,
 
 
 /*
+**  GDP_SCGI_RECV --- guarded version of scgi_recv().
+**
+**		The SCGI library isn't reentrant, so we have to avoid conflict
+**		here.
+*/
+
+EP_THR_MUTEX	ScgiRecvMutex	EP_THR_MUTEX_INITIALIZER;
+
+scgi_request *
+gdp_scgi_recv(void)
+{
+	scgi_request *req;
+
+	ep_thr_mutex_lock(&ScgiRecvMutex);
+	req = scgi_recv();
+	ep_thr_mutex_unlock(&ScgiRecvMutex);
+	return req;
+}
+
+
+/*
 **	READ_DATUM --- read and return a datum from a GCL
 **
 **		XXX Currently doesn't use the GCL cache.  To make that work
@@ -214,8 +242,8 @@ read_datum(char *gclpname, gdp_recno_t recno, scgi_request *req)
 			}
 			fprintf(fp, "HTTP/1.1 200 GCL Message\r\n"
 						"Content-Type: application/json\r\n"
-						"GDP-USC-Name: %s\r\n"
-						"GDP-Message-Number: %" PRIgdp_recno "\r\n",
+						"GDP-GCL-Name: %s\r\n"
+						"GDP-Record-Number: %" PRIgdp_recno "\r\n",
 						gclpname,
 						recno);
 			if (EP_TIME_ISVALID(&datum->ts))
@@ -295,9 +323,7 @@ is_integer_string(const char *s)
 */
 
 EP_STAT
-process_scgi_req(scgi_request *req,
-				short what,
-				void *arg)
+process_scgi_req(scgi_request *req)
 {
 	char *uri;				// the URI of the request
 	char *gclpname;			// name of the GCL of interest
@@ -375,18 +401,22 @@ process_scgi_req(scgi_request *req,
 		{
 			// append value to GCL
 			gdp_datum_t *datum = gdp_datum_new();
-			struct sockstate *ss = req->descriptor->cbdata;
+			gdp_gcl_t *gcl = NULL;
 
 			ep_dbg_cprintf(Dbg, 5, "=== Add value to GCL\n");
 
 			// if we don't have an open GCL, get one
 			estat = EP_STAT_OK;
-			if (ss->gcl == NULL)
+			if (gcl == NULL)
 			{
 				gcl_name_t gcliname;
 
 				gdp_gcl_internal_name(gclpname, gcliname);
-				estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &ss->gcl);
+				//XXX violates the principle that gdp-rest is "just an app"
+				if ((gcl = _gdp_gcl_cache_get(gcliname, GDP_MODE_AO)) == NULL)
+				{
+					estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gcl);
+				}
 			}
 			if (EP_STAT_ISOK(estat))
 			{
@@ -394,7 +424,7 @@ process_scgi_req(scgi_request *req,
 
 				datum->dlen = req->scgi_content_length;
 				gdp_buf_write(datum->dbuf, req->body, datum->dlen);
-				estat = gdp_gcl_publish(ss->gcl, datum);
+				estat = gdp_gcl_publish(gcl, datum);
 			}
 			if (!EP_STAT_ISOK(estat))
 			{
@@ -480,67 +510,13 @@ process_scgi_req(scgi_request *req,
 	return estat;
 }
 
-void
-process_scgi_activity(evutil_socket_t fd, short what, void *arg)
-{
-	scgi_request *req;
-
-	// This call will make the scgi library notice that something is happening.
-	// But it could be something like a partial read that has to wait.
-	req = scgi_recv();
-	if (req != NULL)
-		process_scgi_req(req, what, arg);
-}
-
-void *
-fd_newfd_cb(int fd, enum scgi_fd_type fdtype)
-{
-	struct timeval tv = { 30, 0 };		// 30 second timeout
-	struct sockstate *ss;
-
-	if (fdtype == SCGI_FD_TYPE_ACCEPT)
-	{
-		int on = 1;
-
-		// allow address reuse to make debugging easier
-		setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof on);
-#ifdef SO_REUSEPORT				// not available on Linux
-		setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof on);
-#endif
-	}
-
-	ss = ep_mem_zalloc(sizeof *ss);
-
-	// create an event
-	ss->event = event_new(GdpIoEventBase, fd, EV_READ|EV_WRITE|EV_PERSIST,
-			process_scgi_activity, NULL);
-	event_add(ss->event, &tv);
-
-	return ss;
-}
-
-void
-fd_freefd_cb(int fd, void *cbdata)
-{
-	struct sockstate *ss = cbdata;
-
-	// clear the event so we can reuse the fd
-	event_del(ss->event);
-	event_free(ss->event);
-
-	// if we have an associated GCL handle, close it
-	if (ss->gcl != NULL)
-		gdp_gcl_close(ss->gcl);
-
-	ep_mem_free(ss);
-}
 
 int
 main(int argc, char **argv, char **env)
 {
 	int opt;
 	int listenport = -1;
-	long poll_delay;
+	int64_t poll_delay;
 	extern void run_scgi_protocol(void);
 
 	while ((opt = getopt(argc, argv, "D:p:u:")) > 0)
@@ -567,7 +543,7 @@ main(int argc, char **argv, char **env)
 		listenport = ep_adm_getintparam("gdp.rest.scgiport", 8001);
 
 	// Initialize the GDP library
-	//		Also initializes the EVENT library
+	//		Also initializes the EVENT library and starts the I/O thread
 	{
 		EP_STAT estat = gdp_init();
 		char ebuf[100];
@@ -580,7 +556,6 @@ main(int argc, char **argv, char **env)
 	}
 
 	// Initialize SCGI library
-	//scgi_register_fd_callbacks(fd_newfd_cb, fd_freefd_cb);
 	if (scgi_initialize(listenport))
 	{
 		ep_dbg_cprintf(Dbg, 1, "%s: listening for SCGI on port %d\n",
@@ -605,10 +580,10 @@ main(int argc, char **argv, char **env)
 	//		scgi_update_connections_port to wait.  It's OK if this
 	//		thread hangs since the other work happens in a different
 	//		thread.
-	poll_delay = ep_adm_getintparam("gdp.rest.scgi.pollinterval", 100000);
+	poll_delay = ep_adm_getlongparam("gdp.rest.scgi.pollinterval", 100000);
 	for (;;)
 	{
-		scgi_request *req = scgi_recv();
+		scgi_request *req = gdp_scgi_recv();
 		int dead = 0;
 
 		if (req == NULL)
@@ -617,6 +592,6 @@ main(int argc, char **argv, char **env)
 			continue;
 		}
 		req->dead = &dead;
-		process_scgi_req(req, 0, NULL);
+		process_scgi_req(req);
 	}
 }
