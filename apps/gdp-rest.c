@@ -453,7 +453,7 @@ process_scgi_req(scgi_request *req)
 						"Content-Type: application/json\r\n"
 						"\r\n"
 						"{\r\n"
-						"	 \"recno\": \"%" PRIgdp_recno "d\"",
+						"	 \"recno\": \"%" PRIgdp_recno "\"",
 						datum->recno);
 				if (EP_TIME_ISVALID(&datum->ts))
 				{
