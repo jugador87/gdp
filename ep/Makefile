@@ -123,21 +123,27 @@ O=	-O
 WALL=	-Wall
 STD=
 COPTS=	${PG} -g ${WALL} $O ${STD}
-CFLAGS=	${COPTS} ${INCLS} -I${CURDIR} -I..
+CFLAGS=	${COPTS} ${INCLS} -I${CURDIR} -I.. -fPIC
 RM=	rm
 LDFLAGS=-L.
 LDLIBS=	libep.a
+MV= mv
+LIBDIR= ../libs
 LN=	ln
 RANLIB=	ranlib
 TIME=
 
-ALL=	libep.a
+ALL=	libep.a libep.so
 
 all: ${ALL}
 
 libep.a: ${OBJS}
 	${AR} -r $@ ${OBJS}
 	${RANLIB} $@
+
+libep.so: ${OBJS}
+	${CC} -shared -Wl,-soname,$@ -o $@ ${OBJS}
+	${MV} $@ ${LIBDIR}
 
 ep_version.o: ep_version.c FORCE
 	${CC} ${CFLAGS} -D_CURRENT_DATE_=\"`date +'%Y-%m-%d_%H:%M'`\" -c ep_version.c
