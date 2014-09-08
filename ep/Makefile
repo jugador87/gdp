@@ -125,15 +125,19 @@ STD=
 COPTS=	${PG} -g ${WALL} $O ${STD}
 CFLAGS=	${COPTS} ${INCLS} -I${CURDIR} -I.. -fPIC
 RM=	rm
+LD=	ld
 LDFLAGS=-L.
 LDLIBS=	libep.a
-MV= mv
 LIBDIR= ../libs
 LN=	ln
+MV=	mv
 RANLIB=	ranlib
+SHARED=	-shared
+#SHARED=	-shared -Wl,-soname,$@
 TIME=
 
-ALL=	libep.a libep.so
+EPLIBVER=	2.0
+ALL=		libep.a libep.so.${EPLIBVER}
 
 all: ${ALL}
 
@@ -141,8 +145,8 @@ libep.a: ${OBJS}
 	${AR} -r $@ ${OBJS}
 	${RANLIB} $@
 
-libep.so: ${OBJS}
-	${CC} -shared -Wl,-soname,$@ -o $@ ${OBJS}
+libep.so.${EPLIBVER}: ${OBJS}
+	${CC} ${SHARED} -o $@ ${OBJS}
 	${MV} $@ ${LIBDIR}
 
 ep_version.o: ep_version.c FORCE

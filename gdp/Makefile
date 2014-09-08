@@ -19,7 +19,8 @@ HFILES=	\
 	gdp_priv.h \
 	gdp_stat.h \
 
-ALL=		libgdp.a libgdp.so
+GDPLIBVER=	1.0
+ALL=		libgdp.a libgdp.so.${GDPLIBVER}
 
 LIBCRYPTO=	-lcrypto
 
@@ -29,12 +30,15 @@ WALL=		-Wall
 STD=
 COPTS=		${PG} -g ${WALL} $O ${STD}
 CFLAGS=		${COPTS} -I.. -fPIC
+LIBCRYPTO=	-lcrypto
 LIBEVENT=	-levent -levent_pthreads
 LIBEP=		-L../ep -lep
-LDFLAGS= 	${LIBEVENT} ${LIBEP}
+LDFLAGS= 	${LIBEVENT} ${LIBEP} ${LIBCRYPTO}
 LIBDIR= 	../libs
-RANLIB=		ranlib
 MV=		mv
+RANLIB=		ranlib
+SHARED=		-shared
+#SHARED=		-shared -Wl,-soname,$@
 
 all: ${ALL}
 
@@ -42,8 +46,8 @@ libgdp.a: ${OBJS}
 	${AR} -r $@ ${OBJS}
 	${RANLIB} $@
 
-libgdp.so: ${OBJS}
-	${CC} -shared -Wl,-soname,$@ -o $@ ${OBJS} ${LDFLAGS}
+libgdp.so.${GDPLIBVER}: ${OBJS}
+	${CC} ${SHARED} -o $@ ${OBJS} ${LDFLAGS}
 	${MV} $@ ${LIBDIR}
 
 ${OBJS}: ${HFILES}
