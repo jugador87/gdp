@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sysexits.h>
 #include <time.h>
 
 void hexdump(FILE *stream, void *buf, size_t n, int start_label, bool show_ascii)
@@ -20,11 +21,14 @@ void hexdump(FILE *stream, void *buf, size_t n, int start_label, bool show_ascii
 	unsigned char *char_buf = (unsigned char *)buf;
 	size_t width = 16;
 	size_t end = (n / width) * width;
+	size_t i;
 
-	for (size_t i = 0; i < end; i += width)
+	for (i = 0; i < end; i += width)
 	{
+		size_t j;
+
 		fprintf(stream, "%08zx", start_label + i);
-		for (size_t j = i; j < i + width; ++j)
+		for (j = i; j < i + width; ++j)
 		{
 			fprintf(stream, " %02x", char_buf[j]);
 		}
@@ -33,7 +37,7 @@ void hexdump(FILE *stream, void *buf, size_t n, int start_label, bool show_ascii
 		if (show_ascii)
 		{
 			fprintf(stream, "%-8s", "");
-			for (size_t j = i; j < i + width; ++j)
+			for (j = i; j < i + width; ++j)
 			{
 				fprintf(stream, " %c ", char_buf[j]);
 			}
@@ -44,7 +48,7 @@ void hexdump(FILE *stream, void *buf, size_t n, int start_label, bool show_ascii
 	if (end < n)
 	{
 		fprintf(stream, "%08zx", start_label + end);
-		for (size_t i = end; i < n; ++i)
+		for (i = end; i < n; ++i)
 		{
 			fprintf(stream, " %02x", char_buf[i]);
 		}
@@ -53,7 +57,7 @@ void hexdump(FILE *stream, void *buf, size_t n, int start_label, bool show_ascii
 		if (show_ascii)
 		{
 			fprintf(stream, "%-8s", "");
-			for (size_t i = end; i < n; ++i)
+			for (i = end; i < n; ++i)
 			{
 				fprintf(stream, " %c ", char_buf[i]);
 			}
@@ -174,6 +178,8 @@ int main(int argc, char *argv[]) {
 
 	if (header.num_metadata_entries > 0)
 	{
+		int i;
+
 		fprintf(stdout, "\n");
 		fprintf(stdout, "Metadata\n\n");
 
@@ -184,7 +190,7 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 
-		for (int i = 0; i < header.num_metadata_entries; ++i)
+		for (i = 0; i < header.num_metadata_entries; ++i)
 		{
 			fprintf(stdout, "Length of metadata entry %d: %" PRIi16 "\n", i, metadata_lengths[i]);
 		}
@@ -199,7 +205,7 @@ int main(int argc, char *argv[]) {
 
 		fprintf(stdout, "\n");
 
-		for (int i = 0; i < header.num_metadata_entries; ++i)
+		for (i = 0; i < header.num_metadata_entries; ++i)
 		{
 			char *metadata_string = malloc(metadata_lengths[i] + 1); // +1 for null-terminator
 			if (fread(metadata_string, metadata_lengths[i], 1, data_fp) != 1)
@@ -264,4 +270,5 @@ int main(int argc, char *argv[]) {
 
 		free(data_buffer);
 	}
+	exit(EX_OK);
 }

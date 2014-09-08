@@ -1,7 +1,7 @@
 O=		-O
 PG=
 WALL=		-Wall
-STD=		-std=c99
+STD=
 COPTS=		${PG} -g ${WALL} $O ${STD}
 CFLAGS=		${COPTS} ${INCS}
 ALL=		helloworld

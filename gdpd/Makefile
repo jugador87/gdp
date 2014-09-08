@@ -19,7 +19,7 @@ LDFLAGS=	${LIBGDP} ${LIBEP} ${LIBJANSSON} ${LIBEVENT2} ${LIBCRYPTO}
 PG=
 O=		-O
 WALL=		-Wall
-STD=		-std=gnu99
+STD=
 COPTS=		${PG} -g ${WALL} $O ${STD}
 CFLAGS=		${COPTS} ${INCS}
 

@@ -21,13 +21,15 @@ HFILES=	\
 
 ALL=	libgdp.a
 
+LIBCRYPTO=	-lcrypto
+
 PG=
 O=	-O
 WALL=	-Wall
-STD=	-std=gnu99
+STD=
 COPTS=	${PG} -g ${WALL} $O ${STD}
 CFLAGS=	${COPTS} -I..
-LDFLAGS=-L.
+LDFLAGS=-L. ${LIBCRYPTO}
 RANLIB=	ranlib
 
 all: ${ALL}

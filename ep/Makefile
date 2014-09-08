@@ -121,7 +121,7 @@ CC=	cc
 PG=
 O=	-O
 WALL=	-Wall
-STD=	-std=c99
+STD=
 COPTS=	${PG} -g ${WALL} $O ${STD}
 CFLAGS=	${COPTS} ${INCLS} -I${CURDIR} -I..
 RM=	rm

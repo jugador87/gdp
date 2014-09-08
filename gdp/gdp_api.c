@@ -71,7 +71,7 @@ gdp_datum_print(const gdp_datum_t *datum,
 	else
 	{
 		l = gdp_buf_getlength(datum->dbuf);
-		fprintf(fp, "len %zd/%zd", datum->dlen, l);
+		fprintf(fp, "len %zd/%d", datum->dlen, l);
 		d = gdp_buf_getptr(datum->dbuf, l);
 	}
 

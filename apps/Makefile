@@ -1,5 +1,4 @@
-//ALL=	writer-test reader-test gdp-rest rw-bench
-ALL=	writer-test reader-test gdp-rest log-view
+ALL=	writer-test reader-test gdp-rest rw-bench log-view
 
 INCROOT=..
 LIBROOT=	${INCROOT}
@@ -20,7 +19,7 @@ LDFLAGS=	${LIBGDP} ${LIBEP} ${LIBJANSSON} ${LIBEVENT2} ${LIBCRYPTO}
 PG=
 O=		-O
 WALL=		-Wall
-STD=		-std=c99
+STD=
 COPTS=		${PG} -g ${WALL} $O ${STD}
 CFLAGS=		${COPTS} ${INCS}
 

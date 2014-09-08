@@ -477,7 +477,7 @@ _gdp_pkt_new(void)
 
 	if (pkt == NULL)
 	{
-		pkt = ep_mem_malloc(sizeof *pkt);
+		pkt = ep_mem_zalloc(sizeof *pkt);
 	}
 
 	// initialize the packet
