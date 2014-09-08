@@ -9,7 +9,7 @@
     <h1>Global Data Plane Programmatic API Proposal</h1>
     <h4>Editor: Eric Allman, U.C. Berkeley Swarm Lab,
       eric@cs.berkeley.edu</h4>
-    <h5>Version 0.5, 2014-08-24</h5>
+    <h5>Version 0.6, 2014-09-08</h5>
     <br>
     <p> This is a strawman proposal. It is not complete. Note that this
       does not include the in-system representation except where that
@@ -56,71 +56,17 @@
       writers (true or false?). Palmer called this an aardvark, for lack
       of a better name.</p>
     <p style="font-style: italic;"> [[Really need more here.]]</p>
-    <h2> 2 API</h2>
     <p> For the moment you can access the dataplane in one of two modes:
-      synchronous mode (using gdp_gcl_read for reading) an asynchronous
-      mode (using gdp_gcl_subscribe for reading). To use it in
-      asynchronous mode you must subscribe to any GCLs of interest and
-      then call gdp_event_next repeatedly to read the results.</p>
-    <h3> 2.1 Data Structures</h3>
-    <br>
-    <hr size="2" width="100%">
-    <h4> Name</h4>
-    tt_interval_t — TrueTime-style interval<br>
-    <h4> Synopsis</h4>
-    <pre>#include &lt;gdp/gdp_timestamp.h&gt;
-
-typedef struct timespec&nbsp; tt_stamp_t;
-
-typedef struct
-{
-	tt_stamp_t	stamp;		// center of interval
-	uint32_t	accuracy;	// clock accuracy in nanoseconds
-} tt_interval_t;
-</pre>
-    <h4> Notes</h4>
-    <ul>
-      <li> A struct timespec contains fields tv_sec (seconds since
-        January 1, 1970) and tv_nsec (nanoseconds).</li>
-      <li> The actual time range is the stamp ± accuracy / 2.</li>
-      <li> <i>This accuracy probably isn’t enough; it only allows four
-          seconds of drift and only goes down to 10–9 seconds (some
-          clocks have accuracy as low as 10–14 seconds). There are at
-          least four solutions: (1) drop the resolution to microseconds
-          to get the necessary range and assume we’ll never need to
-          represent a more accurate clock; (2) change the data type to
-          uint64_t and represent it in femtoseconds (10–15), at the cost
-          of sending more network bits that usually have no meaning; (3)
-          change the accuracy to 31 bits of microseconds and if the
-          remaining bit is set have another 32 bits representing
-          femtoseconds; or (4) represent the accuracy as a 32-bit
-          floating point number.</i></li>
-      <li> There is also a defined constant TT_NOTIME that indicates
-        that the timestamp is invalid (in the stamp.tv_sec field).</li>
-    </ul>
-    <br>
-    <hr size="2" width="100%">
-    <h4> Name</h4>
-    gdp_datum_t — A GDP record/entry/datum<br>
-    <h4> Synopsis</h4>
-    <pre>#include &lt;gdp/gdp.h&gt;
-
-typedef struct
-{
-	EP_TIME_SPEC &nbsp;&nbsp; ts;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // timestamp for this message
-	long&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   recno;&nbsp;&nbsp;&nbsp;&nbsp; // the record number
-	gdp_buf_t &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; *dbuf;&nbsp;&nbsp;&nbsp; &nbsp;// the data buffer
-	size_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   dlen;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // length of data
-	(private data omitted)
-} gdp_datum_t;
-</pre>
-    <h4> Notes</h4>
-    <ul>
-      <li> It isn't clear that recno should be public.</li>
-    </ul>
-    <br>
-    <h3> 2.2 Functions</h3>
-    <br>
+      synchronous mode (using <code>gdp_gcl_read</code> for reading) an
+      asynchronous mode (using <code>gdp_gcl_subscribe</code> for
+      reading). To use it in asynchronous mode you must subscribe to any
+      GCLs of interest and then call <code>gdp_event_next</code>
+      repeatedly to read the results.&nbsp; These are described in more
+      detail below.<br>
+    </p>
+    <p>Before the GDP library can be used it must be initialized:<br>
+    </p>
+    <h3> </h3>
     <hr size="2" width="100%">
     <h4> Name</h4>
     gdp_init — Initialize the GDP library<br>
@@ -133,17 +79,9 @@ typedef struct
         be called before any other GDP functions are invoked.<br>
       </li>
     </ul>
-    <br>
-    <hr size="2" width="100%">
-    <h4> Name</h4>
-    gdp_gcl_print — print a GCL handle (for debugging)<br>
-    <h4>Synopsis</h4>
-    <pre>void gdp_gcl_print(const gdp_gcl_t *gclh, FILE *fp)</pre>
-    <h4>Notes</h4>
-    <ul>
-      <li>Prints the GCL on the indicated file.</li>
-    </ul>
-    <p><br>
+    <hr size="2" width="100%"><br>
+    <h2>2&nbsp; GCL Synchronous Operation</h2>
+    <p>Synchronous operations block until the operation is complete.<br>
     </p>
     <hr size="2" width="100%">
     <h4> Name</h4>
@@ -193,7 +131,64 @@ typedef struct
       <li> Perhaps qos should be replaced by a descriptor parameter a la
         gdp_gcl_create.</li>
     </ul>
+    <hr size="2" width="100%">
+    <h4> </h4>
+    <h4> Name</h4>
+    gdp_gcl_close — Close a GCL<br>
+    <h4> Synopsis</h4>
+    <pre>EP_STAT gdp_gcl_close(gdp_gcl_t *gclhandle)
+</pre>
+    <h4> Notes</h4>
+    <ul>
+      <li> Should this interface say whether to preserve or drop the GCL
+        (i.e., is it persistent, or for how long)?</li>
+    </ul>
     <br>
+    <hr size="2" width="100%">
+    <h4> Name</h4>
+    gdp_gcl_getname — Return the name of a GCL<br>
+    <h4> Synopsis</h4>
+    <pre>EP_STAT gdp_gcl_getname(gdp_gcl_t *gclhandle,
+		gcl_name_t namebuf)
+</pre>
+    <h4> Notes</h4>
+    <ul>
+      <li> Returns the name of the GCL referenced by gclhandle into
+        namebuf. Assumes that names are a fixed size, otherwise will
+        need a buffer length.</li>
+      <li> May not be necessary if the creator provides the name; really
+        only intended after gdp_gcl_create so that the name can be
+        shared to other nodes that want to gdp_gcl_open it.</li>
+    </ul>
+    <br>
+    <hr size="2" width="100%">
+    <h4> Name</h4>
+    gdp_gcl_getstat — Return information about a GCL <b>[NOT YET
+      IMPLEMENTED]</b><br>
+    <h4> Synopsis</h4>
+    <pre>EP_STAT gdp_gcl_getstat(gdp_gcl_t *gclhandle,
+		gcl_stat_t *statbuf)
+</pre>
+    <h4> Notes</h4>
+    <ul>
+      <li> What status is included? Size (or number of
+        records/messages), type, subtype, last access, …</li>
+      <li> What about type-dependent status information?</li>
+      <li> Should this take a handle or a name? Or two interfaces?</li>
+    </ul>
+    <br>
+    <hr size="2" width="100%">
+    <h4> Name</h4>
+    gdp_gcl_print — print a GCL handle (for debugging)<br>
+    <h4>Synopsis</h4>
+    <pre>void gdp_gcl_print(const gdp_gcl_t *gclh, FILE *fp)</pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>Prints the GCL on the indicated file.</li>
+      <li>The output will contain internal information; it is not
+        intended to display information to end users.<br>
+      </li>
+    </ul>
     <hr size="2" width="100%">
     <h4> Name</h4>
     gdp_gcl_publish — Publish (append) a record to a writable GCL<br>
@@ -252,41 +247,26 @@ typedef struct
         service, and cost is undefined. It isn't clear if these are
         supposed to be iterators or one-time calls.</li>
     </ul>
-    <br>
     <hr size="2" width="100%">
-    <h4> Name</h4>
-    gdp_gcl_watch — Read from a readable GCL, waiting for a result&nbsp;
-    <i><b>[NOT IMPLEMENTED]</b></i>
-    <h4> Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_watch(gdp_gcl_t *gclhandle,
-		gdp_recno_t recno,
-		gdp_datum_t *datum)
-</pre>
-    <h4> Notes</h4>
-    <ul>
-      <li> Behaves exactly like <code>gdp_gcl_read</code>, but if the
-        message doesn't yet exist it waits for it to appear for up to
-        the indicated timeout.</li>
-    </ul>
-    <hr size="2" width="100%">
-    <h4>Name</h4>
-    <p>gdp_datum_new, gdp_datum_free, gdp_datum_print —
-      allocate/free/print a datum structure<br>
+    <h2>3&nbsp; GCL Asynchronous Operation (Subscriptions and Events)<br>
+    </h2>
+    <p>Asynchronous operations allow an application to subscribe to one
+      or more GCLs and receive events as those GCLs see activity.&nbsp;
+      The event mechanism is intended to be extensible for possible
+      future expansion.<br>
     </p>
-    <h4>Synopsis</h4>
-    <pre>gdp_datum_t *gdp_datum_new(void)<br>void gdp_datum_free(gdp_datum_t *datum)<br>void gdp_datum_print(const gdp_datum_t *datum, FILE *fp)<br></pre>
-    <h4>Notes</h4>
-    <ul>
-      <li>gdp_datum_new allocates a new empty datum.</li>
-      <li>gdp_datum_free frees a datum.</li>
-      <li>gdp_datum_print writes a description of the datum (including
-        the data contents) to the given file.<br>
-      </li>
-    </ul>
-    <br>
+    <p>Every event has a type, a pointer to the GCL handle, and a
+      pointer to a datum.&nbsp; Applications could in principle define
+      their own event types, but at the moment this functionality is not
+      exposed.<br>
+    </p>
+    <p>It is important that applications free any events after they have
+      completed using them.<br>
+    </p>
     <hr size="2" width="100%">
     <h4> Name</h4>
-    gdp_gcl_subscribe — Subscribe to a readable GCL<br>
+    gdp_gcl_subscribe — Subscribe to a readable GCL&nbsp; <strong><em>[PARTIALLY
+        IMPLEMENTED]</em></strong><br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_subscribe(gdp_gcl_t *gcl,
 		gdp_recno_t start,<br>		gdp_recno_t stop,
@@ -369,56 +349,168 @@ void (*cbfunc)(gdp_gcl_t *gclhandle,
     <ul>
       <li>Returns the data associated with the event.</li>
     </ul>
-    <p><br>
-    </p>
-    <hr size="2" width="100%">
-    <h4> Name</h4>
-    gdp_gcl_close — Close a GCL<br>
-    <h4> Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_close(gdp_gcl_t *gclhandle)
-</pre>
-    <h4> Notes</h4>
-    <ul>
-      <li> Should this interface say whether to preserve or drop the GCL
-        (i.e., is it persistent, or for how long)?</li>
-    </ul>
-    <br>
-    <hr size="2" width="100%">
-    <h4> Name</h4>
-    gdp_gcl_getname — Return the name of a GCL<br>
-    <h4> Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_getname(gdp_gcl_t *gclhandle,
-		gcl_name_t namebuf)
-</pre>
-    <h4> Notes</h4>
-    <ul>
-      <li> Returns the name of the GCL referenced by gclhandle into
-        namebuf. Assumes that names are a fixed size, otherwise will
-        need a buffer length.</li>
-      <li> May not be necessary if the creator provides the name; really
-        only intended after gdp_gcl_create so that the name can be
-        shared to other nodes that want to gdp_gcl_open it.</li>
-    </ul>
-    <br>
-    <hr size="2" width="100%">
-    <h4> Name</h4>
-    gdp_gcl_getstat — Return information about a GCL <b>[NOT YET
-      IMPLEMENTED]</b><br>
-    <h4> Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_getstat(gdp_gcl_t *gclhandle,
-		gcl_stat_t *statbuf)
-</pre>
-    <h4> Notes</h4>
-    <ul>
-      <li> What status is included? Size (or number of
-        records/messages), type, subtype, last access, …</li>
-      <li> What about type-dependent status information?</li>
-      <li> Should this take a handle or a name? Or two interfaces?</li>
-    </ul>
     <hr size="2" width="100%">
     <p><br>
     </p>
-    <h3> 2.3 Compiling and Linking</h3>
+    <h2>4&nbsp; Datums (Records)</h2>
+    <p>GCLs are represented as a series of records of type <code>gdp_datum_t</code>.&nbsp;
+      Each record has a record number, a commit timestamp, and
+      associated data.&nbsp; Record numbers are of type <code>gdp_recno_t</code>
+      and count up by one as records are added (i.e., record numbers are
+      unique within a GCL and dense).&nbsp; Data is represented in
+      dynamic buffers, as described below.<br>
+    </p>
+    <h3>4.1&nbsp; Timestamps</h3>
+    <p>The time abstraction is imported directly from the ep
+      library.&nbsp; Times are represented as follows:<br>
+    </p>
+    <blockquote>
+      <pre><code>#pragma pack(push, 1)
+typedef struct
+{
+     int64_t	tv_sec;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; // seconds since January 1, 1970</code><code>
+    </code><code>&nbsp;uint32_t&nbsp;&nbsp; tv_nsec;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; // nanoseconds<br>     float&nbsp;&nbsp;&nbsp;&nbsp;  tv_accuracy;&nbsp;&nbsp;&nbsp; // accuracy in seconds<br></code><code>} EP_TIME_SPEC;<br>#pragma pack(pop)</code><code></code></pre>
+    </blockquote>
+    <pre><code></code></pre>
+    <code><tt> </tt></code>Note that the host system <code>struct
+      timespec</code> may not match this structure; some systems still
+    represent the time with only four bytes for <code>tv_sec</code>,
+    which expires in 2038.&nbsp; The <code>tv_accuracy</code> field
+    indicates an estimate for how accurate the clock is; for example, if
+    you are running NTP this value is likely to be on the order of a few
+    tens to a few hundreds of milliseconds, but if you set your clock
+    manually it is likely to be several seconds or worse.<br>
+    <br>
+    <h3>4.2&nbsp; Data Buffers</h3>
+    <p>Data buffers grow dynamically as needed.<br>
+    </p>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    gdp_buf_new, gdp_buf_reset, gdp_buf, free — allocate, reset, or free
+    a buffer<br>
+    <h4>Synopsis</h4>
+    <pre>gdp_buf_t *gdp_buf_new(void)<br>void gdp_buf_reset(gdp_buf_t *b)<br>void gdp_buf_free(gdp_buf_t *b)<br><br></pre>
+    Notes<br>
+    <ul>
+      <li>gdp_buf_new creates a new, empty buffer.</li>
+      <li>gdp_buf_reset clears the buffer, leaving it in the same
+        condition as when it was first created.</li>
+      <li>gdp_buf_free frees the buffer.&nbsp; It must not be used again
+        after being freed.</li>
+    </ul>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    gdp_buf_getlength — return the length of the data in the buffer<br>
+    <h4>Synopsis</h4>
+    <pre>size_t gdp_buf_getlength(gdp_buf_t *b)</pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>Returns the number of bytes of data currently in the buffer.</li>
+    </ul>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    gdp_buf_read, gdp_buf_peek, gdp_buf_drain — remove or peek at data
+    in a buffer<br>
+    <h4>Synopsis</h4>
+    <pre>size_t gdp_buf_read(gdp_buf_t *b, void *out, size_t sz)<br>size_t gdp_buf_peek(gdp_buf_t *b, void *out, size_t sz)<br>int gdp_buf_drain(gdp_buf_t *b, size_t sz)<br></pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>Data can be consumed from the buffer by calling gdp_buf_read;
+        data is copied from the buffer into a memory area.</li>
+      <li>Applications can "peek" at the buffer using
+        gdp_buf_peek.&nbsp; This is identical to gdp_buf_read except
+        that the data remains in the buffer.</li>
+      <li>Applications can discard data from the buffer using
+        gdp_buf_drain.</li>
+      <li>In all cases, sz is the number of bytes to copy out and/or
+        discard.</li>
+    </ul>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    gdp_buf_write, gdp_buf_printf — copy data into a buffer<br>
+    <h4>Synopsis</h4>
+    <pre>int gdp_buf_write(gdp_buf_t *b, void *in, size_t sz)<br>int gdp_buf_printf(gdp_buf_t *b, const char *fmt, ...)<br></pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>These routines insert bytes into the named buffer.</li>
+      <li><code>gdp_buf_write</code> copies <code>sz</code> bytes into
+        the buffer from the memory area in and returns 0 on success or
+        –1 on failure.<br>
+      </li>
+      <li><code>gdp_buf_printf</code> essentially does a "printf" into
+        the buffer and returns the number of bytes appended.<br>
+      </li>
+    </ul>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    gdp_buf_copy — copy data from one buffer into another<br>
+    <h4>Synopsis</h4>
+    <pre>int gdp_buf_copy(gdp_buf_t *ib, gdp_buf_t *ob)<br></pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>Appends the entire contents of <code>ib</code> to the end of
+        <code>ob</code>.</li>
+      <li>This is more efficient than using <code>gdp_buf_read</code>
+        and <code>gdp_buf_write</code>.</li>
+    </ul>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    gdp_buf_dump — print the contents of the buffer for debugging<br>
+    <h4>Synopsis</h4>
+    <pre>void gdp_buf_dump(gdp_buf_t *b, FILE *fp)</pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>Prints the contents of buffer b to the file fp.</li>
+      <li>This is not intended for end user presentation.</li>
+    </ul>
+    <hr size="2" width="100%">
+    <h3>4.3&nbsp; Datums</h3>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    <p>gdp_datum_new, gdp_datum_free, gdp_datum_print —
+      allocate/free/print a datum structure<br>
+    </p>
+    <h4>Synopsis</h4>
+    <pre>gdp_datum_t *gdp_datum_new(void)<br>void gdp_datum_free(gdp_datum_t *datum)<br>void gdp_datum_print(const gdp_datum_t *datum, FILE *fp)<br></pre>
+    <h4>Notes</h4>
+    <ul>
+      <li><code>gdp_datum_new</code> allocates a new empty datum.</li>
+      <li><code>gdp_datum_free</code> frees a datum.</li>
+      <li><code>gdp_datum_print</code> writes a description of the datum
+        (including the data contents) to the given file.</li>
+    </ul>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    gdp_datum_getrecno, gdp_datum_setrecno — get/set the record number
+    from a datum<br>
+    <h4>Synopsis</h4>
+    <pre>    <tt>gdp_recno_t gdp_datum_getrecno(const gdp_datum_t *datum)
+    </tt><tt>void gdp_datum_setrecno(gdp_datum_t *datum,<br>                            gdp_recno_t recno)</tt></pre>
+    <h4>Notes<br>
+    </h4>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    gdp_datum_getts, gdp_datum_setts — get/set the timestamp from a
+    datum<br>
+    <h4>Synopsis</h4>
+    <pre>
+    void gdp_datum_getts(const gdp_datum_t *datum, EP_TIME_SPEC *ts)
+    void gdp_datum_setts(gdp_datum_t *datum, EP_TIME_SPEC *ts)</pre>
+    <h4>Notes</h4>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    gdp_datum_getdbuf — get the data buffer from a datum<br>
+    <h4>Synopsis</h4>
+    <pre>    gdp_buf_t *gdp_datum_getdbuf(const gdp_datum_t *datum)</pre>
+    <h4>Notes</h4>
+    <p><br>
+    </p>
+    <ul>
+    </ul>
+    <hr size="2" width="100%">
+    <p><br>
+    </p>
+    <h2> 5&nbsp; Compiling and Linking</h2>
     The GDP library uses a reduced version of libep and also uses the
     libevent library version 2.1. These will need to be included both
     during compilation and linking.<br>
@@ -438,8 +530,8 @@ void (*cbfunc)(gdp_gcl_t *gclhandle,
     that excludes several things that would not be helpful here. For
     more details of the original (full) library, see <a
 href="http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtime">http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtime</a>.<br>
-    <h2> 3 Open Questions</h2>
-    <h3> 3.1 Access Control</h3>
+    <h2> 6&nbsp; Open Questions</h2>
+    <h3> 6.1 Access Control</h3>
     <p> Do this using Access Control Lists (so each user/app has a
       keypair) or by passing public/private keys around (so each GCL has
       a private keypair). The latter makes revocation impossible (even
@@ -462,7 +554,7 @@ href="http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtim
       identity/keypair they do not get access to any previous grants, so
       this may be sufficient.</p>
     <p> </p>
-    <h3> 3.2 Naming</h3>
+    <h3> 6.2 Naming</h3>
     <p> If each GCL has a private keypair, then the public key is
       sufficient to name the entity. If not, then assigning a GCL a GUID
       on creation seems like the best approach. Having the user assign a
@@ -472,7 +564,7 @@ href="http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtim
       overlay directory structure. That might be a different gcl_type.</p>
     <p> This seems like an open research topic.</p>
     <p> </p>
-    <h3> 3.3 Orphans, Expiration, Charging, and Accounting</h3>
+    <h3> 6.3 Orphans, Expiration, Charging, and Accounting</h3>
     <p> If a GCL isn't linked into a directory structure and everyone
       forgets its name then it will live forever (or until it expires).
       This could be quite common if a GCL is temporary, that is, not a
@@ -500,7 +592,7 @@ href="http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtim
       does however assume that there is a mutually agreed upon form of
       payment, i.e., a universal currency.</p>
     <p> </p>
-    <h3> 3.4 GCL Content — Message vs. Byte Stream, Timestamping</h3>
+    <h3> 6.4 GCL Content — Message vs. Byte Stream, Timestamping</h3>
     <p> Is the data inside a GCL a Unix-style stream of bytes or a
       record/message abstraction?</p>
     <p> Is timestamping something that should be supported at this level
@@ -510,7 +602,7 @@ href="http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtim
       timestamp that is inserted as close to the sensor as possible and
       is arguably an application-level concern.</p>
     <p> </p>
-    <h3> 3.5 GCL Write Semantics</h3>
+    <h3> 6.5 GCL Write Semantics</h3>
     <p> Is there a way to overwrite a GCL in place (even if that means
       create a new version using copy-on-write)?</p>
     <p> Is there a way to overwrite a GCL in place (even if that means
@@ -521,7 +613,7 @@ href="http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtim
       applications.</p>
     <p> ANSWER: No overwrite.</p>
     <p> </p>
-    <h3> 3.6 Quality of Service</h3>
+    <h3> 6.6 Quality of Service</h3>
     <p> Is Quality of Service specified on a particular GCL, a
       particular open instance of a GCL, or between a pair of endpoints?</p>
     <p> What does QoS actually mean? For example, in a live media stream
@@ -536,9 +628,9 @@ href="http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtim
       send a real-time version of the stream — for example, over a slow
       network link.</p>
     <p> </p>
-    <h3> Appendix A: References</h3>
+    <h2> Appendix A: References</h2>
     <br>
-    <table border="1" cellpadding="2" cellspacing="2" width="100%">
+    <table width="100%" border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">[Dab13a]<br>

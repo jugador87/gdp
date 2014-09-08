@@ -102,17 +102,11 @@ typedef struct gdp_event	gdp_event_t;
 // event types
 #define GDP_EVENT_DATA		1	// returned data
 
-// allocate an event
-extern EP_STAT			gdp_event_new(gdp_event_t **gevp);
-
-// free an event
-extern EP_STAT			gdp_event_free(gdp_event_t *gev);
-
-// add an event to the active queue
-extern void				gdp_event_trigger(gdp_event_t *gev);
-
 // get next event (fills in gev structure)
 extern gdp_event_t		*gdp_event_next(bool wait);
+
+// free an event (required after gdp_event_next)
+extern EP_STAT			gdp_event_free(gdp_event_t *gev);
 
 // get the type of an event
 extern int				gdp_event_gettype(gdp_event_t *gev);
@@ -217,5 +211,33 @@ void			gdp_datum_free(gdp_datum_t *);
 extern void		gdp_datum_print(
 					const gdp_datum_t *datum,	// message to print
 					FILE *fp);					// file to print it to
+
+// get the record number from a datum
+extern gdp_recno_t	gdp_datum_getrecno(
+					const gdp_datum_t *datum);
+
+// set a record number in a datum
+extern void		gdp_datum_setrecno(
+					gdp_datum_t *datum,
+					gdp_recno_t recno);
+
+// get the timestamp from a datum
+extern void		gdp_datum_getts(
+					const gdp_datum_t *datum,
+					EP_TIME_SPEC *ts);
+
+// set the timestamp in a datum
+extern void		gdp_datum_setts(
+					gdp_datum_t *datum,
+					EP_TIME_SPEC *ts);
+
+// get the data length from a datum
+extern size_t	gdp_datum_getdlen(
+					const gdp_datum_t *datum);
+
+// get the data buffer from a datum
+extern gdp_buf_t *gdp_datum_getdbuf(
+					const gdp_datum_t *datum);
+
 
 #endif // _GDP_H_

@@ -15,6 +15,7 @@
 #include <openssl/sha.h>
 
 #include <errno.h>
+#include <string.h>
 
 /*
 **	This implements the GDP API for C-based applications.
@@ -43,53 +44,6 @@ const gcl_name_t *
 gdp_gcl_getname(const gdp_gcl_t *gclh)
 {
 	return &gclh->gcl_name;
-}
-
-/*
-**	GDP_MSG_PRINT --- print a message (for debugging)
-*/
-
-void
-gdp_datum_print(const gdp_datum_t *datum,
-			FILE *fp)
-{
-	unsigned char *d;
-	int l;
-
-	if (datum == NULL)
-	{
-		fprintf(fp, "null datum\n");
-		return;
-	}
-	fprintf(fp, "GDP record %" PRIgdp_recno ", ", datum->recno);
-	if (datum->dbuf == NULL)
-	{
-		fprintf(fp, "no data");
-		d = NULL;
-		l = -1;
-	}
-	else
-	{
-		l = gdp_buf_getlength(datum->dbuf);
-		fprintf(fp, "len %zd/%d", datum->dlen, l);
-		d = gdp_buf_getptr(datum->dbuf, l);
-	}
-
-	if (EP_TIME_ISVALID(&datum->ts))
-	{
-		fprintf(fp, ", timestamp ");
-		ep_time_print(&datum->ts, fp, true);
-	}
-	else
-	{
-		fprintf(fp, ", no timestamp");
-	}
-
-	if (l > 0)
-	{
-		fprintf(fp, "\n	 %s%.*s%s", EpChar->lquote, l, d, EpChar->rquote);
-	}
-	fprintf(fp, "\n");
 }
 
 

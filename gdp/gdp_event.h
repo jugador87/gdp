@@ -18,4 +18,10 @@ struct gdp_event
 	gdp_datum_t		*datum;		// datum for event
 };
 
+// allocate an event
+extern EP_STAT			gdp_event_new(gdp_event_t **gevp);
+
+// add an event to the active queue
+extern void				gdp_event_trigger(gdp_event_t *gev);
+
 #endif // _GDP_EVENT_H_

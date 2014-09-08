@@ -9,10 +9,13 @@
 
 #include <ep/ep.h>
 #include <ep/ep_dbg.h>
+#include <ep/ep_string.h>
 #include <ep/ep_thr.h>
 
 #include "gdp.h"
 #include "gdp_priv.h"
+
+#include <string.h>
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.datum", "GDP datum processing");
 
@@ -71,4 +74,88 @@ gdp_datum_free(gdp_datum_t *datum)
 	datum->next = DatumFreeList;
 	DatumFreeList = datum;
 	ep_thr_mutex_unlock(&DatumFreeListMutex);
+}
+
+
+gdp_recno_t
+gdp_datum_getrecno(const gdp_datum_t *datum)
+{
+	return datum->recno;
+}
+
+void
+gdp_datum_setrecno(gdp_datum_t *datum, gdp_recno_t recno)
+{
+	datum->recno = recno;
+}
+
+void
+gdp_datum_getts(const gdp_datum_t *datum, EP_TIME_SPEC *ts)
+{
+	memcpy(ts, &datum->ts, sizeof *ts);
+}
+
+void
+gdp_datum_setts(gdp_datum_t *datum, EP_TIME_SPEC *ts)
+{
+	memcpy(&datum->ts, ts, sizeof datum->ts);
+}
+
+size_t
+gdp_datum_getdlen(const gdp_datum_t *datum)
+{
+	return datum->dlen;
+}
+
+gdp_buf_t *
+gdp_datum_getdbuf(const gdp_datum_t *datum)
+{
+	return datum->dbuf;
+}
+
+/*
+**	GDP_MSG_PRINT --- print a message (for debugging)
+*/
+
+void
+gdp_datum_print(const gdp_datum_t *datum,
+			FILE *fp)
+{
+	unsigned char *d;
+	int l;
+
+	if (datum == NULL)
+	{
+		fprintf(fp, "null datum\n");
+		return;
+	}
+	fprintf(fp, "GDP record %" PRIgdp_recno ", ", datum->recno);
+	if (datum->dbuf == NULL)
+	{
+		fprintf(fp, "no data");
+		d = NULL;
+		l = -1;
+	}
+	else
+	{
+		l = gdp_buf_getlength(datum->dbuf);
+		fprintf(fp, "len %zd/%d", datum->dlen, l);
+		d = gdp_buf_getptr(datum->dbuf, l);
+	}
+
+	if (EP_TIME_ISVALID(&datum->ts))
+	{
+		fprintf(fp, ", timestamp ");
+		ep_time_print(&datum->ts, fp, true);
+	}
+	else
+	{
+		fprintf(fp, ", no timestamp");
+	}
+
+	if (l > 0)
+	{
+		fprintf(fp, "\n	 %s%.*s%s", EpChar->lquote, l, d, EpChar->rquote);
+	}
+	fprintf(fp, "\n");
 }
