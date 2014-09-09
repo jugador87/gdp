@@ -20,8 +20,9 @@ Required Packages:
 		[At this moment this is not being used, but it probably
 		will be in the future.]
 	libevent2 --- Event handling library available from
-		http://libevent.org.  On linux you have to install the
-		package libevent-dev.
+		http://libevent.org.  Most systems (Linux, MacOS, and
+		FreeBSD at a minumum have this available as a package.
+		On linux you have to install the package libevent-dev.
 	libssl-dev --- for the sha256 implementation.
 
 Directory Structure:
@@ -79,19 +80,19 @@ Running a GDP-based program:
 
 Getting Started:
    1.	Install the prerequisites described above.  For the base system
-	all you'll need are libevent2 and libssl-dev, but the others are
-	needed for full functionality.
+	all you'll need are libevent2-dev and libssl-dev, but the others
+	are needed for full functionality.
 
    2.	Compile the code as described above.
 
-   3.	Start the GDP daemon (see above).  At this time some callers
+   3.	Create the directory /var/tmp/gcl.  This is where the data
+	files are kept.  It should be owned by whatever user will be
+	running gdpd.  For security reasons, this should NOT be root!!
+
+   4.	Start the GDP daemon (see above).  At this time some callers
 	will loop waiting for the daemon to start, but it's always
 	best to have it running before trying anything else (not just
 	the REST interface).
-
-   4.	Create the directory /var/tmp/gcl.  This is where the data
-	files are kept.  It should be owned by whatever user will be
-	running gdpd.  For security reasons, this should NOT be root!!
 
    5.	Create your first GCL using apps/writer-test.  You can run
 	this without arguments and it will create a (random) 256-bit
