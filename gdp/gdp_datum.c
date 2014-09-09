@@ -68,7 +68,6 @@ gdp_datum_free(gdp_datum_t *datum)
 	if (datum->dbuf != NULL)
 	{
 		evbuffer_drain(datum->dbuf, evbuffer_get_length(datum->dbuf));
-		datum->dlen = 0;
 	}
 	ep_thr_mutex_lock(&DatumFreeListMutex);
 	datum->next = DatumFreeList;
@@ -104,11 +103,11 @@ gdp_datum_setts(gdp_datum_t *datum, EP_TIME_SPEC *ts)
 size_t
 gdp_datum_getdlen(const gdp_datum_t *datum)
 {
-	return datum->dlen;
+	return gdp_buf_getlength(datum->dbuf);
 }
 
 gdp_buf_t *
-gdp_datum_getdbuf(const gdp_datum_t *datum)
+gdp_datum_getbuf(const gdp_datum_t *datum)
 {
 	return datum->dbuf;
 }
@@ -139,7 +138,7 @@ gdp_datum_print(const gdp_datum_t *datum,
 	else
 	{
 		l = gdp_buf_getlength(datum->dbuf);
-		fprintf(fp, "len %zd/%d", datum->dlen, l);
+		fprintf(fp, "len %d", l);
 		d = gdp_buf_getptr(datum->dbuf, l);
 	}
 

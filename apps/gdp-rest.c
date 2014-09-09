@@ -260,7 +260,7 @@ read_datum(char *gclpname, gdp_recno_t recno, scgi_request *req)
 		// finish up sending the data out --- the extra copy is annoying
 		{
 			size_t rlen = strlen(rbuf);
-			size_t dlen = datum->dlen;
+			size_t dlen = evbuffer_get_length(datum->dbuf);
 			char obuf[1024];
 			char *obp = obuf;
 
@@ -422,8 +422,7 @@ process_scgi_req(scgi_request *req)
 			{
 				gdp_datum_t *datum = gdp_datum_new();
 
-				datum->dlen = req->scgi_content_length;
-				gdp_buf_write(datum->dbuf, req->body, datum->dlen);
+				gdp_buf_write(datum->dbuf, req->body, req->scgi_content_length);
 				estat = gdp_gcl_publish(gcl, datum);
 			}
 			if (!EP_STAT_ISOK(estat))

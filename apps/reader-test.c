@@ -27,7 +27,7 @@ do_read(gdp_gcl_t *gclh)
 		recno++;
 
 		// flush any left over data
-		if (gdp_buf_reset(gdp_datum_getdbuf(datum)) < 0)
+		if (gdp_buf_reset(gdp_datum_getbuf(datum)) < 0)
 		{
 			char nbuf[40];
 

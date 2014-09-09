@@ -670,9 +670,10 @@ gcl_append(gdp_gcl_t *gclh,
 
 	// write log record data
 	{
-		unsigned char *p = evbuffer_pullup(datum->dbuf, datum->dlen);
+		size_t dlen = evbuffer_get_length(datum->dbuf);
+		unsigned char *p = evbuffer_pullup(datum->dbuf, dlen);
 		if (p != NULL)
-			fwrite(p, datum->dlen, 1, gclh->fp);
+			fwrite(p, dlen, 1, gclh->fp);
 	}
 
 	index_record.recno = log_record.recno;

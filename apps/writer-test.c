@@ -88,7 +88,7 @@ main(int argc, char **argv)
 
 		fprintf(stdout, "Got input %s%s%s\n", EpChar->lquote, buf,
 				EpChar->rquote);
-		gdp_buf_write(gdp_datum_getdbuf(datum), buf, strlen(buf));
+		gdp_buf_write(gdp_datum_getbuf(datum), buf, strlen(buf));
 		estat = gdp_gcl_publish(gclh, datum);
 		EP_STAT_CHECK(estat, goto fail1);
 		gdp_datum_print(datum, stdout);

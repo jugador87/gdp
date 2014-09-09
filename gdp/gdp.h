@@ -236,7 +236,7 @@ extern size_t	gdp_datum_getdlen(
 					const gdp_datum_t *datum);
 
 // get the data buffer from a datum
-extern gdp_buf_t *gdp_datum_getdbuf(
+extern gdp_buf_t *gdp_datum_getbuf(
 					const gdp_datum_t *datum);
 
 

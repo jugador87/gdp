@@ -184,9 +184,10 @@ main(int argc, char *argv[])
 		for (i = 0; i < num_records; ++i)
 		{
 			gdp_datum_t *datum = gdp_datum_new();
+			size_t dlen = strlen(&data[(i * max_record_size)]);
+
 			datum->recno = i + 1;
-			datum->dlen = strlen(&data[(i * max_record_size)]);
-			gdp_buf_write(datum->dbuf, &data[(i * max_record_size)], datum->dlen);
+			gdp_buf_write(datum->dbuf, &data[(i * max_record_size)], dlen);
 
 			estat = gdp_gcl_publish(gclh_write, datum);
 			gdp_datum_free(datum);
@@ -210,10 +211,9 @@ main(int argc, char *argv[])
 
 			estat = gdp_gcl_read(gclh_read, i + 1, datum);
 			EP_STAT_CHECK(estat, goto fail2);
-			gdp_buf_read(datum->dbuf, cur_record, datum->dlen);
-			if (strncmp(data + (i * max_record_size),
-						cur_record,
-						datum->dlen) != 0)
+			size_t dlen = gdp_buf_getlength(datum->dbuf);
+			gdp_buf_read(datum->dbuf, cur_record, dlen);
+			if (strncmp(data + (i * max_record_size), cur_record, dlen) != 0)
 			{
 				fprintf(stdout, "data mismatch:\n> expected: %s\n> got     : %s\n",
 					data + (i * max_record_size), cur_record);

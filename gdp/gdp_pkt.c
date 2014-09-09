@@ -73,7 +73,7 @@ _gdp_pkt_dump(gdp_pkt_t *pkt, FILE *fp)
 			fprintf(fp, "%" PRIgdp_recno, pkt->datum->recno);
 			len += sizeof pkt->datum->recno;
 		}
-		fprintf(fp, ", dbuf=%p, dlen=%zu/%zu", pkt->datum->dbuf, pkt->datum->dlen,
+		fprintf(fp, ", dbuf=%p, dlen=%zu", pkt->datum->dbuf,
 				pkt->datum->dbuf == NULL ? 0 : gdp_buf_getlength(pkt->datum->dbuf));
 		fprintf(fp, "\n\tts=");
 		ep_time_print(&pkt->datum->ts, fp, true);
@@ -87,15 +87,7 @@ _gdp_pkt_dump(gdp_pkt_t *pkt, FILE *fp)
 /*
 **	GDP_PKT_OUT --- send a packet to a network buffer
 **
-**		Outputs packet header.	pkt->datum->dlen must be set to the number
-**		of bytes to be added (after we return) to the output buffer
-**		obuf.
-**
-**		NOTE WELL:	If you are going to be adding output data, it is
-**		important that the caller lock the output buffer (using
-**		evbuffer_lock/evbuffer_unlock) before calling this routine
-**		to ensure that other threads don't sneak in and intermix
-**		data.
+**		Outputs packet, including all the data in the dbuf.
 **
 **	XXX need to enable buffer locking somewhere!!
 **		[evbuffer_enable_locking(buffer, void *lock)]
@@ -156,7 +148,7 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 
 	// data length
 	if (pkt->datum != NULL)
-		dlen = gdp_buf_getlength(pkt->datum->dbuf);
+		dlen = evbuffer_get_length(pkt->datum->dbuf);
 	else
 		dlen = 0;
 	PUT32(dlen);
@@ -275,6 +267,7 @@ EP_STAT
 _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 {
 	EP_STAT estat = EP_STAT_OK;
+	uint32_t dlen;
 	size_t needed;
 	size_t sz;
 	uint8_t pbuf[_GDP_MAX_PKT_HDR];
@@ -303,7 +296,7 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	pkt->cmd = *pbp++;
 	pkt->flags = *pbp++;
 	pkt->reserved1 = *pbp++;
-	GET32(pkt->datum->dlen)
+	GET32(dlen)
 
 	// do some initial error checking
 	if (pkt->ver < GDP_PROTO_MIN_VERSION || pkt->ver > GDP_PROTO_CUR_VERSION)
@@ -322,7 +315,7 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 		needed += 8;				// sizeof pkt->recno;
 	if (EP_UT_BITSET(GDP_PKT_HAS_TS, pkt->flags))
 		needed += 16;				// sizeof pkt->ts;
-	needed += pkt->datum->dlen;
+	needed += dlen;
 
 	// see if the entire packet (header + data) is available
 	if (gdp_buf_getlength(ibuf) < needed)
@@ -347,8 +340,8 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	// the entire packet is now in ibuf
 
 	// now drain the data we have processed
-	sz = gdp_buf_read(ibuf, pbuf, needed - pkt->datum->dlen);
-	if (sz < needed - pkt->datum->dlen)
+	sz = gdp_buf_read(ibuf, pbuf, needed - dlen);
+	if (sz < needed - dlen)
 	{
 		// shouldn't happen, since it's already in memory
 		estat = GDP_STAT_BUFFER_FAILURE;
@@ -361,7 +354,7 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	if (ep_dbg_test(Dbg, 32))
 	{
 		ep_dbg_printf("gdp_pkt_in: read packet header:\n");
-		ep_hexdump(pbuf, needed - pkt->datum->dlen, ep_dbg_getfile(), 0);
+		ep_hexdump(pbuf, needed - dlen, ep_dbg_getfile(), 0);
 	}
 
 	// Request Id
@@ -405,13 +398,13 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	{
 		size_t l;
 
-		l = evbuffer_remove_buffer(ibuf, pkt->datum->dbuf, pkt->datum->dlen);
-		if (l < pkt->datum->dlen)
+		l = evbuffer_remove_buffer(ibuf, pkt->datum->dbuf, dlen);
+		if (l < dlen)
 		{
 			// should never happen since we already have all the data in memory
 			ep_dbg_cprintf(Dbg, 2,
 					"gdp_pkt_in: cannot read all data; wanted %zd, got %zd\n",
-					pkt->datum->dlen, l);
+					dlen, l);
 		}
 	}
 

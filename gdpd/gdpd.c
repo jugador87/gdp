@@ -228,7 +228,8 @@ cmd_publish(gdp_req_t *req)
 	sub_notify_all_subscribers(req);
 
 	// we can now let the data in the request go
-	evbuffer_drain(req->pkt->datum->dbuf, req->pkt->datum->dlen);
+	evbuffer_drain(req->pkt->datum->dbuf,
+			evbuffer_get_length(req->pkt->datum->dbuf));
 
 	return estat;
 }
