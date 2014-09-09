@@ -22,19 +22,23 @@ HFILES=	\
 GDPLIBVER=	1.0
 ALL=		libgdp.a libgdp.so.${GDPLIBVER}
 
+INCROOT=	..
+LIBROOT=	${INCROOT}
 LIBCRYPTO=	-lcrypto
-
+LIBEVENT2=	-levent -levent_pthreads
+LIBEP=		-L${LIBROOT}/ep -lep
+INCEP=		-I${INCROOT}
+INCEVENT2=	-I/usr/local/include
+INCS=		${INCEP} ${INCEVENT2} ${INCCRYPTO}
+LDFLAGS= 	${LIBEP} ${LIBEVENT2} ${LIBCRYPTO}
+LIBDIR= 	${LIBROOT}/libs
 PG=
 O=		-O
 WALL=		-Wall
 STD=
 COPTS=		${PG} -g ${WALL} $O ${STD}
-CFLAGS=		${COPTS} -I.. -fPIC
-LIBCRYPTO=	-lcrypto
-LIBEVENT=	-levent -levent_pthreads
-LIBEP=		-L../ep -lep
-LDFLAGS= 	${LIBEVENT} ${LIBEP} ${LIBCRYPTO}
-LIBDIR= 	../libs
+CFLAGS=		${COPTS} ${INCS} -fPIC
+
 MV=		mv
 RANLIB=		ranlib
 SHARED=		-shared
