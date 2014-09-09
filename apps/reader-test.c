@@ -15,7 +15,7 @@ EP_STAT
 do_read(gdp_gcl_t *gclh)
 {
 	EP_STAT estat;
-	uint32_t recno = 1;
+	gdp_recno_t recno = 1;
 	gdp_datum_t *datum = gdp_datum_new();
 
 	for (;;)
