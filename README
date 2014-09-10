@@ -81,7 +81,10 @@ Running a GDP-based program:
 Getting Started:
    1.	Install the prerequisites described above.  For the base system
 	all you'll need are libevent2-dev and libssl-dev, but the others
-	are needed for full functionality.
+	are needed for full functionality. The one line installlation for
+	Ubuntu/Linux is:
+        sudo apt-get install libevent-dev libssl-dev cgilib lighttpd\
+        libjansson-dev
 
    2.	Compile the code as described above.
 
