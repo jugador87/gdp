@@ -120,8 +120,8 @@ fail0:
 EP_STAT
 cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 {
-	EP_STAT estat;
-	gdp_gcl_t *gclh;
+	EP_STAT estat = EP_STAT_OK;
+	gdp_gcl_t *gclh = NULL;
 
 	req->pkt->cmd = GDP_ACK_SUCCESS;
 
@@ -140,7 +140,7 @@ cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 			ep_dbg_printf("cmd_open_xx: using cached handle for %s\n", pname);
 		}
 		rewind(gclh->fp);		// make sure we can switch modes (read/write)
-		return EP_STAT_OK;
+		goto done;
 	}
 
 	// nope, I guess we better open it
@@ -154,6 +154,9 @@ cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 	estat = gcl_open(req->pkt->gcl_name, iomode, &gclh);
 	if (EP_STAT_ISOK(estat))
 		_gdp_gcl_cache_add(gclh, iomode);
+done:
+	if (gclh != NULL)
+		req->pkt->datum->recno = gcl_max_recno(gclh);
 	return estat;
 }
 
@@ -193,6 +196,7 @@ cmd_close(gdp_req_t *req)
 		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_close: GCL not open",
 							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
+	req->pkt->datum->recno = gcl_max_recno(gclh);
 	return gcl_close(gclh);
 }
 
