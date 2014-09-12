@@ -454,7 +454,8 @@ fail0:
 EP_STAT
 gdp_gcl_subscribe(gdp_gcl_t *gclh,
 		gdp_recno_t start,
-		gdp_recno_t stop,
+		int32_t numrecs,
+		EP_TIME_SPEC *timeout,
 		gdp_gcl_sub_cbfunc_t cbfunc,
 		void *cbarg)
 {
@@ -469,6 +470,8 @@ gdp_gcl_subscribe(gdp_gcl_t *gclh,
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// add start and stop parameters to packet
+	req->pkt->datum->recno = start;
+	gdp_buf_put_uint32(req->pkt->datum->dbuf, numrecs);
 
 	// issue the subscription --- no data returned
 	estat = _gdp_invoke(req);

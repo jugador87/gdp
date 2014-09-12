@@ -12,12 +12,14 @@
 #include <sysexits.h>
 
 EP_STAT
-do_read(gdp_gcl_t *gclh)
+do_read(gdp_gcl_t *gclh, gdp_recno_t firstrec)
 {
 	EP_STAT estat;
-	gdp_recno_t recno = 1;
+	gdp_recno_t recno = firstrec;
 	gdp_datum_t *datum = gdp_datum_new();
 
+	if (recno <= 0)
+		recno = 1;
 	for (;;)
 	{
 		estat = gdp_gcl_read(gclh, recno, datum);
@@ -46,11 +48,11 @@ do_read(gdp_gcl_t *gclh)
 
 
 EP_STAT
-do_subscribe(gdp_gcl_t *gclh)
+do_subscribe(gdp_gcl_t *gclh, gdp_recno_t firstrec, int32_t numrecs)
 {
 	EP_STAT estat;
 
-	estat = gdp_gcl_subscribe(gclh, 1, -1, NULL, NULL);
+	estat = gdp_gcl_subscribe(gclh, firstrec, numrecs, NULL, NULL, NULL);
 	if (!EP_STAT_ISOK(estat))
 	{
 		char ebuf[200];
@@ -68,6 +70,10 @@ do_subscribe(gdp_gcl_t *gclh)
 			fprintf(stdout, " >>> ");
 			gdp_datum_print(gdp_event_getdatum(gev), stdout);
 			break;
+
+		  case GDP_EVENT_EOS:
+			fprintf(stdout, "End of Subscription\n");
+			return estat;
 
 		  default:
 			fprintf(stderr, "Unknown event type %d\n", gdp_event_gettype(gev));
@@ -92,13 +98,23 @@ main(int argc, char **argv)
 	gcl_pname_t gclpname;
 	int opt;
 	bool subscribe = false;
+	int32_t numrecs = -1;
+	gdp_recno_t firstrec = -1;
 
-	while ((opt = getopt(argc, argv, "D:s")) > 0)
+	while ((opt = getopt(argc, argv, "D:f:n:s")) > 0)
 	{
 		switch (opt)
 		{
 		  case 'D':
 			ep_dbg_set(optarg);
+			break;
+
+		  case 'f':
+			firstrec = atol(optarg);
+			break;
+
+		  case 'n':
+			numrecs = atol(optarg);
 			break;
 
 		  case 's':
@@ -123,6 +139,9 @@ main(int argc, char **argv)
 		goto fail0;
 	}
 
+	// allow thread to settle to avoid interspersed debug output
+	sleep(1);
+
 	estat = gdp_gcl_parse_name(argv[0], gclname);
 	if (!EP_STAT_ISOK(estat))
 	{
@@ -144,9 +163,9 @@ main(int argc, char **argv)
 	}
 
 	if (subscribe)
-		estat = do_subscribe(gclh);
+		estat = do_subscribe(gclh, firstrec, numrecs);
 	else
-		estat = do_read(gclh);
+		estat = do_read(gclh, firstrec);
 
 fail0:
 	fprintf(stderr, "exiting with status %s\n",

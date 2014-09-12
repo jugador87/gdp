@@ -43,7 +43,8 @@ flush_input_data(gdp_req_t *req, char *where)
 {
 	int i;
 
-	if (req->pkt->datum != NULL && (i = gdp_buf_getlength(req->pkt->datum->dbuf)) > 0)
+	if (req->pkt->datum != NULL &&
+			(i = evbuffer_get_length(req->pkt->datum->dbuf)) > 0)
 	{
 		ep_dbg_cprintf(Dbg, 4,
 				"flush_input_data: %s: flushing %d bytes of unexpected input\n",
@@ -64,11 +65,10 @@ implement_me(char *s)
 }
 
 
-/*
+/***********************************************************************
 **  GDP command implementations
 **
-**		Each of these takes a request and an I/O channel (socket) as
-**		arguments.
+**		Each of these takes a request as the argument.
 **
 **		These routines should set req->pkt->cmd to the "ACK" reply
 **		code, which will be used if the command succeeds (i.e.,
@@ -79,6 +79,11 @@ implement_me(char *s)
 **		All routines are expected to consume all their input from
 **		the channel and to write any output to the same channel.
 **		They can consume any unexpected input using flush_input_data.
+**
+***********************************************************************/
+
+/*
+**  CMD_CREATE --- create new GCL.
 */
 
 EP_STAT
@@ -106,6 +111,11 @@ cmd_create(gdp_req_t *req)
 fail0:
 	return estat;
 }
+
+
+/*
+**  CMD_OPEN_RO, _AO --- open for read or append only
+*/
 
 EP_STAT
 cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
@@ -159,6 +169,14 @@ cmd_open_ro(gdp_req_t *req)
 	return cmd_open_xx(req, GDP_MODE_RO);
 }
 
+
+/*
+**  CMD_CLOSE --- close an open GCL
+**
+**		XXX	We need to have a way of expiring unused GCLs that are not
+**			closed.
+*/
+
 EP_STAT
 cmd_close(gdp_req_t *req)
 {
@@ -178,6 +196,13 @@ cmd_close(gdp_req_t *req)
 	return gcl_close(gclh);
 }
 
+
+/*
+**  CMD_READ --- read a single record from a GCL
+**
+**		This returns the data as part of the response.  To get multiple
+**		values in one call, see cmd_subscribe.
+*/
 
 EP_STAT
 cmd_read(gdp_req_t *req)
@@ -205,6 +230,12 @@ cmd_read(gdp_req_t *req)
 	return estat;
 }
 
+
+/*
+**  CMD_PUBLISH --- publish (write) a datum to a GCL
+**
+**		This will have side effects if there are subscriptions pending.
+*/
 
 EP_STAT
 cmd_publish(gdp_req_t *req)
@@ -235,16 +266,121 @@ cmd_publish(gdp_req_t *req)
 }
 
 
+/*
+**  POST_SUBSCRIBE --- do subscription work after initial ACK
+**
+**		Assuming the subscribe worked we are now going to deliver any
+**		previously existing records.  Once those are all sent we can
+**		convert this to an ordinary subscription.  If the subscribe
+**		request is satisified, we remove it.
+*/
+
+void
+post_subscribe(gdp_req_t *req)
+{
+	EP_STAT estat;
+
+	// make sure the request has the right command
+	req->pkt->cmd = GDP_ACK_CONTENT;
+
+	while (req->numrecs != 0)
+	{
+		// see if data pre-exists in the GCL
+		if (req->pkt->datum->recno > gcl_max_recno(req->gclh))
+		{
+			// no, it doesn't; convert to long-term subscription
+			break;
+		}
+
+		// get the next record and return it as an event
+		estat = gcl_read(req->gclh, req->pkt->datum);
+		if (EP_STAT_ISOK(estat))
+		{
+			// OK, the next record exists: send it
+			req->stat = estat = _gdp_pkt_out(req->pkt,
+							bufferevent_get_output(req->chan));
+
+			// advance to the next record
+			if (req->numrecs > 0)
+				req->numrecs--;
+			req->pkt->datum->recno++;
+		}
+		else if (!EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
+		{
+			// this is some error that should be logged
+			gdp_log(estat, "post_subscribe: bad read");
+			req->numrecs = 0;		// terminate subscription
+		}
+		else
+		{
+			// shouldn't happen
+			gdp_log(estat, "post_subscribe: read EOF");
+		}
+
+		// if we didn't successfully send a record, terminate
+		EP_STAT_CHECK(estat, break);
+	}
+
+	if (req->numrecs == 0)
+	{
+		// no more to read: do cleanup & send termination notice
+		sub_end_subscription(req);
+	}
+	else
+	{
+		ep_dbg_cprintf(Dbg, 24, "post_subscribe: converting to subscription\n");
+		req->flags |= GDP_REQ_SUBSCRIPTION;
+
+		// link this request into the GCL so the subscription can be found
+		ep_thr_mutex_lock(&req->gclh->mutex);
+		LIST_INSERT_HEAD(&req->gclh->reqs, req, list);
+		ep_thr_mutex_unlock(&req->gclh->mutex);
+	}
+}
+
+
+/*
+**  CMD_SUBSCRIBE --- subscribe command
+**
+**		Arranges to return existing data (if any) after the response
+**		is sent, and non-existing data (if any) as a side-effect of
+**		publish.
+**
+**		XXX	Race Condition: if records are written between the time
+**			the subscription and the completion of the first half of
+**			this process, some records may be lost.  For example,
+**			if the GCL has 20 records (1-20) and you ask for 20
+**			records starting at record 11, you probably want records
+**			11-30.  But if during the return of records 11-20 another
+**			record (21) is written, then the second half of the
+**			subscription will actually return records 22-31.
+**
+**		XXX	Does not implement timeouts.
+*/
+
 EP_STAT
 cmd_subscribe(gdp_req_t *req)
 {
 	gdp_gcl_t *gclh;
+	EP_TIME_SPEC timeout;
 
 	req->pkt->cmd = GDP_ACK_SUCCESS;
 
-	// should have no input data; ignore anything there
+	// get the additional parameters: number of records and timeout
+	req->numrecs = (int) gdp_buf_get_uint32(req->pkt->datum->dbuf);
+	gdp_buf_get_timespec(req->pkt->datum->dbuf, &timeout);
+
+	if (ep_dbg_test(Dbg, 14))
+	{
+		ep_dbg_printf("cmd_subscribe: first = %" PRIgdp_recno ", numrecs = %d\n  ",
+				req->pkt->datum->recno, req->numrecs);
+		gdp_gcl_print(req->gclh, ep_dbg_getfile(), 0, 0);
+	}
+
+	// should have no more input data; ignore anything there
 	flush_input_data(req, "cmd_subscribe");
 
+	// find the GCL handle
 	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_RO);
 	if (gclh == NULL)
 	{
@@ -252,17 +388,53 @@ cmd_subscribe(gdp_req_t *req)
 							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 
-	// mark this as a subscription request
-	req->flags |= GDP_REQ_PERSIST | GDP_REQ_SUBSCRIPTION;
+	// mark this as persistent
+	req->flags |= GDP_REQ_PERSIST;
 
-	// link this request into the GCL so the subscription can be found
-	ep_thr_mutex_lock(&gclh->mutex);
-	LIST_INSERT_HEAD(&gclh->reqs, req, list);
-	ep_thr_mutex_unlock(&gclh->mutex);
+	// get our starting point, which may be relative to the end
+	if (req->pkt->datum->recno < 0)
+	{
+		req->pkt->datum->recno = gcl_max_recno(req->gclh) + 1;
+		if (req->numrecs >= 0)
+			req->pkt->datum->recno -= req->numrecs;
+	}
+
+	ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: starting from %" PRIgdp_recno "\n",
+			req->pkt->datum->recno);
+
+	// if some of the records already exist, arrange to return them
+	if (req->pkt->datum->recno <= gcl_max_recno(req->gclh))
+	{
+		ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: doing post processing\n");
+		req->cb = &post_subscribe;
+		req->postproc = true;
+	}
+	else
+	{
+		// this is a pure "future" subscription
+		ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: enabling subscription\n");
+		req->flags |= GDP_REQ_SUBSCRIPTION;
+
+		// link this request into the GCL so the subscription can be found
+		ep_thr_mutex_lock(&gclh->mutex);
+		LIST_INSERT_HEAD(&gclh->reqs, req, list);
+		ep_thr_mutex_unlock(&gclh->mutex);
+	}
 
 	return EP_STAT_OK;
 }
 
+
+/*
+**  CMD_UNSUBSCRIBE --- terminate a subscription
+**
+**		XXX not implemented yet
+*/
+
+
+/*
+**  CMD_NOT_IMPLEMENTED --- generic "not implemented" error
+*/
 
 EP_STAT
 cmd_not_implemented(gdp_req_t *req)
@@ -276,6 +448,9 @@ cmd_not_implemented(gdp_req_t *req)
 	_gdp_pkt_out_hard(req->pkt, bufferevent_get_output(req->chan));
 	return GDP_STAT_NAK_NOTIMPL;
 }
+
+
+/**************** END OF COMMAND IMPLEMENTATIONS ****************/
 
 
 /*
@@ -363,6 +538,14 @@ gdpd_req_thread(void *req_)
 	req->stat = _gdp_pkt_out(req->pkt, bufferevent_get_output(req->chan));
 	//XXX anything to do with estat here?
 
+	// if there is any post-processing to do, invoke the callback
+	if (req->cb != NULL && req->postproc)
+	{
+		(req->cb)(req);
+		req->postproc = false;
+		req->cb = NULL;
+	}
+
 	// we can now unlock and free resources
 	if (!EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
 		_gdp_req_free(req);
@@ -400,6 +583,10 @@ lev_read_cb(gdp_chan_t *chan, void *ctx)
 		_gdp_req_free(req);
 		return;
 	}
+
+	ep_dbg_cprintf(Dbg, 10, "\n*** Processing command %d=%s from socket %d\n",
+			req->pkt->cmd, _gdp_proto_cmd_name(req->pkt->cmd),
+			bufferevent_getfd(chan));
 
 	// cheat: pass channel in req structure
 	req->chan = chan;

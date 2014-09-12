@@ -101,6 +101,7 @@ typedef struct gdp_event	gdp_event_t;
 
 // event types
 #define GDP_EVENT_DATA		1	// returned data
+#define GDP_EVENT_EOS		2	// end of subscription
 
 // get next event (fills in gev structure)
 extern gdp_event_t		*gdp_event_next(bool wait);
@@ -166,7 +167,8 @@ typedef void	(*gdp_gcl_sub_cbfunc_t)(  // the callback function
 extern EP_STAT	gdp_gcl_subscribe(
 					gdp_gcl_t *gclh,		// readable GCL handle
 					gdp_recno_t start,		// first record to retrieve
-					gdp_recno_t stop,		// last record to retrieve
+					int32_t numrecs,		// number of records to retrieve
+					EP_TIME_SPEC *timeout,	// timeout
 					gdp_gcl_sub_cbfunc_t cbfunc,
 											// callback function for next datum
 					void *cbarg);			// argument passed to callback

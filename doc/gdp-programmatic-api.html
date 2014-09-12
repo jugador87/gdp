@@ -304,8 +304,7 @@
         IMPLEMENTED]</em></strong><br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_subscribe(gdp_gcl_t *gcl,
-		gdp_recno_t start,<br>		gdp_recno_t stop,
-		gdp_gcl_sub_cbfunc_t cbfunc,<br>		void *cbdata)
+		gdp_recno_t start,<br>		int32_t numrecs,<br>		EP_TIME_SPEC *timeout;<br>		gdp_gcl_sub_cbfunc_t cbfunc,<br>		void *cbdata)
 
 void (*cbfunc)(gdp_gcl_t *gcl,
 		gdp_datum_t *datum,
@@ -313,21 +312,105 @@ void (*cbfunc)(gdp_gcl_t *gcl,
 </pre>
     <h4> Notes</h4>
     <ul>
-      <li> If a cbfunc is specified, arranges to call callback when a
-        message is generated on the <code>gcl</code>.</li>
-      <li> The void *cbdata is passed through untouched.</li>
+      <li>If a <code>cbfunc</code> is specified, arranges to call
+        callback when a message is generated on the <code>gcl</code>.</li>
+      <li> The <code>void *cbdata</code> is passed through untouched.</li>
       <li> The callback is not necessarily invoked instantly, and may or
         may not be called in a separate thread.</li>
-      <li>If no cbfunc is specified, subscription information is
-        available through the gdp_gcl_event interface (see below).<br>
+      <li>If no <code>cbfunc</code> is specified, subscription
+        information is available through the <code>gdp_gcl_event</code>
+        interface (see below).</li>
+      <li>At most <code>numrecs</code> records are returned, after
+        which the subscription is terminated.&nbsp; If <code>numrecs</code>
+        is –1 it waits for data forever.<br>
       </li>
       <li> The <code>start</code> parameter tells when to start the
-        subscription (that is, the starting record number).&nbsp; When
-        the record number gets to the <code>stop</code> parameter the
-        subscription is terminated.</li>
-      <li><em>Callbacks, start, and stop are not implemented at this
-          time.</em><br>
+        subscription (that is, the starting record number).</li>
+      <li>If <code>start</code> is –1, returns the most recent <code>numrecs</code>
+        records.&nbsp; If both are –1 then it starts with the next piece
+        of new data.</li>
+      <li>If <code>start</code> specifies an existing record but there
+        are fewer than <code>numrecs</code> records available, this
+        returns the available records and then waits for the additional
+        data to appear.<br>
       </li>
+      <li><em>Callbacks, start, numrecs, and timeouts are not
+          implemented at this time.&nbsp; Should callbacks ever be used?&nbsp;
+          Makes binding to languages like Java particularly difficult.<br>
+        </em></li>
+      <li>Example:&nbsp; suppose there are 20 records already in a
+        GCL.&nbsp; Then:</li>
+    </ul>
+    <table align="center" width="80%" border="1" cellpadding="2"
+      cellspacing="2">
+      <tbody>
+        <tr>
+          <td valign="top">start<br>
+          </td>
+          <td valign="top">numrecs<br>
+          </td>
+          <td valign="top">Behavior<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">1<br>
+          </td>
+          <td valign="top">10<br>
+          </td>
+          <td valign="top">Returns records 1–10 immediately and
+            terminates the subscription.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">–1<br>
+          </td>
+          <td valign="top">10<br>
+          </td>
+          <td valign="top">Returns records 11–20 immediately and
+            terminates the subscription.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">–1<br>
+          </td>
+          <td valign="top">–1<br>
+          </td>
+          <td valign="top">Starts returning data when record 21 is
+            written and continues forever.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">1<br>
+          </td>
+          <td valign="top">30<br>
+          </td>
+          <td valign="top">Returns records 1–20 immediately, then waits
+            for records 21–30 to be written and returns them as they are
+            published.&nbsp; The subscription then terminates.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">1<br>
+          </td>
+          <td valign="top">–1<br>
+          </td>
+          <td valign="top">Returns records 1–20 immediately, then
+            returns any new records published in perpetuity.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">N/A<br>
+          </td>
+          <td valign="top">0<br>
+          </td>
+          <td valign="top">Nothing is returned.&nbsp; <i>Perhaps this
+              should be reserved for future use?</i><br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <br>
+    <ul>
     </ul>
     <br>
     <hr size="2" width="100%">
@@ -366,10 +449,37 @@ void (*cbfunc)(gdp_gcl_t *gcl,
     <pre>int gdp_event_gettype(gdp_event_t *gev)</pre>
     <h4>Notes</h4>
     <ul>
-      <li>The only type defined at present is <code>GDP_EVENT_DATA</code>,
-        indicating data has arrived as the result of a subscription
-        request.<br>
+      <li>The event types are as follows:</li>
+    </ul>
+    <table align="center" width="80%" border="1" cellpadding="2"
+      cellspacing="2">
+      <tbody>
+        <tr>
+          <td valign="top">Event Name<br>
+          </td>
+          <td valign="top">Meaning<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top"><code>GDP_EVENT_DATA</code><br>
+          </td>
+          <td valign="top">Data is returned in the event from a previous
+            subscription.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top"><code>GDP_EVENT_EOS</code><br>
+          </td>
+          <td valign="top">Subscription is terminated.<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <ul>
+      <li>Unrecognized events should be ignored.<br>
       </li>
+    </ul>
+    <ul>
     </ul>
     <hr size="2" width="100%">
     <h4>Name</h4>

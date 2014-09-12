@@ -22,18 +22,18 @@ sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum)
 {
 	EP_STAT estat;
 
+	req->pkt->cmd = GDP_ACK_CONTENT;
+	req->pkt->datum = datum;
+
 	if (ep_dbg_test(Dbg, 63))
 	{
 		ep_dbg_printf("sub_send_message_notification req:\n  ");
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
-	req->pkt->cmd = GDP_ACK_CONTENT;
-	req->pkt->datum = datum;
-
 	estat = _gdp_pkt_out(req->pkt, bufferevent_get_output(req->chan));
-
-	//TODO: IMPLEMENT ME!
+	if (req->numrecs >= 0 && --req->numrecs <= 0)
+		sub_end_subscription(req);
 }
 
 
@@ -62,4 +62,32 @@ sub_notify_all_subscribers(gdp_req_t *pubreq)
 		if (EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, req->flags))
 			sub_send_message_notification(req, pubreq->pkt->datum);
 	}
+}
+
+
+/*
+**  SUB_END_SUBSCRIPTION --- terminate a subscription
+*/
+
+void
+sub_end_subscription(gdp_req_t *req)
+{
+	// make it not persistent and not a subscription
+	req->flags &= ~(GDP_REQ_PERSIST | GDP_REQ_SUBSCRIPTION);
+
+	// remove the request from the work list
+	ep_thr_mutex_lock(&req->gclh->mutex);
+	LIST_REMOVE(req, list);
+	ep_thr_mutex_unlock(&req->gclh->mutex);
+
+	// send an "end of subscription" event
+	req->pkt->cmd = GDP_ACK_DELETED;
+
+	if (ep_dbg_test(Dbg, 61))
+	{
+		ep_dbg_printf("sub_end_subscription req:\n  ");
+		_gdp_req_dump(req, ep_dbg_getfile());
+	}
+
+	(void) _gdp_pkt_out(req->pkt, bufferevent_get_output(req->chan));
 }

@@ -150,7 +150,7 @@ typedef struct gdp_pkt
 
 /***** dummy values for other fields *****/
 #define GDP_PKT_NO_RID		0L			// no request id
-#define GDP_PKT_NO_RECNO	UINT64_MAX	// no record number
+#define GDP_PKT_NO_RECNO	-1			// no record number
 
 
 gdp_pkt_t	*_gdp_pkt_new(void);		// allocate a new packet

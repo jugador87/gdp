@@ -64,4 +64,26 @@ extern void			gdp_buf_dump(
 						gdp_buf_t *buf,
 						FILE *fp);
 
+extern uint32_t		gdp_buf_get_uint32(
+						gdp_buf_t *buf);
+
+extern void			gdp_buf_put_uint32(
+						gdp_buf_t *buf,
+						const uint32_t v);
+
+extern uint64_t		gdp_buf_get_uint64(
+						gdp_buf_t *buf);
+
+extern void			gdp_buf_put_uint64(
+						gdp_buf_t *buf,
+						const uint64_t v);
+
+extern void			gdp_buf_get_timespec(
+						gdp_buf_t *buf,
+						EP_TIME_SPEC *ts);
+
+extern void			gdp_buf_put_timespec(
+						gdp_buf_t *buf,
+						EP_TIME_SPEC *ts);
+
 #endif // _GDP_BUF_H_

@@ -62,7 +62,7 @@ fsizeof(FILE *fp)
 		char errnobuf[200];
 
 		strerror_r(errno, errnobuf, sizeof errnobuf);
-		ep_dbg_cprintf(Dbg, 1, "gcl_read: fstat failure: %s\n", errnobuf);
+		ep_dbg_cprintf(Dbg, 1, "fsizeof: fstat failure: %s\n", errnobuf);
 		return -1;
 	}
 
@@ -194,6 +194,11 @@ gcl_index_cache_put(gcl_log_index *entry, int64_t recno, int64_t offset)
 
 	return estat;
 }
+
+
+/*
+**  GCL_CREATE --- create a brand new GCL on disk
+*/
 
 EP_STAT
 gcl_create(gcl_name_t gcl_name,
@@ -338,7 +343,7 @@ fail0:
 
 
 /*
-**	GDP_GCL_OPEN --- open a gcl for reading or further appending
+**	GCL_OPEN --- open a gcl for reading or further appending
 **
 **		XXX: Should really specify whether we want to start reading:
 **		(a) At the beginning of the log (easy).	 This includes random
@@ -410,6 +415,8 @@ gcl_open(gcl_name_t gcl_name,
 			close(fd);
 		goto fail4;
 	}
+
+	// XXX should check for index header here
 
 	gclh->ver = log_header.version;
 	gclh->data_offset = log_header.header_size;
@@ -492,6 +499,18 @@ gcl_close(gdp_gcl_t *gclh)
 	ep_mem_free(gclh);
 
 	return estat;
+}
+
+
+/*
+**  GCL_MAX_RECNO --- return maximum record number in GCL
+*/
+
+gdp_recno_t
+gcl_max_recno(gdp_gcl_t *gclh)
+{
+	gcl_log_index *ix = gclh->log_index;
+	return ix->max_recno;
 }
 
 
@@ -695,77 +714,3 @@ gcl_append(gdp_gcl_t *gclh,
 	datum->recno = log_record.recno;
 	return EP_STAT_OK;
 }
-
-#if 0
-
-/*
-**	GDP_GCL_SUBSCRIBE --- subscribe to a gcl
-*/
-
-struct gdp_cb_arg
-{
-	struct event			*event;		// event triggering this callback
-	gcl_handle_t			*gclh;		// GCL Handle triggering this callback
-	gdp_gcl_sub_cbfunc_t	cbfunc;		// function to call
-	void					*cbarg;		// argument to pass to cbfunc
-	void					*buf;		// space to put the message
-	size_t					bufsiz;		// size of buf
-};
-
-
-static void
-gcl_sub_event_cb(evutil_socket_t fd,
-		short what,
-		void *cbarg)
-{
-	gdp_datum_t datum;
-	EP_STAT estat;
-	struct gdp_cb_arg *cba = cbarg;
-
-	// get the next message from this GCL Handle
-	estat = gcl_read(cba->gclh, GCL_NEXT_MSG, &datum, cba->gclh->revb);
-	if (EP_STAT_ISOK(estat))
-		(*cba->cbfunc)(cba->gclh, &datum, cba->cbarg);
-	//XXX;
-}
-
-
-EP_STAT
-gcl_subscribe(gdp_gcl_t *gclh,
-		gdp_gcl_sub_cbfunc_t cbfunc,
-		long offset,
-		void *buf,
-		size_t bufsiz,
-		void *cbarg)
-{
-	EP_STAT estat = EP_STAT_OK;
-	struct gdp_cb_arg *cba;
-	struct timeval timeout = { 0, 100000 };		// 100 msec
-
-	EP_ASSERT_POINTER_VALID(gclh);
-	EP_ASSERT_POINTER_VALID(cbfunc);
-
-	cba = ep_mem_zalloc(sizeof *cba);
-	cba->gclh = gclh;
-	cba->cbfunc = cbfunc;
-	cba->buf = buf;
-	cba->bufsiz = bufsiz;
-	cba->cbarg = cbarg;
-	cba->event = event_new(GdpEventBase, fileno(gclh->fp),
-			EV_READ|EV_PERSIST, &gcl_sub_event_cb, cba);
-	event_add(cba->event, &timeout);
-	//XXX;
-	return estat;
-}
-
-EP_STAT
-gcl_unsubscribe(gdp_gcl_t *gclh,
-		void (*cbfunc)(gdp_gcl_t *, void *),
-		void *arg)
-{
-	EP_ASSERT_POINTER_VALID(gclh);
-	EP_ASSERT_POINTER_VALID(cbfunc);
-
-	XXX;
-}
-#endif

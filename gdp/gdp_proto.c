@@ -595,8 +595,9 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	// invoke the command-specific (or ack-specific) function
 	estat = _gdp_req_dispatch(req);
 
-	// ASSERT all data from chan has been consumed
+	// ASSERT(all data from chan has been consumed);
 
+	int evtype;
 	ep_thr_mutex_lock(&req->mutex);
 	if (EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, req->flags))
 	{
@@ -604,8 +605,18 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		gdp_event_t *gev;
 
 		// for the moment we only understand data responses (for subscribe)
-		if (req->pkt->cmd != GDP_ACK_CONTENT)
+		switch (req->pkt->cmd)
 		{
+		  case GDP_ACK_CONTENT:
+			evtype = GDP_EVENT_DATA;
+			break;
+
+		  case GDP_ACK_DELETED:
+			// end of subscription
+			evtype = GDP_EVENT_EOS;
+			break;
+
+		  default:
 			ep_dbg_cprintf(Dbg, 3, "Got unexpected ack %d\n", req->pkt->cmd);
 			estat = GDP_STAT_PROTOCOL_FAIL;
 			goto fail1;
@@ -614,10 +625,10 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		estat = gdp_event_new(&gev);
 		EP_STAT_CHECK(estat, goto fail1);
 
-		gev->type = GDP_EVENT_DATA;
+		gev->type = evtype;
 		gev->gcl = req->gclh;
 		gev->datum = req->pkt->datum;
-		req->pkt->datum = NULL;
+		req->pkt->datum = NULL;			// avoid use after free
 
 		gdp_event_trigger(gev);
 	}

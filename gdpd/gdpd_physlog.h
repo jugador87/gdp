@@ -76,3 +76,6 @@ typedef struct gcl_index_record
 	gdp_recno_t recno;
 	int64_t offset;
 } gcl_index_record;
+
+// return maximum record number for a given GCL
+extern gdp_recno_t	gcl_max_recno(gdp_gcl_t *gclh);

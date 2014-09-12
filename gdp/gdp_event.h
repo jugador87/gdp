@@ -12,10 +12,10 @@
 
 struct gdp_event
 {
-	gdp_event_t		*next;		// link to next event
-	int				type;		// event type
-	gdp_gcl_t		*gcl;		// GCL handle for event
-	gdp_datum_t		*datum;		// datum for event
+	TAILQ_ENTRY(gdp_event)	queue;		// free/active queue link
+	int						type;		// event type
+	gdp_gcl_t				*gcl;		// GCL handle for event
+	gdp_datum_t				*datum;		// datum for event
 };
 
 // allocate an event

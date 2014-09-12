@@ -70,10 +70,12 @@ typedef struct gdp_req
 	EP_THR_COND			cond;		// pthread wakeup condition variable
 	LIST_ENTRY(gdp_req)	list;		// linked list for cache management
 	bool				inuse:1;	// indicates request is allocated
+	bool				postproc:1;	// invoke callback for late cmd processing
 	gdp_gcl_t			*gclh;		// the corresponding GCL handle
 	gdp_pkt_t			*pkt;		// packet buffer
 	gdp_chan_t			*chan;		// the network channel for this req
 	EP_STAT				stat;		// status code from last operation
+	int32_t				numrecs;	// remaining number of records to return
 	uint32_t			flags;		// see below
 	void				(*cb)(struct gdp_req *);
 									// callback (see above)
@@ -83,7 +85,6 @@ typedef struct gdp_req
 #define GDP_REQ_DONE			0x00000001	// operation complete
 #define GDP_REQ_SUBSCRIPTION	0x00000002	// request deleted after response
 #define GDP_REQ_PERSIST			0x00000004	// request persists after response
-#define GDP_REQ_INUSE			0x00000008	// this structure is in use
 
 extern gdp_req_t	*_gdp_req_find(gdp_gcl_t *gclh, gdp_rid_t rid);
 extern gdp_rid_t	_gdp_rid_new(gdp_gcl_t *gclh);

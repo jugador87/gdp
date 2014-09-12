@@ -13,13 +13,14 @@
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.event", "GDP event handling");
 
 
+TAILQ_HEAD(ev_head, gdp_event);
+
 static EP_THR_MUTEX		FreeListMutex	EP_THR_MUTEX_INITIALIZER;
-static gdp_event_t		*FreeList;
+static struct ev_head	FreeList		= TAILQ_HEAD_INITIALIZER(FreeList);
 
 static EP_THR_MUTEX		ActiveListMutex	EP_THR_MUTEX_INITIALIZER;
 static EP_THR_COND		ActiveListSig	EP_THR_COND_INITIALIZER;
-static gdp_event_t		*ActiveList;
-static gdp_event_t		*ActiveTail;
+static struct ev_head	ActiveList		= TAILQ_HEAD_INITIALIZER(ActiveList);
 
 EP_STAT
 gdp_event_new(gdp_event_t **gevp)
@@ -27,15 +28,8 @@ gdp_event_new(gdp_event_t **gevp)
 	gdp_event_t *gev = NULL;
 
 	ep_thr_mutex_lock(&FreeListMutex);
-	if (FreeList != NULL)
-	{
-		gev = FreeList;
-		if (gev != NULL)
-		{
-			FreeList = gev->next;
-			gev->next = NULL;
-		}
-	}
+	if ((gev = TAILQ_FIRST(&FreeList)) != NULL)
+		TAILQ_REMOVE(&FreeList, gev, queue);
 	ep_thr_mutex_unlock(&FreeListMutex);
 	if (gev == NULL)
 	{
@@ -51,7 +45,6 @@ EP_STAT
 gdp_event_free(gdp_event_t *gev)
 {
 	EP_ASSERT_POINTER_VALID(gev);
-	EP_ASSERT(gev->next == NULL);
 
 	ep_dbg_cprintf(Dbg, 48, "gdp_event_free(%p)\n", gev);
 
@@ -59,8 +52,7 @@ gdp_event_free(gdp_event_t *gev)
 		gdp_datum_free(gev->datum);
 	gev->datum = NULL;
 	ep_thr_mutex_lock(&FreeListMutex);
-	gev->next = FreeList;
-	FreeList = gev;
+	TAILQ_INSERT_HEAD(&FreeList, gev, queue);
 	ep_thr_mutex_unlock(&FreeListMutex);
 	return EP_STAT_OK;
 }
@@ -72,19 +64,14 @@ gdp_event_next(bool wait)
 	gdp_event_t *gev;
 
 	ep_thr_mutex_lock(&ActiveListMutex);
-	gev = ActiveList;
+	gev = TAILQ_FIRST(&ActiveList);
 	if (gev == NULL && wait)
 	{
-		while (ActiveList == NULL)
+		while ((gev = TAILQ_FIRST(&ActiveList)) == NULL)
 			ep_thr_cond_wait(&ActiveListSig, &ActiveListMutex);
-		gev = ActiveList;
 	}
 	if (gev != NULL)
-	{
-		ActiveList = gev->next;
-		if (ActiveList == NULL)
-			ActiveTail = NULL;
-	}
+		TAILQ_REMOVE(&ActiveList, gev, queue);
 	ep_thr_mutex_unlock(&ActiveListMutex);
 	return gev;
 }
@@ -94,20 +81,9 @@ void
 gdp_event_trigger(gdp_event_t *gev)
 {
 	EP_ASSERT_POINTER_VALID(gev);
-	EP_ASSERT(gev->next == NULL);
 
 	ep_thr_mutex_lock(&ActiveListMutex);
-	if (ActiveTail != NULL)
-	{
-		ActiveTail->next = gev;
-		ActiveTail = gev;
-	}
-	else
-	{
-		EP_ASSERT(ActiveList == NULL);
-		gev->next = NULL;
-		ActiveList = ActiveTail = gev;
-	}
+	TAILQ_INSERT_TAIL(&ActiveList, gev, queue);
 	ep_thr_cond_signal(&ActiveListSig);
 	ep_thr_mutex_unlock(&ActiveListMutex);
 }

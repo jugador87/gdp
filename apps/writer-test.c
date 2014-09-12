@@ -59,6 +59,9 @@ main(int argc, char **argv)
 		goto fail0;
 	}
 
+	// allow thread to settle to avoid interspersed debug output
+	sleep(1);
+
 	if (xname == NULL)
 	{
 		// create a new GCL handle
