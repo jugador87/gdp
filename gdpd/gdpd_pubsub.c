@@ -25,7 +25,7 @@ sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum)
 	req->pkt->cmd = GDP_ACK_CONTENT;
 	req->pkt->datum = datum;
 
-	if (ep_dbg_test(Dbg, 63))
+	if (ep_dbg_test(Dbg, 33))
 	{
 		ep_dbg_printf("sub_send_message_notification req:\n  ");
 		_gdp_req_dump(req, ep_dbg_getfile());
@@ -46,7 +46,7 @@ sub_notify_all_subscribers(gdp_req_t *pubreq)
 {
 	gdp_req_t *req;
 
-	if (ep_dbg_test(Dbg, 62))
+	if (ep_dbg_test(Dbg, 32))
 	{
 		ep_dbg_printf("sub_notify_all_subscribers:\n  ");
 		_gdp_req_dump(pubreq, ep_dbg_getfile());
