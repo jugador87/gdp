@@ -193,7 +193,7 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 	}
 
 	evbuffer_lock(obuf);
-	if (gdp_buf_write(obuf, pbuf, pbp - pbuf) < 0)
+	if (evbuffer_add(obuf, pbuf, pbp - pbuf) < 0)
 	{
 		char nbuf[40];
 
@@ -202,15 +202,20 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: header write failure: %s", nbuf);
 		estat = GDP_STAT_PKT_WRITE_FAIL;
 	}
-	else if (dlen > 0 &&
-			evbuffer_remove_buffer(pkt->datum->dbuf, obuf, dlen) < dlen)
+	else if (dlen > 0)
 	{
-		char nbuf[40];
+		uint8_t *bp;
 
-		// couldn't write data
-		strerror_r(errno, nbuf, sizeof nbuf);
-		ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: data write failure: %s\n", nbuf);
-		estat = GDP_STAT_PKT_WRITE_FAIL;
+		bp = evbuffer_pullup(pkt->datum->dbuf, dlen);
+		if (bp == NULL || evbuffer_add(obuf, bp, dlen) < 0)
+		{
+			char nbuf[40];
+
+			// couldn't write data
+			strerror_r(errno, nbuf, sizeof nbuf);
+			ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: data write failure: %s\n", nbuf);
+			estat = GDP_STAT_PKT_WRITE_FAIL;
+		}
 	}
 	evbuffer_unlock(obuf);
 
