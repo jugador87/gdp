@@ -189,7 +189,7 @@ ep_mem_ialloc(
 //		flags |= EP_MEM_F_ALIGN;
 
 	// get the memory itself
-	p = system_malloc(nbytes, curmem, flags);
+	p = system_malloc(nbytes, curmem, EP_UT_BITSET(EP_MEM_F_ALIGN, flags));
 
 	if (p == NULL)
 	{
