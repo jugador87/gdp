@@ -10,3 +10,5 @@ scgilib/helloworld
 *.o
 *.a
 *~
+
+doc/*.pdf
