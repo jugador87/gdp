@@ -83,8 +83,9 @@ typedef struct gdp_req
 } gdp_req_t;
 
 #define GDP_REQ_DONE			0x00000001	// operation complete
-#define GDP_REQ_SUBSCRIPTION	0x00000002	// request deleted after response
+#define GDP_REQ_SUBSCRIPTION	0x00000002	// this is a subscription
 #define GDP_REQ_PERSIST			0x00000004	// request persists after response
+#define GDP_REQ_SUBUPGRADE		0x00000008	// can upgrade to subscription
 
 extern gdp_req_t	*_gdp_req_find(gdp_gcl_t *gclh, gdp_rid_t rid);
 extern gdp_rid_t	_gdp_rid_new(gdp_gcl_t *gclh);

@@ -287,7 +287,7 @@ post_subscribe(gdp_req_t *req)
 	// make sure the request has the right command
 	req->pkt->cmd = GDP_ACK_CONTENT;
 
-	while (req->numrecs != 0)
+	while (req->numrecs >= 0)
 	{
 		// see if data pre-exists in the GCL
 		if (req->pkt->datum->recno > gcl_max_recno(req->gclh))
@@ -300,20 +300,28 @@ post_subscribe(gdp_req_t *req)
 		estat = gcl_read(req->gclh, req->pkt->datum);
 		if (EP_STAT_ISOK(estat))
 		{
+
 			// OK, the next record exists: send it
 			req->stat = estat = _gdp_pkt_out(req->pkt,
-							bufferevent_get_output(req->chan));
+										bufferevent_get_output(req->chan));
+
+			// have to clear the old data
+			evbuffer_drain(req->pkt->datum->dbuf,
+					evbuffer_get_length(req->pkt->datum->dbuf));
 
 			// advance to the next record
-			if (req->numrecs > 0)
+			if (req->numrecs > 0 && --req->numrecs == 0)
+			{
+				// numrecs was positive, now zero, but zero means infinity
 				req->numrecs--;
+			}
 			req->pkt->datum->recno++;
 		}
 		else if (!EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
 		{
 			// this is some error that should be logged
 			gdp_log(estat, "post_subscribe: bad read");
-			req->numrecs = 0;		// terminate subscription
+			req->numrecs = -1;		// terminate subscription
 		}
 		else
 		{
@@ -325,7 +333,7 @@ post_subscribe(gdp_req_t *req)
 		EP_STAT_CHECK(estat, break);
 	}
 
-	if (req->numrecs == 0)
+	if (req->numrecs < 0 || !EP_UT_BITSET(GDP_REQ_SUBUPGRADE, req->flags))
 	{
 		// no more to read: do cleanup & send termination notice
 		sub_end_subscription(req);
@@ -384,6 +392,12 @@ cmd_subscribe(gdp_req_t *req)
 	// should have no more input data; ignore anything there
 	flush_input_data(req, "cmd_subscribe");
 
+	if (req->numrecs < 0)
+	{
+		req->pkt->cmd = GDP_NAK_C_BADOPT;
+		return GDP_STAT_FROM_C_NAK(req->pkt->cmd);
+	}
+
 	// find the GCL handle
 	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_RO);
 	if (gclh == NULL)
@@ -392,19 +406,23 @@ cmd_subscribe(gdp_req_t *req)
 							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 
-	// mark this as persistent
-	req->flags |= GDP_REQ_PERSIST;
+	// mark this as persistent and upgradable
+	req->flags |= GDP_REQ_PERSIST | GDP_REQ_SUBUPGRADE;
 
 	// get our starting point, which may be relative to the end
-	if (req->pkt->datum->recno < 0)
+	if (req->pkt->datum->recno <= 0)
 	{
-		req->pkt->datum->recno = gcl_max_recno(req->gclh) + 1;
-		if (req->numrecs >= 0)
-			req->pkt->datum->recno -= req->numrecs;
+		req->pkt->datum->recno += gcl_max_recno(req->gclh) + 1;
+		if (req->pkt->datum->recno <= 0)
+		{
+			// still starts before beginning; start from beginning
+			req->pkt->datum->recno = 1;
+		}
 	}
 
-	ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: starting from %" PRIgdp_recno "\n",
-			req->pkt->datum->recno);
+	ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: starting from %" PRIgdp_recno
+			", %d records\n",
+			req->pkt->datum->recno, req->numrecs);
 
 	// if some of the records already exist, arrange to return them
 	if (req->pkt->datum->recno <= gcl_max_recno(req->gclh))

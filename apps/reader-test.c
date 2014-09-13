@@ -98,8 +98,8 @@ main(int argc, char **argv)
 	gcl_pname_t gclpname;
 	int opt;
 	bool subscribe = false;
-	int32_t numrecs = -1;
-	gdp_recno_t firstrec = -1;
+	int32_t numrecs = 0;
+	gdp_recno_t firstrec = 1;
 
 	while ((opt = getopt(argc, argv, "D:f:n:s")) > 0)
 	{

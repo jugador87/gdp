@@ -322,21 +322,24 @@ void (*cbfunc)(gdp_gcl_t *gcl,
         interface (see below).</li>
       <li>At most <code>numrecs</code> records are returned, after
         which the subscription is terminated.&nbsp; If <code>numrecs</code>
-        is –1 it waits for data forever.<br>
+        is 0 it waits for data forever.<br>
       </li>
       <li> The <code>start</code> parameter tells when to start the
         subscription (that is, the starting record number).</li>
-      <li>If <code>start</code> is –1, returns the most recent <code>numrecs</code>
-        records.&nbsp; If both are –1 then it starts with the next piece
-        of new data.</li>
+      <li>If <code>start</code> is negative, returns the most recent –<code>start</code>
+        records.&nbsp; If a negative <code>start</code> indicates going
+        back more records than are available, it starts from the first
+        record.<br>
+      </li>
       <li>If <code>start</code> specifies an existing record but there
         are fewer than <code>numrecs</code> records available, this
         returns the available records and then waits for the additional
-        data to appear.<br>
-      </li>
-      <li><em>Callbacks, start, numrecs, and timeouts are not
-          implemented at this time.&nbsp; Should callbacks ever be used?&nbsp;
-          Makes binding to languages like Java particularly difficult.<br>
+        data to appear as it is published.</li>
+      <li>If <code>start</code> is zero, no current records are
+        returned (i.e., it returns new records as they are published).</li>
+      <li><em>Callbacks and timeouts are not implemented at this
+          time.&nbsp; Should callbacks ever be used?&nbsp; Makes binding
+          to languages like Java particularly difficult.<br>
         </em></li>
       <li>Example:&nbsp; suppose there are 20 records already in a
         GCL.&nbsp; Then:</li>
@@ -362,7 +365,7 @@ void (*cbfunc)(gdp_gcl_t *gcl,
           </td>
         </tr>
         <tr>
-          <td valign="top">–1<br>
+          <td valign="top">–10<br>
           </td>
           <td valign="top">10<br>
           </td>
@@ -371,40 +374,57 @@ void (*cbfunc)(gdp_gcl_t *gcl,
           </td>
         </tr>
         <tr>
-          <td valign="top">–1<br>
+          <td valign="top">0<br>
           </td>
-          <td valign="top">–1<br>
+          <td valign="top">0<br>
           </td>
           <td valign="top">Starts returning data when record 21 is
-            written and continues forever.<br>
+            published and continues forever.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">10<br>
+          </td>
+          <td valign="top">20<br>
+          </td>
+          <td valign="top">Returns records 11–20 immediately, then
+            returns records 21–30 as they are published.&nbsp; The
+            subscription then terminates.<br>
           </td>
         </tr>
         <tr>
           <td valign="top">1<br>
           </td>
-          <td valign="top">30<br>
-          </td>
-          <td valign="top">Returns records 1–20 immediately, then waits
-            for records 21–30 to be written and returns them as they are
-            published.&nbsp; The subscription then terminates.<br>
-          </td>
-        </tr>
-        <tr>
-          <td valign="top">1<br>
-          </td>
-          <td valign="top">–1<br>
-          </td>
+          <td valign="top">0</td>
           <td valign="top">Returns records 1–20 immediately, then
             returns any new records published in perpetuity.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">N/A<br>
+          <td valign="top">–30<br>
           </td>
-          <td valign="top">0<br>
+          <td valign="top">30<br>
           </td>
-          <td valign="top">Nothing is returned.&nbsp; <i>Perhaps this
-              should be reserved for future use?</i><br>
+          <td valign="top">Returns records 1–20 immediately, then
+            returns records 21–30 as they are published.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">30<br>
+          </td>
+          <td valign="top">10<br>
+          </td>
+          <td valign="top"><i>Currently undefined.&nbsp; Should probably
+              wait until 10 more records are added before starting to
+              return the data.</i><br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">any<br>
+          </td>
+          <td valign="top">–1<br>
+          </td>
+          <td valign="top">Returns "4.02 bad option" failure<br>
           </td>
         </tr>
       </tbody>
