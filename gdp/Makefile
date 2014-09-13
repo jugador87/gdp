@@ -40,6 +40,7 @@ COPTS=		${PG} -g ${WALL} $O ${STD}
 CFLAGS=		${COPTS} ${INCS} -fPIC
 
 MV=		mv
+LN=		ln
 RANLIB=		ranlib
 SHARED=		-shared
 #SHARED=		-shared -Wl,-soname,$@
@@ -53,6 +54,8 @@ libgdp.a: ${OBJS}
 libgdp.so.${GDPLIBVER}: ${OBJS}
 	${CC} ${SHARED} -o $@ ${OBJS} ${LDFLAGS}
 	${MV} $@ ${LIBDIR}
+	${LN} ${LIBDIR}/$@ ${LIBDIR}/libgdp.${GDPLIBVER}.dylib
+	${LN} ${LIBDIR}/$@ ${LIBDIR}/libgdp.${GDPLIBVER}.so 
 
 ${OBJS}: ${HFILES}
 
