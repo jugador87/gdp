@@ -480,7 +480,55 @@ gdp_gcl_subscribe(gdp_gcl_t *gclh,
 	// now arrange for responses to appear as events
 	req->flags |= GDP_REQ_SUBSCRIPTION;
 
-	// we don't free the request because it is persistent
+	if (!EP_STAT_ISOK(estat))
+	{
+		_gdp_req_free(req);
+	}
+
+fail0:
+	return estat;
+}
+
+
+/*
+**	GDP_GCL_MULTIREAD --- read multiple records from a GCL
+**
+**		Like gdp_gcl_subscribe, the data is returned through the event
+**		interface.
+*/
+
+EP_STAT
+gdp_gcl_multiread(gdp_gcl_t *gclh,
+		gdp_recno_t start,
+		int32_t numrecs,
+		gdp_gcl_sub_cbfunc_t cbfunc,
+		void *cbarg)
+{
+	EP_STAT estat = EP_STAT_OK;
+	gdp_req_t *req;
+
+	EP_ASSERT_POINTER_VALID(gclh);
+	EP_ASSERT(cbfunc == NULL);		// callbacks aren't implemented yet
+
+	estat = _gdp_req_new(GDP_CMD_MULTIREAD, gclh, _GdpChannel,
+				GDP_REQ_PERSIST, &req);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	// add start and stop parameters to packet
+	req->pkt->datum->recno = start;
+	gdp_buf_put_uint32(req->pkt->datum->dbuf, numrecs);
+
+	// issue the subscription --- no data returned
+	estat = _gdp_invoke(req);
+	EP_ASSERT(req->inuse);		// make sure it didn't get freed
+
+	// now arrange for responses to appear as events
+	req->flags |= GDP_REQ_SUBSCRIPTION;
+
+	if (!EP_STAT_ISOK(estat))
+	{
+		_gdp_req_free(req);
+	}
 
 fail0:
 	return estat;

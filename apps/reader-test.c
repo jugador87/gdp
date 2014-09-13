@@ -47,17 +47,31 @@ do_read(gdp_gcl_t *gclh, gdp_recno_t firstrec)
 }
 
 
+/*
+**  DO_SUBSCRIBE --- subscribe or multiread
+**
+**		This routine handles calls that return multiple values via the
+**		event interface.  They might include subscriptions.
+*/
+
 EP_STAT
-do_subscribe(gdp_gcl_t *gclh, gdp_recno_t firstrec, int32_t numrecs)
+do_subscribe(gdp_gcl_t *gclh, gdp_recno_t firstrec, int32_t numrecs, bool subscribe)
 {
 	EP_STAT estat;
 
-	estat = gdp_gcl_subscribe(gclh, firstrec, numrecs, NULL, NULL, NULL);
+	if (numrecs < 0)
+		numrecs = 0;
+	if (subscribe)
+		estat = gdp_gcl_subscribe(gclh, firstrec, numrecs, NULL, NULL, NULL);
+	else
+		estat = gdp_gcl_multiread(gclh, firstrec, numrecs, NULL, NULL);
+
 	if (!EP_STAT_ISOK(estat))
 	{
 		char ebuf[200];
 
-		ep_app_abort("Cannot subscribe: %s",
+		ep_app_abort("Cannot %s: %s",
+				subscribe ? "subscribe" : "multiread",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 
@@ -72,7 +86,8 @@ do_subscribe(gdp_gcl_t *gclh, gdp_recno_t firstrec, int32_t numrecs)
 			break;
 
 		  case GDP_EVENT_EOS:
-			fprintf(stdout, "End of Subscription\n");
+			fprintf(stdout, "End of %s\n",
+					subscribe ? "Subscription" : "Multiread");
 			return estat;
 
 		  default:
@@ -98,10 +113,11 @@ main(int argc, char **argv)
 	gcl_pname_t gclpname;
 	int opt;
 	bool subscribe = false;
-	int32_t numrecs = 0;
+	bool multiread = false;
+	int32_t numrecs = -1;
 	gdp_recno_t firstrec = 1;
 
-	while ((opt = getopt(argc, argv, "D:f:n:s")) > 0)
+	while ((opt = getopt(argc, argv, "D:f:mn:s")) > 0)
 	{
 		switch (opt)
 		{
@@ -112,6 +128,10 @@ main(int argc, char **argv)
 		  case 'f':
 			firstrec = atol(optarg);
 			break;
+
+		  case 'm':
+			  multiread = true;
+			  break;
 
 		  case 'n':
 			numrecs = atol(optarg);
@@ -127,7 +147,8 @@ main(int argc, char **argv)
 
 	if (argc <= 0)
 	{
-		fprintf(stderr, "Usage: %s [-D dbgspec] [-s] <gcl_name>\n",
+		fprintf(stderr,
+				"Usage: %s [-D dbgspec] [-f firstrec] [-m] [-n nrecs] [-s] <gcl_name>\n",
 				ep_app_getprogname());
 		exit(EX_USAGE);
 	}
@@ -162,8 +183,8 @@ main(int argc, char **argv)
 		goto fail0;
 	}
 
-	if (subscribe)
-		estat = do_subscribe(gclh, firstrec, numrecs);
+	if (subscribe || multiread || numrecs >= 0)
+		estat = do_subscribe(gclh, firstrec, numrecs, subscribe);
 	else
 		estat = do_read(gclh, firstrec);
 

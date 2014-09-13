@@ -383,7 +383,7 @@ void (*cbfunc)(gdp_gcl_t *gcl,
           </td>
         </tr>
         <tr>
-          <td valign="top">10<br>
+          <td valign="top">–10<br>
           </td>
           <td valign="top">20<br>
           </td>
@@ -424,7 +424,7 @@ void (*cbfunc)(gdp_gcl_t *gcl,
           </td>
           <td valign="top">–1<br>
           </td>
-          <td valign="top">Returns "4.02 bad option" failure<br>
+          <td valign="top">Returns "4.02 bad option" failure.<br>
           </td>
         </tr>
       </tbody>
@@ -432,6 +432,138 @@ void (*cbfunc)(gdp_gcl_t *gcl,
     <br>
     <ul>
     </ul>
+    <br>
+    <hr size="2" width="100%">
+    <h4> Name</h4>
+    gdp_gcl_multiread— Read multiple records from a readable GCL&nbsp; <strong><em>[PARTIALLY
+
+
+
+        IMPLEMENTED]</em></strong><br>
+    <h4> Synopsis</h4>
+    <pre>EP_STAT gdp_gcl_multiread(gdp_gcl_t *gcl,
+		gdp_recno_t start,<br>		int32_t numrecs,<br>		gdp_gcl_sub_cbfunc_t cbfunc,<br>		void *cbdata)
+
+void (*cbfunc)(gdp_gcl_t *gcl,
+		gdp_datum_t *datum,
+		void *cbdata)
+</pre>
+    <h4> Notes</h4>
+    <ul>
+      <li>Similar to a subscription, except data in the future is never
+        read (i.e., this is only for reading historic data).</li>
+      <li>If a <code>cbfunc</code> is specified, arranges to call
+        callback when a message is generated on the <code>gcl</code>.</li>
+      <li> The <code>void *cbdata</code> is passed through untouched.</li>
+      <li> The callback is not necessarily invoked instantly, and may or
+        may not be called in a separate thread.</li>
+      <li>If no <code>cbfunc</code> is specified, subscription
+        information is available through the <code>gdp_gcl_event</code>
+        interface (see below).</li>
+      <li>At most <code>numrecs</code> records are returned, after
+        which the subscription is terminated.&nbsp; If <code>numrecs</code>
+        is 0 it reads to the end of the existing data.<br>
+      </li>
+      <li> The <code>start</code> parameter tells when to start the
+        subscription (that is, the starting record number).</li>
+      <li>If <code>start</code> is negative, returns the most recent –<code>start</code>
+        records.&nbsp; If a negative <code>start</code> indicates going
+        back more records than are available, it starts from the first
+        record.<br>
+      </li>
+      <li>If <code>start</code> specifies an existing record but there
+        are fewer than <code>numrecs</code> records available, only the
+        existing records are returned.</li>
+      <li>If <code>start</code> is zero, an error is returned.</li>
+      <li><em>Callbacks and timeouts are not implemented at this
+          time.&nbsp; Should callbacks ever be used?&nbsp; Makes binding
+          to languages like Java particularly difficult.<br>
+        </em></li>
+      <li>Example:&nbsp; suppose there are 20 records already in a
+        GCL.&nbsp; Then:</li>
+    </ul>
+    <table align="center" width="80%" border="1" cellpadding="2"
+      cellspacing="2">
+      <tbody>
+        <tr>
+          <td valign="top">start<br>
+          </td>
+          <td valign="top">numrecs<br>
+          </td>
+          <td valign="top">Behavior<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">1<br>
+          </td>
+          <td valign="top">10<br>
+          </td>
+          <td valign="top">Returns records 1–10 immediately and
+            terminates the read.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">–10<br>
+          </td>
+          <td valign="top">10<br>
+          </td>
+          <td valign="top">Returns records 11–20 immediately and
+            terminates the read.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">0<br>
+          </td>
+          <td valign="top">any<br>
+          </td>
+          <td valign="top">Returns "4.02 bad option" failure.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">–10<br>
+          </td>
+          <td valign="top">20<br>
+          </td>
+          <td valign="top">Returns records 11–20.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">1<br>
+          </td>
+          <td valign="top">0</td>
+          <td valign="top">Returns records 1–20 immediately.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">–30<br>
+          </td>
+          <td valign="top">30<br>
+          </td>
+          <td valign="top">Returns records 1–20 immediately.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">30<br>
+          </td>
+          <td valign="top">10<br>
+          </td>
+          <td valign="top"><i>Currently undefined.&nbsp; Should probably
+              wait until 10 more records are added before starting to
+              return the data.</i><br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">any<br>
+          </td>
+          <td valign="top">–1<br>
+          </td>
+          <td valign="top">Returns "4.02 bad option" failure.<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <br>
+    <br>
     <br>
     <hr size="2" width="100%">
     <h4> Name</h4>

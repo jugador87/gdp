@@ -173,6 +173,15 @@ extern EP_STAT	gdp_gcl_subscribe(
 											// callback function for next datum
 					void *cbarg);			// argument passed to callback
 
+// read multiple records (no subscriptions)
+extern EP_STAT	gdp_gcl_multiread(
+					gdp_gcl_t *gclh,		// readable GCL handle
+					gdp_recno_t start,		// first record to retrieve
+					int32_t numrecs,		// number of records to retrieve
+					gdp_gcl_sub_cbfunc_t cbfunc,
+											// callback function for next datum
+					void *cbarg);			// argument passed to callback
+
 // return the name of a GCL
 //		XXX: should this be in a more generic "getstat" function?
 extern const gcl_name_t *gdp_gcl_getname(

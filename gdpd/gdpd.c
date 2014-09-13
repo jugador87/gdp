@@ -284,6 +284,10 @@ post_subscribe(gdp_req_t *req)
 {
 	EP_STAT estat;
 
+	ep_dbg_cprintf(Dbg, 38,
+			"post_subscribe: numrecs = %d, recno = %"PRIgdp_recno"\n",
+			req->numrecs, req->pkt->datum->recno);
+
 	// make sure the request has the right command
 	req->pkt->cmd = GDP_ACK_CONTENT;
 
@@ -300,7 +304,6 @@ post_subscribe(gdp_req_t *req)
 		estat = gcl_read(req->gclh, req->pkt->datum);
 		if (EP_STAT_ISOK(estat))
 		{
-
 			// OK, the next record exists: send it
 			req->stat = estat = _gdp_pkt_out(req->pkt,
 										bufferevent_get_output(req->chan));
@@ -435,6 +438,94 @@ cmd_subscribe(gdp_req_t *req)
 	{
 		// this is a pure "future" subscription
 		ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: enabling subscription\n");
+		req->flags |= GDP_REQ_SUBSCRIPTION;
+
+		// link this request into the GCL so the subscription can be found
+		ep_thr_mutex_lock(&gclh->mutex);
+		LIST_INSERT_HEAD(&gclh->reqs, req, list);
+		ep_thr_mutex_unlock(&gclh->mutex);
+	}
+
+	return EP_STAT_OK;
+}
+
+
+/*
+**  CMD_MULTIREAD --- read multiple records
+**
+**		Arranges to return existing data (if any) after the response
+**		is sent.  No long-term subscription will ever be created, but
+**		much of the infrastructure is reused.
+*/
+
+EP_STAT
+cmd_multiread(gdp_req_t *req)
+{
+	gdp_gcl_t *gclh;
+
+	req->pkt->cmd = GDP_ACK_SUCCESS;
+
+	// get the additional parameters: number of records and timeout
+	req->numrecs = (int) gdp_buf_get_uint32(req->pkt->datum->dbuf);
+
+	if (ep_dbg_test(Dbg, 14))
+	{
+		ep_dbg_printf("cmd_multiread: first = %" PRIgdp_recno ", numrecs = %d\n  ",
+				req->pkt->datum->recno, req->numrecs);
+		gdp_gcl_print(req->gclh, ep_dbg_getfile(), 0, 0);
+	}
+
+	// should have no more input data; ignore anything there
+	flush_input_data(req, "cmd_multiread");
+
+	if (req->numrecs < 0 || req->pkt->datum->recno <= 0)
+	{
+		req->pkt->cmd = GDP_NAK_C_BADOPT;
+		return GDP_STAT_FROM_C_NAK(req->pkt->cmd);
+	}
+
+	// find the GCL handle
+	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_RO);
+	if (gclh == NULL)
+	{
+		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_multiread: GCL not open",
+							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
+	}
+
+	// get our starting point, which may be relative to the end
+	if (req->pkt->datum->recno <= 0)
+	{
+		req->pkt->datum->recno += gcl_max_recno(req->gclh) + 1;
+		if (req->pkt->datum->recno <= 0)
+		{
+			// still starts before beginning; start from beginning
+			req->pkt->datum->recno = 1;
+		}
+	}
+
+	ep_dbg_cprintf(Dbg, 24, "cmd_multiread: starting from %" PRIgdp_recno
+			", %d records\n",
+			req->pkt->datum->recno, req->numrecs);
+
+	// if some of the records already exist, arrange to return them
+	if (req->pkt->datum->recno <= gcl_max_recno(req->gclh))
+	{
+		ep_dbg_cprintf(Dbg, 24, "cmd_multiread: doing post processing\n");
+		req->cb = &post_subscribe;
+		req->postproc = true;
+
+		// make this a "snapshot", i.e., don't read additional records
+		int32_t nrec = gcl_max_recno(req->gclh) - req->pkt->datum->recno;
+		if (nrec < req->numrecs || req->numrecs == 0)
+			req->numrecs = nrec + 1;
+
+		// keep the request around until the post-processing is done
+		req->flags |= GDP_REQ_PERSIST;
+	}
+	else
+	{
+		// this is a pure "future" subscription
+		ep_dbg_cprintf(Dbg, 24, "cmd_multiread: enabling subscription\n");
 		req->flags |= GDP_REQ_SUBSCRIPTION;
 
 		// link this request into the GCL so the subscription can be found
@@ -737,6 +828,7 @@ static struct cmdfuncs	CmdFuncs[] =
 	{ GDP_CMD_READ,			cmd_read		},
 	{ GDP_CMD_PUBLISH,		cmd_publish		},
 	{ GDP_CMD_SUBSCRIBE,	cmd_subscribe	},
+	{ GDP_CMD_MULTIREAD,	cmd_multiread	},
 	{ 0,					NULL			}
 };
 

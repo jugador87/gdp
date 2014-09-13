@@ -281,7 +281,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	{ NULL,				"CMD_READ"				},			// 70
 	{ NULL,				"CMD_PUBLISH"			},			// 71
 	{ NULL,				"CMD_SUBSCRIBE"			},			// 72
-	NOENT,				// 73
+	{ NULL,				"CMD_MULTIREAD",		},			// 73
 	NOENT,				// 74
 	NOENT,				// 75
 	NOENT,				// 76
