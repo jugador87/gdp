@@ -12,7 +12,7 @@
 #include <sysexits.h>
 
 EP_STAT
-do_read(gdp_gcl_t *gclh, gdp_recno_t firstrec)
+do_simpleread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int numrecs)
 {
 	EP_STAT estat;
 	gdp_recno_t recno = firstrec;
@@ -20,7 +20,9 @@ do_read(gdp_gcl_t *gclh, gdp_recno_t firstrec)
 
 	if (recno <= 0)
 		recno = 1;
-	for (;;)
+	if (numrecs == 0)
+		numrecs = -1;
+	while (numrecs < 0 || --numrecs >= 0)
 	{
 		estat = gdp_gcl_read(gclh, recno, datum);
 		EP_STAT_CHECK(estat, break);
@@ -48,29 +50,35 @@ do_read(gdp_gcl_t *gclh, gdp_recno_t firstrec)
 
 
 /*
-**  DO_SUBSCRIBE --- subscribe or multiread
+**  DO_MULTIREAD --- subscribe or multiread
 **
 **		This routine handles calls that return multiple values via the
 **		event interface.  They might include subscriptions.
 */
 
 EP_STAT
-do_subscribe(gdp_gcl_t *gclh, gdp_recno_t firstrec, int32_t numrecs, bool subscribe)
+do_multiread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int32_t numrecs, bool subscribe)
 {
 	EP_STAT estat;
 
 	if (numrecs < 0)
 		numrecs = 0;
 	if (subscribe)
+	{
 		estat = gdp_gcl_subscribe(gclh, firstrec, numrecs, NULL, NULL, NULL);
+	}
 	else
+	{
+		if (firstrec == 0)
+			firstrec = 1;
 		estat = gdp_gcl_multiread(gclh, firstrec, numrecs, NULL, NULL);
+	}
 
 	if (!EP_STAT_ISOK(estat))
 	{
 		char ebuf[200];
 
-		ep_app_abort("Cannot %s: %s",
+		ep_app_abort("Cannot %s:\n\t%s",
 				subscribe ? "subscribe" : "multiread",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
@@ -114,8 +122,8 @@ main(int argc, char **argv)
 	int opt;
 	bool subscribe = false;
 	bool multiread = false;
-	int32_t numrecs = -1;
-	gdp_recno_t firstrec = 1;
+	int32_t numrecs = 0;
+	gdp_recno_t firstrec = 0;
 
 	while ((opt = getopt(argc, argv, "D:f:mn:s")) > 0)
 	{
@@ -130,8 +138,8 @@ main(int argc, char **argv)
 			break;
 
 		  case 'm':
-			  multiread = true;
-			  break;
+			multiread = true;
+			break;
 
 		  case 'n':
 			numrecs = atol(optarg);
@@ -183,10 +191,10 @@ main(int argc, char **argv)
 		goto fail0;
 	}
 
-	if (subscribe || multiread || numrecs >= 0)
-		estat = do_subscribe(gclh, firstrec, numrecs, subscribe);
+	if (subscribe || multiread)
+		estat = do_multiread(gclh, firstrec, numrecs, subscribe);
 	else
-		estat = do_read(gclh, firstrec);
+		estat = do_simpleread(gclh, firstrec, numrecs);
 
 fail0:
 	fprintf(stderr, "exiting with status %s\n",
