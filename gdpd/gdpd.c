@@ -478,7 +478,18 @@ cmd_multiread(gdp_req_t *req)
 	// should have no more input data; ignore anything there
 	flush_input_data(req, "cmd_multiread");
 
-	if (req->numrecs < 0 || req->pkt->datum->recno <= 0)
+	// get our starting point, which may be relative to the end
+	if (req->pkt->datum->recno <= 0)
+	{
+		req->pkt->datum->recno += gcl_max_recno(req->gclh) + 1;
+		if (req->pkt->datum->recno <= 0)
+		{
+			// still starts before beginning; start from beginning
+			req->pkt->datum->recno = 1;
+		}
+	}
+
+	if (req->numrecs < 0)
 	{
 		req->pkt->cmd = GDP_NAK_C_BADOPT;
 		return GDP_STAT_FROM_C_NAK(req->pkt->cmd);
