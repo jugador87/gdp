@@ -495,8 +495,7 @@ gcl_close(gdp_gcl_t *gclh)
 	}
 
 	// XXX: when do we remove the index cache for optimal performance?
-	_gdp_gcl_cache_drop(gclh->gcl_name, 0);
-	ep_mem_free(gclh);
+	_gdp_gcl_cache_drop(gclh);
 
 	return estat;
 }

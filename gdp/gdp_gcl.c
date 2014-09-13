@@ -39,6 +39,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl", "GCL utilities for GDP");
 ***********************************************************************/
 
 static EP_HASH		*OpenGCLCache;
+static EP_THR_MUTEX	GclCacheMutex	EP_THR_MUTEX_INITIALIZER;
 
 EP_STAT
 _gdp_gcl_cache_init(void)
@@ -59,13 +60,45 @@ _gdp_gcl_cache_init(void)
 }
 
 
+/*
+**  _GDP_GCL_CACHE_GET --- get a GCL from the cache, if it exists
+**
+**		It's annoying, but you have to lock the entire cache when
+**		searching to make sure someone doesn't (for example) sneak
+**		in and grab a GCL that you are about to lock.  The basic
+**		procedure is (1) lock cache, (2) get GCL, (3) lock GCL,
+**		(4) bump refcnt, (5) unlock GCL, (6) unlock cache.
+*/
+
 gdp_gcl_t *
 _gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 {
 	gdp_gcl_t *gclh;
 
+	ep_thr_mutex_lock(&GclCacheMutex);
+
 	// see if we have a pointer to this GCL in the cache
 	gclh = ep_hash_search(OpenGCLCache, sizeof (gcl_name_t), (void *) gcl_name);
+	if (gclh == NULL)
+		goto done;
+	ep_thr_mutex_lock(&gclh->mutex);
+
+	// see if someone snuck in and deallocated this
+	if (gclh->refcnt <= 0)
+	{
+		// oops, dropped from cache
+		ep_thr_mutex_unlock(&gclh->mutex);
+		gclh = NULL;
+	}
+	else
+	{
+		// we're good to go
+		gclh->refcnt++;
+		ep_thr_mutex_unlock(&gclh->mutex);
+	}
+
+done:
+	ep_thr_mutex_unlock(&GclCacheMutex);
 	if (ep_dbg_test(Dbg, 42))
 	{
 		gcl_pname_t pbuf;
@@ -73,6 +106,7 @@ _gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 		gdp_gcl_printable_name(gcl_name, pbuf);
 		ep_dbg_printf("gdp_gcl_cache_get: %s => %p\n", pbuf, gclh);
 	}
+
 	return gclh;
 }
 
@@ -98,11 +132,10 @@ _gdp_gcl_cache_add(gdp_gcl_t *gclh, gdp_iomode_t mode)
 
 
 void
-_gdp_gcl_cache_drop(gcl_name_t gcl_name, gdp_iomode_t mode)
+_gdp_gcl_cache_drop(gdp_gcl_t *gclh)
 {
-	gdp_gcl_t *gclh;
-
-	gclh = ep_hash_insert(OpenGCLCache, sizeof (gcl_name_t), gcl_name, NULL);
+	(void) ep_hash_insert(OpenGCLCache, sizeof (gcl_name_t), gclh->gcl_name,
+						NULL);
 	if (ep_dbg_test(Dbg, 42))
 	{
 		gcl_pname_t pbuf;
@@ -111,6 +144,23 @@ _gdp_gcl_cache_drop(gcl_name_t gcl_name, gdp_iomode_t mode)
 		ep_dbg_printf("gdp_gcl_cache_drop: dropping %s => %p\n", pbuf, gclh);
 	}
 }
+
+
+/*
+**  _GDP_GCL_DROPREF --- drop a reference to a GCL
+**		XXX	Ultimately should close the GCL if the reference count
+**			goes to zero.  For the time being this is a no-op.
+*/
+
+void
+_gdp_gcl_dropref(gdp_gcl_t *gclh)
+{
+	ep_thr_mutex_lock(&gclh->mutex);
+	gclh->refcnt--;
+	// XXX check for zero refcnt
+	ep_thr_mutex_unlock(&gclh->mutex);
+}
+
 
 
 /*
@@ -142,6 +192,7 @@ _gdp_gcl_newhandle(gcl_name_t gcl_name, gdp_gcl_t **pgclh)
 	LIST_INIT(&gclh->reqs);
 	if (gcl_name != NULL)
 		memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
+	gclh->refcnt = 1;
 
 	// success
 	*pgclh = gclh;
@@ -170,7 +221,7 @@ _gdp_gcl_freehandle(gdp_gcl_t *gclh)
 
 	// release the locks and cache entry
 	ep_thr_mutex_destroy(&gclh->mutex);
-	_gdp_gcl_cache_drop(gclh->gcl_name, 0);
+	_gdp_gcl_cache_drop(gclh);
 
 	// finally release the memory for the handle itself
 	ep_mem_free(gclh);

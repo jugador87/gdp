@@ -176,6 +176,10 @@ cmd_open_ro(gdp_req_t *req)
 /*
 **  CMD_CLOSE --- close an open GCL
 **
+**		XXX	Since GCLs are shared between clients you really can't just
+**			close things willy-nilly.  Thus, this is currently a no-op
+**			until such time as reference counting works.
+**
 **		XXX	We need to have a way of expiring unused GCLs that are not
 **			closed.
 */
@@ -184,6 +188,7 @@ EP_STAT
 cmd_close(gdp_req_t *req)
 {
 	gdp_gcl_t *gclh;
+	EP_STAT estat = EP_STAT_OK;
 
 	req->pkt->cmd = GDP_ACK_SUCCESS;
 
@@ -197,7 +202,17 @@ cmd_close(gdp_req_t *req)
 							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 	req->pkt->datum->recno = gcl_max_recno(gclh);
-	return gcl_close(gclh);
+#if 0
+	ep_thr_mutex_lock(&gclh->mutex);
+	if (--gclh->refcnt <= 0)
+	{
+		// no more references: close the underlying files
+		estat = gcl_close(gclh);
+	}
+	ep_thr_mutex_unlock(&gclh->mutex);
+#endif
+
+	return estat;
 }
 
 
@@ -265,6 +280,8 @@ cmd_publish(gdp_req_t *req)
 	// we can now let the data in the request go
 	evbuffer_drain(req->pkt->datum->dbuf,
 			evbuffer_get_length(req->pkt->datum->dbuf));
+
+	_gdp_gcl_dropref(gclh);
 
 	return estat;
 }
@@ -349,8 +366,7 @@ post_subscribe(gdp_req_t *req)
 		// link this request into the GCL so the subscription can be found
 		ep_thr_mutex_lock(&req->gclh->mutex);
 		LIST_INSERT_HEAD(&req->gclh->reqs, req, list);
-		ep_thr_mutex_unlock(&req->gclh->mutex);
-	}
+		ep_thr_mutex_unlock(&req->gclh->mutex); }
 }
 
 

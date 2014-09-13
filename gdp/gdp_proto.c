@@ -544,11 +544,12 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 			gdp_gcl_printable_name(pkt->gcl_name, pbuf);
 			ep_dbg_cprintf(Dbg, 1, "gdp_read_cb: GCL %s has no handle\n", pbuf);
 		}
+		else
+		{
+			// find the request
+			req = _gdp_req_find(gclh, pkt->rid);
+		}
 	}
-
-	// find the request
-	if (gclh != NULL)
-		req = _gdp_req_find(gclh, pkt->rid);
 
 	if (req == NULL)
 	{

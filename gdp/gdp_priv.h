@@ -31,12 +31,13 @@ struct gdp_gcl
 	struct req_head		reqs;			// list of outstanding requests
 	gcl_name_t			gcl_name;		// the internal name
 	gdp_iomode_t		iomode;			// read only or append only
+	int					refcnt;			// reference counter
 
 	// fields used only by gdpd
 	long				ver;			// version number of on-disk file
 	FILE				*fp;			// pointer to the on-disk file
-	void				*log_index;
-	off_t				data_offset;	// offset for end of header and start of data
+	void				*log_index;		// ???
+	off_t				data_offset;	// offset for start of data
 };
 
 
@@ -127,10 +128,12 @@ void			_gdp_gcl_cache_add(
 						gdp_iomode_t mode);
 
 void			_gdp_gcl_cache_drop(
-						gcl_name_t gcl_name,
-						gdp_iomode_t mode);
+						gdp_gcl_t *gclh);
 
 EP_STAT			_gdp_gcl_cache_init(void);
+
+void			_gdp_gcl_dropref(
+						gdp_gcl_t *gclh);
 
 EP_STAT			_gdp_gcl_newhandle(gcl_name_t gcl_name,
 						gdp_gcl_t **gclhp);

@@ -80,6 +80,9 @@ sub_end_subscription(gdp_req_t *req)
 	LIST_REMOVE(req, list);
 	ep_thr_mutex_unlock(&req->gclh->mutex);
 
+	// drop this reference
+	_gdp_gcl_dropref(req->gclh);
+
 	// send an "end of subscription" event
 	req->pkt->cmd = GDP_ACK_DELETED;
 
