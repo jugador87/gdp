@@ -212,8 +212,8 @@ Setting Debug Flags:
 	do more than just printing information).
 
 	Each debug flag has a hierarchical name with (by convention)
-	"." as the separator, for example, "gdp.timestamp" to indicate
-	the timestamping part of the GDP.  The "what(1)" program on
+	"." as the separator, for example, "gdp.proto" to indicate
+	the protocol processing of the GDP.  The "what(1)" program on
 	a binary will show you which debug flags are available,
 	including a short description.
 
@@ -226,14 +226,19 @@ Changing Parameters:
 
 	Parameters you can change in that file include:
 
-	gdp.gcl.dir --- the data directory (e.g., /var/tmp/gcl).
-	gdp.rest.scgiport --- the port number for the SCGI server to
-		listen on.  If you change this you'll also have to
-		change the lighttpd configuration.
-	gdp.rest.prefix --- the REST prefix (e.g., /gdp/v1/gcl).
 	swarm.gdp.controlport --- the rendezvous port used by the GDP
-		Daemon.  This should eventually be replaced by service
-		discovery.  Defaults to 2468.
-	swarm.rest.event.loopdelay --- if the event loop exits for some
+	swarm.gdp.event.loopdelay --- if the event loop exits for some
 		reason, this is the number of microseconds to delay
 		before restarting the loop.  Defaults to 100000 (100msec).
+	swarm.gdp.event.looptimeout --- the timeout for the event loop;
+		this is mostly just to make sure things don't "hang up"
+		forever.  Defaults to 30 (seconds).
+	swarm.gdp.gcl.dir --- the data directory (e.g., /var/tmp/gcl).
+		Daemon.  This should eventually be replaced by service
+		discovery.  Defaults to 2468.
+	swarm.rest.scgiport --- the port number for the SCGI server to
+		listen on.  If you change this you'll also have to
+		change the lighttpd configuration.  Defaults to 8001.
+	swarm.rest.prefix --- the REST prefix (e.g., /gdp/v1/).
+	libep.time.accuracy --- the value filled in for the "accuracy"
+		field in time structures (defaults to zero).
