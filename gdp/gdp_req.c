@@ -162,7 +162,7 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 		return;
 	}
 	fprintf(fp, "\n    ");
-	gdp_gcl_print(req->gclh, fp, 0, 0);
+	gdp_gcl_print(req->gclh, fp, 1, 0);
 	fprintf(fp, "    ");
 	_gdp_pkt_dump(req->pkt, fp);
 	fprintf(fp, "    flags=");

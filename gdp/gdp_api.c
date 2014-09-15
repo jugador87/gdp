@@ -175,21 +175,31 @@ gdp_gcl_print(
 {
 	gcl_pname_t nbuf;
 
-	fprintf(fp, "GCL@%p: ", gclh);
+	if (detail > 0)
+		fprintf(fp, "GCL@%p: ", gclh);
 	if (gclh == NULL)
 	{
 		fprintf(fp, "NULL\n");
 	}
-	else if (gdp_gcl_name_is_zero(gclh->gcl_name))
-	{
-		fprintf(fp, "no name\n");
-	}
 	else
 	{
-		EP_ASSERT_POINTER_VALID(gclh);
+		if (gdp_gcl_name_is_zero(gclh->gcl_name))
+		{
+			fprintf(fp, "no name\n");
+		}
+		else
+		{
+			EP_ASSERT_POINTER_VALID(gclh);
 
-		gdp_gcl_printable_name(gclh->gcl_name, nbuf);
-		fprintf(fp, "%s\n", nbuf);
+			gdp_gcl_printable_name(gclh->gcl_name, nbuf);
+			fprintf(fp, "%s\n", nbuf);
+		}
+
+		if (detail > 0)
+		{
+			fprintf(fp, "\tiomode = %d, refcnt = %d, reqs = %p\n",
+					gclh->iomode, gclh->refcnt, LIST_FIRST(&gclh->reqs));
+		}
 	}
 }
 

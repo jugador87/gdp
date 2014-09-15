@@ -405,7 +405,7 @@ cmd_subscribe(gdp_req_t *req)
 	{
 		ep_dbg_printf("cmd_subscribe: first = %" PRIgdp_recno ", numrecs = %d\n  ",
 				req->pkt->datum->recno, req->numrecs);
-		gdp_gcl_print(req->gclh, ep_dbg_getfile(), 0, 0);
+		gdp_gcl_print(req->gclh, ep_dbg_getfile(), 1, 0);
 	}
 
 	// should have no more input data; ignore anything there
@@ -488,7 +488,7 @@ cmd_multiread(gdp_req_t *req)
 	{
 		ep_dbg_printf("cmd_multiread: first = %" PRIgdp_recno ", numrecs = %d\n  ",
 				req->pkt->datum->recno, req->numrecs);
-		gdp_gcl_print(req->gclh, ep_dbg_getfile(), 0, 0);
+		gdp_gcl_print(req->gclh, ep_dbg_getfile(), 1, 0);
 	}
 
 	// should have no more input data; ignore anything there
