@@ -339,7 +339,7 @@ process_scgi_req(scgi_request *req)
 
 	// strip off leading "/gdp/v1/gcl/" prefix
 	if (GclUriPrefix == NULL)
-		GclUriPrefix = ep_adm_getstrparam("gdp.rest.prefix", DEF_URI_PREFIX);
+		GclUriPrefix = ep_adm_getstrparam("swarm.rest.prefix", DEF_URI_PREFIX);
 	uri = req->request_uri;
 	if (strncmp(uri, GclUriPrefix, strlen(GclUriPrefix)) != 0)
 		goto error404;
@@ -539,7 +539,7 @@ main(int argc, char **argv, char **env)
 	argv += optind;
 
 	if (listenport < 0)
-		listenport = ep_adm_getintparam("gdp.rest.scgiport", 8001);
+		listenport = ep_adm_getintparam("swarm.rest.scgiport", 8001);
 
 	// Initialize the GDP library
 	//		Also initializes the EVENT library and starts the I/O thread
@@ -579,7 +579,7 @@ main(int argc, char **argv, char **env)
 	//		scgi_update_connections_port to wait.  It's OK if this
 	//		thread hangs since the other work happens in a different
 	//		thread.
-	poll_delay = ep_adm_getlongparam("gdp.rest.scgi.pollinterval", 100000);
+	poll_delay = ep_adm_getlongparam("swarm.gdp.rest.scgi.pollinterval", 100000);
 	for (;;)
 	{
 		scgi_request *req = gdp_scgi_recv();

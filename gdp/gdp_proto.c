@@ -764,10 +764,10 @@ run_event_loop(void *ctx)
 {
 	struct event_loop_info *eli = ctx;
 	struct event_base *evb = eli->evb;
-	long evdelay = ep_adm_getlongparam("gdp.rest.event.loopdelay", 100000L);
+	long evdelay = ep_adm_getlongparam("swarm.gdp.event.loopdelay", 100000L);
 	
 	// keep the loop alive if EVLOOP_NO_EXIT_ON_EMPTY isn't available
-	long ev_timeout = ep_adm_getlongparam("gdp.rest.event.looptimeout", 30L);
+	long ev_timeout = ep_adm_getlongparam("swarm.gdp.event.looptimeout", 30L);
 	struct timeval tv = { ev_timeout, 0 };
 	struct event *evtimer = event_new(evb, -1, EV_PERSIST,
 			&event_loop_timeout, eli);
