@@ -55,7 +55,7 @@ libgdp.a: ${OBJS}
 libgdp.so.${GDPLIBVER}: ${OBJS}
 	${CC} ${SHARED} -o $@ ${OBJS} ${LDFLAGS}
 	${MV} $@ ${LIBDIR}
-	${RM} ${LIBDIR}/libgdp.${GDPLIBVER}.dylib ${LIBDIR}/libgdp.${GDPLIBVER}.so
+	${RM} -f ${LIBDIR}/libgdp.${GDPLIBVER}.dylib ${LIBDIR}/libgdp.${GDPLIBVER}.so
 	${LN} ${LIBDIR}/$@ ${LIBDIR}/libgdp.${GDPLIBVER}.dylib
 	${LN} ${LIBDIR}/$@ ${LIBDIR}/libgdp.${GDPLIBVER}.so 
 
