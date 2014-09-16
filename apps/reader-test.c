@@ -170,13 +170,14 @@ main(int argc, char **argv)
 	gcl_name_t gclname;
 	gcl_pname_t gclpname;
 	int opt;
+	char *gdpd_addr = NULL;
 	bool subscribe = false;
 	bool multiread = false;
 	int32_t numrecs = 0;
 	gdp_recno_t firstrec = 0;
 
 	// parse command-line options
-	while ((opt = getopt(argc, argv, "D:f:mn:s")) > 0)
+	while ((opt = getopt(argc, argv, "D:f:G:mn:s")) > 0)
 	{
 		switch (opt)
 		{
@@ -188,6 +189,11 @@ main(int argc, char **argv)
 		  case 'f':
 			// select the first record
 			firstrec = atol(optarg);
+			break;
+
+		  case 'G':
+			// set the port for connecting to the GDP daemon
+			gdpd_addr = optarg;
 			break;
 
 		  case 'm':
@@ -213,13 +219,14 @@ main(int argc, char **argv)
 	if (argc <= 0)
 	{
 		fprintf(stderr,
-				"Usage: %s [-D dbgspec] [-f firstrec] [-m] [-n nrecs] [-s] <gcl_name>\n",
+				"Usage: %s [-D dbgspec] [-f firstrec] [-G gdpd_addr] [-m]\n"
+				"  [-n nrecs] [-s] <gcl_name>\n",
 				ep_app_getprogname());
 		exit(EX_USAGE);
 	}
 
 	// initialize the GDP library
-	estat = gdp_init();
+	estat = gdp_init(gdpd_addr);
 	if (!EP_STAT_ISOK(estat))
 	{
 		ep_app_error("GDP Initialization failed");

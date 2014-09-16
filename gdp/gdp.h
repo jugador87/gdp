@@ -125,7 +125,8 @@ extern gdp_datum_t		*gdp_event_getdatum(gdp_event_t *gev);
 struct event_base		*GdpIoEventBase;	// the base for GDP I/O events
 
 // initialize the library
-extern EP_STAT	gdp_init(void);
+extern EP_STAT	gdp_init(
+					const char *gdpd_addr);	// address of gdpd
 
 // run event loop (normally run from gdp_init; never returns)
 extern void		*gdp_run_accept_event_loop(

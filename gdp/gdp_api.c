@@ -209,12 +209,12 @@ gdp_gcl_print(
 */
 
 EP_STAT
-gdp_init(void)
+gdp_init(const char *gdpd_addr)
 {
 	static bool inited = false;
 	EP_STAT estat;
 	extern EP_STAT _gdp_do_init_1(void);
-	extern EP_STAT _gdp_do_init_2(void);
+	extern EP_STAT _gdp_do_init_2(const char *);
 
 	if (inited)
 		return EP_STAT_OK;
@@ -223,7 +223,7 @@ gdp_init(void)
 	// pass it on to the internal module
 	estat = _gdp_do_init_1();
 	EP_STAT_CHECK(estat, return estat);
-	return _gdp_do_init_2();
+	return _gdp_do_init_2(gdpd_addr);
 }
 
 

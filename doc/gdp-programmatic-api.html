@@ -85,12 +85,16 @@
     <h4> Name</h4>
     gdp_init — Initialize the GDP library<br>
     <h4> Synopsis</h4>
-    <pre>#include &lt;gdp/gdp.h&gt;<br><br>EP_STAT gdp_init(void)
+    <pre>#include &lt;gdp/gdp.h&gt;<br><br>EP_STAT gdp_init(const char *gdpd_addr)
 </pre>
     <h4> Notes</h4>
     <ul>
       <li> Initializes the GDP library.&nbsp; <em><strong>Must</strong></em>
         be called before any other GDP functions are invoked.</li>
+      <li>The <code>gdpd_addr</code> parameter is the address to use to
+        contact the GDP daemon in the format "host:port".&nbsp; If <code>NULL</code>
+        a system default is used.<br>
+      </li>
       <li>If the status is not <code>EP_STAT_OK</code> then the library
         failed to initialize (for example, by being unable to acquire
         resources.&nbsp; Failure to check this status may result in

@@ -887,7 +887,7 @@ gdpd_init(int listenport)
 
 	// set up the incoming evconnlistener
 	if (listenport <= 0)
-		listenport = ep_adm_getintparam("swarm.gdp.controlport",
+		listenport = ep_adm_getintparam("swarm.gdpd.controlport",
 										GDP_PORT_DEFAULT);
 	{
 		union sockaddr_xx saddr;

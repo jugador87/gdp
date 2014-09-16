@@ -26,12 +26,13 @@ main(int argc, char **argv)
 	gcl_name_t gcliname;
 	int opt;
 	EP_STAT estat;
+	char *gdpd_addr = NULL;
 	bool append = false;
 	char *xname = NULL;
 	char buf[200];
 
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "aD:")) > 0)
+	while ((opt = getopt(argc, argv, "aD:G:")) > 0)
 	{
 		switch (opt)
 		{
@@ -41,6 +42,10 @@ main(int argc, char **argv)
 
 		 case 'D':
 			ep_dbg_set(optarg);
+			break;
+
+		 case 'G':
+			gdpd_addr = optarg;
 			break;
 		}
 	}
@@ -63,7 +68,7 @@ main(int argc, char **argv)
 	}
 
 	// initialize the GDP library
-	estat = gdp_init();
+	estat = gdp_init(gdpd_addr);
 	if (!EP_STAT_ISOK(estat))
 	{
 		ep_app_error("GDP Initialization failed");

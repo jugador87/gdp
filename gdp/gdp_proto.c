@@ -908,7 +908,7 @@ fail0:
 */
 
 EP_STAT
-_gdp_do_init_2(void)
+_gdp_do_init_2(const char *gdpd_addr)
 {
 	gdp_chan_t *chan;
 	EP_STAT estat = EP_STAT_OK;
@@ -923,33 +923,63 @@ _gdp_do_init_2(void)
 		estat = init_error("could not allocate bufferevent", "gdp_init");
 		goto fail0;
 	}
+
+	// attach it to a socket
+	char abuf[100];
+	struct addrinfo *res;
+	struct addrinfo hints;
+	int gdpd_port = -1;
+	int r;
+	char *port;
+
+	memset(&hints, '\0', sizeof hints);
+
+	bufferevent_setcb(chan, gdp_read_cb, NULL, gdp_event_cb, NULL);
+	bufferevent_enable(chan, EV_READ | EV_WRITE);
+
+	// get the host:port info into abuf
+	if (gdpd_addr == NULL)
+		gdpd_addr = ep_adm_getstrparam("swarm.gdp.gdpd.addr", NULL);
+	if (gdpd_addr == NULL)
+		snprintf(abuf, sizeof abuf, "127.0.0.1:%d", GDP_PORT_DEFAULT);
 	else
+		strlcpy(abuf, gdpd_addr, sizeof abuf);
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
+	port = strchr(abuf, ':');
+	if (port != NULL)
+		*port++ = '\0';
+	ep_dbg_cprintf(Dbg, 20, "gdp_init: contacting host %s port %s\n",
+			abuf, port);
+	r = getaddrinfo(abuf, port, NULL, &res);
+	if (r == 0)
 	{
-		// attach it to a socket
-		struct sockaddr_in sa;
-		int gdpd_port = ep_adm_getintparam("swarm.gdp.controlport",
-										GDP_PORT_DEFAULT);
-		const char *peername = ep_adm_getstrparam("swarm.gdp.controlhost",
-										"127.0.0.1");
-
-		bufferevent_setcb(chan, gdp_read_cb, NULL, gdp_event_cb, NULL);
-		bufferevent_enable(chan, EV_READ | EV_WRITE);
-
-		// TODO at the moment just attaches to localhost; should
-		//		do discovery or at least have a run time parameter
-		sa.sin_family = AF_INET;
-		sa.sin_addr.s_addr = inet_addr(peername);
-		sa.sin_port = htons(gdpd_port);
-		if (bufferevent_socket_connect(chan, (struct sockaddr *) &sa,
-									sizeof sa) < 0)
+		struct addrinfo *a = res;
+		while (a != NULL)
 		{
-			estat = init_error("could not connect to IPv4 socket", "gdp_init");
+			gdpd_port = ((struct sockaddr_in *) a->ai_addr)->sin_port;
+			if (bufferevent_socket_connect(chan, a->ai_addr,
+						a->ai_addrlen) >= 0)
+				break;
+		}
+		if (a == NULL)
+		{
+			estat = init_error("could not connect to GDP socket",
+						"gdp_init");
 			goto fail1;
 		}
-		_GdpChannel = chan;
-		ep_dbg_cprintf(Dbg, 10, "gdp_init: talking on port %d, fd %d\n",
-				gdpd_port, bufferevent_getfd(chan));
+		freeaddrinfo(res);
 	}
+	else
+	{
+		fprintf(stderr, "gdp_init: %s\n", gai_strerror(r));
+		estat = init_error("could not find GDP socket", "gdp_init");
+		goto fail1;
+	}
+
+	_GdpChannel = chan;
+	ep_dbg_cprintf(Dbg, 10, "gdp_init: talking on port %d, fd %d\n",
+			ntohs(gdpd_port), bufferevent_getfd(chan));
 
 	// create a thread to run the event loop
 	estat = _gdp_start_event_loop_thread(&_GdpIoEventLoopThread,

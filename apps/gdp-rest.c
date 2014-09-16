@@ -516,14 +516,19 @@ main(int argc, char **argv, char **env)
 	int opt;
 	int listenport = -1;
 	int64_t poll_delay;
+	char *gdpd_addr = NULL;
 	extern void run_scgi_protocol(void);
 
-	while ((opt = getopt(argc, argv, "D:p:u:")) > 0)
+	while ((opt = getopt(argc, argv, "D:G:p:u:")) > 0)
 	{
 		switch (opt)
 		{
 		case 'D':						// turn on debugging
 			ep_dbg_set(optarg);
+			break;
+
+		case 'G':						// gdp daemon host:port
+			gdpd_addr = optarg;
 			break;
 
 		case 'p':						// select listen port
@@ -544,7 +549,7 @@ main(int argc, char **argv, char **env)
 	// Initialize the GDP library
 	//		Also initializes the EVENT library and starts the I/O thread
 	{
-		EP_STAT estat = gdp_init();
+		EP_STAT estat = gdp_init(gdpd_addr);
 		char ebuf[100];
 
 		if (!EP_STAT_ISOK(estat))
