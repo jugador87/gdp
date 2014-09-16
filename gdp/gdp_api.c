@@ -139,7 +139,6 @@ gdp_gcl_parse_name(const char *ext, gcl_name_t gcl_name)
 
 	// must be human-oriented name
 	SHA256((const uint8_t *) ext, strlen(ext), gcl_name);
-	gcl_name[GDP_GCL_PNAME_LEN] = '\0';
 	return EP_STAT_OK;
 }
 
