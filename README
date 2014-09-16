@@ -8,6 +8,11 @@ second.  All of these are likely to change in the future.
 
 Required Packages:
 
+	libevent2 --- Event handling library available from
+		http://libevent.org.  Most systems (Linux, MacOS, and
+		FreeBSD at a minumum) have this available as a package.
+		On linux you have to install the package libevent-dev.
+	libssl-dev --- for the sha256 implementation.
 	lighttpd --- Web server for RESTful interface.
 		Note: I used macports (http://macports.org) to install
 		lighttpd on the Mac, which is probably easier than compiling
@@ -15,15 +20,11 @@ Required Packages:
 		configuration for you.
 	scgilib --- C binding for Simple Common Gateway Interface: to connect
 		lighttpd with GDP; from http://www.xamuel.com/scgilib/;
-		slightly modified and included with this distribution).
+		a slightly modified version is included with this
+		distribution.
 	Jansson --- JSON library from http://www.digip.org/jansson/.
 		[At this moment this is not being used, but it probably
 		will be in the future.]
-	libevent2 --- Event handling library available from
-		http://libevent.org.  Most systems (Linux, MacOS, and
-		FreeBSD at a minumum have this available as a package.
-		On linux you have to install the package libevent-dev.
-	libssl-dev --- for the sha256 implementation.
 
 Directory Structure:
 	ep --- A library of C utility functions.  This is a stripped
@@ -31,10 +32,11 @@ Directory Structure:
 		If you look at the code you'll see vestiges of some
 		of the stripped out functions.  I plan on cleaning
 		this version up and releasing it again.
-	gdp --- A library for GDP manipulation.  This is not complete,
-		and this implementation is simplistic, working only on
-		a single host.  One important piece of functionality,
-		subscribe, is not yet complete.
+	gdp --- A library for GDP manipulation.  This is the library
+		that applications must link to access the GDP.
+	gdpd --- The GDP daemon.  This implements the core of the GDP.
+		This implementation is simplistic, working only on
+		a single host.
 	scgilib --- An updated version of the SCGI code from
 		http://www.xamuel.com/scgilib/.  SCGI permits a
 		web server to access outside programs by opening
@@ -46,15 +48,16 @@ Directory Structure:
 Compiling:
 	Should just be a matter of typing "make" in the root.
 	Note: gcc on linux has a bug that causes it to complain about
-	non-constant expressions in an initializer.  Those same expressions
-	are constant in Clang and even in gcc without the -std=c99 flag,
-	so you'll have to do "make STD=" (or install clang and use
-	"make CC=clang") until such time as gcc gets fixed.  Hint:
-	clang is faster and gives MUCH better error messages.
+	non-constant expressions in an initializer when the -std=c99
+	flag is given.  Those same expressions are constant in Clang
+	and even in gcc without the -std=c99 flag.  As a result of
+	this problem, we don't use the -std=c99 flag by default, but
+	this means that not all features of C99 are available.
 
 	As of this writing, GDP works on MacOS 10.9 (using clang),
 	Ubuntu 12.04 (using gcc or clang), and Freebsd 10.0 (using
-	clang).
+	clang).  I believe one person has it running on MacOS 10.7
+	using gcc.
 
 Running a GDP-based program:
 	For anything interesting to happen, an instance of the GDP
@@ -226,7 +229,8 @@ Changing Parameters:
 
 	Parameters you can change in that file include:
 
-	swarm.gdp.controlport --- the rendezvous port used by the GDP
+	swarm.gdp.gdpd.addr --- the address of the gdp daemon (used
+		by clients.  Defaults to 127.0.0.1:2468.
 	swarm.gdp.event.loopdelay --- if the event loop exits for some
 		reason, this is the number of microseconds to delay
 		before restarting the loop.  Defaults to 100000 (100msec).
@@ -236,6 +240,8 @@ Changing Parameters:
 	swarm.gdp.gcl.dir --- the data directory (e.g., /var/tmp/gcl).
 		Daemon.  This should eventually be replaced by service
 		discovery.  Defaults to 2468.
+	swarm.gdpd.controlport --- the rendezvous port used by the GDP
+		daemon.
 	swarm.rest.scgiport --- the port number for the SCGI server to
 		listen on.  If you change this you'll also have to
 		change the lighttpd configuration.  Defaults to 8001.
