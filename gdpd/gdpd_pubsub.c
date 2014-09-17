@@ -32,7 +32,7 @@ sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum)
 	}
 
 	estat = _gdp_pkt_out(req->pkt, bufferevent_get_output(req->chan));
-	if (req->numrecs >= 0 && --req->numrecs <= 0)
+	if (req->numrecs > 0 && --req->numrecs <= 0)
 		sub_end_subscription(req);
 }
 
