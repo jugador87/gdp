@@ -23,6 +23,34 @@ gdp_chan_t				*_GdpChannel;	// our primary app-level protocol port
 // declare the type of the gdp_req linked list (used multiple places)
 LIST_HEAD(req_head, gdp_req);
 
+
+/*
+**	 Datums
+**		These are the underlying data unit that is passed through a GCL.
+**
+**		XXX Is the timestamp the commit timestamp into the dataplane
+**			or the timestamp of the sample itself (if known)?  Do we
+**			need two timestamps?  The sample timestamp is really an
+**			application level concept, so arguably doesn't belong here.
+**			But that's true of the location as well.
+*/
+
+struct gdp_datum
+{
+	EP_THR_MUTEX		mutex;		// locking mutex (mostly for dbuf)
+	struct gdp_datum	*next;		// next in free list
+	bool				inuse:1;	// indicates that the datum is in use
+	gdp_recno_t			recno;		// the record number
+	EP_TIME_SPEC		ts;			// timestamp for this message
+	size_t				dlen;		// length of data buffer (redundant)
+	gdp_buf_t			*dbuf;		// data buffer
+};
+
+
+/*
+**  GDP Channel/Logs
+*/
+
 struct gdp_gcl
 {
 	// fields used by GDP library

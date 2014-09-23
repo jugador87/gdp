@@ -1,6 +1,8 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
 #include <gdp/gdp.h>
+	// shouldn't be necessary, but we dig around inside gdp_datum_t
+#include <gdp/gdp_priv.h>
 
 #include <ep/ep_app.h>
 #include <ep/ep_b64.h>
