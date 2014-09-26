@@ -32,7 +32,7 @@
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.rest", "RESTful interface to GDP");
 
-#define DEF_URI_PREFIX	"/gdp/v1/gcl"
+#define DEF_URI_PREFIX	"/gdp/v1"
 
 const char		*GclUriPrefix;			// prefix on all REST calls
 EP_HASH			*OpenGclCache;			// cache of open GCLs
@@ -166,15 +166,6 @@ gdp_failure(scgi_request *req, char *code, char *msg, char *fmt, ...)
 }
 
 
-EP_STAT
-show_gcl(char *gclpname,
-		scgi_request *req)
-{
-	gdp_failure(req, "418", "Not Implemented", "");
-	return GDP_STAT_NOT_IMPLEMENTED;
-}
-
-
 /*
 **  GDP_SCGI_RECV --- guarded version of scgi_recv().
 **
@@ -196,8 +187,262 @@ gdp_scgi_recv(void)
 }
 
 
+bool
+is_integer_string(const char *s)
+{
+	do
+	{
+		if (!isdigit(*s))
+			return false;
+	} while (*++s != '\0');
+	return true;
+}
+
+
 /*
-**	READ_DATUM --- read and return a datum from a GCL
+**  PARSE_QUERY --- break up the query into key/value pairs
+*/
+
+struct qkvpair
+{
+	char	*key;
+	char	*val;
+};
+
+int
+parse_query(char *qtext, struct qkvpair *qkvs, int nqkvs)
+{
+	int n = 0;
+
+	for (n = 0; qtext != NULL && n < nqkvs; n++)
+	{
+		char *p;
+
+		if (*qtext == '\0')
+			break;
+
+		// skip to the next kv pair separator
+		qkvs[n].key = strsep(&qtext, "&;");
+
+		// separate the key and the value (if any)
+		p = strchr(qkvs[n].key, '=');
+		if (p != NULL && *p != '\0')
+			*p++ = '\0';
+		qkvs[n].val = p;
+	}
+
+	return n;
+}
+
+
+/*
+**  FIND_QUERY_KV --- find a key-value pair in query
+*/
+
+char *
+find_query_kv(const char *key, struct qkvpair *qkvs)
+{
+	while (qkvs->key != NULL)
+	{
+		if (strcasecmp(key, qkvs->key) == 0)
+			return qkvs->val;
+		qkvs++;
+	}
+	return NULL;
+}
+
+
+/*
+**  ERROR404 --- issue a 404 "Not Found" error
+*/
+
+EP_STAT
+error404(scgi_request *req, const char *detail)
+{
+	return gdp_failure(req, "404", "Not Found", "sss",
+			"uri", req->request_uri,
+			"method", scgi_method_name(req->request_method),
+			"detail", detail);
+}
+
+
+/*
+**  ERROR405 --- issue a 405 "Method Not Allowed" error
+*/
+
+EP_STAT
+error405(scgi_request *req, const char *detail)
+{
+	return gdp_failure(req, "405", "Method Not Allowed", "sss",
+			"uri", req->request_uri,
+			"method", scgi_method_name(req->request_method),
+			"detail", detail);
+}
+
+
+/*
+**  ERROR500 --- issue a 500 "Internal Server Error" error
+*/
+
+EP_STAT
+error500(scgi_request *req, const char *detail, int eno)
+{
+	char nbuf[40];
+
+	strerror_r(eno, nbuf, sizeof nbuf);
+	(void) gdp_failure(req, "500", "Internal Server Error", "sss",
+			"uri", req->request_uri,
+			"errno", nbuf,
+			"detail", detail);
+	return ep_stat_from_errno(eno);
+}
+
+
+/*
+**  ERROR501 --- issue a 501 "Not Implemented" error
+*/
+
+EP_STAT
+error501(scgi_request *req, const char *detail)
+{
+	return gdp_failure(req, "501", "Not Implemented", "sss",
+			"uri", req->request_uri,
+			"method", scgi_method_name(req->request_method),
+			"detail", detail);
+}
+
+
+
+/*
+**  A_NEW_GCL --- create new GCL
+*/
+
+EP_STAT
+a_new_gcl(scgi_request *req, const char *name)
+{
+	gdp_gcl_t *gclh;
+	EP_STAT estat;
+
+	ep_dbg_cprintf(Dbg, 5, "=== Create new GCL (%s)\n",
+			name == NULL ? "NULL" : name);
+
+	if (name != NULL)
+	{
+		gcl_name_t gclname;
+
+		gdp_gcl_parse_name(name, gclname);
+		estat = gdp_gcl_create(gclname, &gclh);
+	}
+	else
+	{
+		estat = gdp_gcl_create(NULL, &gclh);
+	}
+	if (EP_STAT_ISOK(estat))
+	{
+		char sbuf[SCGI_MAX_OUTBUF_SIZE];
+		const gcl_name_t *nname;
+		gcl_pname_t nbuf;
+
+		// return the name of the GCL
+		nname = gdp_gcl_getname(gclh);
+		gdp_gcl_printable_name(*nname, nbuf);
+		snprintf(sbuf, sizeof sbuf,
+				"HTTP/1.1 201 GCL created\r\n"
+				"Content-Type: application/json\r\n"
+				"\r\n"
+				"{\r\n"
+				"	 \"gcl_name\": \"%s\"\r\n"
+				"}\r\n", nbuf);
+		write_scgi(req, sbuf);
+	}
+	return estat;
+}
+
+
+/*
+**  A_SHOW_GCL --- show information about a GCL
+*/
+
+EP_STAT
+a_show_gcl(scgi_request *req, gcl_name_t gcliname)
+{
+	return error501(req, "GCL status not implemented");
+}
+
+
+/*
+**  A_PUBLISH --- publish datum to GCL
+*/
+
+EP_STAT
+a_publish(scgi_request *req, gcl_name_t gcliname)
+{
+	EP_STAT estat = EP_STAT_OK;
+	gdp_datum_t *datum = gdp_datum_new();
+	gdp_gcl_t *gcl = NULL;
+
+	ep_dbg_cprintf(Dbg, 5, "=== Publish value to GCL\n");
+
+	//XXX violates the principle that gdp-rest is "just an app"
+	if ((gcl = _gdp_gcl_cache_get(gcliname, GDP_MODE_AO)) == NULL)
+	{
+		estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gcl);
+	}
+	if (EP_STAT_ISOK(estat))
+	{
+		gdp_datum_t *datum = gdp_datum_new();
+
+		gdp_buf_write(datum->dbuf, req->body, req->scgi_content_length);
+		estat = gdp_gcl_publish(gcl, datum);
+	}
+	if (!EP_STAT_ISOK(estat))
+	{
+		char ebuf[200];
+		gcl_pname_t gclpname;
+
+		gdp_gcl_printable_name(gcliname, gclpname);
+		gdp_failure(req, "420" "Cannot append to GCL", "ss",
+				"GCL", gclpname,
+				"error", ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		return estat;
+	}
+	else
+	{
+		// success: send a response
+		char rbuf[1000];
+		FILE *fp;
+
+		fp = ep_fopensmem(rbuf, sizeof rbuf, "w");
+		if (fp == NULL)
+		{
+			// well, maybe not so successful
+			estat = error500(req, "ep_fopensmem failure", errno);
+		}
+		fprintf(fp,
+				"HTTP/1.1 200 Successfully appended\r\n"
+				"Content-Type: application/json\r\n"
+				"\r\n"
+				"{\r\n"
+				"	 \"recno\": \"%" PRIgdp_recno "\"",
+				datum->recno);
+		if (EP_TIME_ISVALID(&datum->ts))
+		{
+			fprintf(fp,
+					",\r\n"
+					"	 \"timestamp\": ");
+			ep_time_print(&datum->ts, fp, false);
+		}
+		fprintf(fp, "\r\n}");
+		fputc('\0', fp);
+		fclose(fp);
+		scgi_send(req, rbuf, strlen(rbuf));
+	}
+	return estat;
+}
+
+
+/*
+**	A_READ_DATUM --- read and return a datum from a GCL
 **
 **		XXX Currently doesn't use the GCL cache.  To make that work
 **			long term we would have to have to implement LRU in that
@@ -205,16 +450,11 @@ gdp_scgi_recv(void)
 */
 
 EP_STAT
-read_datum(char *gclpname, gdp_recno_t recno, scgi_request *req)
+a_read_datum(scgi_request *req, gcl_name_t gcliname, gdp_recno_t recno)
 {
 	EP_STAT estat;
 	gdp_gcl_t *gclh = NULL;
 	gdp_datum_t *datum = gdp_datum_new();
-	gcl_name_t gcliname;
-
-	// for printing below
-	estat = gdp_gcl_internal_name(gclpname, gcliname);
-	EP_STAT_CHECK(estat, goto fail0);
 
 	estat = gdp_gcl_open(gcliname, GDP_MODE_RO, &gclh);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -230,6 +470,7 @@ read_datum(char *gclpname, gdp_recno_t recno, scgi_request *req)
 		// figure out the response header
 		{
 			FILE *fp;
+			gcl_pname_t gclpname;
 
 			fp = ep_fopensmem(rbuf, sizeof rbuf, "w");
 			if (fp == NULL)
@@ -240,6 +481,7 @@ read_datum(char *gclpname, gdp_recno_t recno, scgi_request *req)
 				ep_app_abort("Cannot open memory for GCL read response: %s",
 						nbuf);
 			}
+			gdp_gcl_printable_name(gcliname, gclpname);
 			fprintf(fp, "HTTP/1.1 200 GCL Message\r\n"
 						"Content-Type: application/json\r\n"
 						"GDP-GCL-Name: %s\r\n"
@@ -292,7 +534,9 @@ read_datum(char *gclpname, gdp_recno_t recno, scgi_request *req)
 fail0:
 	{
 		char ebuf[200];
+		gcl_pname_t gclpname;
 
+		gdp_gcl_printable_name(gcliname, gclpname);
 		gdp_failure(req, "404", "Cannot read GCL", "ss", 
 				"GCL", gclpname,
 				"reason", ep_stat_tostr(estat, ebuf, sizeof ebuf));
@@ -303,17 +547,133 @@ fail0:
 }
 
 
-bool
-is_integer_string(const char *s)
+/*
+**  GCL_DO_GET --- helper routine for GET method on a GCL
+**
+**		Have to look at query to figure out the semantics.
+**		The query's the thing / wherein I'll catch the
+**		conscience of the king.
+*/
+
+EP_STAT
+gcl_do_get(scgi_request *req, gcl_name_t gcliname, struct qkvpair *qkvs)
 {
-	do
+	EP_STAT estat;
+	char *qrecno = find_query_kv("recno", qkvs);
+	char *qnrecs = find_query_kv("nrecs", qkvs);
+	char *qtimeout = find_query_kv("timeout", qkvs);
+
+	if (qnrecs != NULL)
 	{
-		if (!isdigit(*s))
-			return false;
-	} while (*++s != '\0');
-	return true;
+		// not yet implemented
+		estat = error501(req, "nrecs query not supported");
+	}
+	else if (qtimeout != NULL)
+	{
+		// not yet implemented
+		estat = error501(req, "timeout query not supported");
+	}
+	else if (qrecno != NULL)
+	{
+		gdp_recno_t recno = atol(qrecno);
+		estat = a_read_datum(req, gcliname, recno);
+	}
+	else
+	{
+		estat = a_show_gcl(req, gcliname);
+	}
+
+	return estat;
 }
 
+
+/*
+**  PFX_GCL --- process SCGI requests starting with /gdp/v1/gcl
+*/
+
+#define NQUERY_KVS		10		// max number of key-value pairs in query part
+
+EP_STAT
+pfx_gcl(scgi_request *req, char *uri)
+{
+	EP_STAT estat;
+	struct qkvpair qkvs[NQUERY_KVS + 1];
+
+	if (*uri == '/')
+		uri++;
+
+	ep_dbg_cprintf(Dbg, 3, "    gcl=%s\n    query=%s\n", uri, req->query_string);
+
+	// parse the query, if it exists
+	{
+		int i = parse_query(req->query_string, qkvs, NQUERY_KVS);
+		qkvs[i].key = qkvs[i].val = NULL;
+	}
+
+	if (*uri == '\0')
+	{
+		// no GCL name included
+		switch (req->request_method)
+		{
+		case SCGI_METHOD_POST:
+			// create a new GCL
+			estat = a_new_gcl(req, NULL);
+			break;
+
+		case SCGI_METHOD_GET:
+			// XXX if no GCL name, should we print all GCLs?
+		default:
+			// unknown URI/method
+			estat = error405(req, "only GET or POST supported for unnamed GCL");
+			break;
+		}
+	}
+	else
+	{
+		gcl_name_t gcliname;
+
+		// next component is the GCL id (name) in external format
+		gdp_gcl_parse_name(uri, gcliname);
+
+		// have a GCL name
+		switch (req->request_method)
+		{
+		case SCGI_METHOD_GET:
+			estat = gcl_do_get(req, gcliname, qkvs);
+			break;
+
+		case SCGI_METHOD_POST:
+			// append value to GCL
+			estat = a_publish(req, gcliname);
+			break;
+
+		case SCGI_METHOD_PUT:
+			// create a new named GCL
+			estat = a_new_gcl(req, uri);
+			break;
+
+		default:
+			// unknown URI/method
+			estat = error405(req, "only GET, POST, and PUT supported for named GCL");
+		}
+	}
+
+	return estat;
+}
+
+
+/*
+**  PFX_POST --- process SCGI requests starting with /gdp/v1/post
+*/
+
+EP_STAT
+pfx_post(scgi_request *req, char *uri)
+{
+	if (*uri == '/')
+		uri++;
+
+	return error501(req, "/post/... URIs not yet supported");
+}
 
 
 /*
@@ -326,7 +686,6 @@ EP_STAT
 process_scgi_req(scgi_request *req)
 {
 	char *uri;				// the URI of the request
-	char *gclpname;			// name of the GCL of interest
 	EP_STAT estat = EP_STAT_OK;
 
 	if (ep_dbg_test(Dbg, 3))
@@ -337,175 +696,42 @@ process_scgi_req(scgi_request *req)
 				req->request_uri);
 	}
 
-	// strip off leading "/gdp/v1/gcl/" prefix
+	// strip query string off of URI (I'm surprised it's not already done)
+	uri = strchr(req->request_uri, '?');
+	if (uri != NULL)
+		*uri = '\0';
+
+	// strip off leading "/gdp/v1/" prefix (error if not there)
 	if (GclUriPrefix == NULL)
 		GclUriPrefix = ep_adm_getstrparam("swarm.rest.prefix", DEF_URI_PREFIX);
 	uri = req->request_uri;
 	if (strncmp(uri, GclUriPrefix, strlen(GclUriPrefix)) != 0)
-		goto error404;
+	{
+		estat = error404(req, "improper URI prefix");
+		goto finis;
+	}
 	uri += strlen(GclUriPrefix);
 	if (*uri == '/')
 		uri++;
 
-	// next component is the GCL id (name)
-	gclpname = uri;
-	uri = strchr(uri, '/');
-	if (uri == NULL)
-		uri = "";
-	else if (*uri != '\0')
-		*uri++ = '\0';
-
-	ep_dbg_cprintf(Dbg, 3, "	gcl=%s, uri=%s\n", gclpname, uri);
-
-	// XXX if no GCL name, should we print all GCLs?
-	if (*gclpname == '\0')
+	// next component is "gcl" for RESTful or "post" for RESTish
+	if (strncmp(uri, "gcl", 3) == 0 && (uri[3] == '/' || uri[3] == '\0'))
 	{
-		if (req->request_method == SCGI_METHOD_POST)
-		{
-			// create a new GCL
-			ep_dbg_cprintf(Dbg, 5, "=== Create new GCL\n");
-			gdp_gcl_t *gclh;
-			EP_STAT estat = gdp_gcl_create(NULL, &gclh);
-
-			if (EP_STAT_ISOK(estat))
-			{
-				char sbuf[SCGI_MAX_OUTBUF_SIZE];
-				const gcl_name_t *nname;
-				gcl_pname_t nbuf;
-
-				// return the name of the GCL
-				nname = gdp_gcl_getname(gclh);
-				gdp_gcl_printable_name(*nname, nbuf);
-				snprintf(sbuf, sizeof sbuf,
-						"HTTP/1.1 201 GCL created\r\n"
-						"Content-Type: application/json\r\n"
-						"\r\n"
-						"{\r\n"
-						"	 \"gcl_name\": \"%s\"\r\n"
-						"}\r\n", nbuf);
-				write_scgi(req, sbuf);
-			}
-		}
-		else
-		{
-			// unknown URI/method
-			goto error404;
-		}
+		// looking at "/gdp/v1/gcl/" prefix; next component is the GCL name
+		estat = pfx_gcl(req, uri + 3);
 	}
-	else if (*uri == '\0')
+	else if (strncmp(uri, "post", 4) == 0 && (uri[4] == '/' || uri[4] == '\0'))
 	{
-		// have a bare GCL name
-		if (req->request_method == SCGI_METHOD_GET)
-			estat = show_gcl(gclpname, req);
-		else if (req->request_method == SCGI_METHOD_POST)
-		{
-			// append value to GCL
-			gdp_datum_t *datum = gdp_datum_new();
-			gdp_gcl_t *gcl = NULL;
-
-			ep_dbg_cprintf(Dbg, 5, "=== Add value to GCL\n");
-
-			// if we don't have an open GCL, get one
-			estat = EP_STAT_OK;
-			if (gcl == NULL)
-			{
-				gcl_name_t gcliname;
-
-				gdp_gcl_internal_name(gclpname, gcliname);
-				//XXX violates the principle that gdp-rest is "just an app"
-				if ((gcl = _gdp_gcl_cache_get(gcliname, GDP_MODE_AO)) == NULL)
-				{
-					estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gcl);
-				}
-			}
-			if (EP_STAT_ISOK(estat))
-			{
-				gdp_datum_t *datum = gdp_datum_new();
-
-				gdp_buf_write(datum->dbuf, req->body, req->scgi_content_length);
-				estat = gdp_gcl_publish(gcl, datum);
-			}
-			if (!EP_STAT_ISOK(estat))
-			{
-				char ebuf[200];
-
-				gdp_failure(req, "420" "Cannot append to GCL", "ss",
-						"GCL", gclpname,
-						"error", ep_stat_tostr(estat, ebuf, sizeof ebuf));
-				goto error404;
-			}
-
-			// success: send a response
-			{
-				char rbuf[1000];
-				FILE *fp;
-
-				fp = ep_fopensmem(rbuf, sizeof rbuf, "w");
-				if (fp == NULL)
-				{
-					// well, maybe not so successful
-					estat = ep_stat_from_errno(errno);
-					goto error500;
-				}
-				fprintf(fp,
-						"HTTP/1.1 200 Successfully appended\r\n"
-						"Content-Type: application/json\r\n"
-						"\r\n"
-						"{\r\n"
-						"	 \"recno\": \"%" PRIgdp_recno "\"",
-						datum->recno);
-				if (EP_TIME_ISVALID(&datum->ts))
-				{
-					fprintf(fp,
-							",\r\n"
-							"	 \"timestamp\": ");
-					ep_time_print(&datum->ts, fp, false);
-				}
-				fprintf(fp, "\r\n}");
-				fputc('\0', fp);
-				fclose(fp);
-				scgi_send(req, rbuf, strlen(rbuf));
-			}
-		}
-		else
-		{
-			// unknown URI/method
-			goto error404;
-		}
+		// looking at "/gdp/v1/post" prefix
+		estat = pfx_post(req, uri + 4);
 	}
-	else if (req->request_method == SCGI_METHOD_GET && is_integer_string(uri))
-	{
-		// read message and return result
-		estat = read_datum(gclpname, atol(uri), req);
-	}
-#if 0
-	else if (req->request_method == SCGI_METHOD_POST)
-	{
-		// XXX
-	}
-#endif // 0
 	else
 	{
-		// unrecognized URI
-		goto error404;
+		// looking at "/gdp/v1/<unknown>" prefix
+		estat = error404(req, "unknown resource");
 	}
 
-	return estat;
-
- error404:
-	estat = gdp_failure(req, "404", "Unknown URI or method", "ss",
-			"uri", uri,
-			"method", scgi_method_name(req->request_method));
-	return estat;
-
- error500:
-	{
-		char nbuf[40];
-
-		strerror_r(errno, nbuf, sizeof nbuf);
-		estat = gdp_failure(req, "500", "Internal Server Error", "s",
-				"errno", nbuf);
-	}
+finis:
 	return estat;
 }
 

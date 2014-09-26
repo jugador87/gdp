@@ -133,8 +133,7 @@ EP_STAT
 gdp_gcl_parse_name(const char *ext, gcl_name_t gcl_name)
 {
 	if (strlen(ext) == GDP_GCL_PNAME_LEN &&
-			EP_STAT_ISOK(ep_b64_decode(ext, sizeof (gcl_pname_t) - 1,
-								gcl_name, sizeof (gcl_name_t), EP_B64_ENC_URL)))
+			EP_STAT_ISOK(gdp_gcl_internal_name(ext, gcl_name)))
 		return EP_STAT_OK;
 
 	// must be human-oriented name
