@@ -28,7 +28,7 @@
 #include <sys/socket.h>
 #include <scgilib/scgilib.h>
 #include <event2/event.h>
-//#include <jansson.h>
+#include <jansson.h>
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.rest", "RESTful interface to GDP");
 
@@ -88,12 +88,51 @@ write_scgi(scgi_request *req,
 {
 	int dead = 0;
 	int i;
+	char xbuf[1024];
+	char *xbase = xbuf;
+	char *xp;
+	char *sp;
+
+	// first translate any lone newlines into crlfs (pity jansson won't do this)
+	for (i = 0, sp = sbuf; (sp = strchr(sp, '\n')) != NULL; sp++)
+		if (sp == sbuf || sp[-1] != '\r')
+			i++;
+
+	// i is now the count of newlines without carriage returns
+	sp = sbuf;
+	if (i > 0)
+	{
+		bool cr = false;
+
+		// find the total number of bytes we need, using malloc if necessary
+		i += strlen(sbuf) + 1;
+		if (i > sizeof xbuf)
+			xbase = ep_mem_malloc(i);
+		xp = xbase;
+
+		// xp now points to a large enough buffer, possibly malloced
+		while (*sp != '\0')
+		{
+			if (*sp == '\n' && !cr)
+				*xp++ = '\r';
+			cr = *sp == '\r';
+			*xp++ = *sp++;
+		}
+		*xp = '\0';
+
+		sp = xbase;
+	}
+
 
 	// I don't quite understand what "dead" is all about.  It's copied
 	// from the "helloworld" example.  Something about memory management,
 	// but his example only seems to use it to print messages.
 	req->dead = &dead;
-	i = scgi_write(req, sbuf);
+	i = scgi_write(req, sp);
+
+	// free buffer memory if necessary
+	if (xbase != xbuf)
+		ep_mem_free(xbase);
 
 	ep_dbg_cprintf(Dbg, 10, "scgi_write => %d, dead = %d\n", i, dead);
 	if (i == 0)
@@ -116,50 +155,59 @@ write_scgi(scgi_request *req,
 EP_STAT
 gdp_failure(scgi_request *req, char *code, char *msg, char *fmt, ...)
 {
-	char buf[4000];
-	FILE *fp = ep_fopensmem(buf, sizeof buf, "w");
+	char buf[SCGI_MAX_OUTBUF_SIZE];
 	va_list av;
 	char c;
+	json_t *j;
+	char *jbuf;
 
-	EP_ASSERT(fp != NULL);
+	// set up the JSON object
+	j = json_object();
+	json_object_set_nocheck(j, "error", json_string(msg));
+	json_object_set_nocheck(j, "code", json_string(code));
 
-	fprintf(fp, "HTTP/1.1 %s\r\n"
-				"Content-Type: application/json\r\n"
-				"\r\n"
-				"{\r\n"
-				"	 \"error\": \"%s\"\r\n"
-				"	 \"code\": \"%s\"\r\n",
-				code, msg, code);
 	va_start(av, fmt);
 	while ((c = *fmt++) != '\0')
 	{
-		char *p = va_arg(av, char *);
-		char pbuf[100];
+		char *key = va_arg(av, char *);
 
-		fprintf(fp, "	 \"%s\": \"", p);
 		switch (c)
 		{
 		case 's':
-			p = ep_pcvt_str(pbuf, sizeof pbuf, va_arg(av, char *));
+			json_object_set(j, key, json_string(va_arg(av, char *)));
 			break;
 
 		case 'd':
-			p = ep_pcvt_int(pbuf, sizeof pbuf, (long) va_arg(av, int), 10);
+			json_object_set(j, key, json_integer((long) va_arg(av, int)));
 			break;
 
 		default:
-			snprintf(pbuf, sizeof pbuf, "Unknown format `%c'", c);
-			p = pbuf;
+			{
+				char pbuf[40];
+
+				snprintf(pbuf, sizeof pbuf, "Unknown format `%c'", c);
+				json_object_set(j, key, json_string(pbuf));
+			}
 			break;
 		}
-		fprintf(fp, "%s\"\r\n", p);
 	}
 	va_end(av);
-	fprintf(fp, "}");
-	fputc('\0', fp);
-	fclose(fp);
-	buf[sizeof buf - 1] = '\0';		// in case it overflowed
+
+	// get it in string format
+	jbuf = json_dumps(j, JSON_INDENT(4));
+
+	// create the entire SCGI return message
+	snprintf(buf, sizeof buf,
+			"HTTP/1.1 %s\r\n"
+			"Content-Type: application/json\r\n"
+			"\r\n"
+			"%s\r\n",
+			code, jbuf);
 	write_scgi(req, buf);
+
+	// clean up
+	json_decref(j);
+	free(jbuf);
 
 	// should chose something more appropriate here
 	return EP_STAT_ERROR;
@@ -342,18 +390,27 @@ a_new_gcl(scgi_request *req, const char *name)
 		char sbuf[SCGI_MAX_OUTBUF_SIZE];
 		const gcl_name_t *nname;
 		gcl_pname_t nbuf;
+		json_t *j = json_object();
+		char *jbuf;
 
 		// return the name of the GCL
 		nname = gdp_gcl_getname(gclh);
 		gdp_gcl_printable_name(*nname, nbuf);
+		json_object_set_nocheck(j, "gcl_name", json_string(nbuf));
+
+		jbuf = json_dumps(j, JSON_INDENT(4));
+
 		snprintf(sbuf, sizeof sbuf,
 				"HTTP/1.1 201 GCL created\r\n"
 				"Content-Type: application/json\r\n"
 				"\r\n"
-				"{\r\n"
-				"	 \"gcl_name\": \"%s\"\r\n"
-				"}\r\n", nbuf);
+				"%s\r\n",
+				jbuf);
 		write_scgi(req, sbuf);
+
+		// clean up
+		json_decref(j);
+		free(jbuf);
 	}
 	return estat;
 }
@@ -409,33 +466,31 @@ a_publish(scgi_request *req, gcl_name_t gcliname)
 	else
 	{
 		// success: send a response
-		char rbuf[1000];
-		FILE *fp;
+		char rbuf[SCGI_MAX_OUTBUF_SIZE];
+		json_t *j = json_object();
+		char *jbuf;
 
-		fp = ep_fopensmem(rbuf, sizeof rbuf, "w");
-		if (fp == NULL)
+		json_object_set_nocheck(j, "recno", json_integer(datum->recno));
+		if (EP_TIME_ISVALID(&datum->ts))
 		{
-			// well, maybe not so successful
-			estat = error500(req, "ep_fopensmem failure", errno);
+			char tbuf[100];
+
+			ep_time_format(&datum->ts, tbuf, sizeof tbuf, false);
+			json_object_set_nocheck(j, "timestamp", json_string(tbuf));
 		}
-		fprintf(fp,
+		jbuf = json_dumps(j, JSON_INDENT(4));
+
+		snprintf(rbuf, sizeof rbuf,
 				"HTTP/1.1 200 Successfully appended\r\n"
 				"Content-Type: application/json\r\n"
 				"\r\n"
-				"{\r\n"
-				"	 \"recno\": \"%" PRIgdp_recno "\"",
-				datum->recno);
-		if (EP_TIME_ISVALID(&datum->ts))
-		{
-			fprintf(fp,
-					",\r\n"
-					"	 \"timestamp\": ");
-			ep_time_print(&datum->ts, fp, false);
-		}
-		fprintf(fp, "\r\n}");
-		fputc('\0', fp);
-		fclose(fp);
-		scgi_send(req, rbuf, strlen(rbuf));
+				"%s\r\n",
+				jbuf);
+		write_scgi(req, rbuf);
+
+		// clean up
+		free(jbuf);
+		json_decref(j);
 	}
 	return estat;
 }

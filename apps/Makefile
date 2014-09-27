@@ -1,15 +1,15 @@
 ALL=	writer-test reader-test gdp-rest rw-bench log-view
 
+LOCAL=		/usr/local
 INCROOT=	..
 LIBROOT=	${INCROOT}
 INCGDP=		-I${INCROOT}
 LIBGDP=		-L${LIBROOT}/gdp -lgdp
 INCEP=
 LIBEP=		-L${LIBROOT}/ep -lep
-JANSSONROOT=	${HOME}/src/jansson-2.6
-#INCJANSSON=	-I${JANSSONROOT}
-#LIBJANSSON=	-L${JANSSONROOT} -ljansson
-INCEVENT2=	-I/usr/local/include
+INCJANSSON=	-I${LOCAL}/include
+LIBJANSSON=	-ljansson
+INCEVENT2=	-I${LOCAL}/include
 LIBEVENT2=	-levent -levent_pthreads -pthread
 INCCRYPTO=
 LIBCRYPTO=	-lcrypto
