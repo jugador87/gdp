@@ -452,8 +452,6 @@ a_publish(scgi_request *req, gcl_name_t gcliname)
 	}
 	if (EP_STAT_ISOK(estat))
 	{
-		gdp_datum_t *datum = gdp_datum_new();
-
 		gdp_buf_write(datum->dbuf, req->body, req->scgi_content_length);
 		estat = gdp_gcl_publish(gcl, datum);
 	}
