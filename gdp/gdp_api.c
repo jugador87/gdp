@@ -171,8 +171,6 @@ gdp_gcl_print(
 		int detail,
 		int indent)
 {
-	gcl_pname_t nbuf;
-
 	if (detail > 0)
 		fprintf(fp, "GCL@%p: ", gclh);
 	if (gclh == NULL)
@@ -188,9 +186,7 @@ gdp_gcl_print(
 		else
 		{
 			EP_ASSERT_POINTER_VALID(gclh);
-
-			gdp_gcl_printable_name(gclh->gcl_name, nbuf);
-			fprintf(fp, "%s\n", nbuf);
+			fprintf(fp, "%s\n", gclh->pname);
 		}
 
 		if (detail > 0)
@@ -329,13 +325,7 @@ gdp_gcl_open(gcl_name_t gcl_name,
 
 	// success!
 	*pgclh = req->gclh;
-	if (ep_dbg_test(Dbg, 10))
-	{
-		gcl_pname_t pname;
-
-		gdp_gcl_printable_name(gclh->gcl_name, pname);
-		ep_dbg_printf("Opened GCL %s\n", pname);
-	}
+	ep_dbg_cprintf(Dbg, 10, "Opened GCL %s\n", gclh->pname);
 	_gdp_req_free(req);
 	return estat;
 
@@ -347,13 +337,11 @@ fail0:
 
 	// log failure
 	{
-		gcl_pname_t pname;
 		char ebuf[100];
 
-		gdp_gcl_printable_name(gcl_name, pname);
 		ep_dbg_cprintf(Dbg, 10,
 				"Couldn't open GCL %s: %s\n",
-				pname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
+				gclh->pname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	return estat;
 }

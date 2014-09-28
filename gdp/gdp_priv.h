@@ -58,6 +58,7 @@ struct gdp_gcl
 //	EP_THR_COND			cond;			// pthread wakeup signal
 	struct req_head		reqs;			// list of outstanding requests
 	gcl_name_t			gcl_name;		// the internal name
+	gcl_pname_t			pname;			// printable name (for debugging)
 	gdp_iomode_t		iomode;			// read only or append only
 	int					refcnt;			// reference counter
 

@@ -99,14 +99,8 @@ _gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 
 done:
 	ep_thr_mutex_unlock(&GclCacheMutex);
-	if (ep_dbg_test(Dbg, 42))
-	{
-		gcl_pname_t pbuf;
 
-		gdp_gcl_printable_name(gcl_name, pbuf);
-		ep_dbg_printf("gdp_gcl_cache_get: %s => %p\n", pbuf, gclh);
-	}
-
+	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_get: %s => %p\n", gclh->pname, gclh);
 	return gclh;
 }
 
@@ -121,13 +115,8 @@ _gdp_gcl_cache_add(gdp_gcl_t *gclh, gdp_iomode_t mode)
 	// save it in the cache
 	(void) ep_hash_insert(OpenGCLCache,
 						sizeof (gcl_name_t), gclh->gcl_name, gclh);
-	if (ep_dbg_test(Dbg, 42))
-	{
-		gcl_pname_t pbuf;
-
-		gdp_gcl_printable_name(gclh->gcl_name, pbuf);
-		ep_dbg_printf("gdp_gcl_cache_add: added %s => %p\n", pbuf, gclh);
-	}
+	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_add: added %s => %p\n",
+			gclh->pname, gclh);
 }
 
 
@@ -136,13 +125,8 @@ _gdp_gcl_cache_drop(gdp_gcl_t *gclh)
 {
 	(void) ep_hash_insert(OpenGCLCache, sizeof (gcl_name_t), gclh->gcl_name,
 						NULL);
-	if (ep_dbg_test(Dbg, 42))
-	{
-		gcl_pname_t pbuf;
-
-		gdp_gcl_printable_name(gclh->gcl_name, pbuf);
-		ep_dbg_printf("gdp_gcl_cache_drop: dropping %s => %p\n", pbuf, gclh);
-	}
+	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_drop: dropping %s => %p\n",
+			gclh->pname, gclh);
 }
 
 
@@ -191,7 +175,10 @@ _gdp_gcl_newhandle(gcl_name_t gcl_name, gdp_gcl_t **pgclh)
 	ep_thr_mutex_init(&gclh->mutex, EP_THR_MUTEX_DEFAULT);
 	LIST_INIT(&gclh->reqs);
 	if (gcl_name != NULL)
+	{
 		memcpy(gclh->gcl_name, gcl_name, sizeof gclh->gcl_name);
+		gdp_gcl_printable_name(gcl_name, gclh->pname);
+	}
 	gclh->refcnt = 1;
 
 	// success
