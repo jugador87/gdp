@@ -331,6 +331,10 @@ fail2:
 fail1:
 	ep_mem_free(gclh);
 fail0:
+	// turn "file exists" into a meaningful response code
+	if (EP_STAT_IS_SAME(estat, ep_stat_from_errno(EEXIST)))
+			estat = GDP_STAT_NAK_CONFLICT;
+
 	if (ep_dbg_test(Dbg, 8))
 	{
 		char ebuf[100];

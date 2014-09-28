@@ -409,7 +409,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	{ nak_client,		"NAK_C_NOTACCEPTABLE"	},			// 198
 	NOENT,				// 199
 	NOENT,				// 200
-	NOENT,				// 201
+	{ nak_client,		"NAK_C_CONFLICT"		},			// 201
 	NOENT,				// 202
 	NOENT,				// 203
 	{ nak_client,		"NAK_C_PRECONFAILED"	},			// 204

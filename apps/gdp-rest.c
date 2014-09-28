@@ -165,6 +165,9 @@ gdp_failure(scgi_request *req, char *code, char *msg, char *fmt, ...)
 	j = json_object();
 	json_object_set_nocheck(j, "error", json_string(msg));
 	json_object_set_nocheck(j, "code", json_string(code));
+	json_object_set_nocheck(j, "uri", json_string(req->request_uri));
+	json_object_set_nocheck(j, "method",
+			json_string(scgi_method_name(req->request_method)));
 
 	va_start(av, fmt);
 	while ((c = *fmt++) != '\0')
@@ -198,11 +201,11 @@ gdp_failure(scgi_request *req, char *code, char *msg, char *fmt, ...)
 
 	// create the entire SCGI return message
 	snprintf(buf, sizeof buf,
-			"HTTP/1.1 %s\r\n"
+			"HTTP/1.1 %s %s\r\n"
 			"Content-Type: application/json\r\n"
 			"\r\n"
 			"%s\r\n",
-			code, jbuf);
+			code, msg, jbuf);
 	write_scgi(req, buf);
 
 	// clean up
@@ -307,9 +310,7 @@ find_query_kv(const char *key, struct qkvpair *qkvs)
 EP_STAT
 error404(scgi_request *req, const char *detail)
 {
-	return gdp_failure(req, "404", "Not Found", "sss",
-			"uri", req->request_uri,
-			"method", scgi_method_name(req->request_method),
+	return gdp_failure(req, "404", "Not Found", "s",
 			"detail", detail);
 }
 
@@ -321,9 +322,7 @@ error404(scgi_request *req, const char *detail)
 EP_STAT
 error405(scgi_request *req, const char *detail)
 {
-	return gdp_failure(req, "405", "Method Not Allowed", "sss",
-			"uri", req->request_uri,
-			"method", scgi_method_name(req->request_method),
+	return gdp_failure(req, "405", "Method Not Allowed", "s",
 			"detail", detail);
 }
 
@@ -338,8 +337,7 @@ error500(scgi_request *req, const char *detail, int eno)
 	char nbuf[40];
 
 	strerror_r(eno, nbuf, sizeof nbuf);
-	(void) gdp_failure(req, "500", "Internal Server Error", "sss",
-			"uri", req->request_uri,
+	(void) gdp_failure(req, "500", "Internal Server Error", "ss",
 			"errno", nbuf,
 			"detail", detail);
 	return ep_stat_from_errno(eno);
@@ -353,9 +351,7 @@ error500(scgi_request *req, const char *detail, int eno)
 EP_STAT
 error501(scgi_request *req, const char *detail)
 {
-	return gdp_failure(req, "501", "Not Implemented", "sss",
-			"uri", req->request_uri,
-			"method", scgi_method_name(req->request_method),
+	return gdp_failure(req, "501", "Not Implemented", "s",
 			"detail", detail);
 }
 
@@ -411,6 +407,15 @@ a_new_gcl(scgi_request *req, const char *name)
 		// clean up
 		json_decref(j);
 		free(jbuf);
+	}
+	else if (EP_STAT_IS_SAME(estat, GDP_STAT_NAK_CONFLICT))
+	{
+		estat = gdp_failure(req, "409", "Conflict", "s",
+					"reason", "GCL already exists");
+	}
+	else
+	{
+		estat = error500(req, "cannot create GCL", errno);
 	}
 	return estat;
 }

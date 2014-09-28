@@ -50,6 +50,7 @@ extern void		_gdp_stat_init(void);
 //		CoAp based on RFC7252, HTTP based on 1.1
 //		All CoAp codes have a dot after the first digit, e.g., 404 => 4.04
 //		CoAp codes resemble HTTP codes, but they are not identical!
+//		N/E displays HTTP codes that have no equivalent in CoAP.
 #define GDP_COAP_SUCCESS		200		// Success (200)
 #define GDP_COAP_CREATED		201		// Created (201)
 #define GDP_COAP_DELETED		202		// Deleted (~204 No Content)
@@ -101,6 +102,7 @@ extern void		_gdp_stat_init(void);
 #define GDP_STAT_NAK_NOTFOUND		GDP_STAT_NEW(ERROR, GDP_COAP_NOTFOUND)
 #define GDP_STAT_NAK_METHNOTALLOWED	GDP_STAT_NEW(ERROR, GDP_COAP_METHNOTALLOWED)
 #define GDP_STAT_NAK_NOTACCEPTABLE	GDP_STAT_NEW(ERROR, GDP_COAP_NOTACCEPTABLE)
+#define GDP_STAT_NAK_CONFLICT		GDP_STAT_NEW(ERROR, 409)
 #define GDP_STAT_NAK_PRECONFAILED	GDP_STAT_NEW(ERROR, GDP_COAP_PRECONFAILED)
 #define GDP_STAT_NAK_TOOLARGE		GDP_STAT_NEW(ERROR, GDP_COAP_TOOLARGE)
 #define GDP_STAT_NAK_UNSUPMEDIA		GDP_STAT_NEW(ERROR, GDP_COAP_UNSUPMEDIA)
