@@ -461,7 +461,7 @@ a_publish(scgi_request *req, gcl_name_t gcliname)
 		gcl_pname_t gclpname;
 
 		gdp_gcl_printable_name(gcliname, gclpname);
-		gdp_failure(req, "420" "Cannot append to GCL", "ss",
+		gdp_failure(req, "420", "Cannot append to GCL", "ss",
 				"GCL", gclpname,
 				"error", ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		return estat;
