@@ -100,7 +100,13 @@ _gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 done:
 	ep_thr_mutex_unlock(&GclCacheMutex);
 
-	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_get: %s => %p\n", gclh->pname, gclh);
+	if (ep_dbg_test(Dbg, 42))
+	{
+		gcl_pname_t pname;
+
+		gdp_gcl_printable_name(gcl_name, pname);
+		ep_dbg_printf("gdp_gcl_cache_get: %s => %p\n", pname, gclh);
+	}
 	return gclh;
 }
 
@@ -131,17 +137,48 @@ _gdp_gcl_cache_drop(gdp_gcl_t *gclh)
 
 
 /*
-**  _GDP_GCL_DROPREF --- drop a reference to a GCL
+**  _GDP_GCL_INCREF --- increment the reference count on a GCL
+*/
+
+void
+_gdp_gcl_incref(gdp_gcl_t *gclh)
+{
+	ep_thr_mutex_lock(&gclh->mutex);
+	gclh->refcnt++;
+	ep_dbg_cprintf(Dbg, 44, "_gdp_gcl_incref: %p %d\n", gclh, gclh->refcnt);
+	ep_thr_mutex_unlock(&gclh->mutex);
+}
+
+
+/*
+**  _GDP_GCL_DECREF --- decrement the reference count on a GCL
 **		XXX	Ultimately should close the GCL if the reference count
 **			goes to zero.  For the time being this is a no-op.
 */
 
 void
-_gdp_gcl_dropref(gdp_gcl_t *gclh)
+_gdp_gcl_decref(gdp_gcl_t *gclh)
 {
 	ep_thr_mutex_lock(&gclh->mutex);
-	gclh->refcnt--;
+	if (gclh->refcnt > 0)
+	{
+		gclh->refcnt--;
+	}
+	else
+	{
+		gdp_log(EP_STAT_ABORT, "_gdp_gcl_decref: %p: zero refcnt", gclh);
+	}
+
 	// XXX check for zero refcnt
+	if (gclh->refcnt <= 0)
+	{
+		ep_dbg_cprintf(Dbg, 4, "_gdp_gcl_decref: %p: zero\n", gclh);
+	}
+	else
+	{
+		ep_dbg_cprintf(Dbg, 44, "_gdl_gcl_decref: %p: %d\n",
+				gclh, gclh->refcnt);
+	}
 	ep_thr_mutex_unlock(&gclh->mutex);
 }
 

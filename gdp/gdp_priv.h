@@ -161,7 +161,10 @@ void			_gdp_gcl_cache_drop(
 
 EP_STAT			_gdp_gcl_cache_init(void);
 
-void			_gdp_gcl_dropref(
+void			_gdp_gcl_incref(
+						gdp_gcl_t *gclh);
+
+void			_gdp_gcl_decref(
 						gdp_gcl_t *gclh);
 
 EP_STAT			_gdp_gcl_newhandle(gcl_name_t gcl_name,
