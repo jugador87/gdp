@@ -53,7 +53,6 @@ struct gdp_datum
 
 struct gdp_gcl
 {
-	// fields used by GDP library
 	EP_THR_MUTEX		mutex;			// lock on this data structure
 //	EP_THR_COND			cond;			// pthread wakeup signal
 	struct req_head		reqs;			// list of outstanding requests
@@ -61,12 +60,7 @@ struct gdp_gcl
 	gcl_pname_t			pname;			// printable name (for debugging)
 	gdp_iomode_t		iomode;			// read only or append only
 	int					refcnt;			// reference counter
-
-	// fields used only by gdpd
-	long				ver;			// version number of on-disk file
-	FILE				*fp;			// pointer to the on-disk file
-	void				*log_index;		// ???
-	off_t				data_offset;	// offset for start of data
+	struct gdp_gcl_xtra	*x;				// for use by gdpd, gdp-rest
 };
 
 

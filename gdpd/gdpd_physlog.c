@@ -96,7 +96,7 @@ gcl_log_index_new(gdp_gcl_t *gclh, gcl_log_index **out)
 	}
 	new_index->fp = NULL;
 	new_index->max_recno = 0;
-	new_index->max_data_offset = gclh->data_offset;
+	new_index->max_data_offset = gclh->x->data_offset;
 	new_index->max_index_offset = SIZEOF_INDEX_HEADER;
 	int cache_size = ep_adm_getintparam("swarm.gdp.index.cachesize", 65536);
 								// 1 MiB index cache
@@ -156,7 +156,7 @@ gcl_index_create_cache(gdp_gcl_t *gclh, gcl_log_index **out)
 	estat = gcl_log_index_new(gclh, out);
 	EP_STAT_CHECK(estat, goto fail0);
 	ep_hash_insert(name_index_table, sizeof(gcl_name_t), gclh->gcl_name, *out);
-	gclh->log_index = *out;
+	gclh->x->log_index = *out;
 fail0:
 	return estat;
 }
@@ -197,6 +197,22 @@ gcl_index_cache_put(gcl_log_index *entry, int64_t recno, int64_t offset)
 
 
 /*
+**  GDPD_NEW_GCL --- create new GCL with GDPD specifics filled in
+*/
+
+EP_STAT
+gdpd_new_gcl(gcl_name_t iname, gdp_gcl_t **pgclh)
+{
+	EP_STAT estat;
+
+	estat = _gdp_gcl_newhandle(iname, pgclh);
+	EP_STAT_CHECK(estat, return estat);
+	(*pgclh)->x = ep_mem_zalloc(sizeof **pgclh);
+	return estat;
+}
+
+
+/*
 **  GCL_CREATE --- create a brand new GCL on disk
 */
 
@@ -217,7 +233,7 @@ gcl_create(gcl_name_t gcl_name,
 
 	// allocate the memory to hold the GCL Handle
 	// Note that ep_mem_* always returns, hence no test here
-	estat = _gdp_gcl_newhandle(gcl_name, &gclh);
+	estat = gdpd_new_gcl(gcl_name, &gclh);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// create a file node representing the gcl
@@ -301,8 +317,8 @@ gcl_create(gcl_name_t gcl_name,
 
 	// TODO: will probably need creation date or some such later
 
-	gclh->ver = log_header.version;
-	gclh->data_offset = log_header.header_size;
+	gclh->x->ver = log_header.version;
+	gclh->x->data_offset = log_header.header_size;
 
 	gcl_log_index *new_index = NULL;
 	estat = gcl_index_create_cache(gclh, &new_index);
@@ -312,8 +328,8 @@ gcl_create(gcl_name_t gcl_name,
 	fflush(data_fp);
 	flock(fileno(data_fp), LOCK_UN);
 	new_index->fp = index_fp;
-	gclh->fp = data_fp;
-	gclh->log_index = new_index;
+	gclh->x->fp = data_fp;
+	gclh->x->log_index = new_index;
 	*pgclh = gclh;
 	if (ep_dbg_test(Dbg, 10))
 	{
@@ -369,7 +385,7 @@ gcl_open(gcl_name_t gcl_name,
 	char data_pbuf[GCL_PATH_MAX];
 	char index_pbuf[GCL_PATH_MAX];
 
-	estat = _gdp_gcl_newhandle(gcl_name, &gclh);
+	estat = gdpd_new_gcl(gcl_name, &gclh);
 	EP_STAT_CHECK(estat, goto fail1);
 	gclh->iomode = mode;
 
@@ -422,8 +438,8 @@ gcl_open(gcl_name_t gcl_name,
 
 	// XXX should check for index header here
 
-	gclh->ver = log_header.version;
-	gclh->data_offset = log_header.header_size;
+	gclh->x->ver = log_header.version;
+	gclh->x->data_offset = log_header.header_size;
 
 	gcl_log_index *index;
 	gcl_index_find_cache(gclh, &index);
@@ -433,8 +449,8 @@ gcl_open(gcl_name_t gcl_name,
 		EP_STAT_CHECK(estat, goto fail5);
 	}
 
-	gclh->fp = data_fp;
-	gclh->log_index = index;
+	gclh->x->fp = data_fp;
+	gclh->x->log_index = index;
 
 	index->fp = index_fp;
 	index->max_data_offset = fsizeof(data_fp);
@@ -488,14 +504,14 @@ gcl_close(gdp_gcl_t *gclh)
 	EP_STAT estat = EP_STAT_OK;
 
 	EP_ASSERT_POINTER_VALID(gclh);
-	if (gclh->fp == NULL)
+	if (gclh->x->fp == NULL)
 	{
 		estat = EP_STAT_ERROR;
 		gdp_log(estat, "gcl_close: null fp");
 	}
 	else
 	{
-		fclose(gclh->fp);
+		fclose(gclh->x->fp);
 	}
 
 	// XXX: when do we remove the index cache for optimal performance?
@@ -512,7 +528,7 @@ gcl_close(gdp_gcl_t *gclh)
 gdp_recno_t
 gcl_max_recno(gdp_gcl_t *gclh)
 {
-	gcl_log_index *ix = gclh->log_index;
+	gcl_log_index *ix = gclh->x->log_index;
 	return ix->max_recno;
 }
 
@@ -537,7 +553,7 @@ gcl_read(gdp_gcl_t *gclh,
 		gdp_datum_t *datum)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gcl_log_index *entry = gclh->log_index;
+	gcl_log_index *entry = gclh->x->log_index;
 	LONG_LONG_PAIR *long_pair;
 	int64_t offset = LLONG_MAX;
 
@@ -631,9 +647,9 @@ gcl_read(gdp_gcl_t *gclh,
 	gcl_log_record log_record;
 
 	// read header
-	flockfile(gclh->fp);
-	fseek(gclh->fp, offset, SEEK_SET);
-	fread(&log_record, sizeof(log_record), 1, gclh->fp);
+	flockfile(gclh->x->fp);
+	fseek(gclh->x->fp, offset, SEEK_SET);
+	fread(&log_record, sizeof(log_record), 1, gclh->x->fp);
 	offset += sizeof(log_record);
 	memcpy(&datum->ts, &log_record.timestamp, sizeof datum->ts);
 
@@ -641,20 +657,20 @@ gcl_read(gdp_gcl_t *gclh,
 	int64_t data_length = log_record.data_length;
 	while (data_length >= sizeof(read_buffer))
 	{
-		fread(&read_buffer, sizeof(read_buffer), 1, gclh->fp);
+		fread(&read_buffer, sizeof(read_buffer), 1, gclh->x->fp);
 		gdp_buf_write(datum->dbuf, &read_buffer, sizeof(read_buffer));
 		data_length -= sizeof(read_buffer);
 	}
 	if (data_length > 0)
 	{
-		fread(&read_buffer, data_length, 1, gclh->fp);
+		fread(&read_buffer, data_length, 1, gclh->x->fp);
 		gdp_buf_write(datum->dbuf, &read_buffer, data_length);
 	}
 
 	// done
 
 fail1:
-	funlockfile(gclh->fp);
+	funlockfile(gclh->x->fp);
 fail0:
 	pthread_rwlock_unlock(&entry->lock);
 
@@ -673,7 +689,7 @@ gcl_append(gdp_gcl_t *gclh,
 	gcl_index_record index_record;
 	size_t dlen = gdp_buf_getlength(datum->dbuf);
 	int64_t record_size = sizeof(gcl_log_record) + dlen;
-	gcl_log_index *entry = (gcl_log_index *)(gclh->log_index);
+	gcl_log_index *entry = (gcl_log_index *)(gclh->x->log_index);
 
 	if (ep_dbg_test(Dbg, 14))
 	{
@@ -688,14 +704,14 @@ gcl_append(gdp_gcl_t *gclh,
 	log_record.data_length = dlen;
 
 	// write log record header
-	fwrite(&log_record, sizeof(log_record), 1, gclh->fp);
+	fwrite(&log_record, sizeof(log_record), 1, gclh->x->fp);
 
 	// write log record data
 	{
 		size_t dlen = evbuffer_get_length(datum->dbuf);
 		unsigned char *p = evbuffer_pullup(datum->dbuf, dlen);
 		if (p != NULL)
-			fwrite(p, dlen, 1, gclh->fp);
+			fwrite(p, dlen, 1, gclh->x->fp);
 	}
 
 	index_record.recno = log_record.recno;
@@ -705,7 +721,7 @@ gcl_append(gdp_gcl_t *gclh,
 	fwrite(&index_record, sizeof(index_record), 1, entry->fp);
 
 	// commit
-	fflush(gclh->fp);
+	fflush(gclh->x->fp);
 	fflush(entry->fp);
 	gcl_index_cache_put(entry, index_record.recno, index_record.offset);
 	++entry->max_recno;

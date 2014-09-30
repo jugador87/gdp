@@ -139,7 +139,7 @@ cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 			gdp_gcl_printable_name(req->pkt->gcl_name, pname);
 			ep_dbg_printf("cmd_open_xx: using cached handle for %s\n", pname);
 		}
-		rewind(gclh->fp);		// make sure we can switch modes (read/write)
+		rewind(gclh->x->fp);	// make sure we can switch modes (read/write)
 		goto done;
 	}
 
