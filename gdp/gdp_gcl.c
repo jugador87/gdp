@@ -22,6 +22,8 @@
 /************************  PRIVATE	************************/
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl", "GCL utilities for GDP");
+static EP_DBG	DbgCache = EP_DBG_INIT("gdp.gcl.cache",
+							"GCL cache and reference counting");
 
 
 
@@ -100,12 +102,20 @@ _gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 done:
 	ep_thr_mutex_unlock(&GclCacheMutex);
 
-	if (ep_dbg_test(Dbg, 42))
+	if (ep_dbg_test(DbgCache, 42))
 	{
-		gcl_pname_t pname;
+		if (gclh == NULL)
+		{
+			gcl_pname_t pname;
 
-		gdp_gcl_printable_name(gcl_name, pname);
-		ep_dbg_printf("gdp_gcl_cache_get: %s => %p\n", pname, gclh);
+			gdp_gcl_printable_name(gcl_name, pname);
+			ep_dbg_printf("gdp_gcl_cache_get: %s => NULL\n", pname);
+		}
+		else
+		{
+			ep_dbg_printf("gdp_gcl_cache_get: %s => %p %d\n",
+					gclh->pname, gclh, gclh->refcnt);
+		}
 	}
 	return gclh;
 }
@@ -121,7 +131,7 @@ _gdp_gcl_cache_add(gdp_gcl_t *gclh, gdp_iomode_t mode)
 	// save it in the cache
 	(void) ep_hash_insert(OpenGCLCache,
 						sizeof (gcl_name_t), gclh->gcl_name, gclh);
-	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_add: added %s => %p\n",
+	ep_dbg_cprintf(DbgCache, 42, "gdp_gcl_cache_add: added %s => %p\n",
 			gclh->pname, gclh);
 }
 
@@ -131,7 +141,7 @@ _gdp_gcl_cache_drop(gdp_gcl_t *gclh)
 {
 	(void) ep_hash_insert(OpenGCLCache, sizeof (gcl_name_t), gclh->gcl_name,
 						NULL);
-	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_drop: dropping %s => %p\n",
+	ep_dbg_cprintf(DbgCache, 42, "gdp_gcl_cache_drop: dropping %s => %p\n",
 			gclh->pname, gclh);
 }
 
@@ -145,7 +155,7 @@ _gdp_gcl_incref(gdp_gcl_t *gclh)
 {
 	ep_thr_mutex_lock(&gclh->mutex);
 	gclh->refcnt++;
-	ep_dbg_cprintf(Dbg, 44, "_gdp_gcl_incref: %p %d\n", gclh, gclh->refcnt);
+	ep_dbg_cprintf(DbgCache, 44, "_gdp_gcl_incref: %p %d\n", gclh, gclh->refcnt);
 	ep_thr_mutex_unlock(&gclh->mutex);
 }
 
@@ -172,11 +182,11 @@ _gdp_gcl_decref(gdp_gcl_t *gclh)
 	// XXX check for zero refcnt
 	if (gclh->refcnt <= 0)
 	{
-		ep_dbg_cprintf(Dbg, 4, "_gdp_gcl_decref: %p: zero\n", gclh);
+		ep_dbg_cprintf(DbgCache, 4, "_gdp_gcl_decref: %p: zero\n", gclh);
 	}
 	else
 	{
-		ep_dbg_cprintf(Dbg, 44, "_gdl_gcl_decref: %p: %d\n",
+		ep_dbg_cprintf(DbgCache, 44, "_gdl_gcl_decref: %p: %d\n",
 				gclh, gclh->refcnt);
 	}
 	ep_thr_mutex_unlock(&gclh->mutex);
