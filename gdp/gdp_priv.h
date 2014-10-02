@@ -142,34 +142,40 @@ struct event_loop_info
 
 #define GCL_NEXT_MSG	(-1)		// sentinel for next available message
 
-gdp_gcl_t		*_gdp_gcl_cache_get(
+gdp_gcl_t		*_gdp_gcl_cache_get(		// get entry from cache
 						gcl_name_t gcl_name,
 						gdp_iomode_t mode);
 
-void			_gdp_gcl_cache_add(
+void			_gdp_gcl_cache_add(			// add entry to cache
 						gdp_gcl_t *gclh,
 						gdp_iomode_t mode);
 
-void			_gdp_gcl_cache_drop(
+void			_gdp_gcl_cache_touch(		// make use time right now
 						gdp_gcl_t *gclh);
 
-EP_STAT			_gdp_gcl_cache_init(void);
-
-void			_gdp_gcl_incref(
+void			_gdp_gcl_cache_drop(		// drop entry from cache
 						gdp_gcl_t *gclh);
 
-void			_gdp_gcl_decref(
+EP_STAT			_gdp_gcl_cache_init(void);	// initialize cache
+
+void			_gdp_gcl_incref(			// increase reference count
 						gdp_gcl_t *gclh);
 
-EP_STAT			_gdp_gcl_newhandle(gcl_name_t gcl_name,
+void			_gdp_gcl_decref(			// decrease reference count
+						gdp_gcl_t *gclh);
+
+EP_STAT			_gdp_gcl_newhandle(			// create new in-mem handle
+						gcl_name_t gcl_name,
 						gdp_gcl_t **gclhp);
 
-void			_gdp_gcl_freehandle(gdp_gcl_t *gclh);
+void			_gdp_gcl_freehandle(		// free in-memory handle
+						gdp_gcl_t *gclh);
 
-void			_gdp_gcl_newname(
+void			_gdp_gcl_newname(			// create a new name
 						gcl_name_t gcl_name);
 
-const char		*_gdp_proto_cmd_name(uint8_t cmd);
+const char		*_gdp_proto_cmd_name(		// return printable cmd name
+						uint8_t cmd);
 
 EP_STAT			_gdp_start_event_loop_thread(
 						pthread_t *thr,
@@ -178,23 +184,30 @@ EP_STAT			_gdp_start_event_loop_thread(
 
 EP_STAT			_gdp_do_init(bool run_event_loop);
 
-EP_STAT			_gdp_req_new(int cmd,
+EP_STAT			_gdp_req_new(				// create new request
+						int cmd,
 						gdp_gcl_t *gclh,
 						gdp_chan_t *chan,
 						uint32_t flags,
 						gdp_req_t **reqp);
 
-void			_gdp_req_free(gdp_req_t *req);
+void			_gdp_req_free(				// free old request
+						gdp_req_t *req);
 
-EP_STAT			_gdp_req_dispatch(gdp_req_t *req);
+EP_STAT			_gdp_req_dispatch(			// do local req processing
+						gdp_req_t *req);
 
-void			_gdp_req_freeall(struct req_head *reqlist);
+EP_STAT			_gdp_invoke(				// send request to daemon
+						gdp_req_t *req);
 
-void			_gdp_req_dump(gdp_req_t *req,
+void			_gdp_req_freeall(			// free all requests in list
+						struct req_head *reqlist);
+
+void			_gdp_req_dump(				// print (debug) request
+						gdp_req_t *req,
 						FILE *fp);
 
-void			_gdp_chan_drain_input(gdp_chan_t *chan);
-
-EP_STAT			_gdp_invoke(gdp_req_t *req);
+void			_gdp_chan_drain_input(		// drain all input from channel
+						gdp_chan_t *chan);
 
 #endif // _GDP_PRIV_H_
