@@ -20,4 +20,6 @@ extern void EP_TYPE_PRINTFLIKE(1, 2)
 
 extern const char	*ep_app_getprogname(void);
 
+extern void	ep_dumpfds(FILE *fd);
+
 #endif //_EP_APP_H_

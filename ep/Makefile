@@ -14,6 +14,7 @@ OBJS=	\
 	ep_assert.o \
 	ep_b64.o \
 	ep_dbg.o \
+	ep_dumpfds.o \
 	ep_fopensmem.o \
 	ep_fread_unlocked.o \
 	ep_funclist.o \
