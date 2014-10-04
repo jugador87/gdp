@@ -73,4 +73,14 @@ extern EP_STAT	get_open_handle(		// get open handle (pref from cache)
 					gdp_req_t *req,
 					gdp_iomode_t iomode);
 
+
+/*
+**  Definitions for the protocol module
+*/
+
+extern void		gdpd_proto_init(void);	// initialize protocol module
+
+extern EP_STAT	dispatch_cmd(			// dispatch a request
+					gdp_req_t *req);
+
 #endif //_GDPD_H_

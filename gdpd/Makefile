@@ -26,6 +26,7 @@ OBJS=	\
 		gdpd.o \
 		gdpd_gcl.o \
 		gdpd_physlog.o \
+		gdpd_proto.o \
 		gdpd_pubsub.o \
 		gdp_circular_buffer.o \
 		thread_pool.o \
