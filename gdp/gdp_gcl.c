@@ -184,9 +184,11 @@ _gdp_gcl_decref(gdp_gcl_t *gclh)
 	// XXX check for zero refcnt
 	if (gclh->refcnt <= 0)
 	{
+		// XXX temporary for debugging.  Actual reclaim should be done
+		// XXX asynchronously after a timeout.
 		if (ep_dbg_test(DbgCache, 101))
 			gclh->flags |= GCLF_DROPPING;
-		ep_dbg_cprintf(DbgCache, 4, "_gdp_gcl_decref: %p: zero\n", gclh);
+		ep_dbg_cprintf(DbgCache, 41, "_gdp_gcl_decref: %p: zero\n", gclh);
 	}
 	else
 	{
@@ -195,12 +197,11 @@ _gdp_gcl_decref(gdp_gcl_t *gclh)
 	}
 	ep_thr_mutex_unlock(&gclh->mutex);
 
+	// XXX eventually done elsewhere
 	if (EP_UT_BITSET(GCLF_DROPPING, gclh->flags))
 	{
 		// deallocate physical memory and remove from cache
 		ep_dbg_cprintf(DbgCache, 20, "_gdp_gcl_decref: deallocating\n");
-		if (gclh->freefunc != NULL)
-			(*gclh->freefunc)(gclh);
 		_gdp_gcl_freehandle(gclh);
 	}
 }
@@ -267,6 +268,10 @@ _gdp_gcl_freehandle(gdp_gcl_t *gclh)
 		ep_dbg_cprintf(Dbg, 1, "gdp_gcl_freehandle: non-null request list\n");
 		_gdp_req_freeall(&gclh->reqs);
 	}
+
+	// free any additional per-GCL resources
+	if (gclh->freefunc != NULL)
+		(*gclh->freefunc)(gclh);
 
 	// release the locks and cache entry
 	ep_thr_mutex_destroy(&gclh->mutex);
