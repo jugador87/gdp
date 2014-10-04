@@ -24,6 +24,7 @@ CFLAGS=		${COPTS} ${INCS}
 
 OBJS=	\
 		gdpd.o \
+		gdpd_gcl.o \
 		gdpd_physlog.o \
 		gdpd_pubsub.o \
 		gdp_circular_buffer.o \
