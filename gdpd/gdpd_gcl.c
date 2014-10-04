@@ -40,6 +40,9 @@ gcl_alloc(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
 	LIST_INSERT_HEAD(&GclsByUse, gclh->x, ulist);
 	ep_thr_mutex_unlock(&GclsByUseMutex);
 
+	// make sure that if this is freed it gets removed from GclsByUse
+	gclh->freefunc = gcl_close;
+
 	// OK, return the value
 	*pgclh = gclh;
 
@@ -61,7 +64,6 @@ gcl_open(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
 
 	estat = gcl_alloc(gcl_name, iomode, &gclh);
 	EP_STAT_CHECK(estat, goto fail0);
-	gclh->freefunc = gcl_close;
 
 	// so far, so good...  do the physical open
 	estat = gcl_physopen(gcl_name, gclh);
@@ -92,9 +94,6 @@ gcl_close(gdp_gcl_t *gclh)
 	ep_thr_mutex_lock(&GclsByUseMutex);
 	LIST_REMOVE(gclh->x, ulist);
 	ep_thr_mutex_unlock(&GclsByUseMutex);
-
-	// and the cache
-	_gdp_gcl_cache_drop(gclh);
 
 	// close the underlying files
 	if (gclh->x->fp != NULL)

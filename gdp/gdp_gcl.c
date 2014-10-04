@@ -261,6 +261,9 @@ _gdp_gcl_freehandle(gdp_gcl_t *gclh)
 {
 	ep_dbg_cprintf(Dbg, 28, "_gdp_gcl_freehandle(%p)\n", gclh);
 
+	// drop it from the name -> handle cache
+	_gdp_gcl_cache_drop(gclh);
+
 	// release any remaining requests
 	if (!LIST_EMPTY(&gclh->reqs))
 	{
@@ -277,6 +280,7 @@ _gdp_gcl_freehandle(gdp_gcl_t *gclh)
 	ep_thr_mutex_destroy(&gclh->mutex);
 
 	// if there is any "extra" data, drop that
+	//		(redundant; should be done by the freefunc)
 	if (gclh->x != NULL)
 	{
 		ep_mem_free(gclh->x);
