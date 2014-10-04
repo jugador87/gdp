@@ -36,7 +36,7 @@ static EP_HASH		*name_index_table = NULL;
 typedef struct index_entry
 {
 	// reading and writing to the log requires holding this lock
-	pthread_rwlock_t	lock;
+	EP_THR_RWLOCK		lock;
 	FILE				*fp;
 	int64_t				max_recno;
 	int64_t				max_data_offset;
@@ -82,32 +82,6 @@ gcl_physlog_init()
 	return estat;
 }
 
-static EP_STAT
-gcl_log_index_new(gdp_gcl_t *gclh, gcl_log_index **out)
-{
-	gcl_log_index *new_index = malloc(sizeof(gcl_log_index));
-	if (new_index == NULL)
-	{
-		return EP_STAT_ERROR;
-	}
-	if (pthread_rwlock_init(&new_index->lock, NULL) != 0)
-	{
-		goto fail0;
-	}
-	new_index->fp = NULL;
-	new_index->max_recno = 0;
-	new_index->max_data_offset = gclh->x->data_offset;
-	new_index->max_index_offset = SIZEOF_INDEX_HEADER;
-	int cache_size = ep_adm_getintparam("swarm.gdp.index.cachesize", 65536);
-								// 1 MiB index cache
-	new_index->index_cache = circular_buffer_new(cache_size);
-	*out = new_index;
-	return EP_STAT_OK;
-
-fail0:
-	free(new_index);
-	return EP_STAT_ERROR;
-}
 
 
 /*
@@ -132,33 +106,37 @@ get_gcl_path(gdp_gcl_t *gclh, const char *ext, char *pbuf, int pbufsiz)
 
 
 /*
-**  Implement the index cache
+**  The index cache gives you offsets into a GCL by record number.
 **
-**		XXX	Siqi: please give brief description of algorithm here.
+**		XXX	The circular buffer implementation seems a bit dubious,
+**			since it's perfectly reasonable for someone to be reading
+**			the beginning of a large cache while data is being written
+**			at the end, which will cause thrashing.
 */
-
-EP_STAT
-gcl_index_find_cache(gdp_gcl_t *gclh, gcl_log_index **out)
-{
-	*out = ep_hash_search(name_index_table, sizeof(gcl_name_t), gclh->gcl_name);
-
-	if (*out == NULL)
-		return EP_STAT_WARN;
-	else
-		return EP_STAT_OK;
-}
 
 EP_STAT
 gcl_index_create_cache(gdp_gcl_t *gclh, gcl_log_index **out)
 {
-	EP_STAT estat = EP_STAT_OK;
+	gcl_log_index *index = ep_mem_malloc(sizeof *index);
 
-	estat = gcl_log_index_new(gclh, out);
-	EP_STAT_CHECK(estat, goto fail0);
-	ep_hash_insert(name_index_table, sizeof(gcl_name_t), gclh->gcl_name, *out);
-	gclh->x->log_index = *out;
+	if (index == NULL)
+		goto fail0;
+	if (ep_thr_rwlock_init(&index->lock) != 0)
+		goto fail1;
+	index->fp = NULL;
+	index->max_recno = 0;
+	index->max_data_offset = gclh->x->data_offset;
+	index->max_index_offset = SIZEOF_INDEX_HEADER;
+	int cache_size = ep_adm_getintparam("swarm.gdp.index.cachesize", 65536);
+								// 1 MiB index cache
+	index->index_cache = circular_buffer_new(cache_size);
+	*out = index;
+	return EP_STAT_OK;
+
+fail1:
+	free(index);
 fail0:
-	return estat;
+	return EP_STAT_ERROR;
 }
 
 EP_STAT
@@ -166,7 +144,7 @@ gcl_index_cache_get(gcl_log_index *entry, int64_t recno, int64_t *out)
 {
 	EP_STAT estat = EP_STAT_OK;
 
-	pthread_rwlock_rdlock(&entry->lock);
+	ep_thr_rwlock_rdlock(&entry->lock);
 	LONG_LONG_PAIR *found = circular_buffer_search(entry->index_cache, recno);
 	if (found != NULL)
 	{
@@ -176,7 +154,7 @@ gcl_index_cache_get(gcl_log_index *entry, int64_t recno, int64_t *out)
 	{
 		*out = LLONG_MAX;
 	}
-	pthread_rwlock_unlock(&entry->lock);
+	ep_thr_rwlock_unlock(&entry->lock);
 
 	return estat;
 }
@@ -411,12 +389,8 @@ gcl_physopen(gcl_name_t gcl_name,
 	gclh->x->data_offset = log_header.header_size;
 
 	gcl_log_index *index;
-	gcl_index_find_cache(gclh, &index);
-	if (index == NULL)
-	{
-		estat = gcl_index_create_cache(gclh, &index);
-		EP_STAT_CHECK(estat, goto fail5);
-	}
+	estat = gcl_index_create_cache(gclh, &index);
+	EP_STAT_CHECK(estat, goto fail5);
 
 	gclh->x->fp = data_fp;
 	gclh->x->log_index = index;
@@ -488,6 +462,11 @@ gcl_physclose(gdp_gcl_t *gclh)
 		gclh->x->log_index->fp = NULL;
 	}
 
+	// now free up the associated memory
+	ep_mem_free(gclh->x->log_index);
+	ep_mem_free(gclh->x);
+	gclh->x = NULL;
+
 	return estat;
 }
 
@@ -532,7 +511,7 @@ gcl_physread(gdp_gcl_t *gclh,
 
 	ep_dbg_cprintf(Dbg, 14, "gcl_read(%" PRIgdp_recno "): ", datum->recno);
 
-	pthread_rwlock_rdlock(&entry->lock);
+	ep_thr_rwlock_rdlock(&entry->lock);
 
 	// first check if recno is in the index
 	long_pair = circular_buffer_search(entry->index_cache, datum->recno);
@@ -643,7 +622,7 @@ gcl_physread(gdp_gcl_t *gclh,
 fail1:
 	funlockfile(gclh->x->fp);
 fail0:
-	pthread_rwlock_unlock(&entry->lock);
+	ep_thr_rwlock_unlock(&entry->lock);
 
 	return estat;
 }
@@ -668,7 +647,7 @@ gcl_physappend(gdp_gcl_t *gclh,
 		gdp_datum_print(datum, ep_dbg_getfile());
 	}
 
-	pthread_rwlock_wrlock(&entry->lock);
+	ep_thr_rwlock_wrlock(&entry->lock);
 
 	log_record.recno = entry->max_recno + 1;
 	log_record.timestamp = datum->ts;
@@ -699,7 +678,7 @@ gcl_physappend(gdp_gcl_t *gclh,
 	entry->max_index_offset += sizeof(index_record);
 	entry->max_data_offset += record_size;
 
-	pthread_rwlock_unlock(&entry->lock);
+	ep_thr_rwlock_unlock(&entry->lock);
 
 	datum->recno = log_record.recno;
 	return EP_STAT_OK;

@@ -61,6 +61,8 @@ struct gdp_gcl
 	gdp_iomode_t		iomode;			// read only or append only
 	uint16_t			flags;			// flag bits, see below
 	int					refcnt;			// reference counter
+	void				(*freefunc)(struct gdp_gcl *);
+										// called when this is freed
 	struct gdp_gcl_xtra	*x;				// for use by gdpd, gdp-rest
 };
 

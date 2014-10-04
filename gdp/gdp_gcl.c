@@ -198,6 +198,9 @@ _gdp_gcl_decref(gdp_gcl_t *gclh)
 	if (EP_UT_BITSET(GCLF_DROPPING, gclh->flags))
 	{
 		// deallocate physical memory and remove from cache
+		ep_dbg_cprintf(DbgCache, 20, "_gdp_gcl_decref: deallocating\n");
+		if (gclh->freefunc != NULL)
+			(*gclh->freefunc)(gclh);
 		_gdp_gcl_freehandle(gclh);
 	}
 }

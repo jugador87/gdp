@@ -67,6 +67,7 @@ gcl_open(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
 {
 	EP_STAT estat;
 	gdp_gcl_t *gclh;
+	extern void gcl_close(gdp_gcl_t *gclh);
 
 	estat = gcl_alloc(gcl_name, iomode, &gclh);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -74,6 +75,7 @@ gcl_open(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
 	// so far, so good...  do the physical open
 	estat = gcl_physopen(gcl_name, gclh);
 	EP_STAT_CHECK(estat, goto fail1);
+	gclh->freefunc = gcl_close;
 
 	// link it into the usage chain
 	ep_thr_mutex_lock(&GclsByUseMutex);
@@ -93,6 +95,9 @@ fail0:
 
 /*
 **  GCL_CLOSE --- close a GDP version of a GCL handle
+**
+**		Called from _gdp_gcl_freehandle, generally when the reference
+**		count drops to zero and the GCL is reclaimed.
 */
 
 void
@@ -109,8 +114,7 @@ gcl_close(gdp_gcl_t *gclh)
 	// close the underlying files
 	gcl_physclose(gclh);
 
-	// now we can free the handle in memory
-	_gdp_gcl_freehandle(gclh);
+	// physical memory will be freed by _gdp_gcl_freehandle
 }
 
 
@@ -1114,6 +1118,7 @@ void
 siginfo(int sig, short what, void *arg)
 {
 	gcl_showusage(stderr);
+	ep_dumpfds(stderr);
 }
 
 int
