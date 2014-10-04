@@ -27,18 +27,19 @@
     </ul>
     <p>GCLs piggyback on the GCL implementation in the gdp library, with
       the addition of several fields accessed via the "x" pointer in
-      gdp_gcl_t.&nbsp; The gdpd must use a special routine (gcl_alloc)
-      to allocate the standard structure together with the extension
-      structure.&nbsp; Generally gcl_alloc is called via gcl_open, which
-      also opens the physical underlying log.<br>
+      <code> gdp_gcl_t</code>.&nbsp; The gdpd must use a special routine
+      (<code>gcl_alloc</code>) to allocate the standard structure
+      together with the extension structure.&nbsp; Generally <code>gcl_alloc</code>
+      is called via <code>gcl_open</code>, which also opens the
+      physical underlying log.<br>
     </p>
     <p></p>
     <h2>Module Details</h2>
     <p></p>
     <h3>Main Loop</h3>
-    <p>Implemented in gdpd/gdpd.c.&nbsp; Besides the main event loop,
-      this file includes startup, initialization, and connection
-      management.<br>
+    <p>Implemented in <code>gdpd/gdpd.c</code>.&nbsp; Besides the main
+      event loop, this file includes startup, initialization, and
+      connection management.<br>
     </p>
     <p>The GDP daemon is implemented as an event loop using libevent2,
       just like the GDP library.&nbsp; However, it has a separate thread
@@ -51,21 +52,22 @@
       return response.<br>
     </p>
     <h3>Thread Pool</h3>
-    <p>Implemented in gdpd/thread_pool.c.<br>
+    <p>Implemented in <code>gdpd/thread_pool.c</code>.<br>
     </p>
     <h3>Protocol Processing</h3>
-    <p>Implemented in gdpd/gdpd_proto.c.<br>
+    <p>Implemented in <code>gdpd/gdpd_proto.c</code>.<br>
     </p>
-    <p>The main entry point to the protocol processing is
-      dispatch_cmd.&nbsp; This procedure invokes the specific code to
-      implement each command and processes the results.<br>
+    <p>The main entry point to the protocol processing is <code>dispatch_cmd</code>.&nbsp;
+      This procedure invokes the specific code to implement each command
+      and processes the results.<br>
     </p>
-    <p>Each command procedure (all named cmd_*) must get any necessary
-      GCL handle, process the command, and release the GCL handle using
-      _gdp_gcl_decref.&nbsp; See below for specifics of each command.<br>
+    <p>Each command procedure (all named <code>cmd_</code>*) must get
+      any necessary GCL handle, process the command, and release the GCL
+      handle using <code>_gdp_gcl_decref</code>.&nbsp; See below for
+      specifics of each command.<br>
     </p>
     <h3>GCL Caching</h3>
-    <p>Implemented in gdpd/gdpd_gcl.c.<br>
+    <p>Implemented in <code>gdpd/gdpd_gcl.c</code>.<br>
     </p>
     <p>The gdpd GCL cache is tightly integrated with the gdp library GCL
       cache.&nbsp; The major differences are:<br>
@@ -73,7 +75,7 @@
     <ol type="a">
       <li>GCLs in gdpd are included in a list sorted by last usage; this
         facilitates cleaning up resources using an LRU algorithm.&nbsp;
-        They also have a "last usage time" using a standard Unix time_t
+        They also have a "last usage time" using a standard Unix <code>time_t</code>
         (resolution one second).<br>
       </li>
       <li>GCLs in gdpd have the information needed to access the
@@ -85,63 +87,64 @@
     <table width="100%" border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
-          <td valign="top">gcl_alloc<br>
+          <td valign="top"><code>gcl_alloc</code><br>
           </td>
           <td valign="top">Allocates a new GCL handle including the
             extended data, opens the physical underlying GCL, and links
-            it into the GclsByUse list (ordered by last usage).&nbsp; It
-            sets the free function to gcl_close so any further
-            deallocations will release other resources.<br>
+            it into the <code>GclsByUse</code> list (ordered by last
+            usage).&nbsp; It sets the free function to <code>gcl_close</code>
+            so any further deallocations will release other resources.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">gcl_open<br>
+          <td valign="top"><code>gcl_open</code><br>
           </td>
-          <td valign="top">Essentially a gcl_alloc followed by a
-            physical open of the underlying GCL.<br>
+          <td valign="top">Essentially a <code>gcl_alloc</code>
+            followed by a physical open of the underlying GCL.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">gcl_close<br>
+          <td valign="top"><code>gcl_close</code><br>
           </td>
-          <td valign="top">Removes the GCL from the GclsByUse list,
-            drops it from the GCL associative cache (maintained by the
-            GDP library), and releases the resources used by the
+          <td valign="top">Removes the GCL from the <code>GclsByUse</code>
+            list, drops it from the GCL associative cache (maintained by
+            the GDP library), and releases the resources used by the
             physical log (memory and open file descriptors).<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">gcl_touch<br>
+          <td valign="top"><code>gcl_touch</code><br>
           </td>
           <td valign="top">Moves the GCL to the head (most recently used
-            end) of the GclsByUse list and updates the timestamp.<br>
+            end) of the <code>GclsByUse</code> list and updates the
+            timestamp.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">get_open_handle<br>
+          <td valign="top"><code>get_open_handle</code><br>
           </td>
           <td valign="top">Searches for a named GCL in the GCL name →
             handle associative cache; if found, touches it and
-            returns.&nbsp; Otherwise, calls gcl_open to create a new GCL
-            handle.<br>
+            returns.&nbsp; Otherwise, calls <code>gcl_open</code> to
+            create a new GCL handle.<br>
           </td>
         </tr>
       </tbody>
     </table>
     <p>The usual path for deallocation is to call the GDP Library
-      function _gdp_gcl_decref to decrement the reference count on the
-      GCL.&nbsp; If it reaches zero, that GCL is a candidate for being
-      reclaimed.&nbsp; Another cleanup thread periodically reclaims idle
-      resources by calling the GDP library function _gdp_gcl_freehandle,
+      function
+      <code> _gdp_gcl_decref</code> to decrement the reference count on
+      the GCL.&nbsp; If it reaches zero, that GCL is a candidate for
+      being reclaimed.&nbsp; Another cleanup thread periodically
+      reclaims idle resources by calling the GDP library function <code>_gdp_gcl_freehandle</code>,
       which in turn calls the associated free function; in gdpd this is
-      gcl_close, as described above.<br>
+      <code>gcl_close</code>, as described above.<br>
     </p>
     <h3>Publish/Subscribe</h3>
-    <p>Implemented in gdpd/gdpd_pubsub.c.<br>
+    <p>Implemented in <code>gdpd/gdpd_pubsub.c</code>.<br>
     </p>
     <h3>Physical Log</h3>
-    <p>Implemented in gdpd/gdpd_physlog.c and
-      gdpd/gdp_circular_buffer.c.<br>
+    <p>Implemented in <code>gdpd/gdpd_physlog.c</code> and <code>gdpd/gdp_circular_buffer.c</code>.<br>
     </p>
     <h2>Command Processing</h2>
     <p>This section describes specifics of various command
@@ -152,13 +155,13 @@
     <h3>Create</h3>
     <p>Create instantiates a new physical GCL.&nbsp; It first allocates
       a handle, then asks the physical layer to do the hard work.&nbsp;
-      If that fails it has to recover by freeing the new handle using
-      _gdp_gcl_freehandle; otherwise it returns status after (like
-      nearly all commands) decrementing the reference count.&nbsp; It
-      may not seem to make sense to create a GCL and immediately return
-      the reference count on the handle to zero, which is why it is
-      important that GCL handles are not immediately deallocated when
-      the reference count goes to zero.<br>
+      If that fails it has to recover by freeing the new handle using <code>_gdp_gcl_freehandle</code>;
+      otherwise it returns status after (like nearly all commands)
+      decrementing the reference count.&nbsp; It may not seem to make
+      sense to create a GCL and immediately return the reference count
+      on the handle to zero, which is why it is important that GCL
+      handles are not immediately deallocated when the reference count
+      goes to zero.<br>
     </p>
     <h3>Open</h3>
     <p>Open opens an existing GCL.&nbsp; GDP will automatically re-open
@@ -166,12 +169,12 @@
       stateless nature of the protocol), but better errors will be
       returned to applications if they open the GCL first, and is a way
       that an app can get metadata such as the number of records already
-      in the GCL (returned as the "recno" field).&nbsp; This also allows
-      pre-priming of any caches.<br>
+      in the GCL (returned as the "<code>recno</code>" field).&nbsp;
+      This also allows pre-priming of any caches.<br>
     </p>
-    <p>There are actually two open calls: cmd_open_ao for append-only
-      and cmd_open_ro for read-only.&nbsp; Both of these are actually
-      processed by the routine cmd_open_xx.<br>
+    <p>There are actually two open calls: <code>cmd_open_ao</code> for
+      append-only and <code>cmd_open_ro</code> for read-only.&nbsp;
+      Both of these are actually processed by the routine <code>cmd_open_xx</code>.<br>
     </p>
     <h3>Close</h3>
     <p>Strictly speaking, close is not necessary, since GCLs will be
@@ -182,20 +185,21 @@
       of implementation simplicity.<br>
     </p>
     <h3>Read</h3>
-    <p>The cmd_read routine fetches a single record from a physical GCL
-      and returns it.&nbsp; The user must provide the record number
-      (i.e., there is no such thing as the concept of cursors for this
-      interface).&nbsp; It will return a "not found" error if the record
-      does not exist — hence, when reading sequentially a "not found"
-      error should be interpreted as "end of file".<br>
+    <p>The <code>cmd_read</code> routine fetches a single record from a
+      physical GCL and returns it.&nbsp; The user must provide the
+      record number (i.e., there is no such thing as the concept of
+      cursors for this interface).&nbsp; It will return a "not found"
+      error if the record does not exist — hence, when reading
+      sequentially a "not found" error should be interpreted as "end of
+      file".<br>
     </p>
     <h3>Publish</h3>
-    <p>Data is written to a GCL using the cmd_publish routine.&nbsp;
-      Writing and publishing differ only on whether there is a reader
-      that is subscribed to the GCL.&nbsp; In brief, this routine writes
-      the data supplied to the physical log and then calls
-      sub_notify_all_subscribers to send the new data to any subscribers
-      to this GCL.<br>
+    <p>Data is written to a GCL using the <code>cmd_publish</code>
+      routine.&nbsp; Writing and publishing differ only on whether there
+      is a reader that is subscribed to the GCL.&nbsp; In brief, this
+      routine writes the data supplied to the physical log and then
+      calls <code>sub_notify_all_subscribers</code> to send the new
+      data to any subscribers to this GCL.<br>
     </p>
     <h3>Subscribe/Multiread</h3>
     <p>Subscribe and Multiread are a bit tricky since they can handle
@@ -219,20 +223,21 @@
     <p>Assuming the parameters are acceptable, both commands return
       success immediately, and then start delivering asynchronous
       records through the GDP event interface.&nbsp; Client applications
-      get these events by calling gdp_event_next.&nbsp; Each event has a
-      type, such as DATA (delivery of a data record) or EOS (end of
-      subscription, signalling that no further data will be delivered).<br>
+      get these events by calling <code>gdp_event_next</code>.&nbsp;
+      Each event has a type, such as DATA (delivery of a data record) or
+      EOS (end of subscription, signalling that no further data will be
+      delivered).<br>
     </p>
     <p>After the success notification is delivered for the subscribe or
-      multiread command, the routine post_subscribe is called.&nbsp;
-      This scans through the existing GCL and delivers all data that
-      already exists using the original request (which must have a
-      unique request-id to distinguish it).&nbsp; If the data runs out
-      before the record count is reached and the command was subscribe,
-      the request is then linked onto a subscription chain for the GCL;
-      otherwise, if the command was multiread or all the data already
-      existed, an EOS (end of subscription) is delivered and the request
-      is freed.<br>
+      multiread command, the routine <code>post_subscribe</code> is
+      called.&nbsp; This scans through the existing GCL and delivers all
+      data that already exists using the original request (which must
+      have a unique request-id to distinguish it).&nbsp; If the data
+      runs out before the record count is reached and the command was
+      subscribe, the request is then linked onto a subscription chain
+      for the GCL; otherwise, if the command was multiread or all the
+      data already existed, an EOS (end of subscription) is delivered
+      and the request is freed.<br>
     </p>
     <p>These are one of the rare cases where the reference count on the
       GCL is not decremented as the command completes, since there is

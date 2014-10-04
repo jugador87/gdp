@@ -42,7 +42,7 @@
       associative cache, and then signal the application to collect the
       results.<br>
     </p>
-    <p>Data is exchanged through a data structure of type gdp_datum_t,
+    <p>Data is exchanged through a data structure of type <code>gdp_datum_t</code>,
       which contains a record number a time stamp, and a data
       buffer.&nbsp; When sending data to the GDP daemon, the application
       creates a datum, fills it in with data, and sends it to the
@@ -54,13 +54,14 @@
     </p>
     <h2>Module Details</h2>
     <h3>API</h3>
-    <p>The API module (gdp_api.c) defines all the externally visible
-      routines.&nbsp; Since these are already documented in the GDP
-      Programmatic API document, suffice it to say that it does the
-      "translation" between the internal protocol and the external API.<br>
+    <p>The API module (<code>gdp/gdp_api.c</code>) defines all the
+      externally visible routines.&nbsp; Since these are already
+      documented in the GDP Programmatic API document, suffice it to say
+      that it does the "translation" between the internal protocol and
+      the external API.<br>
     </p>
     <h3>Request Management</h3>
-    <p>Implemented in gdp_req.c.<br>
+    <p>Implemented in <code>gdp/gdp_req.c</code>.<br>
     </p>
     <p>Internally the data flow is managed through a series of
       requests.&nbsp; In many cases there will be only one request
@@ -77,7 +78,7 @@
     <table width="100%" border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
-          <td valign="top">_gdp_req_new<br>
+          <td valign="top"><code>_gdp_req_new</code><br>
           </td>
           <td valign="top">Create a new request and fill it in with a
             GDP protocol command, GCL handle, I/O channel, and flags
@@ -86,7 +87,7 @@
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_req_free<br>
+          <td valign="top"><code>_gdp_req_free</code><br>
           </td>
           <td valign="top">Free the request and all associated resources
             such as the space for packet information.&nbsp; It also
@@ -95,7 +96,7 @@
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_req_freeall<br>
+          <td valign="top"><code>_gdp_req_freeall</code><br>
           </td>
           <td valign="top">Free all requests associated with a
             particular GCL handle.&nbsp; GCLs that have pending
@@ -104,7 +105,7 @@
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_req_find<br>
+          <td valign="top"><code>_gdp_req_find</code><br>
           </td>
           <td valign="top">Given a GCL handle and a request ID, find the
             associated request on the list associated with that GCL
@@ -117,7 +118,7 @@
     <p><br>
     </p>
     <h3>Datums</h3>
-    <p>Implemented in gdp_datum.c.<br>
+    <p>Implemented in <code>gdp/gdp_datum.c</code>.<br>
     </p>
     <p>As described above, a datum is the internal version of a GCL
       record.&nbsp; The routines, which are externally visible, are:<br>
@@ -125,57 +126,57 @@
     <table width="100%" border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
-          <td valign="top">gdp_datum_new<br>
+          <td valign="top"><code>gdp_datum_new</code><br>
           </td>
           <td valign="top">Create a new empty datum, including its
             associated (empty) buffer.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">gdp_datum_free<br>
+          <td valign="top"><code>gdp_datum_free</code><br>
           </td>
           <td valign="top">Free the datum, including it's associated
             data buffer.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">gdp_datum_getrecno<br>
+          <td valign="top"><code>gdp_datum_getrecno</code><br>
           </td>
           <td valign="top">Get the record number.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">gdp_datum_setrecno<br>
+          <td valign="top"><code>gdp_datum_setrecno</code><br>
           </td>
           <td valign="top">Set the record number.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">gdp_datum_getts<br>
+          <td valign="top"><code>gdp_datum_getts</code><br>
           </td>
           <td valign="top">Get the timestamp.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">gdp_datum_setts<br>
+          <td valign="top"><code>gdp_datum_setts</code><br>
           </td>
           <td valign="top">Set the timestamp.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">gdp_datum_getdlen<br>
+          <td valign="top"><code>gdp_datum_getdlen</code><br>
           </td>
           <td valign="top">Get the length of the data buffer.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">gdp_datum_getbuf<br>
+          <td valign="top"><code>gdp_datum_getbuf</code><br>
           </td>
           <td valign="top">Get the data buffer itself.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">gdp_datum_print<br>
+          <td valign="top"><code>gdp_datum_print</code><br>
           </td>
           <td valign="top">Print a datum in a format suitable for
             debugging use.<br>
@@ -185,7 +186,7 @@
     </table>
     <br>
     <h3>GCL Associative Cache</h3>
-    <p>Implemented in gdp_gcl.c.<br>
+    <p>Implemented in <code>gdp/gdp_gcl.c</code>.<br>
     </p>
     <p>The primary purpose of the GCL Associative Cache is to allow
       quick association between a GCL name and the associated
@@ -196,15 +197,15 @@
     <table width="100%" border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
-          <td valign="top">_gdp_gcl_cache_init<br>
+          <td valign="top"><code>_gdp_gcl_cache_init</code><br>
           </td>
           <td valign="top">Initializes the GCL cache.&nbsp; Called only
             once on startup.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_gcl_cache_get<br>
-          </td>
+          <td valign="top"><code>_gdp_gcl_cache_get</code><code><br>
+            </code></td>
           <td valign="top">Extracts the GCL handle from the cache based
             on name and I/O mode.&nbsp; If it is found the reference
             count on the GCL handle is incremented; if not, it returns
@@ -212,27 +213,27 @@
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_gcl_cache_add<br>
+          <td valign="top"><code>_gdp_gcl_cache_add</code><br>
           </td>
           <td valign="top">Adds the GCL handle to the cache.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_gcl_cache_drop<br>
+          <td valign="top"><code>_gdp_gcl_cache_drop</code><br>
           </td>
           <td valign="top">Removes the GCL name → handle association
             from the cache.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_gcl_incref<br>
+          <td valign="top"><code>_gdp_gcl_incref</code><br>
           </td>
           <td valign="top">Increments the reference count on the GCL
             handle.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_gcl_decref<br>
+          <td valign="top"><code>_gdp_gcl_decref</code><br>
           </td>
           <td valign="top">Decrements the reference count on the GCL
             handle.&nbsp; If the reference count reaches zero the handle
@@ -242,7 +243,7 @@
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_gcl_newhandle<br>
+          <td valign="top"><code>_gdp_gcl_newhandle</code><br>
           </td>
           <td valign="top">Creates a new GCL handle.&nbsp; Note that
             this is just the library data — it sends no protocol to the
@@ -250,25 +251,24 @@
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_gcl_freehandle<br>
+          <td valign="top"><code>_gdp_gcl_freehandle</code><br>
           </td>
           <td valign="top">Does the actual deallocation of the
-            handle.&nbsp; Removes the GCL from the cache (by calling
-            _gdp_gcl_cache_drop).&nbsp; If the GCL includes a free
-            function, that function is called (this is used by the GDP
-            daemon).&nbsp; It then frees the memory allocated to the
-            handle itself.<br>
+            handle.&nbsp; Removes the GCL from the cache (by calling <code>_gdp_gcl_cache_drop</code>).&nbsp;
+            If the GCL includes a free function, that function is called
+            (this is used by the GDP daemon).&nbsp; It then frees the
+            memory allocated to the handle itself.<br>
           </td>
         </tr>
       </tbody>
     </table>
     <br>
     <h3>Packets</h3>
-    Implemented in gdp_pkt.c.<br>
+    Implemented in <code>gdp/gdp_pkt.c</code>.<br>
     <br>
-    Packets are marshalled and demarshalled in gdp_pkt.c.&nbsp; Each
-    packet has the following fields (with the number of octets for the
-    field):<br>
+    Packets are marshalled and demarshalled in <code>gdp/gdp_pkt.c</code>.&nbsp;
+    Each packet has the following fields (with the number of octets for
+    the field):<br>
     <ul>
       <li>Protocol version (1).</li>
       <li>Command or Ack/Nak (1).</li>
@@ -286,25 +286,30 @@
     </ul>
     <p>One field is used to indicate both commands and
       acknowledgements/negative acknowledgements.&nbsp; See the comments
-      in gdp_pkt.h for the details of those values.<br>
+      in <code>gdp/gdp_pkt.h</code> for the details of those values.&nbsp;
+      This is worth emphasizing: the command field in the protocol
+      encodes both imperative commands (e.g., "write this data") and
+      responses ("that data was written" or "could not write that
+      data").&nbsp; Both forms are described in the code as "commands",
+      and even share a single dispatch table.<br>
     </p>
     <p>The routines for handling packets are:</p>
     <table width="100%" border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
-          <td valign="top">_gdp_pkt_new<br>
+          <td valign="top"><code>_gdp_pkt_new</code><br>
           </td>
           <td valign="top">Allocates a new (empty) packet.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_pkt_free<br>
+          <td valign="top"><code>_gdp_pkt_free</code><br>
           </td>
           <td valign="top">Frees a packet.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_pkt_out<br>
+          <td valign="top"><code>_gdp_pkt_out</code><br>
           </td>
           <td valign="top">Given a packet structure and an output
             buffer, converts that packet to external format and writes
@@ -314,21 +319,21 @@
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_pkt_in<br>
+          <td valign="top"><code>_gdp_pkt_in</code><br>
           </td>
           <td valign="top">Reads a packet from an I/O buffer and
             converts it to internal format.&nbsp; It is possible that
             this routine can return without reading the entire packet
-            with the special status code GDP_STAT_KEEP_READING.&nbsp;
+            with the special status code <code>GDP_STAT_KEEP_READING</code>.&nbsp;
             Under most cases it should be called in a loop until a
-            successful status is returned.&nbsp; As with _gdp_pkt_out,
+            successful status is returned.&nbsp; As with <code>_gdp_pkt_out</code>,
             the I/O buffer is normally associated with an I/O
             channel.&nbsp; See the discussion of the event loop for more
             details.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top">_gdp_pkg_dump<br>
+          <td valign="top"><code>_gdp_pkg_dump</code><br>
           </td>
           <td valign="top">Prints a packet in a form suitable only for
             debugging.<br>
@@ -338,7 +343,126 @@
     </table>
     <br>
     <h3>GDP Protocol</h3>
-    <p>Implemented in gdp_proto.c.<br>
+    <p>Implemented in <code>gdp/gdp_proto.c</code>.<br>
+    </p>
+    <p>The basic model is that clients create a request with <code>_gdp_req_new</code>
+      which contains a command (what they need to get done) and
+      optionally a pointer to a GCL handle on which to perform the
+      operation, the connection on which to operate, and some flag
+      bits.&nbsp; They may fill in other information associated with a
+      request, such as the record number for a read command.&nbsp; The
+      client then calls <code>_gdp_invoke</code>, passing it the
+      request.&nbsp; That routine in turn sends the request using <code>_gdp_req_send</code>;
+      assuming that works it waits on the condition variable contained
+      in the request to get the final return status and returns that.<br>
+    </p>
+    <p>The sending part, implemented by <code>_gdp_req_send</code>,
+      links the request to the requesting GCL (so it can be found when
+      the reply eventually comes in), makes sure that the GCL name is in
+      the associative name → handle cache, and sends the packet.<br>
+    </p>
+    <p>When the reply message eventually comes in, it triggers an event
+      in the main I/O loop; that is handed to (another) thread for
+      processing.&nbsp; This is done through the bufferevent interface,
+      part of libevent2, which invokes callbacks when events happen on
+      sockets (that is, it can be considered as having a similar
+      functionality to select, or more accurately <code>kqueue</code>
+      or <code>/dev/poll</code>).&nbsp; The primary callback used is <code>gdp_read_cb</code>.&nbsp;
+      That routine allocates a new packet and reads a packet into that
+      area.&nbsp; If the packet is incomplete (i.e., it hasn't all been
+      read in) the packet is freed and the callback returns (it will be
+      called again later when more of the packet is read).&nbsp; If the
+      entire packet is available, it calls <code>process_packet</code>
+      to interpret it.<br>
+    </p>
+    <p>[The code currently has a non-functional #ifdef for <code>GDP_PACKET_QUEUE</code>.&nbsp;
+      This is for a future extension allowing the packet to be dropped
+      into another queue for interpretation from a process in the thread
+      pool so that the read thread can focus entirely on reading and
+      handing off packets.&nbsp; This technique is already used in gdpd,
+      and will only be used in the client library if necessary for
+      performance.]<br>
+    </p>
+    <p>Packet processing in process_packet involves finding the
+      associated GCL, if available, and from that finding the associated
+      request.&nbsp; If no request is found a new request is created;
+      this is the case with spontaneous commands.&nbsp; There is some
+      processing of datums to handle the case where a request had an
+      existing datum that needs to be replaced with a new one (for
+      example, a read request that passed in a datum with the record
+      number and returns a datum with the associated timestamp and data;
+      since the read API passes in the datum, there is some shuffling
+      necessary with the underlying data buffers so that the caller can
+      actually access the returned data).&nbsp; The request (now a
+      response) is then passed to <code>_gdp_req_dispatch</code> for
+      processing.<br>
+    </p>
+    <p>Processing in <code>_gdp_req_dispatch</code> is done through a
+      simple dispatch table indexed by command.&nbsp; Requests can be
+      either commands or responses (ack/nak); in most cases, client
+      programs should only receive responses, and will get a "not
+      implemented" if any commands are received.&nbsp; Responses fall
+      into 2½ classes: successes (acks), client naks, and server
+      naks.&nbsp; There are several of each of these, which roughly
+      correspond to HTTP response codes (2xx, 4xx, and 5xx respectively)
+      or CoAP codes (2.xx, 4.xx, and 5.xx).&nbsp; These piggyback on
+      three routines (<code>ack_success</code>, <code>nak_client</code>,
+      and <code>nak_server</code>), the latter two of which are
+      essentially identical, doing nothing but passing the error on up
+      the stack.&nbsp; The ack_success routine checks for some
+      nonsensical situations and passes the (interpreted) status back up
+      to process_packet.<br>
+    </p>
+    <p>The response from the command is then interpreted by <code>process_packet</code>.&nbsp;
+      There are two cases.&nbsp; The simpler one is when the
+      command/response was a simple ack/nak, in which case the status is
+      stored in the request and the thread waiting on that request is
+      poked to wake up.&nbsp; The other case is when the request is a
+      subscription, in which case this request (which in this case must
+      be a response) must be turned into an event.&nbsp; If so, a new
+      event is created and passed off to the event subsystem for
+      delivery (described elsewhere).<br>
+    </p>
+    <h4>Response Confusion</h4>
+    <p>One major confusion results from the large variety of response
+      codes from various existing subsystems.&nbsp; One common status
+      encoding is HTTP status codes and CoAP status codes.&nbsp; These
+      overlap (mostly), so we can (mostly) treat them as the same
+      thing.&nbsp; They are the primary mode of passing protocol status
+      in the GDP protocol, but since those response are only eight bits
+      the codes are offset: HTTP/COAP codes 200–264 become commands
+      128–191, codes 400–432 become commands 192–223, and codes 500–531
+      become commands 224–254.<br>
+    </p>
+    <p>Internally the GDP library uses the <code>EP_STAT</code>
+      abstraction as a lingua franca.&nbsp; <code>EP_STAT</code>s allow
+      encoding of response codes in a single integer (so they can be
+      passed easily back from functions).&nbsp; Those integers encode a
+      severity (most importantly, success or failure), a registry and a
+      module identifier (which for this purpose can be treated as one
+      piece), and detail information.&nbsp; The module is used to create
+      broad categories: for example, one module corresponds to Unix
+      errnos, allowing them to be passed back directly.&nbsp; Another
+      module is specific to the GDP.&nbsp; There are several generic
+      status codes defined in <code>gdp/gdp_stat.h</code> such as <code>GDP_STAT_KEEP_READING</code>
+      (a warning that a partial packet has been read but the remainder
+      remains to be read) or <code>GDP_STAT_CORRUPT_GCL</code> (a
+      severe error saying that the disk representation of a GCL is
+      corrupt and cannot be read).&nbsp; The HTTP/CoAP codes are encoded
+      in the same module, but back in their original positions, i.e., in
+      the 200–599 range.<br>
+    </p>
+    <h3>Event Processing</h3>
+    <p>Events (see <code>gdp/gdp_event.c</code>) are a way of
+      delivering information to a client without using an RPC-style
+      blocking response.&nbsp; Specifically, a client can issue several
+      commands and then wait for the responses to come in an arbitrary
+      order.&nbsp; The implementation is simple: as messages are read
+      that cannot be immediately processed they are turned into
+      events.&nbsp; Those events are linked onto an active list.&nbsp;
+      The client can collect events using <code>gdp_event_next</code>,
+      which takes them off the active queue.&nbsp; The client is
+      responsible for freeing them using <code>gdp_event_free</code>.<br>
     </p>
     <h3>Event Loop</h3>
   </body>
