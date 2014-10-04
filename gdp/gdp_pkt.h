@@ -59,7 +59,7 @@
 **			4	length of data portion
 **			[4	request id (optional)]
 **			[32	GCL name (optional)]
-**			[4	record number (optional)]
+**			[8	record number (optional)]
 **			[16	commit timestamp (optional)]
 **			N	data (length indicated above)
 **		The structure shown below is the in-memory version
