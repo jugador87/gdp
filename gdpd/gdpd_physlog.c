@@ -31,7 +31,6 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdpd.physlog", "GDP Daemon Physical Log");
 #define GCL_NEXT_MSG		(-1)	// sentinel for next available message
 
 static const char	*GCLDir;		// the gcl data directory
-static EP_HASH		*name_index_table = NULL;
 
 typedef struct index_entry
 {
@@ -75,9 +74,7 @@ gcl_physlog_init()
 {
 	EP_STAT estat = EP_STAT_OK;
 
-	GCLDir = ep_adm_getstrparam("swarm.gdp.gcl.dir", GCL_DIR);
-	name_index_table = ep_hash_new("name_index_table", NULL,
-			sizeof(gcl_name_t));
+	// at this point there is nothing to do
 
 	return estat;
 }
@@ -152,7 +149,7 @@ gcl_index_cache_get(gcl_log_index *entry, int64_t recno, int64_t *out)
 	}
 	else
 	{
-		*out = LLONG_MAX;
+		*out = INT64_MAX;
 	}
 	ep_thr_rwlock_unlock(&entry->lock);
 
@@ -505,7 +502,7 @@ gcl_physread(gdp_gcl_t *gclh,
 	EP_STAT estat = EP_STAT_OK;
 	gcl_log_index *entry = gclh->x->log_index;
 	LONG_LONG_PAIR *long_pair;
-	int64_t offset = LLONG_MAX;
+	int64_t offset = INT64_MAX;
 
 	EP_ASSERT_POINTER_VALID(gclh);
 
@@ -587,7 +584,7 @@ gcl_physread(gdp_gcl_t *gclh,
 		ep_dbg_cprintf(Dbg, 14, "found in memory at %" PRId64 "\n", offset);
 	}
 
-	if (offset == LLONG_MAX) // didn't find message
+	if (offset == INT64_MAX) // didn't find message
 	{
 		estat = EP_STAT_END_OF_FILE;
 		goto fail0;
