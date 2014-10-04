@@ -253,8 +253,11 @@
           <td valign="top">_gdp_gcl_freehandle<br>
           </td>
           <td valign="top">Does the actual deallocation of the
-            handle.&nbsp; If the GCL includes a free function, that
-            function is called (this is used by the GDP daemon).<br>
+            handle.&nbsp; Removes the GCL from the cache (by calling
+            _gdp_gcl_cache_drop).&nbsp; If the GCL includes a free
+            function, that function is called (this is used by the GDP
+            daemon).&nbsp; It then frees the memory allocated to the
+            handle itself.<br>
           </td>
         </tr>
       </tbody>
