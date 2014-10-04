@@ -86,7 +86,7 @@ _gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 	ep_thr_mutex_lock(&gclh->mutex);
 
 	// see if someone snuck in and deallocated this
-	if (gclh->refcnt <= 0)
+	if (EP_UT_BITSET(GCLF_DROPPING, gclh->flags))
 	{
 		// oops, dropped from cache
 		ep_thr_mutex_unlock(&gclh->mutex);
@@ -102,20 +102,20 @@ _gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
 done:
 	ep_thr_mutex_unlock(&GclCacheMutex);
 
-	if (ep_dbg_test(DbgCache, 42))
+	if (gclh == NULL)
 	{
-		if (gclh == NULL)
+		if (ep_dbg_test(DbgCache, 42))
 		{
 			gcl_pname_t pname;
 
 			gdp_gcl_printable_name(gcl_name, pname);
 			ep_dbg_printf("gdp_gcl_cache_get: %s => NULL\n", pname);
 		}
-		else
-		{
-			ep_dbg_printf("gdp_gcl_cache_get: %s => %p %d\n",
+	}
+	else
+	{
+		ep_dbg_cprintf(DbgCache, 42, "gdp_gcl_cache_get: %s => %p %d\n",
 					gclh->pname, gclh, gclh->refcnt);
-		}
 	}
 	return gclh;
 }
@@ -131,6 +131,7 @@ _gdp_gcl_cache_add(gdp_gcl_t *gclh, gdp_iomode_t mode)
 	// save it in the cache
 	(void) ep_hash_insert(OpenGCLCache,
 						sizeof (gcl_name_t), gclh->gcl_name, gclh);
+	gclh->flags |= GCLF_INCACHE;
 	ep_dbg_cprintf(DbgCache, 42, "gdp_gcl_cache_add: added %s => %p\n",
 			gclh->pname, gclh);
 }
@@ -141,6 +142,7 @@ _gdp_gcl_cache_drop(gdp_gcl_t *gclh)
 {
 	(void) ep_hash_insert(OpenGCLCache, sizeof (gcl_name_t), gclh->gcl_name,
 						NULL);
+	gclh->flags &= ~GCLF_INCACHE;
 	ep_dbg_cprintf(DbgCache, 42, "gdp_gcl_cache_drop: dropping %s => %p\n",
 			gclh->pname, gclh);
 }
@@ -182,6 +184,8 @@ _gdp_gcl_decref(gdp_gcl_t *gclh)
 	// XXX check for zero refcnt
 	if (gclh->refcnt <= 0)
 	{
+		if (ep_dbg_test(DbgCache, 101))
+			gclh->flags |= GCLF_DROPPING;
 		ep_dbg_cprintf(DbgCache, 4, "_gdp_gcl_decref: %p: zero\n", gclh);
 	}
 	else
@@ -190,6 +194,12 @@ _gdp_gcl_decref(gdp_gcl_t *gclh)
 				gclh, gclh->refcnt);
 	}
 	ep_thr_mutex_unlock(&gclh->mutex);
+
+	if (EP_UT_BITSET(GCLF_DROPPING, gclh->flags))
+	{
+		// deallocate physical memory and remove from cache
+		_gdp_gcl_freehandle(gclh);
+	}
 }
 
 
@@ -230,6 +240,7 @@ _gdp_gcl_newhandle(gcl_name_t gcl_name, gdp_gcl_t **pgclh)
 
 	// success
 	*pgclh = gclh;
+	ep_dbg_cprintf(Dbg, 28, "_gdp_gcl_newhandle => %p\n", gclh);
 	return estat;
 
 fail1:
@@ -244,18 +255,25 @@ fail1:
 void
 _gdp_gcl_freehandle(gdp_gcl_t *gclh)
 {
+	ep_dbg_cprintf(Dbg, 28, "_gdp_gcl_freehandle(%p)\n", gclh);
+
 	// release any remaining requests
 	if (!LIST_EMPTY(&gclh->reqs))
 	{
+		// release any remaining requests (shouldn't be any left)
 		ep_dbg_cprintf(Dbg, 1, "gdp_gcl_freehandle: non-null request list\n");
+		_gdp_req_freeall(&gclh->reqs);
 	}
-
-	// release any remaining requests (shouldn't be any left)
-	_gdp_req_freeall(&gclh->reqs);
 
 	// release the locks and cache entry
 	ep_thr_mutex_destroy(&gclh->mutex);
-	_gdp_gcl_cache_drop(gclh);
+
+	// if there is any "extra" data, drop that
+	if (gclh->x != NULL)
+	{
+		ep_mem_free(gclh->x);
+		gclh->x = NULL;
+	}
 
 	// finally release the memory for the handle itself
 	ep_mem_free(gclh);

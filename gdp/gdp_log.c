@@ -51,11 +51,9 @@ gdp_log_file(EP_STAT estat,
 		FILE *fp)
 {
 		char tbuf[40];
-		char ebuf[100];
 		struct tm *tm;
 		time_t tvsec;
 
-		ep_stat_tostr(estat, ebuf, sizeof ebuf);
 		tvsec = tv->tv_sec;				//XXX may overflow if time_t is 32 bits!
 		if ((tm = localtime(&tvsec)) == NULL)
 				snprintf(tbuf, sizeof tbuf, "%"PRIu64".%06lu",
@@ -71,6 +69,13 @@ gdp_log_file(EP_STAT estat,
 
 		fprintf(fp, "%s %s: ", tbuf, LogTag);
 		vfprintf(fp, fmt, ap);
+		if (!EP_STAT_ISOK(estat))
+		{
+			char ebuf[100];
+
+			ep_stat_tostr(estat, ebuf, sizeof ebuf);
+			fprintf(fp, ": %s", ebuf);
+		}
 		fprintf(fp, "\n");
 }
 
@@ -127,7 +132,6 @@ gdp_log_syslog(EP_STAT estat, char *fmt, va_list ap)
 			ep_stat_tostr(estat, ebuf, sizeof ebuf);
 		vsnprintf(mbuf, sizeof mbuf, fmt, ap);
 		syslog(logsev, "%s: %s", ebuf, mbuf);
-		fprintf(stderr, "%s: %s\n", ebuf, mbuf);
 }
 
 
@@ -159,7 +163,7 @@ gdp_log(EP_STAT estat, char *fmt, ...)
 				va_start(ap, fmt);
 				gdp_log_file(estat, fmt, ap, &tv, LogFile1);
 				va_end(ap);
-				fprintf(LogFile1, "%s", EpVid->vidnorm);
+				fprintf(LogFile1, "%s\n", EpVid->vidnorm);
 		}
 		if (LogFile2 != NULL)
 		{

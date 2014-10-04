@@ -59,9 +59,14 @@ struct gdp_gcl
 	gcl_name_t			gcl_name;		// the internal name
 	gcl_pname_t			pname;			// printable name (for debugging)
 	gdp_iomode_t		iomode;			// read only or append only
+	uint16_t			flags;			// flag bits, see below
 	int					refcnt;			// reference counter
 	struct gdp_gcl_xtra	*x;				// for use by gdpd, gdp-rest
 };
+
+/* flags for GCL handles */
+#define GCLF_DROPPING	0x0001		// handle is being deallocated
+#define GCLF_INCACHE	0x0002		// handle is in cache
 
 
 /*
@@ -149,9 +154,6 @@ gdp_gcl_t		*_gdp_gcl_cache_get(		// get entry from cache
 void			_gdp_gcl_cache_add(			// add entry to cache
 						gdp_gcl_t *gclh,
 						gdp_iomode_t mode);
-
-void			_gdp_gcl_cache_touch(		// make use time right now
-						gdp_gcl_t *gclh);
 
 void			_gdp_gcl_cache_drop(		// drop entry from cache
 						gdp_gcl_t *gclh);

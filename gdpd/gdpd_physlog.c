@@ -197,31 +197,14 @@ gcl_index_cache_put(gcl_log_index *entry, int64_t recno, int64_t offset)
 
 
 /*
-**  GDPD_NEW_GCL --- create new GCL with GDPD specifics filled in
+**  GCL_PHYSCREATE --- create a brand new GCL on disk
 */
 
 EP_STAT
-gdpd_new_gcl(gcl_name_t iname, gdp_gcl_t **pgclh)
-{
-	EP_STAT estat;
-
-	estat = _gdp_gcl_newhandle(iname, pgclh);
-	EP_STAT_CHECK(estat, return estat);
-	(*pgclh)->x = ep_mem_zalloc(sizeof **pgclh);
-	return estat;
-}
-
-
-/*
-**  GCL_CREATE --- create a brand new GCL on disk
-*/
-
-EP_STAT
-gcl_create(gcl_name_t gcl_name,
-		gdp_gcl_t **pgclh)
+gcl_physcreate(gcl_name_t gcl_name,
+		gdp_gcl_t *gclh)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gdp_gcl_t *gclh = NULL;
 	FILE *data_fp;
 	FILE *index_fp;
 
@@ -230,11 +213,6 @@ gcl_create(gcl_name_t gcl_name,
 	{
 		_gdp_gcl_newname(gcl_name);
 	}
-
-	// allocate the memory to hold the GCL Handle
-	// Note that ep_mem_* always returns, hence no test here
-	estat = gdpd_new_gcl(gcl_name, &gclh);
-	EP_STAT_CHECK(estat, goto fail0);
 
 	// create a file node representing the gcl
 	{
@@ -330,7 +308,6 @@ gcl_create(gcl_name_t gcl_name,
 	new_index->fp = index_fp;
 	gclh->x->fp = data_fp;
 	gclh->x->log_index = new_index;
-	*pgclh = gclh;
 	if (ep_dbg_test(Dbg, 10))
 	{
 		gcl_pname_t pname;
@@ -345,8 +322,6 @@ fail3:
 fail2:
 	fclose(data_fp);
 fail1:
-	ep_mem_free(gclh);
-fail0:
 	// turn "file exists" into a meaningful response code
 	if (EP_STAT_IS_SAME(estat, ep_stat_from_errno(EEXIST)))
 			estat = GDP_STAT_NAK_CONFLICT;
@@ -363,7 +338,7 @@ fail0:
 
 
 /*
-**	GCL_OPEN --- open a gcl for reading or further appending
+**	GCL_PHYSOPEN --- do physical open of a GCL
 **
 **		XXX: Should really specify whether we want to start reading:
 **		(a) At the beginning of the log (easy).	 This includes random
@@ -373,21 +348,15 @@ fail0:
 */
 
 EP_STAT
-gcl_open(gcl_name_t gcl_name,
-			gdp_iomode_t mode,
-			gdp_gcl_t **pgclh)
+gcl_physopen(gcl_name_t gcl_name,
+			gdp_gcl_t *gclh)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gdp_gcl_t *gclh = NULL;
 	int fd;
 	FILE *data_fp;
 	FILE *index_fp;
 	char data_pbuf[GCL_PATH_MAX];
 	char index_pbuf[GCL_PATH_MAX];
-
-	estat = gdpd_new_gcl(gcl_name, &gclh);
-	EP_STAT_CHECK(estat, goto fail1);
-	gclh->iomode = mode;
 
 	estat = get_gcl_path(gclh, GCL_DATA_SUFFIX, data_pbuf, sizeof data_pbuf);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -458,8 +427,6 @@ gcl_open(gcl_name_t gcl_name,
 	index->max_recno = (index->max_index_offset - SIZEOF_INDEX_HEADER)
 								/ SIZEOF_INDEX_RECORD;
 
-	*pgclh = gclh;
-
 	return estat;
 
 fail5:
@@ -468,9 +435,6 @@ fail3:
 	fclose(data_fp);
 fail1:
 fail0:
-	if (gclh == NULL)
-		ep_mem_free(gclh);
-
 	// map errnos to appropriate NAK codes
 	if (EP_STAT_IS_SAME(estat, ep_stat_from_errno(ENOENT)))
 		estat = GDP_STAT_NAK_NOTFOUND;
@@ -495,15 +459,17 @@ fail0:
 }
 
 /*
-**	GDP_GCL_CLOSE --- close an open gcl
+**	GCL_PHYSCLOSE --- physically close an open gcl
 */
 
 EP_STAT
-gcl_close(gdp_gcl_t *gclh)
+gcl_physclose(gdp_gcl_t *gclh)
 {
 	EP_STAT estat = EP_STAT_OK;
 
 	EP_ASSERT_POINTER_VALID(gclh);
+
+	// close the data file
 	if (gclh->x->fp == NULL)
 	{
 		estat = EP_STAT_ERROR;
@@ -512,10 +478,15 @@ gcl_close(gdp_gcl_t *gclh)
 	else
 	{
 		fclose(gclh->x->fp);
+		gclh->x->fp = NULL;
 	}
 
-	// XXX: when do we remove the index cache for optimal performance?
-	_gdp_gcl_cache_drop(gclh);
+	// and the index file
+	if (gclh->x->log_index->fp != NULL)
+	{
+		fclose(gclh->x->log_index->fp);
+		gclh->x->log_index->fp = NULL;
+	}
 
 	return estat;
 }
@@ -534,7 +505,7 @@ gcl_max_recno(gdp_gcl_t *gclh)
 
 
 /*
-**	GCL_READ --- read a message from a gcl
+**	GCL_PHYSREAD --- read a message from a gcl
 **
 **		Reads in a message indicated by datum->recno into datum.
 **
@@ -549,7 +520,7 @@ gcl_max_recno(gdp_gcl_t *gclh)
 */
 
 EP_STAT
-gcl_read(gdp_gcl_t *gclh,
+gcl_physread(gdp_gcl_t *gclh,
 		gdp_datum_t *datum)
 {
 	EP_STAT estat = EP_STAT_OK;
@@ -678,11 +649,11 @@ fail0:
 }
 
 /*
-**	GDP_GCL_APPEND --- append a message to a writable gcl
+**	GCL_PHYSAPPEND --- append a message to a writable gcl
 */
 
 EP_STAT
-gcl_append(gdp_gcl_t *gclh,
+gcl_physappend(gdp_gcl_t *gclh,
 			gdp_datum_t *datum)
 {
 	gcl_log_record log_record;

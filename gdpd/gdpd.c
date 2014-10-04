@@ -22,6 +22,141 @@ static EP_DBG Dbg = EP_DBG_INIT("gdp.gdpd", "GDP Daemon");
 
 static struct thread_pool *CpuJobThreadPool;
 
+// list of current GCLs sorted by usage time
+LIST_HEAD(gcl_use_head, gdp_gcl_xtra)
+						GclsByUse;
+EP_THR_MUTEX			GclsByUseMutex EP_THR_MUTEX_INITIALIZER;
+
+
+/*
+**  GCL_ALLOC --- allocate a new GCL handle in memory
+*/
+
+EP_STAT
+gcl_alloc(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
+{
+	EP_STAT estat;
+	gdp_gcl_t *gclh;
+
+	// get the standard handle
+	estat = _gdp_gcl_newhandle(gcl_name, &gclh);
+	EP_STAT_CHECK(estat, goto fail0);
+	gclh->iomode = iomode;
+
+	// add the gdpd-specific information
+	gclh->x = ep_mem_zalloc(sizeof *gclh->x);
+	if (gclh->x == NULL)
+	{
+		estat = EP_STAT_OUT_OF_MEMORY;
+		goto fail0;
+	}
+	gclh->x->gcl = gclh;
+	*pgclh = gclh;
+
+fail0:
+	return estat;
+}
+
+
+/*
+**  GCL_OPEN --- open a new GCL
+*/
+
+EP_STAT
+gcl_open(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
+{
+	EP_STAT estat;
+	gdp_gcl_t *gclh;
+
+	estat = gcl_alloc(gcl_name, iomode, &gclh);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	// so far, so good...  do the physical open
+	estat = gcl_physopen(gcl_name, gclh);
+	EP_STAT_CHECK(estat, goto fail1);
+
+	// link it into the usage chain
+	ep_thr_mutex_lock(&GclsByUseMutex);
+	LIST_INSERT_HEAD(&GclsByUse, gclh->x, ulist);
+	ep_thr_mutex_unlock(&GclsByUseMutex);
+
+	// success!
+	*pgclh = gclh;
+	return estat;
+
+fail1:
+	_gdp_gcl_freehandle(gclh);
+fail0:
+	return estat;
+}
+
+
+/*
+**  GCL_CLOSE --- close a GDP version of a GCL handle
+*/
+
+void
+gcl_close(gdp_gcl_t *gclh)
+{
+	// remove it from the usage list
+	ep_thr_mutex_lock(&GclsByUseMutex);
+	LIST_REMOVE(gclh->x, ulist);
+	ep_thr_mutex_unlock(&GclsByUseMutex);
+
+	// and the cache
+	_gdp_gcl_cache_drop(gclh);
+
+	// close the underlying files
+	gcl_physclose(gclh);
+
+	// now we can free the handle in memory
+	_gdp_gcl_freehandle(gclh);
+}
+
+
+/*
+**  GCL_TOUCH --- update the usage time of a GCL
+*/
+
+void
+gcl_touch(gdp_gcl_t *gclh)
+{
+	struct timeval tv;
+
+	ep_dbg_cprintf(Dbg, 46, "gcl_touch(%p)\n", gclh);
+
+	// mark the current time
+	gettimeofday(&tv, NULL);
+	gclh->x->utime = tv.tv_sec;
+
+	// move this entry to the front of the usage list
+	ep_thr_mutex_lock(&GclsByUseMutex);
+	LIST_REMOVE(gclh->x, ulist);
+	LIST_INSERT_HEAD(&GclsByUse, gclh->x, ulist);
+	ep_thr_mutex_unlock(&GclsByUseMutex);
+}
+
+
+void
+gcl_showusage(FILE *fp)
+{
+	struct gdp_gcl_xtra *x;
+
+	fprintf(fp, "\n*** Showing cached GCLs by usage:\n");
+	LIST_FOREACH(x, &GclsByUse, ulist)
+	{
+		struct tm *tm;
+		char tbuf[40];
+
+		if ((tm = localtime(&x->utime)) == NULL)
+			snprintf(tbuf, sizeof tbuf, "%"PRIu64, (int64_t) x->utime);
+		else
+			strftime(tbuf, sizeof tbuf, "%Y%m%d-%H%M%S", tm);
+		fprintf(fp, "%s %p %s\n", tbuf, x->gcl, x->gcl->pname);
+	}
+	fprintf(fp, "*** End of list\n");
+}
+
 
 
 /*
@@ -65,6 +200,56 @@ implement_me(char *s)
 }
 
 
+EP_STAT
+get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
+{
+	EP_STAT estat;
+
+	EP_ASSERT(req->gclh == NULL);
+
+	// see if we can find the handle in the cache
+	req->gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, iomode);
+	if (req->gclh != NULL)
+	{
+		if (ep_dbg_test(Dbg, 40))
+		{
+			gcl_pname_t pname;
+
+			gdp_gcl_printable_name(req->pkt->gcl_name, pname);
+			ep_dbg_printf("get_open_handle: using cached GCL:\n\t%s => %p\n",
+					pname, req->gclh);
+		}
+
+		// mark it as most recently used
+		gcl_touch(req->gclh);
+		return EP_STAT_OK;
+	}
+
+	// not in cache?  create a new one.
+	if (ep_dbg_test(Dbg, 40))
+	{
+		gcl_pname_t pname;
+
+		gdp_gcl_printable_name(req->pkt->gcl_name, pname);
+		ep_dbg_printf("get_open_handle: opening %s\n", pname);
+	}
+	estat = gcl_open(req->pkt->gcl_name, iomode, &req->gclh);
+	if (EP_STAT_ISOK(estat))
+		_gdp_gcl_cache_add(req->gclh, iomode);
+	if (ep_dbg_test(Dbg, 40))
+	{
+		gcl_pname_t pname;
+		char ebuf[60];
+
+		gdp_gcl_printable_name(req->pkt->gcl_name, pname);
+		ep_stat_tostr(estat, ebuf, sizeof ebuf);
+		ep_dbg_printf("get_open_handle: %s:\n\t@%p: %s\n",
+				pname, req->gclh, ebuf);
+	}
+	return estat;
+}
+
+
 /***********************************************************************
 **  GDP command implementations
 **
@@ -97,16 +282,36 @@ cmd_create(gdp_req_t *req)
 	// no input, so we can reset the buffer just to be safe
 	flush_input_data(req, "cmd_create");
 
-	// do the physical create
-	estat = gcl_create(req->pkt->gcl_name, &gclh);
+	// get the memory space
+	estat = gcl_alloc(req->pkt->gcl_name, GDP_MODE_AO, &gclh);
 	EP_STAT_CHECK(estat, goto fail0);
+	req->gclh = gclh;			// for debugging
+
+	// do the physical create
+	estat = gcl_physcreate(req->pkt->gcl_name, gclh);
+	EP_STAT_CHECK(estat, goto fail1);
 
 	// cache the open GCL Handle for possible future use
 	EP_ASSERT_INSIST(!gdp_gcl_name_is_zero(gclh->gcl_name));
 	_gdp_gcl_cache_add(gclh, GDP_MODE_AO);
 
+	// link it into the usage chain
+	ep_thr_mutex_lock(&gclh->mutex);
+	ep_thr_mutex_lock(&GclsByUseMutex);
+	LIST_INSERT_HEAD(&GclsByUse, gclh->x, ulist);
+	ep_thr_mutex_unlock(&GclsByUseMutex);
+	ep_thr_mutex_unlock(&gclh->mutex);
+
 	// pass any creation info back to the caller
 	// (none at this point)
+
+	// release resources
+	_gdp_gcl_decref(gclh);
+	req->gclh = NULL;
+	return estat;
+
+fail1:
+	_gdp_gcl_freehandle(gclh);
 
 fail0:
 	return estat;
@@ -121,7 +326,6 @@ EP_STAT
 cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gdp_gcl_t *gclh = NULL;
 
 	req->pkt->cmd = GDP_ACK_SUCCESS;
 
@@ -129,34 +333,16 @@ cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 	flush_input_data(req, "cmd_open_xx");
 
 	// see if we already know about this GCL
-	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, iomode);
-	if (gclh != NULL)
+	estat = get_open_handle(req, iomode);
+	if (!EP_STAT_ISOK(estat))
 	{
-		if (ep_dbg_test(Dbg, 12))
-		{
-			gcl_pname_t pname;
-
-			gdp_gcl_printable_name(req->pkt->gcl_name, pname);
-			ep_dbg_printf("cmd_open_xx: using cached handle for %s\n", pname);
-		}
-		rewind(gclh->x->fp);	// make sure we can switch modes (read/write)
-		goto done;
+		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_openxx: could not open GCL",
+							estat, GDP_NAK_C_BADREQ);
 	}
 
-	// nope, I guess we better open it
-	if (ep_dbg_test(Dbg, 12))
-	{
-		gcl_pname_t pname;
-
-		gdp_gcl_printable_name(req->pkt->gcl_name, pname);
-		ep_dbg_printf("cmd_open_xx: doing initial open for %s\n", pname);
-	}
-	estat = gcl_open(req->pkt->gcl_name, iomode, &gclh);
-	if (EP_STAT_ISOK(estat))
-		_gdp_gcl_cache_add(gclh, iomode);
-done:
-	if (gclh != NULL)
-		req->pkt->datum->recno = gcl_max_recno(gclh);
+	req->pkt->datum->recno = gcl_max_recno(req->gclh);
+	_gdp_gcl_decref(req->gclh);
+	req->gclh = NULL;
 	return estat;
 }
 
@@ -187,7 +373,6 @@ cmd_open_ro(gdp_req_t *req)
 EP_STAT
 cmd_close(gdp_req_t *req)
 {
-	gdp_gcl_t *gclh;
 	EP_STAT estat = EP_STAT_OK;
 
 	req->pkt->cmd = GDP_ACK_SUCCESS;
@@ -195,14 +380,16 @@ cmd_close(gdp_req_t *req)
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_close");
 
-	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_ANY);
-	if (gclh == NULL)
+	// a bit wierd to open the GCL only to close it again....
+	estat = get_open_handle(req, GDP_MODE_ANY);
+	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_close: GCL not open",
-							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
+							estat, GDP_NAK_C_BADREQ);
 	}
-	req->pkt->datum->recno = gcl_max_recno(gclh);
-	_gdp_gcl_decref(gclh);
+	req->pkt->datum->recno = gcl_max_recno(req->gclh);
+	_gdp_gcl_decref(req->gclh);
+	req->gclh = NULL;
 
 	return estat;
 }
@@ -218,7 +405,6 @@ cmd_close(gdp_req_t *req)
 EP_STAT
 cmd_read(gdp_req_t *req)
 {
-	gdp_gcl_t *gclh;
 	EP_STAT estat;
 
 	req->pkt->cmd = GDP_ACK_CONTENT;
@@ -226,18 +412,20 @@ cmd_read(gdp_req_t *req)
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_read");
 
-	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_RO);
-	if (gclh == NULL)
+	estat = get_open_handle(req, GDP_MODE_RO);
+	if (!EP_STAT_ISOK(estat))
 	{
-		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_read: GCL not open",
-							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
+		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_read: GCL open failure",
+							estat, GDP_NAK_C_BADREQ);
 	}
 
 	gdp_buf_reset(req->pkt->datum->dbuf);
-	estat = gcl_read(gclh, req->pkt->datum);
+	estat = gcl_physread(req->gclh, req->pkt->datum);
 
 	if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
 		estat = GDP_STAT_NAK_NOTFOUND;
+	_gdp_gcl_decref(req->gclh);
+	req->gclh = NULL;
 	return estat;
 }
 
@@ -251,20 +439,19 @@ cmd_read(gdp_req_t *req)
 EP_STAT
 cmd_publish(gdp_req_t *req)
 {
-	gdp_gcl_t *gclh;
 	EP_STAT estat;
 
 	req->pkt->cmd = GDP_ACK_CREATED;
 
-	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_AO);
-	if (gclh == NULL)
+	estat = get_open_handle(req, GDP_MODE_AO);
+	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_publish: GCL not open",
-							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
+							estat, GDP_NAK_C_BADREQ);
 	}
 
 	// create the message
-	estat = gcl_append(gclh, req->pkt->datum);
+	estat = gcl_physappend(req->gclh, req->pkt->datum);
 
 	// send the new data to any subscribers
 	sub_notify_all_subscribers(req);
@@ -273,7 +460,8 @@ cmd_publish(gdp_req_t *req)
 	evbuffer_drain(req->pkt->datum->dbuf,
 			evbuffer_get_length(req->pkt->datum->dbuf));
 
-	_gdp_gcl_decref(gclh);
+	_gdp_gcl_decref(req->gclh);
+	req->gclh = NULL;
 
 	return estat;
 }
@@ -310,7 +498,7 @@ post_subscribe(gdp_req_t *req)
 		}
 
 		// get the next record and return it as an event
-		estat = gcl_read(req->gclh, req->pkt->datum);
+		estat = gcl_physread(req->gclh, req->pkt->datum);
 		if (EP_STAT_ISOK(estat))
 		{
 			// OK, the next record exists: send it
@@ -384,10 +572,18 @@ post_subscribe(gdp_req_t *req)
 EP_STAT
 cmd_subscribe(gdp_req_t *req)
 {
-	gdp_gcl_t *gclh;
+	EP_STAT estat;
 	EP_TIME_SPEC timeout;
 
 	req->pkt->cmd = GDP_ACK_SUCCESS;
+
+	// find the GCL handle
+	estat = get_open_handle(req, GDP_MODE_RO);
+	if (!EP_STAT_ISOK(estat))
+	{
+		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_subscribe: GCL not open",
+							estat, GDP_NAK_C_BADREQ);
+	}
 
 	// get the additional parameters: number of records and timeout
 	req->numrecs = (int) gdp_buf_get_uint32(req->pkt->datum->dbuf);
@@ -407,14 +603,6 @@ cmd_subscribe(gdp_req_t *req)
 	{
 		req->pkt->cmd = GDP_NAK_C_BADOPT;
 		return GDP_STAT_FROM_C_NAK(req->pkt->cmd);
-	}
-
-	// find the GCL handle
-	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_RO);
-	if (gclh == NULL)
-	{
-		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_subscribe: GCL not open",
-							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 
 	// mark this as persistent and upgradable
@@ -449,10 +637,12 @@ cmd_subscribe(gdp_req_t *req)
 		req->flags |= GDP_REQ_SUBSCRIPTION;
 
 		// link this request into the GCL so the subscription can be found
-		ep_thr_mutex_lock(&gclh->mutex);
-		LIST_INSERT_HEAD(&gclh->reqs, req, list);
-		ep_thr_mutex_unlock(&gclh->mutex);
+		ep_thr_mutex_lock(&req->gclh->mutex);
+		LIST_INSERT_HEAD(&req->gclh->reqs, req, list);
+		ep_thr_mutex_unlock(&req->gclh->mutex);
 	}
+
+	// we don't drop the GCL reference until the subscription is satisified
 
 	return EP_STAT_OK;
 }
@@ -469,9 +659,17 @@ cmd_subscribe(gdp_req_t *req)
 EP_STAT
 cmd_multiread(gdp_req_t *req)
 {
-	gdp_gcl_t *gclh;
+	EP_STAT estat;
 
 	req->pkt->cmd = GDP_ACK_SUCCESS;
+
+	// find the GCL handle
+	estat  = get_open_handle(req, GDP_MODE_RO);
+	if (!EP_STAT_ISOK(estat))
+	{
+		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_multiread: GCL not open",
+							estat, GDP_NAK_C_BADREQ);
+	}
 
 	// get the additional parameters: number of records and timeout
 	req->numrecs = (int) gdp_buf_get_uint32(req->pkt->datum->dbuf);
@@ -501,14 +699,6 @@ cmd_multiread(gdp_req_t *req)
 	{
 		req->pkt->cmd = GDP_NAK_C_BADOPT;
 		return GDP_STAT_FROM_C_NAK(req->pkt->cmd);
-	}
-
-	// find the GCL handle
-	gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, GDP_MODE_RO);
-	if (gclh == NULL)
-	{
-		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_multiread: GCL not open",
-							GDP_STAT_NOT_OPEN, GDP_NAK_C_BADREQ);
 	}
 
 	// get our starting point, which may be relative to the end
@@ -548,9 +738,9 @@ cmd_multiread(gdp_req_t *req)
 		req->flags |= GDP_REQ_SUBSCRIPTION;
 
 		// link this request into the GCL so the subscription can be found
-		ep_thr_mutex_lock(&gclh->mutex);
-		LIST_INSERT_HEAD(&gclh->reqs, req, list);
-		ep_thr_mutex_unlock(&gclh->mutex);
+		ep_thr_mutex_lock(&req->gclh->mutex);
+		LIST_INSERT_HEAD(&req->gclh->reqs, req, list);
+		ep_thr_mutex_unlock(&req->gclh->mutex);
 	}
 
 	return EP_STAT_OK;
@@ -656,7 +846,7 @@ gdpd_req_thread(void *req_)
 	ep_dbg_cprintf(Dbg, 18, "gdpd_req_thread: starting\n");
 
 	// find the GCL handle (if any)
-	req->gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, 0);
+//	req->gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, 0);
 
 	// got the packet, dispatch it based on the command
 	req->stat = dispatch_cmd(req);
@@ -915,6 +1105,17 @@ fail0:
 	return estat;
 }
 
+
+#ifndef SIGINFO
+# define SIGINFO	SIGUSR1
+#endif
+
+void
+siginfo(int sig, short what, void *arg)
+{
+	gcl_showusage(stderr);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -972,6 +1173,9 @@ main(int argc, char **argv)
 		nworkers = 1;
 	CpuJobThreadPool = thread_pool_new(nworkers);
 	thread_pool_init(CpuJobThreadPool);
+
+	// add a debugging signal to print out some internal data structures
+	event_add(evsignal_new(GdpListenerEventBase, SIGINFO, siginfo, NULL), NULL);
 
 	// start the event threads
 	_gdp_start_event_loop_thread(&ListenerEventLoopThread, GdpListenerEventBase,

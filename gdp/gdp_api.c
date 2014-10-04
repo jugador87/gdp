@@ -368,9 +368,8 @@ gdp_gcl_close(gdp_gcl_t *gclh)
 	//XXX should probably check status
 
 	// release resources held by this handle
-	_gdp_req_free(req);
+	_gdp_req_free(req);		// also drops gclh reference
 fail0:
-	//XXX _gdp_gcl_freehandle(gclh);
 	return estat;
 }
 

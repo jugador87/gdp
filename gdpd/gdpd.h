@@ -20,13 +20,25 @@
 
 #include <unistd.h>
 #include <string.h>
+#include <sys/queue.h>
 
 /*
 **  Private GCL definitions for gdpd only
+**
+**		The gcl field is because the LIST macros don't understand
+**		having the links in a substructure (i.e., I can't link a
+**		gdp_gcl_xtra to a gdp_gcl).
 */
 
 struct gdp_gcl_xtra
 {
+	// declarations relating to semantics
+	gdp_gcl_t			*gcl;			// enclosing GCL
+	time_t				utime;			// last usage time (sec only)
+	LIST_ENTRY(gdp_gcl_xtra)
+						ulist;			// list sorted by use time
+
+	// physical implementation declarations
 	long				ver;			// version number of on-disk file
 	FILE				*fp;			// pointer to the on-disk file
 	struct index_entry	*log_index;		// ???

@@ -90,22 +90,29 @@ void
 _gdp_req_free(gdp_req_t *req)
 {
 	ep_dbg_cprintf(Dbg, 48, "gdp_req_free(%p)  gclh=%p\n", req, req->gclh);
-	EP_ASSERT(req->inuse);
-	req->inuse = false;
 
 	ep_thr_mutex_lock(&req->mutex);
+	EP_ASSERT(req->inuse);
 
 	// free the associated packet
 	if (req->pkt != NULL)
 		_gdp_pkt_free(req->pkt);
 	req->pkt = NULL;
 
+	// dereference the gclh
+	if (req->gclh != NULL)
+	{
+		_gdp_gcl_decref(req->gclh);
+		req->gclh = NULL;
+	}
+
+	req->inuse = false;
+	ep_thr_mutex_unlock(&req->mutex);
+
 	// add the empty request to the free list
 	ep_thr_mutex_lock(&ReqFreeListMutex);
 	LIST_INSERT_HEAD(&ReqFreeList, req, list);
 	ep_thr_mutex_unlock(&ReqFreeListMutex);
-
-	ep_thr_mutex_unlock(&req->mutex);
 }
 
 void

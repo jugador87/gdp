@@ -12,23 +12,22 @@ EP_STAT			gcl_physlog_init();
 EP_STAT			gcl_offset_cache_init(
 						gdp_gcl_t *gclh);
 
-EP_STAT			gcl_read(
+EP_STAT			gcl_physread(
 						gdp_gcl_t *gclh,
 						gdp_datum_t *datum);
 
-EP_STAT			gcl_create(
+EP_STAT			gcl_physcreate(
 						gcl_name_t gcl_name,
-						gdp_gcl_t **pgclh);
+						gdp_gcl_t *pgclh);
 
-EP_STAT			gcl_open(
+EP_STAT			gcl_physopen(
 						gcl_name_t gcl_name,
-						gdp_iomode_t mode,
-						gdp_gcl_t **pgclh);
-
-EP_STAT			gcl_close(
 						gdp_gcl_t *gclh);
 
-EP_STAT			gcl_append(
+EP_STAT			gcl_physclose(
+						gdp_gcl_t *gclh);
+
+EP_STAT			gcl_physappend(
 						gdp_gcl_t *gclh,
 						gdp_datum_t *datum);
 
