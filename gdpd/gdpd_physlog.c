@@ -26,7 +26,6 @@
 static EP_DBG	Dbg = EP_DBG_INIT("gdpd.physlog", "GDP Daemon Physical Log");
 
 #define GCL_PATH_MAX		200		// max length of pathname
-#define GCL_DIR				"/var/tmp/gcl"
 
 #define GCL_NEXT_MSG		(-1)	// sentinel for next available message
 
@@ -74,7 +73,8 @@ gcl_physlog_init()
 {
 	EP_STAT estat = EP_STAT_OK;
 
-	// at this point there is nothing to do
+	// find physical location of GCL directory
+	GCLDir = ep_adm_getstrparam("swarm.gdp.gcl.dir", GCL_DIR);
 
 	return estat;
 }
@@ -83,6 +83,10 @@ gcl_physlog_init()
 
 /*
 **	GET_GCL_PATH --- get the pathname to an on-disk version of the gcl
+**
+**		XXX	Once we start having a lot of GCLs, we should probably
+**			create subdirectories based on (at least) the first octet
+**			of the name, possibly more.
 */
 
 static EP_STAT
@@ -344,7 +348,7 @@ gcl_physopen(gcl_name_t gcl_name,
 			(data_fp = fdopen(fd, "a+")) == NULL)
 	{
 		estat = ep_stat_from_errno(errno);
-		gdp_log(estat, "gcl_open(%s): data file open failure", data_pbuf);
+		gdp_log(estat, "gcl_physopen(%s): data file open failure", data_pbuf);
 		if (fd >= 0)
 			close(fd);
 		goto fail1;
@@ -355,7 +359,7 @@ gcl_physopen(gcl_name_t gcl_name,
 	if (fread(&log_header, sizeof(log_header), 1, data_fp) < 1)
 	{
 		estat = ep_stat_from_errno(errno);
-		gdp_log(estat, "gcl_open(%s): header read failure", data_pbuf);
+		gdp_log(estat, "gcl_physopen(%s): header read failure", data_pbuf);
 		goto fail3;
 	}
 
@@ -363,7 +367,7 @@ gcl_physopen(gcl_name_t gcl_name,
 	if (log_header.magic != GCL_LOG_MAGIC)
 	{
 		estat = GDP_STAT_CORRUPT_GCL;
-		gdp_log(estat, "gcl_open: bad magic: found: %" PRIx64
+		gdp_log(estat, "gcl_physopen: bad magic: found: %" PRIx64
 				", expected: %" PRIx64 "\n",
 				log_header.magic, GCL_LOG_MAGIC);
 		goto fail3;
@@ -374,7 +378,7 @@ gcl_physopen(gcl_name_t gcl_name,
 			(index_fp = fdopen(fd, "a+")) == NULL)
 	{
 		estat = ep_stat_from_errno(errno);
-		gdp_log(estat, "gcl_open(%s): index open failure", index_pbuf);
+		gdp_log(estat, "gcl_physopen(%s): index open failure", index_pbuf);
 		if (fd >= 0)
 			close(fd);
 		goto fail4;
@@ -414,7 +418,7 @@ fail0:
 		char ebuf[100];
 
 		//XXX should log
-		fprintf(stderr, "gcl_open: Couldn't open gcl: %s\n",
+		fprintf(stderr, "gcl_physopen: Couldn't open gcl: %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	if (ep_dbg_test(Dbg, 10))
@@ -444,7 +448,7 @@ gcl_physclose(gdp_gcl_t *gclh)
 	if (gclh->x->fp == NULL)
 	{
 		estat = EP_STAT_ERROR;
-		gdp_log(estat, "gcl_close: null fp");
+		gdp_log(estat, "gcl_physclose: null fp");
 	}
 	else
 	{
@@ -506,7 +510,7 @@ gcl_physread(gdp_gcl_t *gclh,
 
 	EP_ASSERT_POINTER_VALID(gclh);
 
-	ep_dbg_cprintf(Dbg, 14, "gcl_read(%" PRIgdp_recno "): ", datum->recno);
+	ep_dbg_cprintf(Dbg, 14, "gcl_physread(%" PRIgdp_recno "): ", datum->recno);
 
 	ep_thr_rwlock_rdlock(&entry->lock);
 
@@ -522,7 +526,7 @@ gcl_physread(gdp_gcl_t *gclh,
 		if (file_size < 0)
 		{
 			estat = ep_stat_from_errno(errno);
-			gdp_log(estat, "gcl_read: fsizeof failed");
+			gdp_log(estat, "gcl_physread: fsizeof failed");
 			goto fail1;
 		}
 		if (file_size < SIZEOF_INDEX_HEADER)
@@ -640,7 +644,7 @@ gcl_physappend(gdp_gcl_t *gclh,
 
 	if (ep_dbg_test(Dbg, 14))
 	{
-		ep_dbg_printf("gcl_append ");
+		ep_dbg_printf("gcl_physappend ");
 		gdp_datum_print(datum, ep_dbg_getfile());
 	}
 
