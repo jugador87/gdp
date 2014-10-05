@@ -23,8 +23,6 @@ Required Packages:
 		a slightly modified version is included with this
 		distribution.
 	Jansson --- JSON library from http://www.digip.org/jansson/.
-		[At this moment this is not being used, but it probably
-		will be in the future.]
 
 Directory Structure:
 	ep --- A library of C utility functions.  This is a stripped
@@ -46,6 +44,8 @@ Directory Structure:
 	doc --- Some documentation, woefully incomplete.
 
 Compiling:
+	First, install the prerequisite packages.
+
 	Should just be a matter of typing "make" in the root.
 	Note: gcc on linux has a bug that causes it to complain about
 	non-constant expressions in an initializer when the -std=c99
@@ -77,6 +77,9 @@ Running a GDP-based program:
 		Can also be set with the "swarm.gdp.controlport"
 		parameter.  See "Changing Parameters" below for more
 		information.
+	   -n<workers>
+		Start up <workers> worker threads.  Defaults to the
+		number of cores available.
 
 	You also have to create the directory "/var/tmp/gcl" to store
 	the data repository.
@@ -86,8 +89,8 @@ Getting Started:
 	all you'll need are libevent2-dev and libssl-dev, but the others
 	are needed for full functionality. The one line installlation for
 	Ubuntu/Linux is:
-        sudo apt-get install libevent-dev libssl-dev cgilib lighttpd\
-        libjansson-dev
+		sudo apt-get install libevent-dev libssl-dev cgilib \
+			lighttpd libjansson-dev
 
    2.	Compile the code as described above.
 
@@ -164,44 +167,14 @@ Running the GDP RESTful Interface:
 	some debugging inside the daemon to help you understand the
 	interactions.  See .../etc/lighttpd/conf.d/debug.conf.
 
-   5.	All of your URIs will start with http://localhost:8080/gdp/v1/gcl,
-	so I'll just abbreviate this part as "...".  Your options are:
+   5.	The actual URIs and methods used by the REST interface are
+	described in doc/gdp-rest-interface.html.  See that for
+	details.
 
-	* GET .../<gcl-name>/<recno>
-		Returns a JSON object with three fields: gcl_name,
-		message_number, and value.  Value will have 8-bit
-		characters and those that would break JSON syntax
-		encoded as %XX, where XX is the hex code for the
-		byte.
-	* POST .../<gcl-name>
-		Adds a new message to the given <gcl-name>.  The
-		value is a JSON object which must at least have a
-		"value" field, which must be encoded as a string.
-		The return value includes the message number in
-		the "msgno" field.
-	* POST ...
-		Creates a new GCL.  The return value will include
-		the name.
-
-	You can do GETs from inside a browser such as Firefox, but not
-	POSTs.  For this you'll need to create a message to send
-	directly to the HTTP server.  For example:
-
-		POST /gdp/v1/gcl/x0_JlrMRD53TaovZ0Mg6LQJzPJYN6tB0tcoSv32UPVk HTTP/1.0
-		Host: localhost:8080
-		Accept: application/json
-		Accept-Language: en-US,en;q=0.5
-		Accept-Encoding: gzip, deflate
-		DNT: 1
-		Connection: keep-alive
-		Content-Length: 34
-
-		{
-			"value": "test001"
-		}
-
-	Some of the headers are probably unnecessary, but I've tested
-	this query in particular.
+	You can do GETs from inside a browser such as Firefox or
+	Chrome, but not POSTs.  To use other methods you'll have to
+	use Chrome.  Install the "postman" extension to enable
+	sending of arbitrary methods such as POST and PUT.
 
 Setting Debug Flags:
 	You can turn on debugging output using a command line flag,
