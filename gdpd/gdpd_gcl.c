@@ -20,6 +20,7 @@ gcl_alloc(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
 {
 	EP_STAT estat;
 	gdp_gcl_t *gclh;
+	struct timeval tv;
 
 	// get the standard handle
 	estat = _gdp_gcl_newhandle(gcl_name, &gclh);
@@ -34,6 +35,8 @@ gcl_alloc(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
 		goto fail0;
 	}
 	gclh->x->gcl = gclh;
+	gettimeofday(&tv, NULL);
+	gclh->x->utime = tv.tv_sec;
 
 	// link it into the usage chain
 	ep_thr_mutex_lock(&GclsByUseMutex);
