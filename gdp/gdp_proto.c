@@ -714,12 +714,12 @@ gdp_event_cb(gdp_chan_t *chan, short events, void *ctx)
 		gdp_buf_t *ievb = bufferevent_get_input(chan);
 		size_t l = gdp_buf_getlength(ievb);
 
-		ep_dbg_cprintf(Dbg, 1, "gdpd_event_cb: got EOF, %zu bytes left\n", l);
+		ep_dbg_cprintf(Dbg, 1, "gdp_event_cb: got EOF, %zu bytes left\n", l);
 		exitloop = true;
 	}
 	if (EP_UT_BITSET(BEV_EVENT_ERROR, events))
 	{
-		ep_dbg_cprintf(Dbg, 1, "gdpd_event_cb: error: %s\n",
+		ep_dbg_cprintf(Dbg, 1, "gdp_event_cb: error: %s\n",
 				evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
 		exitloop = true;
 	}
@@ -791,7 +791,6 @@ run_event_loop(void *ctx)
 		event_base_loop(evb, 0);
 #endif
 
-		// shouldn't happen (?)
 		if (ep_dbg_test(Dbg, 1))
 		{
 			ep_dbg_printf("gdp_event_loop: %s event_base_loop returned\n",
@@ -801,12 +800,18 @@ run_event_loop(void *ctx)
 			if (event_base_got_exit(evb))
 				ep_dbg_printf(" ... as a result of loopexit\n");
 		}
+		if (event_base_got_exit(evb))
+		{
+			// the GDP daemon went away
+			break;
+		}
+
 		if (evdelay > 0)
 			ep_time_nanosleep(evdelay * 1000LL);		// avoid CPU hogging
 	}
 
-	// should never get here, but make gcc happy....
-	return NULL;
+	gdp_log(GDP_STAT_DEAD_DAEMON, "gdpd died");
+	ep_app_abort("lost connection to GDP daemon");
 }
 
 EP_STAT

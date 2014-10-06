@@ -39,6 +39,7 @@ extern void		_gdp_stat_init(void);
 #define GDP_STAT_PROTOCOL_FAIL			GDP_STAT_NEW(SEVERE, 17)
 #define GDP_STAT_CORRUPT_INDEX			GDP_STAT_NEW(SEVERE, 18)
 #define GDP_STAT_CORRUPT_GCL			GDP_STAT_NEW(SEVERE, 19)
+#define GDP_STAT_DEAD_DAEMON			GDP_STAT_NEW(ABORT, 20)
 
 // create EP_STAT from GDP protocol command codes for acks and naks
 //		values from 128-254 reserved for this use
