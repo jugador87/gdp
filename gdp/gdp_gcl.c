@@ -213,9 +213,10 @@ _gdp_gcl_decref(gdp_gcl_t *gclh)
 */
 
 void
-_gdp_gcl_newname(gcl_name_t np)
+_gdp_gcl_newname(gdp_gcl_t *gclh)
 {
-	evutil_secure_rng_get_bytes(np, sizeof (gcl_name_t));
+	evutil_secure_rng_get_bytes(gclh->gcl_name, sizeof gclh->gcl_name);
+	gdp_gcl_printable_name(gclh->gcl_name, gclh->pname);
 }
 
 /*
@@ -244,7 +245,8 @@ _gdp_gcl_newhandle(gcl_name_t gcl_name, gdp_gcl_t **pgclh)
 
 	// success
 	*pgclh = gclh;
-	ep_dbg_cprintf(Dbg, 28, "_gdp_gcl_newhandle => %p\n", gclh);
+	ep_dbg_cprintf(Dbg, 28, "_gdp_gcl_newhandle => %p (%s)\n",
+			gclh, gclh->pname);
 	return estat;
 
 fail1:

@@ -69,7 +69,7 @@ gcl_open(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// so far, so good...  do the physical open
-	estat = gcl_physopen(gcl_name, gclh);
+	estat = gcl_physopen(gclh);
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// success!

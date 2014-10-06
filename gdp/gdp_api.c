@@ -242,7 +242,7 @@ gdp_gcl_create(gcl_name_t gcl_name,
 	EP_STAT_CHECK(estat, goto fail0);
 
 	if (gcl_name == NULL || gdp_gcl_name_is_zero(gcl_name))
-		_gdp_gcl_newname(gclh->gcl_name);
+		_gdp_gcl_newname(gclh);
 
 	estat = _gdp_req_new(GDP_CMD_CREATE, gclh, _GdpChannel, 0, &req);
 	EP_STAT_CHECK(estat, goto fail1);

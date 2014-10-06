@@ -176,7 +176,7 @@ void			_gdp_gcl_freehandle(		// free in-memory handle
 						gdp_gcl_t *gclh);
 
 void			_gdp_gcl_newname(			// create a new name
-						gcl_name_t gcl_name);
+						gdp_gcl_t *gclh);
 
 const char		*_gdp_proto_cmd_name(		// return printable cmd name
 						uint8_t cmd);

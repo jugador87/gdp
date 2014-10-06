@@ -17,11 +17,9 @@ EP_STAT			gcl_physread(
 						gdp_datum_t *datum);
 
 EP_STAT			gcl_physcreate(
-						gcl_name_t gcl_name,
 						gdp_gcl_t *pgclh);
 
 EP_STAT			gcl_physopen(
-						gcl_name_t gcl_name,
 						gdp_gcl_t *gclh);
 
 EP_STAT			gcl_physclose(

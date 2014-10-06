@@ -180,17 +180,16 @@ gcl_index_cache_put(gcl_log_index *entry, int64_t recno, int64_t offset)
 */
 
 EP_STAT
-gcl_physcreate(gcl_name_t gcl_name,
-		gdp_gcl_t *gclh)
+gcl_physcreate(gdp_gcl_t *gclh)
 {
 	EP_STAT estat = EP_STAT_OK;
 	FILE *data_fp;
 	FILE *index_fp;
 
 	// allocate a name
-	if (gdp_gcl_name_is_zero(gcl_name))
+	if (gdp_gcl_name_is_zero(gclh->gcl_name))
 	{
-		_gdp_gcl_newname(gcl_name);
+		_gdp_gcl_newname(gclh);
 	}
 
 	// create a file node representing the gcl
@@ -287,13 +286,7 @@ gcl_physcreate(gcl_name_t gcl_name,
 	new_index->fp = index_fp;
 	gclh->x->fp = data_fp;
 	gclh->x->log_index = new_index;
-	if (ep_dbg_test(Dbg, 10))
-	{
-		gcl_pname_t pname;
-
-		gdp_gcl_printable_name(gclh->gcl_name, pname);
-		ep_dbg_printf("Created GCL Handle %s\n", pname);
-	}
+	ep_dbg_cprintf(Dbg, 10, "Created GCL Handle %s\n", gclh->pname);
 	return estat;
 
 fail3:
@@ -327,8 +320,7 @@ fail1:
 */
 
 EP_STAT
-gcl_physopen(gcl_name_t gcl_name,
-			gdp_gcl_t *gclh)
+gcl_physopen(gdp_gcl_t *gclh)
 {
 	EP_STAT estat = EP_STAT_OK;
 	int fd;
@@ -423,12 +415,10 @@ fail0:
 	}
 	if (ep_dbg_test(Dbg, 10))
 	{
-		gcl_pname_t pname;
 		char ebuf[100];
 
-		gdp_gcl_printable_name(gcl_name, pname);
 		ep_dbg_printf("Couldn't open gcl %s: %s\n",
-				pname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
+				gclh->pname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	return estat;
 }
