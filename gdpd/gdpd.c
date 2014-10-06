@@ -265,7 +265,7 @@ gdpd_init(int listenport)
 				sizeof saddr.sin);
 	}
 	if (lev == NULL)
-		estat = init_error("gdpd_init: could not create evconnlistener");
+		estat = init_error("could not create evconnlistener");
 	else
 		evconnlistener_set_error_cb(lev, listener_error_cb);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -336,7 +336,7 @@ main(int argc, char **argv)
 	{
 		char ebuf[100]; 
 
-		ep_app_abort("Cannot initialize gdp library: %s",
+		ep_app_abort("Cannot initialize gdp library:\n\t%s",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 
@@ -345,7 +345,7 @@ main(int argc, char **argv)
 	{
 		char ebuf[100];
 
-		ep_app_abort("Cannot initialize gcl physlog: %s",
+		ep_app_abort("Cannot initialize gcl physlog:\n\t%s",
 		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 
