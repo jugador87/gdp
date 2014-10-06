@@ -698,14 +698,15 @@ static EP_PRFLAGS_DESC	EventWhatFlags[] =
 	{ 0, 0, NULL }
 };
 
-static void
-gdp_event_cb(gdp_chan_t *chan, short events, void *ctx)
+void
+_gdp_event_cb(gdp_chan_t *chan, short events, void *ctx)
 {
 	bool exitloop = false;
+	struct gdp_event_info *gei = ctx;
 
 	if (ep_dbg_test(Dbg, 25))
 	{
-		ep_dbg_printf("gdp_event_cb: fd %d: ", bufferevent_getfd(chan));
+		ep_dbg_printf("_gdp_event_cb: fd %d: ", bufferevent_getfd(chan));
 		ep_prflags(events, EventWhatFlags, ep_dbg_getfile());
 		ep_dbg_printf("\n");
 	}
@@ -714,17 +715,22 @@ gdp_event_cb(gdp_chan_t *chan, short events, void *ctx)
 		gdp_buf_t *ievb = bufferevent_get_input(chan);
 		size_t l = gdp_buf_getlength(ievb);
 
-		ep_dbg_cprintf(Dbg, 1, "gdp_event_cb: got EOF, %zu bytes left\n", l);
+		ep_dbg_cprintf(Dbg, 1, "_gdp_event_cb: got EOF, %zu bytes left\n", l);
 		exitloop = true;
 	}
 	if (EP_UT_BITSET(BEV_EVENT_ERROR, events))
 	{
-		ep_dbg_cprintf(Dbg, 1, "gdp_event_cb: error: %s\n",
+		ep_dbg_cprintf(Dbg, 1, "_gdp_event_cb: error: %s\n",
 				evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
 		exitloop = true;
 	}
 	if (exitloop)
-		event_base_loopexit(GdpIoEventBase, NULL);
+	{
+		if (gei->exit_cb != NULL)
+			(*gei->exit_cb)(GdpIoEventBase, chan, gei);
+		else
+			event_base_loopexit(GdpIoEventBase, NULL);
+	}
 }
 
 
@@ -810,8 +816,8 @@ run_event_loop(void *ctx)
 			ep_time_nanosleep(evdelay * 1000LL);		// avoid CPU hogging
 	}
 
-	gdp_log(GDP_STAT_DEAD_DAEMON, "gdpd died");
-	ep_app_abort("lost connection to GDP daemon");
+	gdp_log(GDP_STAT_DEAD_DAEMON, "lost connection to gdp daemon");
+	ep_app_abort("lost connection to gdp daemon");
 }
 
 EP_STAT
@@ -848,6 +854,7 @@ evlib_log_cb(int severity, const char *msg)
 		sev = sevstrings[severity];
 	ep_dbg_cprintf(EvlibDbg, ((4 - severity) * 20) + 2, "[%s] %s\n", sev, msg);
 }
+
 
 /*
 **  Initialization, Part 1:
@@ -906,7 +913,6 @@ fail0:
 	return estat;
 }
 
-
 /*
 **	Initialization, Part 2:
 **		Open the connection to gdpd.
@@ -932,6 +938,10 @@ _gdp_do_init_2(const char *gdpd_addr)
 		goto fail0;
 	}
 
+	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
+	bufferevent_setcb(chan, gdp_read_cb, NULL, _gdp_event_cb, gei);
+	bufferevent_enable(chan, EV_READ | EV_WRITE);
+
 	// attach it to a socket
 	char abuf[100];
 	struct addrinfo *res;
@@ -940,11 +950,6 @@ _gdp_do_init_2(const char *gdpd_addr)
 	int r;
 	char *port;
 
-	memset(&hints, '\0', sizeof hints);
-
-	bufferevent_setcb(chan, gdp_read_cb, NULL, gdp_event_cb, NULL);
-	bufferevent_enable(chan, EV_READ | EV_WRITE);
-
 	// get the host:port info into abuf
 	if (gdpd_addr == NULL)
 		gdpd_addr = ep_adm_getstrparam("swarm.gdp.gdpd.addr", NULL);
@@ -952,6 +957,7 @@ _gdp_do_init_2(const char *gdpd_addr)
 		snprintf(abuf, sizeof abuf, "127.0.0.1:%d", GDP_PORT_DEFAULT);
 	else
 		strlcpy(abuf, gdpd_addr, sizeof abuf);
+	memset(&hints, '\0', sizeof hints);
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 	port = strchr(abuf, ':');

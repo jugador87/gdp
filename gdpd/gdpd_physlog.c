@@ -27,8 +27,6 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdpd.physlog", "GDP Daemon Physical Log");
 
 #define GCL_PATH_MAX		200		// max length of pathname
 
-#define GCL_NEXT_MSG		(-1)	// sentinel for next available message
-
 static const char	*GCLDir;		// the gcl data directory
 
 typedef struct index_entry

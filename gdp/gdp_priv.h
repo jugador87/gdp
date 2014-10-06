@@ -147,7 +147,14 @@ struct event_loop_info
 	const char			*where;		// a name to convey in errors
 };
 
-#define GCL_NEXT_MSG	(-1)		// sentinel for next available message
+// callback info passed into individual events
+struct gdp_event_info
+{
+	void				(*exit_cb)(		// called on event loop exit
+							struct event_base *evb,
+							gdp_chan_t *chan,
+							struct gdp_event_info *gei);
+};
 
 gdp_gcl_t		*_gdp_gcl_cache_get(		// get entry from cache
 						gcl_name_t gcl_name,
@@ -213,5 +220,10 @@ void			_gdp_req_dump(				// print (debug) request
 
 void			_gdp_chan_drain_input(		// drain all input from channel
 						gdp_chan_t *chan);
+
+void			_gdp_event_cb(				// handle unusual events
+						gdp_chan_t *chan,
+						short events,
+						void *ctx);
 
 #endif // _GDP_PRIV_H_

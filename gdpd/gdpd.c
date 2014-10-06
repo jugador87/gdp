@@ -69,14 +69,14 @@ gdpd_req_thread(void *req_)
 
 
 /*
-**  LEV_READ_CB --- handle reads on command sockets
+**  CMDSOCK_READ_CB --- handle reads on command sockets
 **
 **		The ctx argument is unused, but we pass it down anyway in case
 **		we ever want to make use of it.
 */
 
 void
-lev_read_cb(gdp_chan_t *chan, void *ctx)
+cmdsock_read_cb(gdp_chan_t *chan, void *ctx)
 {
 	EP_STAT estat;
 	gdp_req_t *req;
@@ -85,7 +85,7 @@ lev_read_cb(gdp_chan_t *chan, void *ctx)
 	estat = _gdp_req_new(0, NULL, chan, 0, &req);
 	if (!EP_STAT_ISOK(estat))
 	{
-		gdp_log(estat, "lev_read_cb: cannot allocate request");
+		gdp_log(estat, "cmdsock_read_cb: cannot allocate request");
 		return;
 	}
 	req->pkt->datum = gdp_datum_new();
@@ -109,13 +109,30 @@ lev_read_cb(gdp_chan_t *chan, void *ctx)
 	thread_pool_add_job(CpuJobThreadPool, new_job);
 }
 
+
 /*
-**	LEV_EVENT_CB --- handle special events on socket
+**  CMDSOCK_CLOSE_CB --- called when a socket closes
 */
 
 void
-lev_event_cb(gdp_chan_t *chan, short events, void *ctx)
+cmdsock_close_cb(struct event_base *eb,
+		gdp_chan_t *chan,
+		struct gdp_event_info *gei)
 {
+	ep_dbg_cprintf(Dbg, 10, "cmdsock_close_cb:\n");
+
+	// do cleanup, release resources, etc.
+}
+
+
+/*
+**	CMDSOCK_EVENT_CB --- handle special events on listener socket
+*/
+
+void
+cmdsock_event_cb(gdp_chan_t *chan, short events, void *ctx)
+{
+	_gdp_event_cb(chan, events, ctx);
 	if (EP_UT_BITSET(BEV_EVENT_ERROR, events))
 	{
 		EP_STAT estat = ep_stat_from_errno(errno);
@@ -182,7 +199,9 @@ accept_cb(struct evconnlistener *lev,
 		ep_dbg_printf("accept_cb: connection from %s\n", abuf);
 	}
 
-	bufferevent_setcb(chan, lev_read_cb, NULL, lev_event_cb, NULL);
+	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
+	gei->exit_cb = &cmdsock_close_cb;
+	bufferevent_setcb(chan, cmdsock_read_cb, NULL, cmdsock_event_cb, gei);
 	bufferevent_enable(chan, EV_READ | EV_WRITE);
 }
 
@@ -365,5 +384,5 @@ main(int argc, char **argv)
 
 	// should never get here
 	pthread_join(ListenerEventLoopThread, NULL);
-	ep_app_abort("Fell out of event loop");
+	ep_app_abort("Fell out of ListenerEventLoopThread");
 }
