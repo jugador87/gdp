@@ -334,6 +334,9 @@ siginfo(int sig, short what, void *arg)
 /*
 **  MAIN!
 **
+**		Sets the number of threads in the pool to twice the number
+**		of cores.  It's not clear this is a good number.
+**
 **		XXX	Currently always runs in foreground.  This will change
 **			to run in background unless -D or -F are specified.
 **			Running in background should probably also turn off
@@ -347,7 +350,7 @@ main(int argc, char **argv)
 	int listenport = -1;
 	bool run_in_foreground = false;
 	EP_STAT estat;
-	long nworkers = sysconf(_SC_NPROCESSORS_ONLN);
+	long nworkers = 0;
 
 	while ((opt = getopt(argc, argv, "D:Fn:P:")) > 0)
 	{
@@ -394,7 +397,12 @@ main(int argc, char **argv)
 	}
 
 	if (nworkers <= 0)
-		nworkers = 1;
+	{
+		nworkers = sysconf(_SC_NPROCESSORS_ONLN) * 2;
+		nworkers = ep_adm_getintparam("swarm.gdpd.nworkers", nworkers);
+		if (nworkers <= 0)
+			nworkers = 1;
+	}
 	CpuJobThreadPool = thread_pool_new(nworkers);
 	thread_pool_init(CpuJobThreadPool);
 

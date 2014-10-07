@@ -215,6 +215,8 @@ Changing Parameters:
 		discovery.  Defaults to 2468.
 	swarm.gdpd.controlport --- the rendezvous port used by the GDP
 		daemon.
+	swarm.gdpd.nworkers --- the number of worker threads.  Defaults
+		to twice the number of cores on the machine.
 	swarm.rest.scgiport --- the port number for the SCGI server to
 		listen on.  If you change this you'll also have to
 		change the lighttpd configuration.  Defaults to 8001.
