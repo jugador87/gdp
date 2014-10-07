@@ -146,12 +146,18 @@ cmdsock_event_cb(gdp_chan_t *chan, short events, void *ctx)
 		bufferevent_free(chan);
 }
 
+
 /*
-**	ACCEPT_CB --- called when a new connection is accepted
+**	LEV_ACCEPT_CB --- called when a new connection is accepted
+**
+**		Called from evconnlistener with the new socket (which
+**		turns into a control socket).  This is a bit weird
+**		because the listener side has a different event base
+**		than the control side.
 */
 
 void
-accept_cb(struct evconnlistener *lev,
+lev_accept_cb(struct evconnlistener *lev,
 		evutil_socket_t sockfd,
 		struct sockaddr *sa,
 		int salen,
@@ -169,14 +175,14 @@ accept_cb(struct evconnlistener *lev,
 	if (chan == NULL)
 	{
 		gdp_log(ep_stat_from_errno(errno),
-				"accept_cb: could not allocate bufferevent");
+				"lev_accept_cb: could not allocate bufferevent");
 		return;
 	}
 
 	if (getpeername(sockfd, &saddr.sa, &slen) < 0)
 	{
 		gdp_log(ep_stat_from_errno(errno),
-				"accept_cb: connection from unknown peer");
+				"lev_accept_cb: connection from unknown peer");
 	}
 	else if (ep_dbg_test(Dbg, 20))
 	{
@@ -196,7 +202,7 @@ accept_cb(struct evconnlistener *lev,
 			strcpy("<unknown>", abuf);
 			break;
 		}
-		ep_dbg_printf("accept_cb: connection from %s\n", abuf);
+		ep_dbg_printf("lev_accept_cb: connection from %s\n", abuf);
 	}
 
 	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
@@ -205,12 +211,13 @@ accept_cb(struct evconnlistener *lev,
 	bufferevent_enable(chan, EV_READ | EV_WRITE);
 }
 
+
 /*
-**	LISTENER_ERROR_CB --- called if there is an error when listening
+**	LEV_ERROR_CB --- called if there is an error when listening
 */
 
 void
-listener_error_cb(struct evconnlistener *lev, void *ctx)
+lev_error_cb(struct evconnlistener *lev, void *ctx)
 {
 	struct event_base *evbase = evconnlistener_get_base(lev);
 	int err = EVUTIL_SOCKET_ERROR();
@@ -276,7 +283,7 @@ gdpd_init(int listenport)
 		saddr.sin.sin_addr.s_addr = INADDR_ANY;
 		saddr.sin.sin_port = htons(listenport);
 		lev = evconnlistener_new_bind(GdpListenerEventBase,
-				accept_cb,
+				lev_accept_cb,
 				NULL,		// context
 				LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_THREADSAFE,
 				-1,
@@ -286,7 +293,7 @@ gdpd_init(int listenport)
 	if (lev == NULL)
 		estat = init_error("could not create evconnlistener");
 	else
-		evconnlistener_set_error_cb(lev, listener_error_cb);
+		evconnlistener_set_error_cb(lev, lev_error_cb);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// success!
