@@ -259,6 +259,7 @@ gdpd_init(int listenport)
 
 	estat = _gdp_do_init_1();
 	EP_STAT_CHECK(estat, goto fail0);
+	ep_adm_readparams("gdpd");
 
 	// initialize the protocol module
 	gdpd_proto_init();

@@ -880,6 +880,7 @@ _gdp_do_init_1(void)
 
 	// initialize the EP library
 	ep_lib_init(EP_LIB_USEPTHREADS);
+	ep_adm_readparams("gdp");
 
 	// register status strings
 	_gdp_stat_init();

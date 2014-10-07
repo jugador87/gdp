@@ -50,6 +50,8 @@ void	ep_mem_free(void *);
 
 #define EP_UT_BITSET(bit, word)	(((bit) & (word)) != 0)
 
+extern void		ep_adm_readparams(	// search for parameter files
+				const char *name);	// name to search for
 extern int		ep_adm_getintparam(	// get integer param value
 				const char *name,	// name of param
 				int def);		// default value

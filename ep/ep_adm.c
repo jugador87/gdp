@@ -36,11 +36,159 @@
 
 EP_SRC_ID("@(#)$Id: ep_adm.c 252 2008-09-16 21:24:42Z eric $");
 
+static EP_HASH	*ParamHash;
+
+
+/*
+**  READ_PARAM_FILE --- parses a single file based on absolute path name
+*/
+
+static void
+read_param_file(char *path)
+{
+	FILE *fp = NULL;
+	char lbuf[200];
+
+	if (path == NULL || (fp = fopen(path, "r")) == NULL)
+		return;
+
+	while (fgets(lbuf, sizeof lbuf, fp) != NULL)
+	{
+		char *p;
+		char *np;		// pointer to name
+		char *vp;		// pointer to value
+
+		p = lbuf;
+		if (*p == '#')
+			continue;	// comment
+		p += strspn(p, " \t\n");	// trim leading wsp
+		np = p;
+		p += strcspn(p, " \t\n=");	// find end of name
+		if (*p == '\0')
+			continue;		// syntax: no value
+		else if (*p == '=')
+			*p++ = '\0';	// no wsp at end of name
+		else
+		{
+			// trim white space from end of name
+			*p++ = '\0';
+			p += strspn(p, " \t\n");
+			if (*p++ != '=')
+				continue;	// syntax: bad name
+		}
+		p += strspn(p, " \t\n");	// skip wsp before val
+		vp = p;
+		p += strcspn(p, "\n");
+		*p = '\0';
+
+		// store it into the hash table
+		ep_hash_insert(ParamHash, strlen(np), np, ep_mem_strdup(vp));
+	}
+
+	fclose(fp);
+}
+
+
+/*
+**  GET_PARAM_PATH --- create the search path
+**
+**	Instances of "~" are converted to refer to the home directory.
+*/
+
+static char *
+get_param_path(void)
+{
+	static char *path = NULL;
+	static char pathbuf[200];
+
+	if (path != NULL)
+		return path;
+
+	// initialize the hash table
+	ParamHash = ep_hash_new("ep_adm hash", NULL, 97);
+
+	path = getenv("PARAM_PATH");
+	if (path == NULL)
+	{
+		strlcpy(pathbuf, ".ep_adm_params:", sizeof pathbuf);
+		path = getenv("HOME");
+		if (path != NULL)
+		{
+			strlcat(pathbuf, path, sizeof pathbuf);
+			strlcat(pathbuf, "/.ep_adm_params:", sizeof pathbuf);
+		}
+		strlcat(pathbuf, "/usr/local/etc/ep_adm_params",
+				sizeof pathbuf);
+	}
+	else
+	{
+		int i = sizeof pathbuf;
+		char *p = pathbuf;
+
+		while (*path != '\0' && --i > 0)
+		{
+			if (*path == '~')
+			{
+				char *home = getenv("HOME");
+				int j;
+
+				if (home == NULL)
+					home = ".";
+				j = strlen(home);
+				strlcpy(p, home, j);
+				p += j;
+				i -= j;
+				path++;
+			}
+			else
+			{
+				*p++ = *path++;
+			}
+		}
+		*p = '\0';
+	}
+	path = pathbuf;
+	return path;
+}
+
+
+/*
+**  EP_ADM_READPARAMS --- read one or more files based on a search path
+**
+**	Actually reads them in reverse order so that the first ones
+**	override.
+*/
+
+void
+ep_adm_readparams(const char *name)
+{
+	char fnbuf[200];
+	char pbuf[400];
+	char *path = get_param_path();
+	char *p;
+
+	strlcpy(pbuf, get_param_path(), sizeof pbuf);
+	while ((p = strrchr(pbuf, ':')) != NULL)
+	{
+		*p++ = '\0';
+		if (*p != '\0')
+		{
+			snprintf(fnbuf, sizeof fnbuf, "%s/%s", p, name);
+			read_param_file(fnbuf);
+		}
+	}
+	if (*path != '\0')
+	{
+		snprintf(fnbuf, sizeof fnbuf, "%s/%s", pbuf, name);
+		read_param_file(fnbuf);
+	}
+}
+
+
 static const char *
 getparamval(
 	const char *pname)
 {
-	static EP_HASH *phash = NULL;
 	static bool recurse = false;
 
 	// don't allow recursive calls into this routine
@@ -48,61 +196,14 @@ getparamval(
 		return NULL;
 
 	// if we have no data, read it in
-	if (phash == NULL)
+	if (ParamHash == NULL)
 	{
-		FILE *fp = NULL;
-		char *paramfile = getenv("APPLICATION_PARAMS");
-		char lbuf[200];
-
 		recurse = true;
-		if (paramfile == NULL ||
-		    (fp = fopen(paramfile, "r")) == NULL)
-			goto fail0;
-
-		phash = ep_hash_new("ep_adm hash", NULL, 97);
-
-		while (fgets(lbuf, sizeof lbuf, fp) != NULL)
-		{
-			char *p;
-			char *np;		// pointer to name
-			char *vp;		// pointer to value
-
-			p = lbuf;
-			if (*p == '#')
-				continue;	// comment
-			p += strspn(p, " \t\n");	// trim leading wsp
-			np = p;
-			p += strcspn(p, " \t\n=");	// find end of name
-			if (*p == '\0')
-				continue;		// syntax: no value
-			else if (*p == '=')
-				*p++ = '\0';	// no wsp at end of name
-			else
-			{
-				// trim white space from end of name
-				*p++ = '\0';
-				p += strspn(p, " \t\n");
-				if (*p++ != '=')
-					continue;	// syntax: bad name
-			}
-			p += strspn(p, " \t\n");	// skip wsp before val
-			vp = p;
-			p += strcspn(p, "\n");
-			*p = '\0';
-
-			// store it into the hash table
-			ep_hash_insert(phash, strlen(np), np, ep_mem_strdup(vp));
-		}
-
-		fclose(fp);
+		ep_adm_readparams("defaults");
 		recurse = false;
 	}
 
-	return ep_hash_search(phash, strlen(pname), pname);
-
-fail0:
-	// leave recurse = true so future calls will just return null
-	return NULL;
+	return ep_hash_search(ParamHash, strlen(pname), pname);
 }
 
 
