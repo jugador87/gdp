@@ -313,6 +313,20 @@ fail0:
 
 
 /*
+**  GDPD_RECLAIM_RESOURCES --- called periodically to prune old resources
+**
+**		This should really do reclaimation in a thread.
+*/
+
+static void
+gdpd_reclaim_resources(int fd, short what, void *ctx)
+{
+	ep_dbg_cprintf(Dbg, 39, "reclaim_resources\n");
+	gcl_reclaim_resources();
+}
+
+
+/*
 **  SIGINFO --- called to print out internal state (for debugging)
 **
 **		On BSD and MacOS this is implemented as a SIGINFO (^T from
@@ -409,6 +423,15 @@ main(int argc, char **argv)
 
 	// add a debugging signal to print out some internal data structures
 	event_add(evsignal_new(GdpListenerEventBase, SIGINFO, siginfo, NULL), NULL);
+
+	// arrange to clean up resources periodically
+	{
+		long gc_intvl = ep_adm_getlongparam("swarm.gdpd.reclaim.interval", 15L);
+		struct timeval tv = { gc_intvl, 0 };
+		struct event *evtimer = event_new(GdpListenerEventBase, -1,
+									EV_PERSIST, &gdpd_reclaim_resources, NULL);
+		event_add(evtimer, &tv);
+	}
 
 	// start the event threads
 	_gdp_start_event_loop_thread(&ListenerEventLoopThread, GdpListenerEventBase,

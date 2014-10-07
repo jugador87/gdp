@@ -198,3 +198,38 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 	}
 	return estat;
 }
+
+
+/*
+**  GCL_RECLAIM_RESOURCES --- find unused GCL resources and reclaim them
+**
+**		This should really also have a maximum number of GCLs to leave
+**		open so we don't run out of file descriptors under high load.
+*/
+
+void
+gcl_reclaim_resources(void)
+{
+	// how long to leave GCLs open before reclaiming (default: 5 minutes)
+	time_t gcl_minage = ep_adm_getlongparam("swarm.gdpd.gcl.reclaim-age", 300L);
+	struct timeval tv;
+	struct gdp_gcl_xtra *x;
+
+	ep_dbg_cprintf(Dbg, 28, "gcl_reclaim_resources(reclaim-age = %ld)\n",
+					gcl_minage);
+
+	gettimeofday(&tv, NULL);
+	gcl_minage = tv.tv_sec - gcl_minage;
+
+	for (;;)
+	{
+		ep_thr_mutex_lock(&GclsByUseMutex);
+		x = LIST_FIRST(&GclsByUse);
+		ep_thr_mutex_unlock(&GclsByUseMutex);
+		if (x == NULL || x->utime > gcl_minage)
+			break;
+		if (x->gcl->refcnt > 0 || EP_UT_BITSET(GCLF_DROPPING, x->gcl->flags))
+			continue;
+		_gdp_gcl_freehandle(x->gcl);
+	}
+}
