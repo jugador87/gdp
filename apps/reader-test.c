@@ -34,7 +34,7 @@
 EP_STAT
 do_simpleread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int numrecs)
 {
-	EP_STAT estat;
+	EP_STAT estat = EP_STAT_OK;
 	gdp_recno_t recno = firstrec;
 	gdp_datum_t *datum = gdp_datum_new();
 

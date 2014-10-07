@@ -9,6 +9,7 @@
 
 #include <stdarg.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 gdp_buf_t *
 gdp_buf_new(void)
