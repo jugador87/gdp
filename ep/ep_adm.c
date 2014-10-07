@@ -46,7 +46,6 @@ getparamval(
 	// don't allow recursive calls into this routine
 	if (recurse)
 		return NULL;
-	recurse = true;
 
 	// if we have no data, read it in
 	if (phash == NULL)
@@ -55,6 +54,7 @@ getparamval(
 		char *paramfile = getenv("APPLICATION_PARAMS");
 		char lbuf[200];
 
+		recurse = true;
 		if (paramfile == NULL ||
 		    (fp = fopen(paramfile, "r")) == NULL)
 			goto fail0;
