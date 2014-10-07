@@ -311,6 +311,14 @@ fail0:
 }
 
 
+/*
+**  SIGINFO --- called to print out internal state (for debugging)
+**
+**		On BSD and MacOS this is implemented as a SIGINFO (^T from
+**		the command line), but since Linux doesn't have that we use
+**		SIGUSR1 instead.
+*/
+
 #ifndef SIGINFO
 # define SIGINFO	SIGUSR1
 #endif
@@ -321,6 +329,16 @@ siginfo(int sig, short what, void *arg)
 	gcl_showusage(stderr);
 	ep_dumpfds(stderr);
 }
+
+
+/*
+**  MAIN!
+**
+**		XXX	Currently always runs in foreground.  This will change
+**			to run in background unless -D or -F are specified.
+**			Running in background should probably also turn off
+**			SIGINFO, since it doesn't make sense in that context.
+*/
 
 int
 main(int argc, char **argv)
