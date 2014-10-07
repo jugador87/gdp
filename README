@@ -23,6 +23,8 @@ Required Packages:
 		a slightly modified version is included with this
 		distribution.
 	Jansson --- JSON library from http://www.digip.org/jansson/.
+		On Linux it can be installed as the libjansson4 package.
+		On MacOS and FreeBSD it is the "jansson" port or pkg.
 
 Directory Structure:
 	ep --- A library of C utility functions.  This is a stripped
