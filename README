@@ -197,31 +197,41 @@ Setting Debug Flags:
 
 Changing Parameters:
 	If you want to change parameters such as socket numbers or the
-	GCL directory you can do so without recompiling.  Create
-	a file with "name=value" pairs, one per line.  Set the
-	environment variable "APPLICATION_PARAMS" to point at that
-	file (use the full pathname).
+	GCL directory you can do so without recompiling.  Configuration
+	files are simple "name=value" pairs, one per line.  There is
+	a built-in search path
+	".ep_adm_params:~/.ep_adm_params:/usr/local/etc/ep_adm_params"
+	that can be overridden the PARAM_PATH environment variable.
+	Those directories are searched for files named "gdpd" (for
+	gdpd only), "gdp" (for all programs that use the GDP), or
+	"defaults" (for all programs).
 
-	Parameters you can change in that file include:
+	Parameters you can change in those files include:
 
 	swarm.gdp.gdpd.addr --- the address of the gdp daemon (used
-		by clients.  Defaults to 127.0.0.1:2468.
+		by clients).  This should eventually be replaced by
+		service discovery.  Defaults to 127.0.0.1:2468.
 	swarm.gdp.event.loopdelay --- if the event loop exits for some
 		reason, this is the number of microseconds to delay
 		before restarting the loop.  Defaults to 100000 (100msec).
 	swarm.gdp.event.looptimeout --- the timeout for the event loop;
 		this is mostly just to make sure things don't "hang up"
 		forever.  Defaults to 30 (seconds).
-	swarm.gdp.gcl.dir --- the data directory (e.g., /var/tmp/gcl).
-		Daemon.  This should eventually be replaced by service
-		discovery.  Defaults to 2468.
 	swarm.gdpd.controlport --- the rendezvous port used by the GDP
-		daemon.
+		daemon.  Must match the port in swarm.gdp.gdpd.addr.
+		Defaults to 2468.
+	swarm.gdpd.gcl.dir --- the data directory (e.g., /var/tmp/gcl).
+		Defaults to "/var/tmp/gcl".
 	swarm.gdpd.nworkers --- the number of worker threads.  Defaults
 		to twice the number of cores on the machine.
+	swarm.gdpd.reclaim.interval --- how often to wake up to
+		reclaim unused resources.  Defaults to 15 (seconds).
+	swarm.gdpd.gcl.reclaim-age --- how long a GCL is permitted to
+		sit idle before its resources are reclaimed.  Defaults
+		to 300 (seconds, i.e., five minutes).
+	swarm.rest.prefix --- the REST prefix (e.g., /gdp/v1/).
 	swarm.rest.scgiport --- the port number for the SCGI server to
 		listen on.  If you change this you'll also have to
 		change the lighttpd configuration.  Defaults to 8001.
-	swarm.rest.prefix --- the REST prefix (e.g., /gdp/v1/).
 	libep.time.accuracy --- the value filled in for the "accuracy"
 		field in time structures (defaults to zero).

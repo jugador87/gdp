@@ -72,7 +72,7 @@ gcl_physlog_init()
 	EP_STAT estat = EP_STAT_OK;
 
 	// find physical location of GCL directory
-	GCLDir = ep_adm_getstrparam("swarm.gdp.gcl.dir", GCL_DIR);
+	GCLDir = ep_adm_getstrparam("swarm.gdpd.gcl.dir", GCL_DIR);
 
 	return estat;
 }
@@ -126,7 +126,7 @@ gcl_index_create_cache(gdp_gcl_t *gclh, gcl_log_index **out)
 	index->max_recno = 0;
 	index->max_data_offset = gclh->x->data_offset;
 	index->max_index_offset = SIZEOF_INDEX_HEADER;
-	int cache_size = ep_adm_getintparam("swarm.gdp.index.cachesize", 65536);
+	int cache_size = ep_adm_getintparam("swarm.gdpd.index.cachesize", 65536);
 								// 1 MiB index cache
 	index->index_cache = circular_buffer_new(cache_size);
 	*out = index;
