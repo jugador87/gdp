@@ -209,6 +209,17 @@ cmd_read(gdp_req_t *req)
 							estat, GDP_NAK_C_BADREQ);
 	}
 
+	// handle record numbers relative to the end
+	if (req->pkt->datum->recno <= 0)
+	{
+		req->pkt->datum->recno += gcl_max_recno(req->gclh) + 1;
+		if (req->pkt->datum->recno <= 0)
+		{
+			// can't read before the beginning
+			req->pkt->datum->recno = 1;
+		}
+	}
+
 	gdp_buf_reset(req->pkt->datum->dbuf);
 	estat = gcl_physread(req->gclh, req->pkt->datum);
 

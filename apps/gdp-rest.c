@@ -633,7 +633,12 @@ gcl_do_get(scgi_request *req, gcl_name_t gcliname, struct qkvpair *qkvs)
 	}
 	else if (qrecno != NULL)
 	{
-		gdp_recno_t recno = atol(qrecno);
+		gdp_recno_t recno;
+
+		if (strcmp(qrecno, "last") == 0)
+			recno = -1;
+		else
+			recno = atol(qrecno);
 		estat = a_read_datum(req, gcliname, recno);
 	}
 	else
@@ -801,6 +806,7 @@ main(int argc, char **argv, char **env)
 	int listenport = -1;
 	int64_t poll_delay;
 	char *gdpd_addr = NULL;
+	bool show_usage = false;
 	extern void run_scgi_protocol(void);
 
 	while ((opt = getopt(argc, argv, "D:G:p:u:")) > 0)
@@ -822,10 +828,22 @@ main(int argc, char **argv, char **env)
 		case 'u':						// URI prefix
 			GclUriPrefix = optarg;
 			break;
+
+		default:
+			show_usage = true;
+			break;
 		}
 	}
 	argc -= optind;
 	argv += optind;
+
+	if (show_usage || argc > 0)
+	{
+		fprintf(stderr,
+				"Usage: %s [-D dbgspec] [-G host:port] [-p port] [-u prefix]\n",
+				ep_app_getprogname());
+		exit(EX_USAGE);
+	}
 
 	if (listenport < 0)
 		listenport = ep_adm_getintparam("swarm.rest.scgiport", 8001);

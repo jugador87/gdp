@@ -30,6 +30,7 @@ main(int argc, char **argv)
 	bool append = false;
 	char *xname = NULL;
 	char buf[200];
+	bool show_usage = false;
 
 	// collect command-line arguments
 	while ((opt = getopt(argc, argv, "aD:G:")) > 0)
@@ -47,6 +48,10 @@ main(int argc, char **argv)
 		 case 'G':
 			gdpd_addr = optarg;
 			break;
+
+		 default:
+			show_usage = true;
+			break;
 		}
 	}
 	argc -= optind;
@@ -59,7 +64,7 @@ main(int argc, char **argv)
 		argc--;
 		argv++;
 	}
-	if (argc != 0 || (append && xname == NULL))
+	if (show_usage || argc != 0 || (append && xname == NULL))
 	{
 		fprintf(stderr, "Usage: %s [-D dbgspec] [-a] [<gcl_name>]\n"
 				"  (name is required for -a)\n",

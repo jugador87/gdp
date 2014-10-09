@@ -86,8 +86,8 @@
         metadata matches some pattern, but that would require a change
         in the GDP protocol itself.]]</i><br>
     </p>
-    <p>Not implemented at this time (requires GDP protocol extension).&nbsp;
-      Returns 405 Method Not Allowed.<br>
+    <p>Not implemented at this time (requires GDP protocol
+      extension).&nbsp; Returns 405 Method Not Allowed.<br>
     </p>
     <hr width="100%" size="2">
     <h4>Name</h4>
@@ -207,15 +207,18 @@
     <p>404 Not Found<br>
     </p>
     <h4>Description</h4>
-    <p>Returns the contents of the record indicated by <i>recno</i>.<br>
+    <p>Returns the contents of the record indicated by <i>recno</i>.&nbsp;
+      As a special case, if recno is the text "last" it returns the last
+      (most recently written) record.<br>
     </p>
     <p>Note that the metadata is included in the response header, not in
       the data itself, in order to maintain the opacity of that data. <i>Question:
 
+
         should we move the metadata into the header for other commands
         as well to maintain symmetry?</i><br>
     </p>
-    <p>This call is not orthogonal than the others because it does not
+    <p>This call is not orthogonal to the others because it does not
       assume that the data is application/json.<br>
     </p>
     <hr width="100%" size="2">
@@ -239,6 +242,7 @@
     <h4>Name</h4>
     GET
     /gdp/v1/gcl/gcl_id?recno=&lt;#&gt;&amp;nrecs=&lt;#&gt;&amp;timeout=&lt;seconds&gt;
+
 
     — monitor a GCL<br>
     <h4>Request Data</h4>

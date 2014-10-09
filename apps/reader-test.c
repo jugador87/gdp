@@ -38,10 +38,6 @@ do_simpleread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int numrecs)
 	gdp_recno_t recno = firstrec;
 	gdp_datum_t *datum = gdp_datum_new();
 
-	// make flags more user friendly
-	if (recno <= 0)
-		recno = 1;
-
 	// change the "infinity" sentinel to make the loop easier
 	if (numrecs == 0)
 		numrecs = -1;
@@ -175,6 +171,7 @@ main(int argc, char **argv)
 	bool multiread = false;
 	int32_t numrecs = 0;
 	gdp_recno_t firstrec = 0;
+	bool show_usage = false;
 
 	// parse command-line options
 	while ((opt = getopt(argc, argv, "D:f:G:mn:s")) > 0)
@@ -210,13 +207,17 @@ main(int argc, char **argv)
 			// subscribe to this GCL (see also -m)
 			subscribe = true;
 			break;
+
+		  default:
+			show_usage = true;
+			break;
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
 	// we require a GCL name
-	if (argc <= 0)
+	if (show_usage || argc <= 0)
 	{
 		fprintf(stderr,
 				"Usage: %s [-D dbgspec] [-f firstrec] [-G gdpd_addr] [-m]\n"
