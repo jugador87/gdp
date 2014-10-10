@@ -35,7 +35,7 @@ EP_STAT
 do_simpleread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int numrecs)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gdp_recno_t recno = firstrec;
+	gdp_recno_t recno;
 	gdp_datum_t *datum = gdp_datum_new();
 
 	// change the "infinity" sentinel to make the loop easier
@@ -47,6 +47,7 @@ do_simpleread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int numrecs)
 		firstrec = 1;
 
 	// start reading data, one record at a time
+	recno = firstrec;
 	while (numrecs < 0 || --numrecs >= 0)
 	{
 		// ask the GDP to give us a record
