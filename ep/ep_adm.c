@@ -28,11 +28,11 @@
 
 #include <ep.h>
 #include <ep_hash.h>
+#include <ep_string.h>
+
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <string.h>
 #include <ctype.h>
-#include <string.h>
 
 EP_SRC_ID("@(#)$Id: ep_adm.c 252 2008-09-16 21:24:42Z eric $");
 
