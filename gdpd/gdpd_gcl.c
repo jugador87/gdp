@@ -205,6 +205,9 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 **
 **		This should really also have a maximum number of GCLs to leave
 **		open so we don't run out of file descriptors under high load.
+**
+**		This implementation locks the GclsByUse list during the
+**		entire operation.  That's probably not the best idea.
 */
 
 void
@@ -213,7 +216,7 @@ gcl_reclaim_resources(void)
 	// how long to leave GCLs open before reclaiming (default: 5 minutes)
 	time_t gcl_minage = ep_adm_getlongparam("swarm.gdpd.gcl.reclaim-age", 300L);
 	struct timeval tv;
-	struct gdp_gcl_xtra *x;
+	struct gdp_gcl_xtra *x, *x2;
 
 	ep_dbg_cprintf(Dbg, 28, "gcl_reclaim_resources(reclaim-age = %ld)\n",
 					gcl_minage);
@@ -221,15 +224,14 @@ gcl_reclaim_resources(void)
 	gettimeofday(&tv, NULL);
 	gcl_minage = tv.tv_sec - gcl_minage;
 
-	for (;;)
+	ep_thr_mutex_lock(&GclsByUseMutex);
+	for (x = LIST_FIRST(&GclsByUse); x != NULL; x = x2)
 	{
-		ep_thr_mutex_lock(&GclsByUseMutex);
-		x = LIST_FIRST(&GclsByUse);
-		ep_thr_mutex_unlock(&GclsByUseMutex);
-		if (x == NULL || x->utime > gcl_minage)
+		if (x->utime > gcl_minage)
 			break;
-		if (x->gcl->refcnt > 0 || EP_UT_BITSET(GCLF_DROPPING, x->gcl->flags))
-			continue;
-		_gdp_gcl_freehandle(x->gcl);
+		x2 = LIST_NEXT(x, ulist);
+		if (x->gcl->refcnt <= 0 && !EP_UT_BITSET(GCLF_DROPPING, x->gcl->flags))
+			_gdp_gcl_freehandle(x->gcl);
 	}
+	ep_thr_mutex_unlock(&GclsByUseMutex);
 }
