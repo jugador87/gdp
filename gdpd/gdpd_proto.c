@@ -16,8 +16,12 @@ gdpd_gcl_error(gcl_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
 	gcl_pname_t pname;
 
 	gdp_gcl_printable_name(gcl_name, pname);
-	gdp_log(logstat, "%s: %s", msg, pname);
-	return GDP_STAT_NAK_BADREQ;
+	if (EP_STAT_ISSEVERE(logstat))
+	{
+		// server error (rather than client error)
+		gdp_log(logstat, "%s: %s", msg, pname);
+	}
+	return logstat;
 }
 
 void
