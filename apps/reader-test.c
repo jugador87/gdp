@@ -42,6 +42,10 @@ do_simpleread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int numrecs)
 	if (numrecs == 0)
 		numrecs = -1;
 
+	// can't start reading before first record (but negative makes sense)
+	if (firstrec == 0)
+		firstrec = 1;
+
 	// start reading data, one record at a time
 	while (numrecs < 0 || --numrecs >= 0)
 	{
