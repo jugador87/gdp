@@ -38,6 +38,7 @@ static struct ep_stat_to_string Stats[] =
 	{ GDP_STAT_CORRUPT_INDEX,			"corrupt GCL index",			},
 	{ GDP_STAT_CORRUPT_GCL,				"corrupt GCL data file",		},
 	{ GDP_STAT_DEAD_DAEMON,				"lost connection to GDP daemon",	},
+	{ GDP_STAT_GCL_VERSION_MISMATCH,	"gcl version mismatch",			},
 
 	{ GDP_STAT_NAK_BADREQ,				"4.00 bad request",				},
 	{ GDP_STAT_NAK_UNAUTH,				"4.01 unauthorized",			},

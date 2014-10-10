@@ -30,9 +30,11 @@ EP_STAT			gcl_physappend(
 						gdp_datum_t *datum);
 
 #define GCL_DIR				"/var/tmp/gcl"
-#define GCL_VERSION			0
 
 #define GCL_LOG_MAGIC		UINT64_C(0x8F4E39104A803299)
+#define GCL_LOG_VERSION		UINT64_C(0)
+#define GCL_LOG_MINVERS		UINT64_C(0)			// lowest version we can read
+#define GCL_LOG_MAXVERS		UINT64_C(0)			// highest version we can read
 
 #define GCL_DATA_SUFFIX		".data"
 #define GCL_INDEX_SUFFIX	".index"
@@ -43,6 +45,8 @@ typedef struct gcl_log_record
 {
 	gdp_recno_t		recno;
 	EP_TIME_SPEC	timestamp;
+	int32_t			reserved1;			// reserved for future use
+	int32_t			reserved2;			// reserved for future use
 	int64_t			data_length;
 	char			data[];
 } gcl_log_record;

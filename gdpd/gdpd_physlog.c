@@ -263,7 +263,7 @@ gcl_physcreate(gdp_gcl_t *gclh)
 	log_header.num_metadata_entries = 0;
 	int16_t metadata_size = 0; // XXX: compute size of metadata
 	log_header.magic = GCL_LOG_MAGIC;
-	log_header.version = GCL_VERSION;
+	log_header.version = GCL_LOG_VERSION;
 	log_header.header_size = sizeof(gcl_log_header) + metadata_size;
 	log_header.log_type = 0; // XXX: define different log types
 	fwrite(&log_header, sizeof(log_header), 1, data_fp);
@@ -353,7 +353,6 @@ gcl_physopen(gdp_gcl_t *gclh)
 		goto fail3;
 	}
 
-	// XXX: read metadata entries
 	if (log_header.magic != GCL_LOG_MAGIC)
 	{
 		estat = GDP_STAT_CORRUPT_GCL;
@@ -362,6 +361,18 @@ gcl_physopen(gdp_gcl_t *gclh)
 				log_header.magic, GCL_LOG_MAGIC);
 		goto fail3;
 	}
+
+	if (log_header.version < GCL_LOG_MINVERS ||
+			log_header.version > GCL_LOG_MAXVERS)
+	{
+		estat = GDP_STAT_GCL_VERSION_MISMATCH;
+		gdp_log(estat, "gcl_physopen: bad version: found: %" PRIx64
+				", expected: %" PRIx64 "-%" PRIx64 "\n",
+				log_header.version, GCL_LOG_MINVERS, GCL_LOG_MAXVERS);
+		goto fail3;
+	}
+
+	// XXX: read metadata entries
 
 	fd = open(index_pbuf, O_RDWR | O_APPEND);
 	if (fd < 0 || flock(fd, LOCK_SH) < 0 ||
@@ -638,6 +649,7 @@ gcl_physappend(gdp_gcl_t *gclh,
 
 	ep_thr_rwlock_wrlock(&entry->lock);
 
+	memset(&log_record, 0, sizeof log_record);
 	log_record.recno = entry->max_recno + 1;
 	log_record.timestamp = datum->ts;
 	log_record.data_length = dlen;
