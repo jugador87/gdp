@@ -13,15 +13,15 @@
 #include <ep/ep_app.h>
 #include <ep/ep_stat.h>
 #include <ep/ep_string.h>
+#include <ep/ep_syslog.h>
 #include <ep/ep_time.h>
 
-#include <syslog.h>
 #include <inttypes.h>
 #include <time.h>
 #include <sys/time.h>
 
 static const char		*LogTag = NULL;
-static int				LogFac = LOG_LOCAL4;
+static int				LogFac = -1;
 static FILE				*LogFile1 = NULL;
 static FILE				*LogFile2 = NULL;
 static bool				LogInitialized = false;
@@ -145,6 +145,10 @@ gdp_log(EP_STAT estat, char *fmt, ...)
 
 		if (!LogInitialized)
 		{
+				const char *facname;
+
+				facname = ep_adm_getstrparam("gdp.log.facility", "local4");
+				LogFac = ep_syslog_fac_from_name(facname);
 				LogFile1 = stderr;
 				LogInitialized = true;
 		}
