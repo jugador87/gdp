@@ -66,58 +66,62 @@ void hexdump(FILE *stream, void *buf, size_t n, int start_label, bool show_ascii
 	}
 }
 
+
+void
+usage(const char *msg)
+{
+	fprintf(stderr, "Usage error: %s\n", msg);
+	fprintf(stderr, "Usage: log-view [-l] [-r] [gcl_name]\n");
+	fprintf(stderr, "\t-l -- list all local GCLs\n");
+	fprintf(stderr, "\t-r -- don't print raw byte hex dumps\n");
+
+	exit(EX_USAGE);
+}
+
 /*
  * log-view is a utility to aid in the debugging of the GDP on-disk storage format
- *
- * Command line arguments
- *
- * l - only list the available GCLs
- * n <GCL name in base64> - print the contents of the specified GCL
- * r - don't print the corresponding raw bytes to each parsed field
  */
 
-int main(int argc, char *argv[]) {
+int
+main(int argc, char *argv[])
+{
 	int opt;
 	bool list_gcl = false;
 	bool print_raw = true;
 	char *gcl_name = NULL;
+	char *gcl_dir_name = GCL_DIR;
 
-	if (argc == 1)
-	{
-		fprintf(stdout, "Usage:\n");
-		fprintf(stdout, "\tlog-view -l -- list all local GCLs\n");
-		fprintf(stdout, "\tlog-view -n gcl_name [-r] -- print contents of GCL\n");
-		fprintf(stdout, "Options:\n");
-		fprintf(stdout, "\t-r -- don't print raw byte hex dumps\n");
-
-		return 0;
-	}
-
-	while ((opt = getopt(argc, argv, "l::n:r::")) > 0)
+	while ((opt = getopt(argc, argv, "lr")) > 0)
 	{
 		switch (opt)
 		{
 		case 'l':
 			list_gcl = true;
 			break;
-		case 'n':
-			gcl_name = strdup(optarg);
-			break;
 		case 'r':
 			print_raw = false;
 			break;
+		default:
+			usage("unknown flag");
 		}
 	}
+	argc -= optind;
+	argv += optind;
 
 	if (list_gcl)
 	{
 		struct dirent *dir_entry;
-		DIR *gcl_dir = opendir(GCL_DIR);
+		DIR *gcl_dir = opendir(gcl_dir_name);
+
+		printf("argc = %d, argv[0] = %s, argv[1] = %s\n", argc, argv[0], argv[1]);
+		if (argc > 0)
+			usage("cannot use a GCL name with -l");
 
 		if (gcl_dir == NULL)
 		{
-			fprintf(stderr, "Could not open %s, errno = %d\n", GCL_DIR, errno);
-			return 1;
+			fprintf(stderr, "Could not open %s, errno = %d\n",
+					gcl_dir_name, errno);
+			return EX_NOINPUT;
 		}
 
 		while ((dir_entry = readdir(gcl_dir)) != NULL)
@@ -125,18 +129,33 @@ int main(int argc, char *argv[]) {
 			char *dot = strrchr(dir_entry->d_name, '.');
 			if (dot && !strcmp(dot, GCL_DATA_SUFFIX))
 			{
-				fprintf(stdout, "%.*s\n", (int)(dot - dir_entry->d_name), dir_entry->d_name);
+				fprintf(stdout, "%.*s\n",
+						(int)(dot - dir_entry->d_name), dir_entry->d_name);
 			}
 		}
-		return 0;
+		return EX_OK;
+	}
+
+	if (argc > 0)
+	{
+		gcl_name = argv[0];
+		argc--;
+		argv++;
+		if (argc > 0)
+			usage("extra arguments");
+	}
+	else
+	{
+		usage("GCL name required");
 	}
 
 	// Add 1 in the middle for '/'
-	int filename_size = strlen(GCL_DIR) + 1 + strlen(gcl_name) + strlen(GCL_DATA_SUFFIX) + 1;
+	int filename_size = strlen(gcl_dir_name) + 1 + strlen(gcl_name) +
+			strlen(GCL_DATA_SUFFIX) + 1;
 	char *data_filename = malloc(filename_size);
 
 	data_filename[0] = '\0';
-	strlcat(data_filename, GCL_DIR, filename_size);
+	strlcat(data_filename, gcl_dir_name, filename_size);
 	strlcat(data_filename, "/", filename_size);
 	strlcat(data_filename, gcl_name, filename_size);
 	strlcat(data_filename, GCL_DATA_SUFFIX, filename_size);
@@ -156,7 +175,8 @@ int main(int argc, char *argv[]) {
 
 	if (fread(&header, sizeof(header), 1, data_fp) != 1)
 	{
-		fprintf(stderr, "fread() failed while reading header, ferror = %d\n", ferror(data_fp));
+		fprintf(stderr, "fread() failed while reading header, ferror = %d\n",
+				ferror(data_fp));
 		return 1;
 	}
 
@@ -187,7 +207,7 @@ int main(int argc, char *argv[]) {
 			!= header.num_metadata_entries)
 		{
 			fprintf(stderr, "fread() failed while reading metadata lengths, ferror = %d\n", ferror(data_fp));
-			return 1;
+			return EX_DATAERR;
 		}
 
 		for (i = 0; i < header.num_metadata_entries; ++i)
@@ -211,7 +231,7 @@ int main(int argc, char *argv[]) {
 			if (fread(metadata_string, metadata_lengths[i], 1, data_fp) != 1)
 			{
 				fprintf(stderr, "fread() failed while reading metadata string, ferror = %d\n", ferror(data_fp));
-				return 1;
+				return EX_DATAERR;
 			}
 			metadata_string[metadata_lengths[i]] = '\0';
 			fprintf(stdout, "Metadata entry %d: %s", i, metadata_string);
@@ -226,7 +246,7 @@ int main(int argc, char *argv[]) {
 			file_offset += metadata_lengths[i];
 		}
 
-		return 0;
+		return EX_OK;
 	}
 	else
 	{
@@ -260,7 +280,7 @@ int main(int argc, char *argv[]) {
 		if (fread(data_buffer, record.data_length, 1, data_fp) != 1)
 		{
 			fprintf(stderr, "fread() failed while reading data, ferror = %d\n", ferror(data_fp));
-			return 1;
+			return EX_DATAERR;
 		}
 
 		fprintf(stdout, "\n");
