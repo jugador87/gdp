@@ -29,6 +29,7 @@ OBJS=	\
 	ep_stat.o \
 	ep_statcodes.o \
 	ep_string.o \
+	ep_syslog.o \
 	ep_thr.o \
 	ep_time.o \
 	ep_xlate.o \
@@ -87,6 +88,7 @@ HFILES=	\
 	ep_stat.h \
 	ep_statcodes.h \
 	ep_string.h \
+	ep_syslog.h \
 	ep_thr.h \
 	ep_time.h \
 	ep_xlate.h \
