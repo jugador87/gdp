@@ -1,15 +1,16 @@
 ALL=	writer-test reader-test gdp-rest rw-bench log-view
 
-LOCAL=		/usr/local
+LOCAL1=		/usr/local
+LOCAL2=		/opt/local
 INCROOT=	..
 LIBROOT=	${INCROOT}
 INCGDP=		-I${INCROOT}
 LIBGDP=		-L${LIBROOT}/gdp -lgdp
 INCEP=
 LIBEP=		-L${LIBROOT}/ep -lep
-INCJANSSON=	-I${LOCAL}/include
-LIBJANSSON=	-ljansson
-INCEVENT2=	-I${LOCAL}/include
+INCJANSSON=	-I${LOCAL1}/include -I${LOCAL2}/include
+LIBJANSSON=	-L${LOCAL1}/lib -L${LOCAL2}/lib -ljansson
+INCEVENT2=	-I${LOCAL1}/include -I${LOCAL2}/include
 LIBEVENT2=	-levent -levent_pthreads -pthread
 INCCRYPTO=
 LIBCRYPTO=	-lcrypto
