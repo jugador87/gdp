@@ -139,7 +139,9 @@ SHARED=	-shared
 #SHARED=	-shared -Wl,-soname,$@
 TIME=
 
-EPLIBVER=	2.0
+EPLIBMAJVER=	2
+EPLIBMINVER=	0
+EPLIBVER=	${EPLIBMAJVER}.${EPLIBMINVER}
 ALL=		libep.a libep.so.${EPLIBVER}
 
 all: ${ALL}
@@ -151,6 +153,9 @@ libep.a: ${OBJS}
 libep.so.${EPLIBVER}: ${OBJS}
 	${CC} ${SHARED} -o $@ ${OBJS}
 	${MV} $@ ${LIBDIR}
+	(cd ${LIBDIR}; rm -f libep.so.${EPLIBMAJVER}; ln -s libep.so.${EPLIBVER} libep.so.${EPLIBMAJVER})
+	(cd ${LIBDIR}; rm -f libep.so; ln -s libep.so.${EPLIBMAJVER} libep.so)
+	(cd ${LIBDIR}; rm -f libep.${EPLIBVER}.dylib; ln -s libep.so.${EPLIBVER} libep.${EPLIBVER}.dylib)
 
 ep_version.o: ep_version.c FORCE
 	${CC} ${CFLAGS} -D_CURRENT_DATE_=\"`date +'%Y-%m-%d_%H:%M'`\" -c ep_version.c
@@ -167,6 +172,6 @@ FORCE:
 #
 
 clean:
-	${RM} -f ${ALL} *.o *.core
+	-${RM} -f ${ALL} *.o *.core
 
 ${OBJS}: ${HFILES}

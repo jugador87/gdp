@@ -19,7 +19,9 @@ HFILES=	\
 	gdp_priv.h \
 	gdp_stat.h \
 
-GDPLIBVER=	1.0
+GDPLIBMAJVER=	1
+GDPLIBMINVER=	0
+GDPLIBVER=	${GDPLIBMAJVER}.${GDPLIBMINVER}
 ALL=		libgdp.a libgdp.so.${GDPLIBVER}
 
 INCROOT=	..
@@ -55,9 +57,9 @@ libgdp.a: ${OBJS}
 libgdp.so.${GDPLIBVER}: ${OBJS}
 	${CC} ${SHARED} -o $@ ${OBJS} ${LDFLAGS}
 	${MV} $@ ${LIBDIR}
-	${RM} -f ${LIBDIR}/libgdp.${GDPLIBVER}.dylib ${LIBDIR}/libgdp.${GDPLIBVER}.so
-	${LN} ${LIBDIR}/$@ ${LIBDIR}/libgdp.${GDPLIBVER}.dylib
-	${LN} ${LIBDIR}/$@ ${LIBDIR}/libgdp.${GDPLIBVER}.so 
+	(cd ${LIBDIR}; rm -f libgdp.so.${GDPLIBMAJVER}; ln -s libgdp.so.${GDPLIBVER} libgdp.so.${GDPLIBMAJVER})
+	(cd ${LIBDIR}; rm -f libgdp.so; ln -s libgdp.so.${GDPLIBMAJVER} libgdp.so)
+	(cd ${LIBDIR}; rm -f libgdp.${GDPLIBVER}.dylib; ln -s libgdp.so.${GDPLIBVER} libgdp.${GDPLIBVER}.dylib)
 
 ${OBJS}: ${HFILES}
 

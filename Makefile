@@ -1,4 +1,5 @@
 all:
+	-rm libs/*
 	(cd ep; make clean all)
 	(cd gdp; make clean all)
 	(cd scgilib; make clean all)
@@ -6,6 +7,7 @@ all:
 	(cd apps; make clean all)
 
 clean:
+	-rm libs/*
 	(cd ep; make clean)
 	(cd gdp; make clean)
 	(cd scgilib; make clean)
