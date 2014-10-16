@@ -320,7 +320,7 @@ const EP_LOG_TYPE	EpLogTypeStream =
 **
 **	Output Format:
 **		severity:msgid tag=value; tag=value; ...
-**		Characters listed in eplib.log.forbidchars (default:
+**		Characters listed in libep.log.forbidchars (default:
 **			"=;") , non-printable characters,
 **			and the "+" character are encoded using +XX
 **			syntax.
@@ -350,7 +350,7 @@ ep_log_tostr(
 	static const char *forbidchars = NULL;
 
 	if (forbidchars == NULL)
-		forbidchars = ep_adm_getstrparam("eplib.log.forbidchars", "=;");
+		forbidchars = ep_adm_getstrparam("libep.log.forbidchars", "=;");
 
 	sevname = ep_stat_sev_tostr(sev);
 	(void) ep_xlate_out(sevname,
