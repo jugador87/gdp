@@ -255,16 +255,21 @@ cmd_publish(gdp_req_t *req)
 							estat, GDP_NAK_C_BADREQ);
 	}
 
+	// make sure the timestamp is current
+	estat = ep_time_now(&req->pkt->datum->ts);
+
 	// create the message
 	estat = gcl_physappend(req->gclh, req->pkt->datum);
 
 	// send the new data to any subscribers
-	sub_notify_all_subscribers(req);
+	if (EP_STAT_ISOK(estat))
+		sub_notify_all_subscribers(req);
 
 	// we can now let the data in the request go
 	evbuffer_drain(req->pkt->datum->dbuf,
 			evbuffer_get_length(req->pkt->datum->dbuf));
 
+	// we're no longer using this handle
 	_gdp_gcl_decref(req->gclh);
 	req->gclh = NULL;
 
