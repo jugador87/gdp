@@ -171,6 +171,7 @@ _gdp_gcl_incref(gdp_gcl_t *gclh)
 void
 _gdp_gcl_decref(gdp_gcl_t *gclh)
 {
+	ep_dbg_cprintf(DbgCache, 70, "_gdp_gcl_decref(%p)...\n", gclh);
 	ep_thr_mutex_lock(&gclh->mutex);
 	if (gclh->refcnt > 0)
 	{

@@ -16,6 +16,25 @@ static EP_DBG	Dbg = EP_DBG_INIT("ep.thr", "Threading support");
 
 bool	_EpThrUsePthreads = false;	// also used by ep_dbg_*
 
+#if EP_OPT_EXTENDED_MUTEX_CHECK
+#include <ep_string.h>
+#define CHECKMTX(m, e) \
+    do	\
+    {								\
+	if (m->__data.__owner < 0 ||				\
+	    m->__data.__lock > 1 || m->__data.__nusers > 1)	\
+		fprintf(stderr,					\
+		    "%s%s MUTEX(%p): __lock=%d, __owner=%d, __nusers=%d%s\n",	\
+		    EpVid->vidfgred, e, m,			\
+		    m->__data.__lock, m->__data.__owner,	\
+		    m->__data.__nusers,	EpVid->vidnorm);	\
+    } while (false)
+#endif
+
+#ifndef CHECKMTX
+# define CHECKMTX(m, e)
+#endif
+
 /*
 **  Helper routines
 */
@@ -34,7 +53,8 @@ printtrace(void *lock, const char *where)
 {
 	pthread_t self = pthread_self();
 
-	ep_dbg_printf("ep_thr_%s %p [%p]\n", where, lock, self);
+	ep_dbg_printf("ep_thr_%s %p [%p]%s\n", where, lock, self,
+			_EpThrUsePthreads ? "" : " (ignored)");
 }
 
 #define TRACE(lock, where)	\
@@ -61,10 +81,25 @@ ep_thr_mutex_init(EP_THR_MUTEX *mtx, int type)
 	if (!_EpThrUsePthreads)
 		return 0;
 	pthread_mutexattr_init(&attr);
+	if (type == EP_THR_MUTEX_DEFAULT)
+	{
+		const char *mtype;
+
+		mtype = ep_adm_getstrparam("libep.thr.mutex.type", "default");
+		if (strcasecmp(mtype, "normal") == 0)
+			type = PTHREAD_MUTEX_NORMAL;
+		else if (strcasecmp(mtype, "errorcheck") == 0)
+			type = PTHREAD_MUTEX_ERRORCHECK;
+		else if (strcasecmp(mtype, "recursive") == 0)
+			type = PTHREAD_MUTEX_RECURSIVE;
+		else
+			type = PTHREAD_MUTEX_DEFAULT;
+	}
 	pthread_mutexattr_settype(&attr, type);
 	if ((err = pthread_mutex_init(mtx, &attr)) != 0)
 		diagnose_thr_err(err, "mutex_init");
 	pthread_mutexattr_destroy(&attr);
+	CHECKMTX(mtx, "<<<");
 	return err;
 }
 
@@ -76,6 +111,7 @@ ep_thr_mutex_destroy(EP_THR_MUTEX *mtx)
 	TRACE(mtx, "mutex_destroy");
 	if (!_EpThrUsePthreads)
 		return 0;
+	CHECKMTX(mtx, ">>>");
 	if ((err = pthread_mutex_destroy(mtx)) != 0)
 		diagnose_thr_err(err, "mutex_destroy");
 	return err;
@@ -89,8 +125,10 @@ ep_thr_mutex_lock(EP_THR_MUTEX *mtx)
 	TRACE(mtx, "mutex_lock");
 	if (!_EpThrUsePthreads)
 		return 0;
+	CHECKMTX(mtx, ">>>");
 	if ((err = pthread_mutex_lock(mtx)) != 0)
 		diagnose_thr_err(err, "mutex_lock");
+	CHECKMTX(mtx, "<<<");
 	return err;
 }
 
@@ -102,8 +140,10 @@ ep_thr_mutex_trylock(EP_THR_MUTEX *mtx)
 	TRACE(mtx, "mutex_trylock");
 	if (!_EpThrUsePthreads)
 		return 0;
+	CHECKMTX(mtx, ">>>");
 	if ((err = pthread_mutex_trylock(mtx)) != 0)
 		diagnose_thr_err(err, "mutex_trylock");
+	CHECKMTX(mtx, "<<<");
 	return err;
 }
 
@@ -115,9 +155,18 @@ ep_thr_mutex_unlock(EP_THR_MUTEX *mtx)
 	TRACE(mtx, "mutex_unlock");
 	if (!_EpThrUsePthreads)
 		return 0;
+	CHECKMTX(mtx, ">>>");
 	if ((err = pthread_mutex_unlock(mtx)) != 0)
 		diagnose_thr_err(err, "mutex_unlock");
+	CHECKMTX(mtx, "<<<");
 	return err;
+}
+
+int
+ep_thr_mutex_check(EP_THR_MUTEX *mtx)
+{
+	CHECKMTX(mtx, "===");
+	return 0;
 }
 
 
@@ -172,8 +221,10 @@ ep_thr_cond_wait(EP_THR_COND *cv, EP_THR_MUTEX *mtx)
 	TRACE(cv, "cond_wait");
 	if (!_EpThrUsePthreads)
 		return 0;
+	CHECKMTX(mtx, ">>>");
 	if ((err = pthread_cond_wait(cv, mtx)) != 0)
 		diagnose_thr_err(err, "cond_wait");
+	CHECKMTX(mtx, "<<<");
 	return err;
 }
 

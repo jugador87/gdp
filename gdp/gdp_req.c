@@ -120,12 +120,14 @@ _gdp_req_freeall(struct req_head *reqlist)
 {
 	gdp_req_t *r1 = LIST_FIRST(reqlist);
 
+	ep_dbg_cprintf(Dbg, 49, ">>> _gdp_req_freeall(%p)\n", reqlist);
 	while (r1 != NULL)
 	{
 		gdp_req_t *r2 = LIST_NEXT(r1, list);
 		_gdp_req_free(r1);
 		r1 = r2;
 	}
+	ep_dbg_cprintf(Dbg, 49, "<<< _gdp_req_freeall(%p)\n", reqlist);
 }
 
 

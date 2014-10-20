@@ -59,10 +59,11 @@ extern int	ep_thr_mutex_destroy(EP_THR_MUTEX *mtx);
 extern int	ep_thr_mutex_lock(EP_THR_MUTEX *mtx);
 extern int	ep_thr_mutex_trylock(EP_THR_MUTEX *mtx);
 extern int	ep_thr_mutex_unlock(EP_THR_MUTEX *mtx);
+extern int	ep_thr_mutex_check(EP_THR_MUTEX *mtx);
 #define		EP_THR_MUTEX_NORMAL		PTHREAD_MUTEX_NORMAL
 #define		EP_THR_MUTEX_ERRORCHECK		PTHREAD_MUTEX_ERRORCHECK
 #define		EP_THR_MUTEX_RECURSIVE		PTHREAD_MUTEX_RECURSIVE
-#define		EP_THR_MUTEX_DEFAULT		PTHREAD_MUTEX_ERRORCHECK
+#define		EP_THR_MUTEX_DEFAULT		PTHREAD_MUTEX_DEFAULT
 
 typedef pthread_cond_t		EP_THR_COND;
 #  define	EP_THR_COND_INITIALIZER		= PTHREAD_COND_INITIALIZER
@@ -91,6 +92,7 @@ typedef int	EP_THR_MUTEX;
 #  define	ep_thr_mutex_lock(mtx)		0
 #  define	ep_thr_mutex_trylock(mtx)	0
 #  define	ep_thr_mutex_unlock(mtx)	0
+#  define	ep_thr_mutex_check(mtx)		0
 #define		EP_THR_MUTEX_NORMAL		0
 #define		EP_THR_MUTEX_ERRORCHECK		0
 #define		EP_THR_MUTEX_RECURSIVE		0

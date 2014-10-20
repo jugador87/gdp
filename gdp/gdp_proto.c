@@ -86,8 +86,11 @@ _gdp_invoke(gdp_req_t *req)
 	EP_ASSERT_POINTER_VALID(req);
 	if (ep_dbg_test(Dbg, 22))
 	{
-		ep_dbg_printf("gdp_invoke: cmd=%d (%s)\n    gclh@%p: ",
-				req->pkt->cmd, _gdp_proto_cmd_name(req->pkt->cmd), req->gclh);
+		ep_dbg_printf("gdp_invoke(%p): cmd=%d (%s)\n    gclh@%p: ",
+				req,
+				req->pkt->cmd,
+				_gdp_proto_cmd_name(req->pkt->cmd),
+				req->gclh);
 		gdp_datum_print(req->pkt->datum, ep_dbg_getfile());
 	}
 
@@ -104,7 +107,7 @@ _gdp_invoke(gdp_req_t *req)
 
 	// wait until we receive a result
 	//		XXX need a timeout here
-	ep_dbg_cprintf(Dbg, 37, "gdp_invoke: waiting\n");
+	ep_dbg_cprintf(Dbg, 37, "gdp_invoke: waiting on %p\n", &req->cond);
 	ep_thr_mutex_lock(&req->mutex);
 	while (!EP_UT_BITSET(GDP_REQ_DONE, req->flags))
 	{
@@ -529,7 +532,7 @@ _gdp_req_dispatch(gdp_req_t *req)
 **  PROCESS_PACKET --- execute the command in the packet
 */
 
-EP_STAT
+static EP_STAT
 process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 {
 	EP_STAT estat;
@@ -601,12 +604,13 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 
 	// ASSERT(all data from chan has been consumed);
 
-	int evtype;
 	ep_thr_mutex_lock(&req->mutex);
+
 	if (EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, req->flags))
 	{
 		// link the request onto the event queue
 		gdp_event_t *gev;
+		int evtype;
 
 		// for the moment we only understand data responses (for subscribe)
 		switch (req->pkt->cmd)
@@ -842,7 +846,7 @@ _gdp_start_event_loop_thread(pthread_t *thr,
 
 static EP_DBG	EvlibDbg = EP_DBG_INIT("gdp.evlib", "GDP Eventlib");
 
-void
+static void
 evlib_log_cb(int severity, const char *msg)
 {
 	char *sev;
