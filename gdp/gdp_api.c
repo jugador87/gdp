@@ -318,10 +318,10 @@ gdp_gcl_open(gcl_name_t gcl_name,
 	gclh->iomode = mode;
 
 	estat = _gdp_req_new(cmd, gclh, _GdpChannel, 0, &req);
-	EP_STAT_CHECK(estat, goto fail0);
+	EP_STAT_CHECK(estat, goto fail1);
 
 	estat = _gdp_invoke(req);
-	EP_STAT_CHECK(estat, goto fail0);
+	EP_STAT_CHECK(estat, goto fail1);
 
 	// success!
 	*pgclh = req->gclh;
@@ -332,6 +332,7 @@ gdp_gcl_open(gcl_name_t gcl_name,
 fail0:
 	if (gclh != NULL)
 		ep_mem_free(gclh);
+fail1:
 	if (req != NULL)
 		_gdp_req_free(req);
 
