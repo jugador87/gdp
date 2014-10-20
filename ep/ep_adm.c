@@ -117,7 +117,7 @@ get_param_path(void)
 			strlcat(pathbuf, path, sizeof pathbuf);
 			strlcat(pathbuf, "/.ep_adm_params:", sizeof pathbuf);
 		}
-		strlcat(pathbuf, "/usr/local/etc/ep_adm_params",
+		strlcat(pathbuf, "/usr/local/etc/ep_adm_params:/etc/ep_app_params",
 				sizeof pathbuf);
 	}
 	else
