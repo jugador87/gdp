@@ -403,6 +403,9 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	{
 		size_t l;
 
+		ep_dbg_cprintf(Dbg, 40,
+				"_gdp_pkt_in: reading %zd more bytes (%zd available)\n",
+				dlen, evbuffer_get_length(ibuf));
 		l = evbuffer_remove_buffer(ibuf, pkt->datum->dbuf, dlen);
 		if (l < dlen)
 		{
