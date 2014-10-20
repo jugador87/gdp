@@ -338,7 +338,8 @@ gcl_physopen(gdp_gcl_t *gclh)
 			(data_fp = fdopen(fd, "a+")) == NULL)
 	{
 		estat = ep_stat_from_errno(errno);
-		gdp_log(estat, "gcl_physopen(%s): data file open failure", data_pbuf);
+		ep_dbg_cprintf(Dbg, 16, "gcl_physopen(%s): %s\n",
+				data_pbuf, strerror(errno));
 		if (fd >= 0)
 			close(fd);
 		goto fail1;
