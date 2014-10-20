@@ -66,7 +66,7 @@ main(int argc, char **argv)
 	}
 	if (show_usage || argc != 0 || (append && xname == NULL))
 	{
-		fprintf(stderr, "Usage: %s [-D dbgspec] [-a] [<gcl_name>]\n"
+		fprintf(stderr, "Usage: %s [-a] [-D dbgspec] [-G gdpd_addr] [<gcl_name>]\n"
 				"  (name is required for -a)\n",
 				ep_app_getprogname());
 		exit(EX_USAGE);
