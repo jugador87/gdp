@@ -218,7 +218,7 @@ gcl_reclaim_resources(void)
 	struct timeval tv;
 	struct gdp_gcl_xtra *x, *x2;
 
-	ep_dbg_cprintf(Dbg, 28, "gcl_reclaim_resources(reclaim-age = %ld)\n",
+	ep_dbg_cprintf(Dbg, 48, "gcl_reclaim_resources(reclaim-age = %ld)\n",
 					gcl_minage);
 
 	gettimeofday(&tv, NULL);

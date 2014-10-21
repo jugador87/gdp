@@ -769,7 +769,7 @@ event_loop_timeout(int fd, short what, void *ctx)
 {
 	struct event_loop_info *eli = ctx;
 
-	ep_dbg_cprintf(Dbg, 49, "%s event loop timeout\n", eli->where);
+	ep_dbg_cprintf(Dbg, 79, "%s event loop timeout\n", eli->where);
 }
 
 static void *
