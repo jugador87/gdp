@@ -669,21 +669,25 @@ gdp_read_cb(gdp_chan_t *chan, void *ctx)
 	gdp_pkt_t *pkt;
 	gdp_buf_t *ievb = bufferevent_get_input(chan);
 
-	ep_dbg_cprintf(Dbg, 50, "gdp_read_cb: fd %d\n", bufferevent_getfd(chan));
+	ep_dbg_cprintf(Dbg, 50, "gdp_read_cb: fd %d, %zd bytes\n",
+			bufferevent_getfd(chan), evbuffer_get_length(ievb));
 
-	pkt = _gdp_pkt_new();
-	estat = _gdp_pkt_in(pkt, ievb);
-	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
+	while (evbuffer_get_length(ievb) > 0)
 	{
-		_gdp_pkt_free(pkt);
-		return;
-	}
+		pkt = _gdp_pkt_new();
+		estat = _gdp_pkt_in(pkt, ievb);
+		if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
+		{
+			_gdp_pkt_free(pkt);
+			return;
+		}
 
 #ifdef GDP_PACKET_QUEUE
-	_gdp_pkt_add_to_queue(pkt, chan);
+		_gdp_pkt_add_to_queue(pkt, chan);
 #else
-	estat = process_packet(pkt, chan);
+		estat = process_packet(pkt, chan);
 #endif
+	}
 }
 
 
