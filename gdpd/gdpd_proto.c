@@ -312,8 +312,7 @@ post_subscribe(gdp_req_t *req)
 		if (EP_STAT_ISOK(estat))
 		{
 			// OK, the next record exists: send it
-			req->stat = estat = _gdp_pkt_out(req->pkt,
-										bufferevent_get_output(req->chan));
+			req->stat = estat = _gdp_pkt_out(req->pkt, req->chan);
 
 			// have to clear the old data
 			evbuffer_drain(req->pkt->datum->dbuf,
@@ -577,7 +576,7 @@ cmd_not_implemented(gdp_req_t *req)
 	flush_input_data(req, "cmd_not_implemented");
 
 	req->pkt->cmd = GDP_NAK_S_NOTIMPL;
-	_gdp_pkt_out_hard(req->pkt, bufferevent_get_output(req->chan));
+	_gdp_pkt_out_hard(req->pkt, req->chan);
 	return GDP_STAT_NAK_NOTIMPL;
 }
 

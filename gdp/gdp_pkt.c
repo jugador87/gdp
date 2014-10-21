@@ -114,12 +114,13 @@ _gdp_pkt_dump(gdp_pkt_t *pkt, FILE *fp)
 		}
 
 EP_STAT
-_gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
+_gdp_pkt_out(gdp_pkt_t *pkt, gdp_chan_t *chan)
 {
 	EP_STAT estat = EP_STAT_OK;
 	uint8_t pbuf[_GDP_MAX_PKT_HDR];
 	uint8_t *pbp = pbuf;
 	size_t dlen;
+	struct evbuffer *obuf = bufferevent_get_output(chan);
 
 	EP_ASSERT_POINTER_VALID(pkt);
 	EP_ASSERT_POINTER_VALID(pkt->datum);
@@ -127,7 +128,7 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 
 	if (ep_dbg_test(Dbg, 22))
 	{
-		ep_dbg_printf("gdp_pkt_out:\n\t");
+		ep_dbg_printf("gdp_pkt_out (fd = %d):\n\t", bufferevent_getfd(chan));
 		_gdp_pkt_dump(pkt, ep_dbg_getfile());
 	}
 
@@ -228,9 +229,9 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 */
 
 void
-_gdp_pkt_out_hard(gdp_pkt_t *pkt, gdp_buf_t *obuf)
+_gdp_pkt_out_hard(gdp_pkt_t *pkt, gdp_chan_t *chan)
 {
-	EP_STAT estat = _gdp_pkt_out(pkt, obuf);
+	EP_STAT estat = _gdp_pkt_out(pkt, chan);
 
 	if (!EP_STAT_ISOK(estat))
 	{
@@ -269,7 +270,7 @@ _gdp_pkt_out_hard(gdp_pkt_t *pkt, gdp_buf_t *obuf)
 		}
 
 EP_STAT
-_gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
+_gdp_pkt_in(gdp_pkt_t *pkt, gdp_chan_t *chan)
 {
 	EP_STAT estat = EP_STAT_OK;
 	uint32_t dlen;
@@ -277,12 +278,14 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_buf_t *ibuf)
 	size_t sz;
 	uint8_t pbuf[_GDP_MAX_PKT_HDR];
 	uint8_t *pbp;
+	gdp_buf_t *ibuf;
 
 	EP_ASSERT_POINTER_VALID(pkt);
 
 	ep_dbg_cprintf(Dbg, 60, "gdp_pkt_in\n");	// XXX
 	EP_ASSERT(pkt->datum != NULL);
 	EP_ASSERT(pkt->datum->dbuf != NULL);
+	ibuf = bufferevent_get_input(chan);
 
 	// see if the fixed part of the header is all in
 	needed = FIXEDHDRSZ;			// ver, cmd, flags, reserved1, dlen

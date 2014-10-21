@@ -31,7 +31,7 @@ sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum)
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
-	estat = _gdp_pkt_out(req->pkt, bufferevent_get_output(req->chan));
+	estat = _gdp_pkt_out(req->pkt, req->chan);
 	if (req->numrecs > 0 && --req->numrecs <= 0)
 		sub_end_subscription(req);
 }
@@ -92,5 +92,5 @@ sub_end_subscription(gdp_req_t *req)
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
-	(void) _gdp_pkt_out(req->pkt, bufferevent_get_output(req->chan));
+	(void) _gdp_pkt_out(req->pkt, req->chan);
 }

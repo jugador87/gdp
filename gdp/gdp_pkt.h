@@ -161,15 +161,15 @@ void		_gdp_pkt_free(gdp_pkt_t *);	// free a packet
 
 EP_STAT		_gdp_pkt_out(				// send a packet to a network buffer
 				gdp_pkt_t *,			// the packet information
-				gdp_buf_t *);			// the network buffer
+				gdp_chan_t *);			// the network channel
 
 void		_gdp_pkt_out_hard(			// send a packet to a network buffer
 				gdp_pkt_t *,			// the packet information
-				gdp_buf_t *);			// the network buffer
+				gdp_chan_t *);			// the network channel
 
 EP_STAT		_gdp_pkt_in(				// read a packet from a network buffer
 				gdp_pkt_t *,			// the buffer to store the result
-				gdp_buf_t *);			// the network buffer
+				gdp_chan_t *);			// the network channel
 
 void		_gdp_pkt_dump(
 				gdp_pkt_t *pkt,

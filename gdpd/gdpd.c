@@ -50,7 +50,7 @@ gdpd_req_thread(void *req_)
 			evbuffer_get_length(req->pkt->datum->dbuf));
 
 	// send the response packet header
-	req->stat = _gdp_pkt_out(req->pkt, bufferevent_get_output(req->chan));
+	req->stat = _gdp_pkt_out(req->pkt, req->chan);
 	//XXX anything to do with estat here?
 
 	// if there is any post-processing to do, invoke the callback
@@ -91,7 +91,7 @@ cmdsock_read_cb(gdp_chan_t *chan, void *ctx)
 	}
 	req->pkt->datum = gdp_datum_new();
 
-	estat = _gdp_pkt_in(req->pkt, bufferevent_get_input(chan));
+	estat = _gdp_pkt_in(req->pkt, chan);
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
 	{
 		// we don't yet have the entire packet in memory

@@ -61,7 +61,7 @@ _gdp_req_send(gdp_req_t *req)
 	_gdp_gcl_cache_add(gclh, 0);
 
 	// write the message out
-	estat = _gdp_pkt_out(req->pkt, bufferevent_get_output(req->chan));
+	estat = _gdp_pkt_out(req->pkt, req->chan);
 
 	// done
 	return estat;
@@ -675,7 +675,7 @@ gdp_read_cb(gdp_chan_t *chan, void *ctx)
 	while (evbuffer_get_length(ievb) > 0)
 	{
 		pkt = _gdp_pkt_new();
-		estat = _gdp_pkt_in(pkt, ievb);
+		estat = _gdp_pkt_in(pkt, chan);
 		if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
 		{
 			_gdp_pkt_free(pkt);
