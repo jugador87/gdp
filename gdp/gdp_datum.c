@@ -51,7 +51,6 @@ gdp_datum_new(void)
 	if (datum->dbuf == NULL)
 	{
 		datum->dbuf = gdp_buf_new();
-		gdp_buf_setlock(datum->dbuf, &datum->mutex);
 	}
 	ep_dbg_cprintf(Dbg, 48, "gdp_datum_new => %p\n", datum);
 	datum->inuse = true;
