@@ -892,6 +892,10 @@ _gdp_do_init_1(void)
 	// tell the event library that we're using pthreads
 	if (evthread_use_pthreads() < 0)
 		return init_error("cannot use pthreads", "gdp_init");
+	if (ep_dbg_test(Dbg, 90))
+	{
+		evthread_enable_lock_debuging();
+	}
 
 	// use our debugging printer
 	event_set_log_callback(evlib_log_cb);
