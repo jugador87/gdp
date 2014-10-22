@@ -93,11 +93,15 @@ fail0:
 void
 gcl_close(gdp_gcl_t *gclh)
 {
+	if (gclh->x == NULL)
+		return;
+
 	// close the underlying files
 	if (gclh->x->fp != NULL)
 		gcl_physclose(gclh);
 
-	// physical memory will be freed by _gdp_gcl_freehandle
+	ep_mem_free(gclh->x);
+	gclh->x = NULL;
 }
 
 
@@ -225,10 +229,13 @@ gcl_reclaim_resources(void)
 		if (x->utime > gcl_minage)
 			break;
 		x2 = LIST_NEXT(x, ulist);
-		if (x->gcl->refcnt <= 0 && !EP_UT_BITSET(GCLF_DROPPING, x->gcl->flags))
+		if (x->gcl == NULL ||
+			  (x->gcl->refcnt <= 0 &&
+			   !EP_UT_BITSET(GCLF_DROPPING, x->gcl->flags)))
 		{
 			LIST_REMOVE(x, ulist);
-			_gdp_gcl_freehandle(x->gcl);
+			if (x->gcl != NULL)
+				_gdp_gcl_freehandle(x->gcl);
 		}
 	}
 	ep_thr_mutex_unlock(&GclsByUseMutex);
