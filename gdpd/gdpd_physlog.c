@@ -416,13 +416,6 @@ fail0:
 	if (EP_STAT_IS_SAME(estat, ep_stat_from_errno(ENOENT)))
 		estat = GDP_STAT_NAK_NOTFOUND;
 
-	{
-		char ebuf[100];
-
-		//XXX should log
-		fprintf(stderr, "gcl_physopen: Couldn't open gcl: %s\n",
-				ep_stat_tostr(estat, ebuf, sizeof ebuf));
-	}
 	if (ep_dbg_test(Dbg, 10))
 	{
 		char ebuf[100];
