@@ -21,6 +21,7 @@ gcl_alloc(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
 	EP_STAT estat;
 	gdp_gcl_t *gclh;
 	struct timeval tv;
+	extern void gcl_close(gdp_gcl_t *gclh);
 
 	// get the standard handle
 	estat = _gdp_gcl_newhandle(gcl_name, &gclh);
@@ -63,7 +64,6 @@ gcl_open(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
 {
 	EP_STAT estat;
 	gdp_gcl_t *gclh;
-	extern void gcl_close(gdp_gcl_t *gclh);
 
 	estat = gcl_alloc(gcl_name, iomode, &gclh);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -93,11 +93,6 @@ fail0:
 void
 gcl_close(gdp_gcl_t *gclh)
 {
-	// remove it from the usage list
-	ep_thr_mutex_lock(&GclsByUseMutex);
-	LIST_REMOVE(gclh->x, ulist);
-	ep_thr_mutex_unlock(&GclsByUseMutex);
-
 	// close the underlying files
 	if (gclh->x->fp != NULL)
 		gcl_physclose(gclh);
@@ -231,7 +226,10 @@ gcl_reclaim_resources(void)
 			break;
 		x2 = LIST_NEXT(x, ulist);
 		if (x->gcl->refcnt <= 0 && !EP_UT_BITSET(GCLF_DROPPING, x->gcl->flags))
+		{
+			LIST_REMOVE(x, ulist);
 			_gdp_gcl_freehandle(x->gcl);
+		}
 	}
 	ep_thr_mutex_unlock(&GclsByUseMutex);
 }
