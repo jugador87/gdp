@@ -1,6 +1,6 @@
 /* vim: set ai sw=8 sts=8 ts=8 : */
 
-#include <ep/ep_stat.h>
+#include <ep/ep.h>
 
 static struct ep_stat_to_string	Stats[] =
 {

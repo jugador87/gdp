@@ -197,15 +197,15 @@ ep_stat_vpost(EP_STAT stat,
 
 		ep_stat_tostr(stat, sbuf, sizeof sbuf);
 		ep_dbg_printf("ep_stat_vpost: posting %08x (%s)\n",
-				EP_STAT_TO_LONG(stat), sbuf);
+				EP_STAT_TO_INT(stat), sbuf);
 	}
 
 	ep_thr_mutex_lock(&StatMutex);
 
 	for (c = StatFuncList; c != NULL; c = c->next)
 	{
-		if (((EP_STAT_TO_LONG(stat) ^ EP_STAT_TO_LONG(c->stat)) &
-		     EP_STAT_TO_LONG(c->mask)) == 0)
+		if (((EP_STAT_TO_INT(stat) ^ EP_STAT_TO_INT(c->stat)) &
+		     EP_STAT_TO_INT(c->mask)) == 0)
 			break;
 	}
 
@@ -425,12 +425,12 @@ ep_stat_tostr(EP_STAT stat,
 	// dispose of OK status quickly
 	if (EP_STAT_ISOK(stat))
 	{
-		if (EP_STAT_TO_LONG(stat) == 0)
+		if (EP_STAT_TO_INT(stat) == 0)
 			snprintf(buf, blen, "OK");
 		else
-			snprintf(buf, blen, "OK [%ld = 0x%lx]",
-				EP_STAT_TO_LONG(stat),
-				EP_STAT_TO_LONG(stat));
+			snprintf(buf, blen, "OK [%d = 0x%x]",
+				EP_STAT_TO_INT(stat),
+				EP_STAT_TO_INT(stat));
 		return buf;
 	}
 

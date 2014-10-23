@@ -70,11 +70,11 @@ gdp_gcl_printable_name(const gcl_name_t internal, gcl_pname_t external)
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		strcpy("(unknown)", external);
 	}
-	else if (EP_STAT_TO_LONG(estat) != 43)
+	else if (EP_STAT_TO_INT(estat) != 43)
 	{
 		ep_dbg_cprintf(Dbg, 2,
-				"gdp_gcl_printable_name: ep_b64_encode length failure (%ld != 43)\n",
-				EP_STAT_TO_LONG(estat));
+				"gdp_gcl_printable_name: ep_b64_encode length failure (%d != 43)\n",
+				EP_STAT_TO_INT(estat));
 	}
 	return external;
 }
@@ -108,11 +108,11 @@ gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
 				"\tstat = %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
-	else if (EP_STAT_TO_LONG(estat) != sizeof (gcl_name_t))
+	else if (EP_STAT_TO_INT(estat) != sizeof (gcl_name_t))
 	{
 		ep_dbg_cprintf(Dbg, 2,
-				"gdp_gcl_internal_name: ep_b64_decode length failure (%ld != %zd)\n",
-				EP_STAT_TO_LONG(estat), sizeof (gcl_name_t));
+				"gdp_gcl_internal_name: ep_b64_decode length failure (%d != %zd)\n",
+				EP_STAT_TO_INT(estat), sizeof (gcl_name_t));
 		estat = EP_STAT_ABORT;
 	}
 

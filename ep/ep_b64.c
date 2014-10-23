@@ -157,7 +157,7 @@ ep_b64_encode(const void *bbin, size_t bsize,
 	// success!
 	EP_ASSERT_ENSURE(tx < tsize);
 	txt[tx] = '\0';
-	return EP_STAT_FROM_LONG((unsigned long) tx);
+	return EP_STAT_FROM_INT((unsigned long) tx);
 }
 
 
@@ -250,5 +250,5 @@ ep_b64_decode(const char *txt, size_t tsize,
 	}
 
 	// success!
-	return EP_STAT_FROM_LONG(bx);
+	return EP_STAT_FROM_INT(bx);
 }

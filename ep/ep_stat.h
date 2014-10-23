@@ -55,23 +55,23 @@
 #ifndef _EP_STAT_H
 # define _EP_STAT_H
 
-typedef struct _ep_stat
-{
-	unsigned long	code;
-} EP_STAT;
-
 # include <ep/ep.h>
 # include <limits.h>
+
+typedef struct _ep_stat
+{
+	uint32_t	code;
+} EP_STAT;
 
 #define _EP_STAT_SEVBITS	3
 #define _EP_STAT_REGBITS	11
 #define _EP_STAT_MODBITS	8
 
-#if LONG_MAX == INT32_MAX
+//#if LONG_MAX == INT32_MAX
 # define _EP_STAT_DETBITS	10
-#else
-# define _EP_STAT_DETBITS	42
-#endif
+//#else
+//# define _EP_STAT_DETBITS	42
+//#endif
 
 #define EP_STAT_MAX_REGISTRIES	((1UL << _EP_STAT_REGBITS) - 1)
 #define EP_STAT_MAX_MODULES	((1UL << _EP_STAT_MODBITS) - 1)
@@ -112,8 +112,8 @@ typedef struct _ep_stat
 #define EP_STAT_IS_SAME(a, b)	((a).code == (b).code)
 
 // casting to and from int
-#define EP_STAT_TO_LONG(s)	((s).code)
-#define EP_STAT_FROM_LONG(i)	((EP_STAT) { (i) })
+#define EP_STAT_TO_INT(s)	((s).code)
+#define EP_STAT_FROM_INT(i)	((EP_STAT) { (i) })
 
 // error checking quick routine, e.g., EP_STAT_CHECK(stat, break);
 #define EP_STAT_CHECK(st, failure) \

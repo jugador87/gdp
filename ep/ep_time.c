@@ -174,5 +174,5 @@ ep_time_parse(const char *timestr, EP_TIME_SPEC *tv)
 		nbytes += mbytes + 1;
 	}
 
-	return EP_STAT_FROM_LONG(nbytes);
+	return EP_STAT_FROM_INT(nbytes);
 }
