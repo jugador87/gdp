@@ -1,5 +1,7 @@
 ALL=		gdpd
 
+LOCAL1=		/usr/local
+LOCAL2=		/opt/local
 INCROOT=	..
 LIBROOT=	${INCROOT}
 #LIBSEARCH=	-L${INCROOT}/libs
@@ -8,7 +10,7 @@ INCGDP=		-I${INCROOT}
 LIBGDP=		-lgdp
 INCEP=
 LIBEP=		-lep
-INCEVENT2=	-I/usr/local/include
+INCEVENT2=	-I${LOCAL1}/include -I${LOCAL2}/include
 LIBEVENT2=	-levent -levent_pthreads -pthread
 INCCRYPTO=
 LIBCRYPTO=	-lcrypto

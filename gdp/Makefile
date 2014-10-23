@@ -24,13 +24,15 @@ GDPLIBMINVER=	0
 GDPLIBVER=	${GDPLIBMAJVER}.${GDPLIBMINVER}
 ALL=		libgdp.a libgdp.so.${GDPLIBVER}
 
+LOCAL1=		/usr/local
+LOCAL2=		/opt/local
 INCROOT=	..
 LIBROOT=	${INCROOT}
 LIBCRYPTO=	-lcrypto
 LIBEVENT2=	-levent -levent_pthreads
 LIBEP=		-L${LIBROOT}/ep -lep
 INCEP=		-I${INCROOT}
-INCEVENT2=	-I/usr/local/include
+INCEVENT2=	-I${LOCAL1}/include -I${LOCAL2}/include
 INCS=		${INCEP} ${INCEVENT2} ${INCCRYPTO}
 LDFLAGS= 	${LIBEP} ${LIBEVENT2} ${LIBCRYPTO}
 LIBDIR= 	${LIBROOT}/libs
