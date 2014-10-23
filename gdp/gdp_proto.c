@@ -988,6 +988,7 @@ _gdp_do_init_2(const char *gdpd_addr)
 			if (bufferevent_socket_connect(chan, a->ai_addr,
 						a->ai_addrlen) >= 0)
 				break;
+			a = a->ai_next;
 		}
 		if (a == NULL)
 		{
