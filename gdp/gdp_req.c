@@ -48,7 +48,7 @@ _gdp_req_new(int cmd,
 	ep_thr_mutex_lock(&ReqFreeListMutex);
 	if ((req = LIST_FIRST(&ReqFreeList)) != NULL)
 	{
-		LIST_REMOVE(req, list);
+		LIST_REMOVE(req, gcllist);
 	}
 	ep_thr_mutex_unlock(&ReqFreeListMutex);
 	if (req == NULL)
@@ -59,11 +59,18 @@ _gdp_req_new(int cmd,
 	}
 
 	EP_ASSERT(!req->inuse);
+	EP_ASSERT(!req->ongcllist);
+	EP_ASSERT(!req->onchanlist);
 	req->pkt = _gdp_pkt_new();
 	req->gclh = gclh;
 	req->stat = EP_STAT_OK;
 	req->flags = flags;
 	req->chan = chan;
+	if (chan != NULL)
+	{
+		LIST_INSERT_HEAD(&chan->reqs, req, chanlist);
+		req->onchanlist = true;
+	}
 	req->pkt->cmd = cmd;
 	if (gclh != NULL)
 		memcpy(req->pkt->gcl_name, gclh->gcl_name, sizeof req->pkt->gcl_name);
@@ -94,6 +101,16 @@ _gdp_req_free(gdp_req_t *req)
 	ep_thr_mutex_lock(&req->mutex);
 	EP_ASSERT(req->inuse);
 
+	// remove the request from the channel subscription list
+	if (req->onchanlist)
+		LIST_REMOVE(req, chanlist);
+	req->onchanlist = false;
+
+	// remove the request from the GCL list
+	if (req->ongcllist)
+		LIST_REMOVE(req, gcllist);
+	req->ongcllist = false;
+
 	// free the associated packet
 	if (req->pkt != NULL)
 		_gdp_pkt_free(req->pkt);
@@ -111,7 +128,7 @@ _gdp_req_free(gdp_req_t *req)
 
 	// add the empty request to the free list
 	ep_thr_mutex_lock(&ReqFreeListMutex);
-	LIST_INSERT_HEAD(&ReqFreeList, req, list);
+	LIST_INSERT_HEAD(&ReqFreeList, req, gcllist);
 	ep_thr_mutex_unlock(&ReqFreeListMutex);
 }
 
@@ -123,7 +140,7 @@ _gdp_req_freeall(struct req_head *reqlist)
 	ep_dbg_cprintf(Dbg, 49, ">>> _gdp_req_freeall(%p)\n", reqlist);
 	while (r1 != NULL)
 	{
-		gdp_req_t *r2 = LIST_NEXT(r1, list);
+		gdp_req_t *r2 = LIST_NEXT(r1, gcllist);
 		_gdp_req_free(r1);
 		r1 = r2;
 	}
@@ -137,13 +154,17 @@ _gdp_req_find(gdp_gcl_t *gclh, gdp_rid_t rid)
 	gdp_req_t *req;
 
 	ep_thr_mutex_lock(&gclh->mutex);
-	LIST_FOREACH(req, &gclh->reqs, list)
+	LIST_FOREACH(req, &gclh->reqs, gcllist)
 	{
 		if (req->pkt->rid == rid)
 			break;
 	}
 	if (req != NULL && !EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
-		LIST_REMOVE(req, list);
+	{
+		EP_ASSERT(req->ongcllist);
+		LIST_REMOVE(req, gcllist);
+		req->ongcllist = false;
+	}
 	ep_thr_mutex_unlock(&gclh->mutex);
 	ep_dbg_cprintf(Dbg, 48, "gdp_req_find(gclh=%p, rid=%" PRIgdp_rid ") => %p\n",
 			gclh, rid, req);
@@ -156,6 +177,7 @@ static EP_PRFLAGS_DESC	ReqFlags[] =
 	{ GDP_REQ_DONE,			GDP_REQ_DONE,			"DONE"			},
 	{ GDP_REQ_PERSIST,		GDP_REQ_PERSIST,		"PERSIST"		},
 	{ GDP_REQ_SUBSCRIPTION,	GDP_REQ_SUBSCRIPTION,	"SUBSCRIPTION"	},
+	{ GDP_REQ_SUBUPGRADE,	GDP_REQ_SUBUPGRADE,		"SUBUPGRADE"	},
 	{ 0,					0,						NULL			}
 };
 
@@ -176,7 +198,12 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 	_gdp_pkt_dump(req->pkt, fp);
 	fprintf(fp, "    flags=");
 	ep_prflags(req->flags, ReqFlags, fp);
-	fprintf(fp, "\n    chan=%p, udata=%p, stat=%s\n",
+	fprintf(fp, "\n    %sinuse, %spostproc, %songcllist, %sonchanlist\n",
+			req->inuse ? "" : "!",
+			req->postproc ? "" : "!",
+			req->ongcllist ? "" : "!",
+			req->onchanlist ? "" : "!");
+	fprintf(fp, "    chan=%p, udata=%p, stat=%s\n",
 			req->chan, req->udata,
 			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
 }

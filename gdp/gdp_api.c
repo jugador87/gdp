@@ -395,6 +395,7 @@ gdp_gcl_publish(gdp_gcl_t *gclh,
 	gdp_datum_free(req->pkt->datum);
 	(void) ep_time_now(&datum->ts);
 	req->pkt->datum = datum;
+	EP_ASSERT(datum->inuse);
 
 	estat = _gdp_invoke(req);
 
@@ -432,6 +433,7 @@ gdp_gcl_read(gdp_gcl_t *gclh,
 
 	gdp_datum_free(req->pkt->datum);
 	req->pkt->datum = datum;
+	EP_ASSERT(datum->inuse);
 
 	estat = _gdp_invoke(req);
 

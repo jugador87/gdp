@@ -71,19 +71,17 @@ gdpd_req_thread(void *req_)
 
 /*
 **  CMDSOCK_READ_CB --- handle reads on command sockets
-**
-**		The ctx argument is unused, but we pass it down anyway in case
-**		we ever want to make use of it.
 */
 
 void
-cmdsock_read_cb(gdp_chan_t *chan, void *ctx)
+cmdsock_read_cb(struct bufferevent *bev, void *ctx)
 {
 	EP_STAT estat;
 	gdp_req_t *req;
+	struct gdp_event_info *gei = ctx;
 
 	// allocate a request buffer
-	estat = _gdp_req_new(0, NULL, chan, 0, &req);
+	estat = _gdp_req_new(0, NULL, gei->chan, 0, &req);
 	if (!EP_STAT_ISOK(estat))
 	{
 		gdp_log(estat, "cmdsock_read_cb: cannot allocate request");
@@ -91,7 +89,7 @@ cmdsock_read_cb(gdp_chan_t *chan, void *ctx)
 	}
 	req->pkt->datum = gdp_datum_new();
 
-	estat = _gdp_pkt_in(req->pkt, chan);
+	estat = _gdp_pkt_in(req->pkt, gei->chan);
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
 	{
 		// we don't yet have the entire packet in memory
@@ -101,10 +99,8 @@ cmdsock_read_cb(gdp_chan_t *chan, void *ctx)
 
 	ep_dbg_cprintf(Dbg, 10, "\n*** Processing command %d=%s from socket %d\n",
 			req->pkt->cmd, _gdp_proto_cmd_name(req->pkt->cmd),
-			bufferevent_getfd(chan));
+			bufferevent_getfd(bev));
 
-	// cheat: pass channel in req structure
-	req->chan = chan;
 	thread_pool_job *new_job = thread_pool_job_new(&gdpd_req_thread,
 									NULL, req);
 	thread_pool_add_job(CpuJobThreadPool, new_job);
@@ -117,7 +113,6 @@ cmdsock_read_cb(gdp_chan_t *chan, void *ctx)
 
 void
 cmdsock_close_cb(struct event_base *eb,
-		gdp_chan_t *chan,
 		struct gdp_event_info *gei)
 {
 	ep_dbg_cprintf(Dbg, 10, "cmdsock_close_cb:\n");
@@ -131,9 +126,11 @@ cmdsock_close_cb(struct event_base *eb,
 */
 
 void
-cmdsock_event_cb(gdp_chan_t *chan, short events, void *ctx)
+cmdsock_event_cb(struct bufferevent *bev, short events, void *ctx)
 {
-	_gdp_event_cb(chan, events, ctx);
+	struct gdp_event_info *gei = ctx;
+
+	_gdp_event_cb(bev, events, ctx);
 	if (EP_UT_BITSET(BEV_EVENT_ERROR, events))
 	{
 		EP_STAT estat = ep_stat_from_errno(errno);
@@ -144,7 +141,27 @@ cmdsock_event_cb(gdp_chan_t *chan, short events, void *ctx)
 	}
 
 	if (EP_UT_BITSET(BEV_EVENT_ERROR | BEV_EVENT_EOF, events))
-		bufferevent_free(chan);
+	{
+		// free any requests tied to this channel
+		gdp_chan_t *chan = gei->chan;
+		gdp_req_t *req = LIST_FIRST(&chan->reqs);
+
+		while (req != NULL)
+		{
+			gdp_req_t *req2 = LIST_NEXT(req, chanlist);
+			_gdp_req_free(req);
+			req = req2;
+		}
+
+		// free up the bufferevent
+		EP_ASSERT(bev == gei->chan->bev);
+		bufferevent_free(bev);
+		gei->chan->bev = NULL;
+
+		// free up the channel memory
+		ep_mem_free(gei->chan);
+		gei->chan = NULL;
+	}
 }
 
 
@@ -169,11 +186,14 @@ lev_accept_cb(struct evconnlistener *lev,
 	union sockaddr_xx saddr;
 	socklen_t slen = sizeof saddr;
 
+	chan = ep_mem_zalloc(sizeof *chan);
+	LIST_INIT(&chan->reqs);
+
 	evutil_make_socket_nonblocking(sockfd);
-	chan = bufferevent_socket_new(evbase, sockfd,
+	chan->bev = bufferevent_socket_new(evbase, sockfd,
 					BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
 
-	if (chan == NULL)
+	if (chan->bev == NULL)
 	{
 		gdp_log(ep_stat_from_errno(errno),
 				"lev_accept_cb: could not allocate bufferevent");
@@ -208,8 +228,9 @@ lev_accept_cb(struct evconnlistener *lev,
 
 	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
 	gei->exit_cb = &cmdsock_close_cb;
-	bufferevent_setcb(chan, cmdsock_read_cb, NULL, cmdsock_event_cb, gei);
-	bufferevent_enable(chan, EV_READ | EV_WRITE);
+	gei->chan = chan;
+	bufferevent_setcb(chan->bev, cmdsock_read_cb, NULL, cmdsock_event_cb, gei);
+	bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
 }
 
 

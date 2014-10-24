@@ -32,6 +32,8 @@ sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum)
 	}
 
 	estat = _gdp_pkt_out(req->pkt, req->chan);
+	req->pkt->datum = NULL;				// we just borrowed the datum
+
 	if (req->numrecs > 0 && --req->numrecs <= 0)
 		sub_end_subscription(req);
 }
@@ -52,7 +54,7 @@ sub_notify_all_subscribers(gdp_req_t *pubreq)
 		_gdp_req_dump(pubreq, ep_dbg_getfile());
 	}
 
-	LIST_FOREACH(req, &pubreq->gclh->reqs, list)
+	LIST_FOREACH(req, &pubreq->gclh->reqs, gcllist)
 	{
 		// make sure we don't tell ourselves
 		if (req == pubreq)
@@ -77,7 +79,9 @@ sub_end_subscription(gdp_req_t *req)
 
 	// remove the request from the work list
 	ep_thr_mutex_lock(&req->gclh->mutex);
-	LIST_REMOVE(req, list);
+	EP_ASSERT(req->ongcllist);
+	LIST_REMOVE(req, gcllist);
+	req->ongcllist = false;
 	ep_thr_mutex_unlock(&req->gclh->mutex);
 
 	// _gdp_gcl_decref(req->gclh) will happen in gdpd_req_thread cleanup

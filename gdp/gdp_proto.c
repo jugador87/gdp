@@ -53,7 +53,9 @@ _gdp_req_send(gdp_req_t *req)
 
 	// link the request to the GCL
 	ep_thr_mutex_lock(&gclh->mutex);
-	LIST_INSERT_HEAD(&gclh->reqs, req, list);
+	EP_ASSERT(!req->ongcllist);
+	LIST_INSERT_HEAD(&gclh->reqs, req, gcllist);
+	req->ongcllist = true;
 	ep_thr_mutex_unlock(&gclh->mutex);
 
 	// register this handle so we can process the results
@@ -591,6 +593,7 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 
 		// point the new packet at the old datum
 		pkt->datum = req->pkt->datum;
+		EP_ASSERT(pkt->datum->inuse);
 	}
 
 	// can now drop the old pkt and switch to the new one
@@ -663,19 +666,20 @@ fail1:
 */
 
 static void
-gdp_read_cb(gdp_chan_t *chan, void *ctx)
+gdp_read_cb(struct bufferevent *bev, void *ctx)
 {
 	EP_STAT estat;
 	gdp_pkt_t *pkt;
-	gdp_buf_t *ievb = bufferevent_get_input(chan);
+	gdp_buf_t *ievb = bufferevent_get_input(bev);
+	struct gdp_event_info *gei = ctx;
 
 	ep_dbg_cprintf(Dbg, 50, "gdp_read_cb: fd %d, %zd bytes\n",
-			bufferevent_getfd(chan), evbuffer_get_length(ievb));
+			bufferevent_getfd(bev), evbuffer_get_length(ievb));
 
 	while (evbuffer_get_length(ievb) > 0)
 	{
 		pkt = _gdp_pkt_new();
-		estat = _gdp_pkt_in(pkt, chan);
+		estat = _gdp_pkt_in(pkt, gei->chan);
 		if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
 		{
 			_gdp_pkt_free(pkt);
@@ -683,9 +687,9 @@ gdp_read_cb(gdp_chan_t *chan, void *ctx)
 		}
 
 #ifdef GDP_PACKET_QUEUE
-		_gdp_pkt_add_to_queue(pkt, chan);
+		_gdp_pkt_add_to_queue(pkt, gei->chan);
 #else
-		estat = process_packet(pkt, chan);
+		estat = process_packet(pkt, gei->chan);
 #endif
 	}
 }
@@ -707,20 +711,20 @@ static EP_PRFLAGS_DESC	EventWhatFlags[] =
 };
 
 void
-_gdp_event_cb(gdp_chan_t *chan, short events, void *ctx)
+_gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 {
 	bool exitloop = false;
 	struct gdp_event_info *gei = ctx;
 
 	if (ep_dbg_test(Dbg, 25))
 	{
-		ep_dbg_printf("_gdp_event_cb: fd %d: ", bufferevent_getfd(chan));
+		ep_dbg_printf("_gdp_event_cb: fd %d: ", bufferevent_getfd(bev));
 		ep_prflags(events, EventWhatFlags, ep_dbg_getfile());
 		ep_dbg_printf("\n");
 	}
 	if (EP_UT_BITSET(BEV_EVENT_EOF, events))
 	{
-		gdp_buf_t *ievb = bufferevent_get_input(chan);
+		gdp_buf_t *ievb = bufferevent_get_input(bev);
 		size_t l = gdp_buf_getlength(ievb);
 
 		ep_dbg_cprintf(Dbg, 1, "_gdp_event_cb: got EOF, %zu bytes left\n", l);
@@ -735,7 +739,7 @@ _gdp_event_cb(gdp_chan_t *chan, short events, void *ctx)
 	if (exitloop)
 	{
 		if (gei->exit_cb != NULL)
-			(*gei->exit_cb)(GdpIoEventBase, chan, gei);
+			(*gei->exit_cb)(GdpIoEventBase, gei);
 		else
 			event_base_loopexit(GdpIoEventBase, NULL);
 	}
@@ -940,20 +944,26 @@ _gdp_do_init_2(const char *gdpd_addr)
 	gdp_chan_t *chan;
 	EP_STAT estat = EP_STAT_OK;
 
+	// allocate a new channel structure
+	chan = ep_mem_zalloc(sizeof *chan);
+	LIST_INIT(&chan->reqs);
+
 	// set up the bufferevent
-	chan = bufferevent_socket_new(GdpIoEventBase,
+	chan->bev = bufferevent_socket_new(GdpIoEventBase,
 						-1,
 						BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE |
 						BEV_OPT_DEFER_CALLBACKS);
-	if (chan == NULL)
+	if (chan->bev == NULL)
 	{
 		estat = init_error("could not allocate bufferevent", "gdp_init");
 		goto fail0;
 	}
 
 	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
-	bufferevent_setcb(chan, gdp_read_cb, NULL, _gdp_event_cb, gei);
-	bufferevent_enable(chan, EV_READ | EV_WRITE);
+	gei->chan = chan;
+
+	bufferevent_setcb(chan->bev, gdp_read_cb, NULL, _gdp_event_cb, gei);
+	bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
 
 	// attach it to a socket
 	char abuf[100];
@@ -985,7 +995,7 @@ _gdp_do_init_2(const char *gdpd_addr)
 		while (a != NULL)
 		{
 			gdpd_port = ((struct sockaddr_in *) a->ai_addr)->sin_port;
-			if (bufferevent_socket_connect(chan, a->ai_addr,
+			if (bufferevent_socket_connect(chan->bev, a->ai_addr,
 						a->ai_addrlen) >= 0)
 				break;
 			a = a->ai_next;
@@ -1007,7 +1017,7 @@ _gdp_do_init_2(const char *gdpd_addr)
 
 	_GdpChannel = chan;
 	ep_dbg_cprintf(Dbg, 10, "gdp_init: talking on port %d, fd %d\n",
-			ntohs(gdpd_port), bufferevent_getfd(chan));
+			ntohs(gdpd_port), bufferevent_getfd(chan->bev));
 
 	// create a thread to run the event loop
 	estat = _gdp_start_event_loop_thread(&_GdpIoEventLoopThread,
@@ -1018,7 +1028,8 @@ _gdp_do_init_2(const char *gdpd_addr)
 	return estat;
 
 fail1:
-	bufferevent_free(chan);
+	bufferevent_free(chan->bev);
+	chan->bev = NULL;
 
 fail0:
 	{

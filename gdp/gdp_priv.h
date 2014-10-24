@@ -13,7 +13,7 @@
 
 #include <stdio.h>
 
-typedef struct bufferevent	gdp_chan_t;
+typedef struct gdp_chan	gdp_chan_t;
 
 extern pthread_t		_GdpIoEventLoopThread;
 gdp_chan_t				*_GdpChannel;	// our primary app-level protocol port
@@ -22,6 +22,13 @@ gdp_chan_t				*_GdpChannel;	// our primary app-level protocol port
 
 // declare the type of the gdp_req linked list (used multiple places)
 LIST_HEAD(req_head, gdp_req);
+
+
+struct gdp_chan
+{
+	struct bufferevent	*bev;			// associated bufferevent (socket)
+	struct req_head		reqs;			// reqs associated with this channel
+};
 
 
 /*
@@ -101,9 +108,12 @@ typedef struct gdp_req
 {
 	EP_THR_MUTEX		mutex;		// lock on this data structure
 	EP_THR_COND			cond;		// pthread wakeup condition variable
-	LIST_ENTRY(gdp_req)	list;		// linked list for cache management
+	LIST_ENTRY(gdp_req)	gcllist;	// linked list for cache management
+	LIST_ENTRY(gdp_req)	chanlist;	// reqs associated with a given channel
 	bool				inuse:1;	// indicates request is allocated
 	bool				postproc:1;	// invoke callback for late cmd processing
+	bool				ongcllist:1;	// this is on a gcl list
+	bool				onchanlist:1;	// this is on a channel list
 	gdp_gcl_t			*gclh;		// the corresponding GCL handle
 	gdp_pkt_t			*pkt;		// packet buffer
 	gdp_chan_t			*chan;		// the network channel for this req
@@ -154,8 +164,8 @@ struct gdp_event_info
 {
 	void				(*exit_cb)(		// called on event loop exit
 							struct event_base *evb,
-							gdp_chan_t *chan,
 							struct gdp_event_info *gei);
+	gdp_chan_t			*chan;			// I/O channel
 };
 
 gdp_gcl_t		*_gdp_gcl_cache_get(		// get entry from cache
@@ -224,7 +234,7 @@ void			_gdp_chan_drain_input(		// drain all input from channel
 						gdp_chan_t *chan);
 
 void			_gdp_event_cb(				// handle unusual events
-						gdp_chan_t *chan,
+						struct bufferevent *bev,
 						short events,
 						void *ctx);
 

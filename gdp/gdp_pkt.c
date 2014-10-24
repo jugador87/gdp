@@ -120,7 +120,7 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	uint8_t pbuf[_GDP_MAX_PKT_HDR];
 	uint8_t *pbp = pbuf;
 	size_t dlen;
-	struct evbuffer *obuf = bufferevent_get_output(chan);
+	struct evbuffer *obuf = bufferevent_get_output(chan->bev);
 
 	EP_ASSERT_POINTER_VALID(pkt);
 	EP_ASSERT_POINTER_VALID(pkt->datum);
@@ -128,7 +128,8 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_chan_t *chan)
 
 	if (ep_dbg_test(Dbg, 22))
 	{
-		ep_dbg_printf("gdp_pkt_out (fd = %d):\n\t", bufferevent_getfd(chan));
+		ep_dbg_printf("gdp_pkt_out (fd = %d):\n\t",
+				bufferevent_getfd(chan->bev));
 		_gdp_pkt_dump(pkt, ep_dbg_getfile());
 	}
 
@@ -285,7 +286,7 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	ep_dbg_cprintf(Dbg, 60, "gdp_pkt_in\n");	// XXX
 	EP_ASSERT(pkt->datum != NULL);
 	EP_ASSERT(pkt->datum->dbuf != NULL);
-	ibuf = bufferevent_get_input(chan);
+	ibuf = bufferevent_get_input(chan->bev);
 
 	// see if the fixed part of the header is all in
 	needed = FIXEDHDRSZ;			// ver, cmd, flags, reserved1, dlen

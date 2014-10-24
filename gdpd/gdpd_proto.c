@@ -354,7 +354,9 @@ post_subscribe(gdp_req_t *req)
 
 		// link this request into the GCL so the subscription can be found
 		ep_thr_mutex_lock(&req->gclh->mutex);
-		LIST_INSERT_HEAD(&req->gclh->reqs, req, list);
+		EP_ASSERT(!req->ongcllist);
+		LIST_INSERT_HEAD(&req->gclh->reqs, req, gcllist);
+		req->ongcllist = true;
 		ep_thr_mutex_unlock(&req->gclh->mutex); }
 }
 
@@ -447,7 +449,9 @@ cmd_subscribe(gdp_req_t *req)
 
 		// link this request into the GCL so the subscription can be found
 		ep_thr_mutex_lock(&req->gclh->mutex);
-		LIST_INSERT_HEAD(&req->gclh->reqs, req, list);
+		EP_ASSERT(!req->ongcllist);
+		LIST_INSERT_HEAD(&req->gclh->reqs, req, gcllist);
+		req->ongcllist = true;
 		ep_thr_mutex_unlock(&req->gclh->mutex);
 	}
 
@@ -548,7 +552,9 @@ cmd_multiread(gdp_req_t *req)
 
 		// link this request into the GCL so the subscription can be found
 		ep_thr_mutex_lock(&req->gclh->mutex);
-		LIST_INSERT_HEAD(&req->gclh->reqs, req, list);
+		EP_ASSERT(!req->ongcllist);
+		LIST_INSERT_HEAD(&req->gclh->reqs, req, gcllist);
+		req->ongcllist = true;
 		ep_thr_mutex_unlock(&req->gclh->mutex);
 	}
 

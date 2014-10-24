@@ -96,6 +96,13 @@ gcl_close(gdp_gcl_t *gclh)
 	if (gclh->x == NULL)
 		return;
 
+	// remove it from the ByUse chain
+	if (!gclh->x->islocked)
+		ep_thr_mutex_lock(&GclsByUseMutex);
+	LIST_REMOVE(gclh->x, ulist);
+	if (!gclh->x->islocked)
+	ep_thr_mutex_unlock(&GclsByUseMutex);
+
 	// close the underlying files
 	if (gclh->x->fp != NULL)
 		gcl_physclose(gclh);
@@ -235,7 +242,11 @@ gcl_reclaim_resources(void)
 		{
 			LIST_REMOVE(x, ulist);
 			if (x->gcl != NULL)
+			{
+				x->islocked = true;
 				_gdp_gcl_freehandle(x->gcl);
+				// x is now deallocated
+			}
 		}
 	}
 	ep_thr_mutex_unlock(&GclsByUseMutex);
