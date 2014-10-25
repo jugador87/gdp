@@ -437,10 +437,9 @@ a_show_gcl(scgi_request *req, gcl_name_t gcliname)
 */
 
 EP_STAT
-a_publish(scgi_request *req, gcl_name_t gcliname)
+a_publish(scgi_request *req, gcl_name_t gcliname, gdp_datum_t *datum)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gdp_datum_t *datum = gdp_datum_new();
 	gdp_gcl_t *gcl = NULL;
 
 	ep_dbg_cprintf(Dbg, 5, "=== Publish value to GCL\n");
@@ -452,7 +451,6 @@ a_publish(scgi_request *req, gcl_name_t gcliname)
 	}
 	if (EP_STAT_ISOK(estat))
 	{
-		gdp_buf_write(datum->dbuf, req->body, req->scgi_content_length);
 		estat = gdp_gcl_publish(gcl, datum);
 	}
 	if (!EP_STAT_ISOK(estat))
@@ -707,7 +705,9 @@ pfx_gcl(scgi_request *req, char *uri)
 
 		case SCGI_METHOD_POST:
 			// append value to GCL
-			estat = a_publish(req, gcliname);
+			gdp_datum_t *datum = gdp_datum_new();
+			gdp_buf_write(datum->dbuf, req->body, req->sgi_content_length);
+			estat = a_publish(req, gcliname, datum);
 			break;
 
 		case SCGI_METHOD_PUT:
@@ -738,6 +738,172 @@ pfx_post(scgi_request *req, char *uri)
 	return error501(req, "/post/... URIs not yet supported");
 }
 
+
+
+/**********************************************************************
+**
+**  KEY-VALUE STORE
+**
+**		This implementation is very sloppy right now.
+**
+**********************************************************************/
+
+
+json_t		*KeyValStore = NULL;
+gdp_gcl_t	*KeyValGcl = NULL;
+char		*KeyValStoreName = "sys/kv/KeyValStore";
+gcl_name_t	KeyValInternalName;
+
+
+void
+insert_datum(gdp_datum_t *datum)
+{
+	if (datum == NULL)
+		return;
+
+	gdp_buf_t *buf = gdp_datum_getbuf(datum);
+	size_t len = gdp_buf_getlength(buf);
+	unsigned char *p = gdp_buf_getptr(buf, len);
+
+	struct json_t *j = json_loadb((char *) p, len, 0, NULL);
+	if (!json_is_object(j))
+		return;
+
+	json_object_update(KeyValStore, j);
+	json_decref(j);
+}
+
+
+EP_STAT
+kv_initialize(void)
+{
+	EP_STAT estat;
+	gdp_event_t *gev;
+
+	// get space for our internal database
+	KeyValStore = json_object();
+
+	// open the "KeyVal" GCL
+	gdp_gcl_parse_name(KeyValStoreName, KeyValInternalName);
+	estat = gdp_gcl_open(KeyValInternalName, GDP_MODE_AO, &KeyValGcl);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	// read all the data
+	estat = gdp_gcl_multiread(KeyValGcl, 1, 0, NULL, NULL);
+	EP_STAT_CHECK(estat, goto fail1);
+	while ((gev = gdp_event_next(true)) != NULL)
+	{
+		if (gdp_event_gettype(gev) == GDP_EVENT_EOS)
+		{
+			// end of multiread --- we have it all
+			gdp_event_free(gev);
+			break;
+		}
+		else if (gdp_event_gettype(gev) == GDP_EVENT_DATA)
+		{
+			// update the current stat of the key-value store
+			insert_datum(gdp_event_getdatum(gev));
+		}
+		gdp_event_free(gev);
+	}
+
+	// now start up the subscription (will be read in main loop)
+	estat = gdp_gcl_subscribe(KeyValGcl, 0, 0, NULL, NULL);
+	goto done;
+
+fail0:
+	// couldn't open; try create?
+	estat = gdp_gcl_create(iname, &KeyValGcl);
+
+fail1:
+	// couldn't read GCL
+
+done:
+	return estat;
+}
+
+
+EP_STAT
+pfx_kv(scgi_request *req, char *uri)
+{
+	EP_STAT estat;
+
+	if (*uri == '/')
+		uri++;
+
+	if (KeyValStore == NULL)
+	{
+		estat = kv_initialize();
+		EP_STAT_CHECK(estat, goto fail0);
+	}
+
+	if (req->request_method == SCGI_METHOD_POST)
+	{
+		// just append the record to the GCL
+		gdp_datum_t *datum = gdp_datum_new();
+		gdp_buf_write(datum->dbuf, req->body, req->scgi_content_length);
+		a_publish(req, iname, datum);
+		gdp_datum_free(datum);
+	}
+	else if (req->request_method == SCGI_METHOD_GET)
+	{
+		FILE *fp;
+		char rbuf[2000];
+
+		fp = ep_fopensmem(rbuf, sizeof rbuf, "w");
+		if (fp == NULL)
+		{
+			char nbuf[40];
+
+			strerror_r(errno, nbuf, sizeof nbuf);
+			ep_app_abort("Cannot open memory for GCL read response: %s",
+					nbuf);
+		}
+
+		json_t *j0 = json_object_get(KeyValStore, uri);
+		if (j0 == NULL)
+			return error404(req, "No such key");
+
+		json_t *j1 = json_object();
+		json_object_set(j1, uri, j0);
+		fprintf(fp, "HTTP/1.1 200 Data\r\n"
+					"Content-Type: application/json\r\n"
+					"\r\n"
+					"%s\r\n",
+					json_dumps(j1, 0));
+		fputc('\0', fp);
+		fclose(fp);
+		json_decref(j1);
+
+		scgi_send(req, rbuf, strlen(rbuf));
+	}
+	else
+	{
+		return error405(req, "unknown method");
+	}
+
+	return EP_STAT_OK;
+
+fail0:
+	return error500(req, "Couldn't initialize Key-Value store", errno);
+}
+
+
+void
+process_event(gdp_event_t *gev)
+{
+	if (gdp_event_gettype(gev) != GDP_EVENT_DATA)
+		return;
+
+	if (KeyValStore == NULL)
+		return;
+
+	// for the time being, assume it comes from the correct GCL
+	insert_datum(gdp_event_getdatum(gev));
+}
+
+
+/**********************************************************************/
 
 /*
 **	PROCESS_SCGI_REQ --- process an already-read SCGI request
@@ -787,6 +953,11 @@ process_scgi_req(scgi_request *req)
 	{
 		// looking at "/gdp/v1/post" prefix
 		estat = pfx_post(req, uri + 4);
+	}
+	else if (strncmp(uri, "kv", 2) == 0 && (uri[2] == '/' || uri[4] == '\0'))
+	{
+		// looking at "/gdp/v1/kv" prefix
+		estat = pfx_kv(req, uri + 2);
 	}
 	else
 	{
@@ -889,6 +1060,14 @@ main(int argc, char **argv, char **env)
 	poll_delay = ep_adm_getlongparam("swarm.gdp.rest.scgi.pollinterval", 100000);
 	for (;;)
 	{
+		gdp_event_t *gev;
+
+		while ((gev = gdp_event_next(false)) != NULL)
+		{
+			process_event(gev);
+			gdp_event_free(gev);
+		}
+
 		scgi_request *req = gdp_scgi_recv();
 		int dead = 0;
 
