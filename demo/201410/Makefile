@@ -1,6 +1,7 @@
 GDPROOT=	../..
 LIBROOT=	${GDPROOT}
-LIBSEARCH=	-L${LIBROOT}/ep -L${LIBROOT}/gdp
+LIBADD=
+LIBSEARCH=	-L${LIBROOT}/ep -L${LIBROOT}/gdp ${LIBADD}
 LDFLAGS=	${LIBSEARCH} -lgdp -lep -levent -levent_pthreads -pthread \
 		-lcrypto -ljansson -lwiringPi
 INCADD=

@@ -24,12 +24,13 @@
 
 gdp_gcl_t *PiGcl;
 FILE	*LogFile;
+int	ButtonPin = BUTTONPIN;
 
 void
 changefunc(void)
 {
 	static int oldval = -1;
-	int v = digitalRead(BUTTONPIN);
+	int v = digitalRead(ButtonPin);
 	EP_STAT estat;
 	gdp_datum_t *datum = gdp_datum_new();
 	gdp_buf_t *buf = gdp_datum_getbuf(datum);
@@ -67,9 +68,10 @@ main(int argc, char **argv)
 	gcl_name_t gclname;
 	char *gclpname = LOG_NAME;
 	bool show_usage = false;
+	char *log_file_name = NULL;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "D:g:")) > 0)
+	while ((opt = getopt(argc, argv, "D:g:L:p:")) > 0)
 	{
 		switch (opt)
 		{
@@ -79,6 +81,14 @@ main(int argc, char **argv)
 
 		  case 'g':
 			gclpname = optarg;
+			break;
+
+		  case 'L':
+			log_file_name = optarg;
+			break;
+
+		  case 'p':
+			ButtonPin = atoi(optarg);
 			break;
 
 		  default:
@@ -92,7 +102,7 @@ main(int argc, char **argv)
 	if (show_usage || argc > 0)
 	{
 		fprintf(stderr,
-			"Usage: %s [-D dbgspec] [-g gclname]\n",
+			"Usage: %s [-D dbgspec] [-g gclname] [-p buttonpin]\n",
 			ep_app_getprogname());
 		exit(EX_USAGE);
 	}
@@ -100,16 +110,20 @@ main(int argc, char **argv)
 	// initialize wiringPi library (must be root!)
 	printf("Initializing wiringPi library:\n");
 	wiringPiSetupGpio();
-	pinMode(BUTTONPIN, INPUT);
-	pullUpDnControl(BUTTONPIN, PUD_UP);
+	pinMode(ButtonPin, INPUT);
+	pullUpDnControl(ButtonPin, PUD_UP);
 
 	//XXX should probably give up root privileges here
 
-	// open a log file (for timing measurements)
-	printf("Opening log file:\n");
-	LogFile = fopen("timings.txt", "a");
-	if (LogFile == NULL)
-		printf("Cannot open log file: %s\n", strerror(errno));
+	if (log_file_name != NULL)
+	{
+		// open a log file (for timing measurements)
+		printf("Opening log file:\n");
+		LogFile = fopen(log_file_name, "a");
+		if (LogFile == NULL)
+			printf("Cannot open log file: %s\n", strerror(errno));
+		setlinebuf(LogFile);
+	}
 
 	// initialize the GDP library
 	printf("Initializing GDP library:\n");
@@ -143,7 +157,7 @@ main(int argc, char **argv)
 	}
 
 	// arrange to call a function on edge triggers
-	(void) wiringPiISR(BUTTONPIN, INT_EDGE_BOTH, &changefunc);
+	(void) wiringPiISR(ButtonPin, INT_EDGE_BOTH, &changefunc);
 
 	while (true)
 		sleep(3600);
