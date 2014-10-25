@@ -73,9 +73,9 @@ typedef struct _ep_stat
 //# define _EP_STAT_DETBITS	42
 //#endif
 
-#define EP_STAT_MAX_REGISTRIES	((1UL << _EP_STAT_REGBITS) - 1)
-#define EP_STAT_MAX_MODULES	((1UL << _EP_STAT_MODBITS) - 1)
-#define EP_STAT_MAX_DETAIL	((1UL << _EP_STAT_DETBITS) - 1)
+#define EP_STAT_MAX_REGISTRIES	((1U << _EP_STAT_REGBITS) - 1)
+#define EP_STAT_MAX_MODULES	((1U << _EP_STAT_MODBITS) - 1)
+#define EP_STAT_MAX_DETAIL	((1U << _EP_STAT_DETBITS) - 1)
 
 #define _EP_STAT_MODSHIFT	_EP_STAT_DETBITS
 #define _EP_STAT_REGSHIFT	(_EP_STAT_MODSHIFT + _EP_STAT_MODBITS)
@@ -89,16 +89,16 @@ typedef struct _ep_stat
 
 // constructors for status code
 #define EP_STAT_NEW(s, r, m, d) \
-			((EP_STAT) { ((((s) & ((1UL << _EP_STAT_SEVBITS) - 1)) << _EP_STAT_SEVSHIFT) | \
-				      (((r) & ((1UL << _EP_STAT_REGBITS) - 1)) << _EP_STAT_REGSHIFT) | \
-				      (((m) & ((1UL << _EP_STAT_MODBITS) - 1)) << _EP_STAT_MODSHIFT) | \
-				      (((d) & ((1UL << _EP_STAT_DETBITS) - 1)))) } )
+			((EP_STAT) { ((((s) & ((1U << _EP_STAT_SEVBITS) - 1)) << _EP_STAT_SEVSHIFT) | \
+				      (((r) & ((1U << _EP_STAT_REGBITS) - 1)) << _EP_STAT_REGSHIFT) | \
+				      (((m) & ((1U << _EP_STAT_MODBITS) - 1)) << _EP_STAT_MODSHIFT) | \
+				      (((d) & ((1U << _EP_STAT_DETBITS) - 1)))) } )
 
 // routines to extract pieces of error codes
-#define EP_STAT_SEVERITY(c)	(((c).code >> _EP_STAT_SEVSHIFT) & ((1UL << _EP_STAT_SEVBITS) - 1))
-#define EP_STAT_REGISTRY(c)	(((c).code >> _EP_STAT_REGSHIFT) & ((1UL << _EP_STAT_REGBITS) - 1))
-#define EP_STAT_MODULE(c)	(((c).code >> _EP_STAT_MODSHIFT) & ((1UL << _EP_STAT_MODBITS) - 1))
-#define EP_STAT_DETAIL(c)	(((c).code                     ) & ((1UL << _EP_STAT_DETBITS) - 1))
+#define EP_STAT_SEVERITY(c)	(((c).code >> _EP_STAT_SEVSHIFT) & ((1U << _EP_STAT_SEVBITS) - 1))
+#define EP_STAT_REGISTRY(c)	(((c).code >> _EP_STAT_REGSHIFT) & ((1U << _EP_STAT_REGBITS) - 1))
+#define EP_STAT_MODULE(c)	(((c).code >> _EP_STAT_MODSHIFT) & ((1U << _EP_STAT_MODBITS) - 1))
+#define EP_STAT_DETAIL(c)	(((c).code                     ) & ((1U << _EP_STAT_DETBITS) - 1))
 
 // predicates to query the status severity
 #define EP_STAT_ISOK(c)		(EP_STAT_SEVERITY(c) < EP_STAT_SEV_WARN)

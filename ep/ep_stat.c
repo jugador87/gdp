@@ -503,13 +503,13 @@ ep_stat_tostr(EP_STAT stat,
 	}
 	if (module == NULL)
 	{
-		snprintf(mbuf, sizeof mbuf, "%ld", EP_STAT_MODULE(stat));
+		snprintf(mbuf, sizeof mbuf, "%d", EP_STAT_MODULE(stat));
 		module = mbuf;
 	}
 
 	if (detail != NULL)
 	{
-		snprintf(buf, blen, "%s: %s [%s:%s:%ld]",
+		snprintf(buf, blen, "%s: %s [%s:%s:%d]",
 				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
 				detail,
 				rname,
@@ -518,7 +518,7 @@ ep_stat_tostr(EP_STAT stat,
 	}
 	else
 	{
-		snprintf(buf, blen, "%s: [%s:%s:%ld]",
+		snprintf(buf, blen, "%s: [%s:%s:%d]",
 				ep_stat_sev_tostr(EP_STAT_SEVERITY(stat)),
 				rname,
 				module,
