@@ -65,13 +65,14 @@ run those daemons; if they aren't running, start them using:
     sudo -u gdpd ~gdpd/bin/start-gdp
 
 I recommend verifying in advance that the appropriate GCL
-already exists on the server.  Try the command:
+already exists on the server.  From the root of the gdp tree,
+try the command:
 
-    .../apps/reader-test -n 1 demo/201410/pi
+    apps/reader-test -n 1 demo/201410/pi
 
 If this gives a "not found" error, use:
 
-    .../apps/writer-test demo/201410/pi < /dev/null
+    apps/writer-test demo/201410/pi < /dev/null
 
 to create it.
 
@@ -120,14 +121,14 @@ There should be a login on each Pi called "pi", password
 "pineapple" which has password-less sudo root access (this is
 required to access the GPIO pins).
 
-* Log into one of the Pis.  Use "/sbin/ifconfig br0" to print the
-information about the br0 interface, which should include the IP
+* Log into one of the Pis.  Use "/sbin/ifconfig eth0" to print the
+information about the eth0 interface, which should include the IP
 address (which should begin "128.32." --- if it does not then the
 network is probably broken).  Note this number.
 
-* Without turning off that Pi, re-connect the USB and HDMI cables
-to the other Pi.  If you power cycle you might get a different IP
-address, so try to avoid this.
+* Without turning off that Pi, unplug the USB and HDMI cables and
+re-connect them to the other Pi.  If you power cycle you might get
+a different IP address, so try to avoid this.
 
 * Open at least two windows.  In Window A, log into the machine
 connected to the button, and in Window B, log into the machine
