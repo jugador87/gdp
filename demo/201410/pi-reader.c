@@ -24,6 +24,7 @@
 #define LEDPIN		17
 
 FILE	*LogFile;
+int	LedPin = LEDPIN;
 
 int
 main(int argc, char **argv)
@@ -33,9 +34,10 @@ main(int argc, char **argv)
 	gcl_name_t gclname;
 	char *gclpname = LOG_NAME;
 	bool show_usage = false;
+	char *log_file_name = NULL;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "D:g:")) > 0)
+	while ((opt = getopt(argc, argv, "D:g:L:p:")) > 0)
 	{
 		switch (opt)
 		{
@@ -45,6 +47,14 @@ main(int argc, char **argv)
 
 		  case 'g':
 			gclpname = optarg;
+			break;
+
+		  case 'L':
+			log_file_name = optarg;
+			break;
+
+		  case 'p':
+			LedPin = atoi(optarg);
 			break;
 
 		  default:
@@ -58,7 +68,7 @@ main(int argc, char **argv)
 	if (show_usage || argc > 0)
 	{
 		fprintf(stderr,
-			"Usage: %s [-D dbgspec] [-g gclname]\n",
+			"Usage: %s [-D dbgspec] [-g gclname] [-p ledpin]\n",
 			ep_app_getprogname());
 		exit(EX_USAGE);
 	}
@@ -66,15 +76,19 @@ main(int argc, char **argv)
 	// initialize wiringPi library (must be root!)
 	printf("Initializing wiringPi library:\n");
 	wiringPiSetupGpio();
-	pinMode(LEDPIN, OUTPUT);
+	pinMode(LedPin, OUTPUT);
 
 	//XXX should probably give up root privileges here
 
-	// open a log file (for timing measurements)
-	printf("Opening log file:\n");
-	LogFile = fopen("timings.txt", "a");
-	if (LogFile == NULL)
-		printf("Cannot open log file: %s\n", strerror(errno));
+	if (log_file_name != NULL)
+	{
+		// open a log file (for timing measurements)
+		printf("Opening log file:\n");
+		LogFile = fopen(log_file_name, "a");
+		if (LogFile == NULL)
+			printf("Cannot open log file: %s\n", strerror(errno));
+		setlinebuf(LogFile);
+	}
 
 	// initialize the GDP library
 	printf("Initializing GDP library:\n");
@@ -165,7 +179,7 @@ main(int argc, char **argv)
 
 			// write the output pin
 			printf("Value = %d\n", json_is_true(jval));
-			digitalWrite(LEDPIN, json_is_true(jval));
+			digitalWrite(LedPin, json_is_true(jval));
 
 			json_decref(jval);
 			json_decref(json);
