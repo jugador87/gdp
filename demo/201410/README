@@ -1,0 +1,5 @@
+This directory contains the demo for the TerraSwarm meeting
+in October 2014.  It only runs on the Raspberry Pi.
+
+To compile it, you'll need to install the wiringPi library
+(http://wiringpi.com) and compile on the Pi itself.
