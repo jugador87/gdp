@@ -79,8 +79,8 @@ sub_end_subscription(gdp_req_t *req)
 
 	// remove the request from the work list
 	ep_thr_mutex_lock(&req->gclh->mutex);
-	EP_ASSERT(req->ongcllist);
-	LIST_REMOVE(req, gcllist);
+	if (req->ongcllist)
+		LIST_REMOVE(req, gcllist);
 	req->ongcllist = false;
 	ep_thr_mutex_unlock(&req->gclh->mutex);
 
