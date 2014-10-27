@@ -357,7 +357,8 @@ post_subscribe(gdp_req_t *req)
 		EP_ASSERT(!req->ongcllist);
 		LIST_INSERT_HEAD(&req->gclh->reqs, req, gcllist);
 		req->ongcllist = true;
-		ep_thr_mutex_unlock(&req->gclh->mutex); }
+		ep_thr_mutex_unlock(&req->gclh->mutex);
+	}
 }
 
 
