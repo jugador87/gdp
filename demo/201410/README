@@ -2,12 +2,12 @@ This directory contains the software needed for the demo for
 the TerraSwarm meeting in October 2014.  It only runs on the
 Raspberry Pi at the moment, since it needs GPIO pins.
 
-The basic concept is simple: there are two Raspberry Pis (only
-one actually required).  One runs a program called "pi-writer"
-which monitors a GPIO pin on the Pi and writes its state as a
-JSON object to a GCL.  The other runs a program called
-pi-reader, which reads the GCL and updates the GPIO pin connected
-to a LED.  It demonstrates communication over the GDP.
+The basic concept is simple: there are two Raspberry Pis.  One runs
+a program called "pi-writer" which monitors a GPIO pin on the Pi.
+On state change the program writes its state as a JSON object to a
+GCL.  The other Pi runs a program called pi-reader which subscribes
+to that GCL and writes new values to the GPIO pin connected to a LED.
+It demonstrates communication and logging of data with the GDP.
 
 
 COMPILING
@@ -65,8 +65,9 @@ run those daemons; if they aren't running, start them using:
     sudo -u gdpd ~gdpd/bin/start-gdp
 
 I recommend verifying in advance that the appropriate GCL
-already exists on the server.  From the root of the gdp tree,
-try the command:
+already exists on the server.  From the main GDP source directory
+(not the demo directory --- this is ~eric/SwarmLab/src/gdp on the
+Pis), try the command:
 
     apps/reader-test -n 1 demo/201410/pi
 
