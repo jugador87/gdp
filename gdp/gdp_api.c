@@ -193,6 +193,11 @@ gdp_gcl_print(
 		{
 			fprintf(fp, "\tiomode = %d, refcnt = %d, reqs = %p\n",
 					gclh->iomode, gclh->refcnt, LIST_FIRST(&gclh->reqs));
+			if (detail > 1)
+			{
+				fprintf(fp, "\tfreefunc = %p, x = %p\n",
+						gclh->freefunc, gclh->x);
+			}
 		}
 	}
 }

@@ -240,6 +240,11 @@ gcl_reclaim_resources(void)
 			  (x->gcl->refcnt <= 0 &&
 			   !EP_UT_BITSET(GCLF_DROPPING, x->gcl->flags)))
 		{
+			if (ep_dbg_test(Dbg, 12))
+			{
+				ep_dbg_printf("gcl_reclaim_resources: reclaiming GCL:\n   ");
+				gdp_gcl_print(x->gcl, ep_dbg_getfile(), 8, 0);
+			}
 			LIST_REMOVE(x, ulist);
 			if (x->gcl != NULL)
 			{
