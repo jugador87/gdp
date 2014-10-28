@@ -340,13 +340,13 @@ ep_stat_abort(EP_STAT stat)
 **
 **  EP_STAT_FROM_ERRNO -- create a status encoding errno
 **
-**  	Assumes errnos are positive integers.
+**	Assumes errnos are positive integers.
 **
-**  	Parameters:
-**  		uerrno -- the UNIX errno code
+**	Parameters:
+**		uerrno -- the UNIX errno code
 **
-**  	Returns:
-**  		An appropriately encoded status code
+**	Returns:
+**		An appropriately encoded status code
 */
 
 EP_STAT

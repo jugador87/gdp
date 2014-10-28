@@ -31,9 +31,9 @@ encmaxline(const char *encoding)
 /*
 **  EP_B64_ENC_LEN --- return size of encoded binary string
 **
-**  	Useful for determining how big a buffer to malloc.
-**  	This implements 4 * ceiling(bsize / 3) using integer
-**  	arithmetic.
+**	Useful for determining how big a buffer to malloc.
+**	This implements 4 * ceiling(bsize / 3) using integer
+**	arithmetic.
 */
 
 size_t
@@ -56,14 +56,14 @@ ep_b64_enc_len(size_t bsize, const char *encoding)
 /*
 **  EP_B64_ENCODE --- encode binary to base64-encoded text
 **
-**  	The size of the txt buffer should always be at least
-**  	ceiling(4/3) the size of the bin input, e.g., a 1-3 byte
-**  	input should have a four character output, 4-6 byte inputs
-**  	have an eight character output, and so on.  Slight allowances
-**  	can be made if padding is turned off.
+**	The size of the txt buffer should always be at least
+**	ceiling(4/3) the size of the bin input, e.g., a 1-3 byte
+**	input should have a four character output, 4-6 byte inputs
+**	have an eight character output, and so on.  Slight allowances
+**	can be made if padding is turned off.
 **
-**  	On good return, the length of the actual output (without the
-**  	null terminator) is encoded in the status.
+**	On good return, the length of the actual output (without the
+**	null terminator) is encoded in the status.
 */
 
 static char
@@ -164,11 +164,11 @@ ep_b64_encode(const void *bbin, size_t bsize,
 /*
 **  EP_B64_DECODE --- convert text encoding back into binary
 **
-**  	The "decoding" map converts text characters to six-bit binary
-**  	chunks.  The special value -1 means that it is an illegal
-**  	character and -2 means it should be ignored.
+**	The "decoding" map converts text characters to six-bit binary
+**	chunks.  The special value -1 means that it is an illegal
+**	character and -2 means it should be ignored.
 **
-**  	Parameters:
+**	Parameters:
 **		txt --- the input text in base64 format
 **		tsize --- the length of that text
 **		bbin --- the output binary buffer

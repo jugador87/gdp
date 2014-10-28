@@ -36,8 +36,8 @@ ep_time_accuracy(void)
 /*
 **  EP_TIME_NOW --- return current time of day
 **
-**  	Ideally this will have resolution as good as a nanosecond,
-**  	but it can be much less on most hardware.
+**	Ideally this will have resolution as good as a nanosecond,
+**	but it can be much less on most hardware.
 **
 **	Everything gets copied because some platforms *still* use
 **	32-bit time_t.  Beware of January 18, 2038!

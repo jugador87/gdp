@@ -3,11 +3,11 @@
 /*
 **  EP_FREAD_UNLOCKED --- unlocked file read
 **
-**  	This is needed only because there is no Posix standard
-**  	fread_unlocked.
+**	This is needed only because there is no Posix standard
+**	fread_unlocked.
 **
-**  	Be sure you use flockfile before calling this if you will
-**  	ever use this in a threaded environment!
+**	Be sure you use flockfile before calling this if you will
+**	ever use this in a threaded environment!
 */
 
 #include <ep.h>
@@ -37,11 +37,11 @@ ep_fread_unlocked(void *ptr, size_t size, size_t n, FILE *fp)
 /*
 **  EP_FWRITE_UNLOCKED --- unlocked file write
 **
-**  	This is only needed because there is no Posix standard
-**  	fwrite_unlocked.
+**	This is only needed because there is no Posix standard
+**	fwrite_unlocked.
 **
-**  	Be sure you use flockfile before calling this if you will
-**  	ever use this in a threaded environment!
+**	Be sure you use flockfile before calling this if you will
+**	ever use this in a threaded environment!
 */
 
 size_t

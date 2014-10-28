@@ -3,9 +3,9 @@
 /*
 **  Open up a stream backed by (static) memory.
 **
-** 	This is a wrapper around funopen (on BSD and MacOS) or
-** 	fopencookie (on Linux).  These two routimes do substantially
-** 	the same thing.
+**	This is a wrapper around funopen (on BSD and MacOS) or
+**	fopencookie (on Linux).  These two routimes do substantially
+**	the same thing.
 */
 
 #if __FreeBSD__ || __APPLE__

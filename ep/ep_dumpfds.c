@@ -11,7 +11,7 @@
 /*
 **  EP_DUMPFDS --- show all open file descriptors
 **
-**  	Right now doesn't show much....
+**	Right now doesn't show much....
 */
 
 void
