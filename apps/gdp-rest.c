@@ -769,7 +769,7 @@ insert_datum(gdp_datum_t *datum)
 	size_t len = gdp_buf_getlength(buf);
 	unsigned char *p = gdp_buf_getptr(buf, len);
 
-	struct json_t *j = json_loadb((char *) p, len, 0, NULL);
+	json_t *j = json_loadb((char *) p, len, 0, NULL);
 	if (!json_is_object(j))
 		return GDP_STAT_MSGFMT;
 
