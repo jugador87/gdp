@@ -251,3 +251,13 @@ The address of the GDP daemon should be set in
 /usr/local/etc/ep_adm_params/gdp on the Pis.  The default is:
 
     swarm.gdp.gdpd.addr=gdp-01.eecs.berkeley.edu:2468
+    
+
+NOW HOW MUCH WOULD YOU PAY?
+
+But wait!  There's more!  The ble-reader program is essentially the
+equivalent of pi-reader, but it reads a slightly different format GCL
+and drives two other pins (intended to be connected to LEDs).  This
+is the display part of the Mark Oehlberg's and Alex Tyler's Bluetooth
+Low-Energy demo.  I don't know how to hook up the sender end of the
+demo.

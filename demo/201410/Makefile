@@ -7,7 +7,7 @@ LDFLAGS=	${LIBSEARCH} -lgdp -lep -levent -levent_pthreads -pthread \
 INCADD=
 INCS=		-I${GDPROOT} ${INCADD}
 
-ALL=		pi-reader pi-writer
+ALL=		pi-reader pi-writer ble-reader
 
 all:		${ALL}
 
@@ -22,3 +22,9 @@ pi-writer:	pi-writer.o
 
 pi-writer.o:	pi-writer.c
 	cc -c ${INCS} pi-writer.c
+
+ble-reader:	ble-reader.o
+	cc -o $@ ble-reader.o ${LDFLAGS}
+
+ble-reader.o:	ble-reader.c
+	cc -c ${INCS} ble-reader.c
