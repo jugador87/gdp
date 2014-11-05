@@ -4,6 +4,7 @@ OBJS=	\
 	gdp_buf.o \
 	gdp_event.o \
 	gdp_gcl.o \
+	gdp_gclmd.o \
 	gdp_log.o \
 	gdp_datum.o \
 	gdp_pkt.o \
@@ -15,6 +16,7 @@ HFILES=	\
 	gdp.h \
 	gdp_buf.h \
 	gdp_event.h \
+	gdp_gclmd.h \
 	gdp_pkt.h \
 	gdp_priv.h \
 	gdp_stat.h \

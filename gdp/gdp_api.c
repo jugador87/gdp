@@ -229,12 +229,11 @@ gdp_init(const char *gdpd_addr)
 
 /*
 **	GDP_GCL_CREATE --- create a new GCL
-**
-**		Right now we cheat.	 No network GCL need apply.
 */
 
 EP_STAT
 gdp_gcl_create(gcl_name_t gcl_name,
+				gdp_gclmd_t *pgmd,
 				gdp_gcl_t **pgclh)
 {
 	gdp_gcl_t *gclh = NULL;

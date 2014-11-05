@@ -86,7 +86,7 @@ main(int argc, char **argv)
 	if (xname == NULL)
 	{
 		// create a new GCL handle with a new name
-		estat = gdp_gcl_create(NULL, &gclh);
+		estat = gdp_gcl_create(NULL, NULL, &gclh);
 	}
 	else
 	{
@@ -95,7 +95,7 @@ main(int argc, char **argv)
 		if (append)
 			estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gclh);
 		else
-			estat = gdp_gcl_create(gcliname, &gclh);
+			estat = gdp_gcl_create(gcliname, NULL, &gclh);
 	}
 	EP_STAT_CHECK(estat, goto fail0);
 

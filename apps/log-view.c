@@ -182,7 +182,7 @@ main(int argc, char *argv[])
 
 	fprintf(stdout, "Magic: 0x%016" PRIx64 "\n", header.magic);
 	fprintf(stdout, "Version: %" PRIi64 "\n", header.version);
-	fprintf(stdout, "Header size: %" PRIi16 "\n", header.header_size);
+	fprintf(stdout, "Header size: %" PRIi32 "\n", header.header_size);
 	fprintf(stdout, "Log type: %" PRIi16 "\n", header.log_type);
 	fprintf(stdout, "Number of metadata entries: %" PRIi16 "\n", header.num_metadata_entries);
 
@@ -194,46 +194,61 @@ main(int argc, char *argv[])
 	}
 	file_offset += sizeof(header);
 
-	int16_t *metadata_lengths = malloc(header.num_metadata_entries * sizeof(int16_t));
 
 	if (header.num_metadata_entries > 0)
 	{
 		int i;
+		struct mdhdr
+		{
+			uint32_t md_id;
+			uint32_t md_len;
+		};
+		struct mdhdr *metadata_hdrs = malloc(header.num_metadata_entries *
+											sizeof *metadata_hdrs);
 
 		fprintf(stdout, "\n");
 		fprintf(stdout, "Metadata\n\n");
 
-		if (fread(metadata_lengths, sizeof(int16_t), header.num_metadata_entries, data_fp)
+		if (fread(metadata_hdrs,
+					sizeof *metadata_hdrs,
+					header.num_metadata_entries,
+					data_fp)
 			!= header.num_metadata_entries)
 		{
-			fprintf(stderr, "fread() failed while reading metadata lengths, ferror = %d\n", ferror(data_fp));
+			fprintf(stderr,
+					"fread() failed while reading metadata headers, ferror = %d\n",
+					ferror(data_fp));
 			return EX_DATAERR;
 		}
 
 		for (i = 0; i < header.num_metadata_entries; ++i)
 		{
-			fprintf(stdout, "Length of metadata entry %d: %" PRIi16 "\n", i, metadata_lengths[i]);
+			fprintf(stdout, "Metadata entry %d: name = %" PRIx32
+							", len = %" PRIx32 "\n",
+					i, metadata_hdrs[i].md_id, metadata_hdrs[i].md_len);
 		}
 
 		if (print_raw)
 		{
 			fprintf(stdout, "\n");
 			fprintf(stdout, "Raw:\n");
-			hexdump(stdout, metadata_lengths, header.num_metadata_entries * sizeof(int16_t), file_offset, false);
+			hexdump(stdout, metadata_hdrs,
+					header.num_metadata_entries * sizeof *metadata_hdrs,
+					file_offset, false);
 		}
-		file_offset += header.num_metadata_entries * sizeof(int16_t);
+		file_offset += header.num_metadata_entries * sizeof *metadata_hdrs;
 
 		fprintf(stdout, "\n");
 
 		for (i = 0; i < header.num_metadata_entries; ++i)
 		{
-			char *metadata_string = malloc(metadata_lengths[i] + 1); // +1 for null-terminator
-			if (fread(metadata_string, metadata_lengths[i], 1, data_fp) != 1)
+			char *metadata_string = malloc(metadata_hdrs[i].md_len + 1); // +1 for null-terminator
+			if (fread(metadata_string, metadata_hdrs[i].md_len, 1, data_fp) != 1)
 			{
 				fprintf(stderr, "fread() failed while reading metadata string, ferror = %d\n", ferror(data_fp));
 				return EX_DATAERR;
 			}
-			metadata_string[metadata_lengths[i]] = '\0';
+			metadata_string[metadata_hdrs[i].md_len] = '\0';
 			fprintf(stdout, "Metadata entry %d: %s", i, metadata_string);
 			free(metadata_string);
 
@@ -241,9 +256,10 @@ main(int argc, char *argv[])
 			{
 				fprintf(stdout, "\n");
 				fprintf(stdout, "Raw:\n");
-				hexdump(stdout, metadata_string, metadata_lengths[i], file_offset, true);
+				hexdump(stdout, metadata_string, metadata_hdrs[i].md_len,
+						file_offset, true);
 			}
-			file_offset += metadata_lengths[i];
+			file_offset += metadata_hdrs[i].md_len;
 		}
 
 		return EX_OK;

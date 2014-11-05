@@ -5,6 +5,7 @@
 #include "gdpd_physlog.h"
 
 #include <gdp/gdp_buf.h>
+#include <gdp/gdp_gclmd.h>
 #include <gdp/gdp_pkt.h>
 
 #include <ep/ep_hash.h>
@@ -178,7 +179,7 @@ gcl_index_cache_put(gcl_log_index *entry, int64_t recno, int64_t offset)
 */
 
 EP_STAT
-gcl_physcreate(gdp_gcl_t *gclh)
+gcl_physcreate(gdp_gcl_t *gclh, gdp_gclmd_t *gmd)
 {
 	EP_STAT estat = EP_STAT_OK;
 	FILE *data_fp;
@@ -259,20 +260,56 @@ gcl_physcreate(gdp_gcl_t *gclh)
 	}
 
 	// write the header
-	gcl_log_header log_header;
-	log_header.num_metadata_entries = 0;
-	int16_t metadata_size = 0; // XXX: compute size of metadata
-	log_header.magic = GCL_LOG_MAGIC;
-	log_header.version = GCL_LOG_VERSION;
-	log_header.header_size = sizeof(gcl_log_header) + metadata_size;
-	log_header.log_type = 0; // XXX: define different log types
-	fwrite(&log_header, sizeof(log_header), 1, data_fp);
-	// XXX: write metadata
+	{
+		gcl_log_header log_header;
+		size_t metadata_size = 0; // XXX: compute size of metadata
+		int i;
 
-	// TODO: will probably need creation date or some such later
+		log_header.magic = GCL_LOG_MAGIC;
+		log_header.version = GCL_LOG_VERSION;
 
-	gclh->x->ver = log_header.version;
-	gclh->x->data_offset = log_header.header_size;
+		log_header.log_type = 0; // XXX: define different log types
+		metadata_size = 0;
+		if (gmd == NULL)
+		{
+			log_header.num_metadata_entries = 0;
+		}
+		else
+		{
+			log_header.num_metadata_entries = gmd->nused;
+			for (i = 0; i < gmd->nused; i++)
+				metadata_size += gmd->mds[i].md_len;
+		}
+		log_header.header_size = sizeof(gcl_log_header) + metadata_size;
+
+		fwrite(&log_header, sizeof(log_header), 1, data_fp);
+
+		gclh->x->ver = log_header.version;
+		gclh->x->data_offset = log_header.header_size;
+	}
+
+	// write metadata
+	if (gmd != NULL)
+	{
+		int i;
+
+		// first the id and length fields
+		for (i = 0; i < gmd->nused; i++)
+		{
+			uint32_t t32;
+
+			t32 = gmd->mds[i].md_id;
+			fwrite(&t32, sizeof t32, 1, data_fp);
+			t32 = gmd->mds[i].md_len;
+			fwrite(&t32, sizeof t32, 1, data_fp);
+		}
+
+		// ... then the actual data
+		for (i = 0; i < gmd->nused; i++)
+		{
+			fwrite(gmd->mds[i].md_data, gmd->mds[i].md_len, 1, data_fp);
+		}
+	}
 
 	gcl_log_index *new_index = NULL;
 	estat = gcl_index_create_cache(gclh, &new_index);

@@ -89,7 +89,8 @@ cmd_create(gdp_req_t *req)
 	req->gclh = gclh;			// for debugging
 
 	// do the physical create
-	estat = gcl_physcreate(gclh);
+	//XXX need to collect and pass through metadata! XXX
+	estat = gcl_physcreate(gclh, NULL);
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// cache the open GCL Handle for possible future use

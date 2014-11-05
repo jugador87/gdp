@@ -8,6 +8,7 @@
 #define _GDP_H_
 
 #include <ep/ep.h>
+#include <ep/ep_mem.h>
 #include <ep/ep_stat.h>
 #include <ep/ep_time.h>
 #include <inttypes.h>
@@ -26,6 +27,10 @@
 
 // an open handle on a GCL (opaque)
 typedef struct gdp_gcl		gdp_gcl_t;
+
+// GCL metadata
+typedef struct gdp_gclmd	gdp_gclmd_t;
+typedef uint32_t			gdp_gclmd_id_t;
 
 /**********************************************************************
 **	Other data types
@@ -116,6 +121,7 @@ extern void		*gdp_run_accept_event_loop(
 // create a new GCL
 extern EP_STAT	gdp_gcl_create(
 					gcl_name_t,
+					gdp_gclmd_t *,			// pointer to metadata object
 					gdp_gcl_t **);			// pointer to result GCL handle
 
 // open an existing GCL
