@@ -180,20 +180,16 @@ main(int argc, char *argv[])
 		return 1;
 	}
 
-	fprintf(stdout, "Magic: 0x%016" PRIx64 "\n", header.magic);
-	fprintf(stdout, "Version: %" PRIi64 "\n", header.version);
-	fprintf(stdout, "Header size: %" PRIi32 "\n", header.header_size);
-	fprintf(stdout, "Log type: %" PRIi16 "\n", header.log_type);
-	fprintf(stdout, "Number of metadata entries: %" PRIi16 "\n", header.num_metadata_entries);
-
+	printf("Header: magic = 0x%016" PRIx64 ", version = %" PRIi64
+			", type = %" PRIi16 "\n",
+			header.magic, header.version, header.log_type);
+	printf("\theader size = %" PRIi32 ", metadata entries = %d\n",
+			header.header_size, header.num_metadata_entries);
 	if (print_raw)
 	{
-		fprintf(stdout, "\n");
-		fprintf(stdout, "Raw:\n");
 		hexdump(stdout, &header, sizeof(header), file_offset, false);
 	}
 	file_offset += sizeof(header);
-
 
 	if (header.num_metadata_entries > 0)
 	{
@@ -205,9 +201,6 @@ main(int argc, char *argv[])
 		};
 		struct mdhdr *metadata_hdrs = malloc(header.num_metadata_entries *
 											sizeof *metadata_hdrs);
-
-		fprintf(stdout, "\n");
-		fprintf(stdout, "Metadata\n\n");
 
 		if (fread(metadata_hdrs,
 					sizeof *metadata_hdrs,
@@ -223,15 +216,13 @@ main(int argc, char *argv[])
 
 		for (i = 0; i < header.num_metadata_entries; ++i)
 		{
-			fprintf(stdout, "Metadata entry %d: name = %" PRIx32
+			printf("\n\tMetadata entry %d: name = %" PRIx32
 							", len = %" PRIx32 "\n",
 					i, metadata_hdrs[i].md_id, metadata_hdrs[i].md_len);
 		}
 
 		if (print_raw)
 		{
-			fprintf(stdout, "\n");
-			fprintf(stdout, "Raw:\n");
 			hexdump(stdout, metadata_hdrs,
 					header.num_metadata_entries * sizeof *metadata_hdrs,
 					file_offset, false);
