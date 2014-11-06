@@ -200,6 +200,27 @@ EP_STAT			gdp_gcl_parse_name(
 					const char *ext,
 					gcl_name_t internal);
 
+// create a new metadata set
+gdp_gclmd_t		*gdp_gclmd_new(void);
+
+// free a metadata set
+void			gdp_gclmd_free(gdp_gclmd_t *gmd);
+
+// add an entry to a metadata set
+EP_STAT			gdp_gclmd_add(
+					gdp_gclmd_t *gmd,
+					gdp_gclmd_id_t id,
+					size_t len,
+					const void *data);
+
+// get an entry from a metadata set
+EP_STAT			gdp_gclmd_get(
+					gdp_gclmd_t *gmd,
+					int indx,
+					gdp_gclmd_id_t *id,
+					size_t *len,
+					const void **data);
+
 // allocate a new message
 gdp_datum_t		*gdp_datum_new(void);
 

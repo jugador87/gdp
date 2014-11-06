@@ -44,3 +44,18 @@ struct gdp_gclmd
 
 //XXX this doesn't belong here
 #define GDP_GCLMD_EOLIST	0			// id: end of metadata list
+
+// serialize an internal data structure to a network buffer
+void			_gdp_gclmd_serialize(
+					gdp_gclmd_t *gmd,
+					struct evbuffer *evb);
+
+// deserialize a network buffer to an internal data structure
+gdp_gclmd_t		*_gdp_gclmd_deserialize(
+					struct evbuffer *evb);
+
+// print for debugging
+void			_gdp_gclmd_print(
+					gdp_gclmd_t *gmd,
+					FILE *fp,
+					int detail);

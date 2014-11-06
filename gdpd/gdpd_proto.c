@@ -4,6 +4,8 @@
 #include "gdpd_physlog.h"
 #include "gdpd_pubsub.h"
 
+#include <gdp/gdp_gclmd.h>
+
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdpd.proto", "GDP Daemon protocol");
 
 /*
@@ -77,20 +79,24 @@ cmd_create(gdp_req_t *req)
 {
 	EP_STAT estat;
 	gdp_gcl_t *gclh;
+	gdp_gclmd_t *gmd;
 
 	req->pkt->cmd = GDP_ACK_CREATED;
-
-	// no input, so we can reset the buffer just to be safe
-	flush_input_data(req, "cmd_create");
 
 	// get the memory space
 	estat = gcl_alloc(req->pkt->gcl_name, GDP_MODE_AO, &gclh);
 	EP_STAT_CHECK(estat, goto fail0);
 	req->gclh = gclh;			// for debugging
 
+	// collect metadata, if any
+	gmd = _gdp_gclmd_deserialize(req->pkt->datum->dbuf);
+
+	// no further input, so we can reset the buffer just to be safe
+	flush_input_data(req, "cmd_create");
+
 	// do the physical create
-	//XXX need to collect and pass through metadata! XXX
-	estat = gcl_physcreate(gclh, NULL);
+	estat = gcl_physcreate(gclh, gmd);
+	gdp_gclmd_free(gmd);
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// cache the open GCL Handle for possible future use

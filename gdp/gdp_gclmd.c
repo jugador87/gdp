@@ -5,6 +5,8 @@
 #include <gdp_gclmd.h>
 
 #include <ep/ep_dbg.h>
+#include <ep/ep_hexdump.h>
+#include <ep/ep_prflags.h>
 
 #include <string.h>
 
@@ -47,6 +49,8 @@ gdp_gclmd_free(gdp_gclmd_t *gmd)
 	int i;
 
 	ep_dbg_cprintf(Dbg, 21, "gdp_gclmd_free(%p)\n", gmd);
+	if (gmd == NULL)
+		return;
 	if (gmd->databuf != NULL)
 		ep_mem_free(gmd->databuf);
 	for (i = 0; i < gmd->nused; i++)
@@ -71,6 +75,13 @@ gdp_gclmd_add(gdp_gclmd_t *gmd,
 {
 	EP_ASSERT_POINTER_VALID(gmd);
 
+
+	if (ep_dbg_test(Dbg, 36))
+	{
+		ep_dbg_printf("gdp_gclmd_add(%04x, %zd)\n", id, len);
+		ep_hexdump(data, len, ep_dbg_getfile(), EP_HEXDUMP_ASCII);
+	}
+
 	if (EP_UT_BITSET(GCLMDF_READONLY, gmd->flags))
 		return GDP_STAT_READONLY;
 
@@ -92,6 +103,8 @@ gdp_gclmd_add(gdp_gclmd_t *gmd,
 	gmd->mds[gmd->nused].md_data = ep_mem_malloc(len);
 	gmd->mds[gmd->nused].md_flags = MDF_OWNDATA;
 	memcpy(gmd->mds[gmd->nused].md_data, data, len);
+
+	gmd->nused++;
 
 	return EP_STAT_OK;
 }
@@ -134,6 +147,9 @@ void
 _gdp_gclmd_serialize(gdp_gclmd_t *gmd, struct evbuffer *evb)
 {
 	int i;
+
+	if (gmd == NULL)
+		return;
 
 	// write the number of entries
 	{
@@ -222,12 +238,64 @@ _gdp_gclmd_deserialize(struct evbuffer *evb)
 	}
 
 	// we can now insert the pointers into the data
-	void *dbuf = &gmd->databuf;
+	void *dbuf = gmd->databuf;
 	for (i = 0; i < nmd; i++)
 	{
 		gmd->mds[i].md_data = dbuf;
 		dbuf += gmd->mds[i].md_len;
 	}
 
+	if (ep_dbg_test(Dbg, 24))
+	{
+		ep_dbg_printf("_gdp_gclmd_deserialize:\n  ");
+		_gdp_gclmd_print(gmd, ep_dbg_getfile(), 4);
+	}
+
 	return gmd;
+}
+
+
+static EP_PRFLAGS_DESC	GclmdFlags[] =
+{
+	{ GCLMDF_READONLY,	GCLMDF_READONLY,	"READONLY"		},
+	{ 0,				0,					NULL			},
+};
+
+static EP_PRFLAGS_DESC	MdatumFlags[] =
+{
+	{ MDF_OWNDATA,		MDF_OWNDATA,		"OWNDATA"		},
+	{ 0,				0,					NULL			},
+};
+
+void
+_gdp_gclmd_print(gdp_gclmd_t *gmd, FILE *fp, int detail)
+{
+	if (detail > 0)
+		fprintf(fp, "GCLMD@%p: ", gmd);
+	if (gmd == NULL)
+	{
+		fprintf(fp, "NULL\n");
+		return;
+	}
+
+	fprintf(fp, "nalloc = %d, nused = %d, databuf = %p\n    flags = ",
+			gmd->nalloc, gmd->nused, gmd->databuf);
+	ep_prflags(gmd->flags, GclmdFlags, fp);
+	fprintf(fp, "\n    mds = %p\n", gmd->mds);
+	if (detail > 1)
+	{
+		int i;
+
+		for (i = 0; i < gmd->nused; i++)
+		{
+			fprintf(fp, "\tid = %08x, len = %zd, flags = ",
+					gmd->mds[i].md_id, gmd->mds[i].md_len);
+			ep_prflags(gmd->mds[i].md_flags, MdatumFlags, fp);
+			fprintf(fp, "\n");
+
+			if (detail > 2)
+				ep_hexdump(gmd->mds[i].md_data, gmd->mds[i].md_len, fp,
+						EP_HEXDUMP_ASCII);
+		}
+	}
 }

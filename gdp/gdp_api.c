@@ -7,6 +7,7 @@
 #include <ep/ep_string.h>
 
 #include "gdp.h"
+#include "gdp_gclmd.h"
 #include "gdp_log.h"
 #include "gdp_stat.h"
 #include "gdp_priv.h"
@@ -233,7 +234,7 @@ gdp_init(const char *gdpd_addr)
 
 EP_STAT
 gdp_gcl_create(gcl_name_t gcl_name,
-				gdp_gclmd_t *pgmd,
+				gdp_gclmd_t *gmd,
 				gdp_gcl_t **pgclh)
 {
 	gdp_gcl_t *gclh = NULL;
@@ -250,6 +251,9 @@ gdp_gcl_create(gcl_name_t gcl_name,
 
 	estat = _gdp_req_new(GDP_CMD_CREATE, gclh, _GdpChannel, 0, &req);
 	EP_STAT_CHECK(estat, goto fail1);
+
+	// add the metadata to the output stream
+	_gdp_gclmd_serialize(gmd, req->pkt->datum->dbuf);
 
 	estat = _gdp_invoke(req);
 	EP_STAT_CHECK(estat, goto fail1);

@@ -19,11 +19,24 @@
 */
 
 
+void
+usage(void)
+{
+	fprintf(stderr, "Usage: %s [-a] [-D dbgspec] [-G gdpd_addr]\n"
+			"\t[<mdid>=<metadata>...] [<gcl_name>]\n"
+			"  (name is required for -a)\n"
+			"  (metadata is prohibited for -a)\n",
+			ep_app_getprogname());
+	exit(EX_USAGE);
+}
+
+
 int
 main(int argc, char **argv)
 {
 	gdp_gcl_t *gclh;
 	gcl_name_t gcliname;
+	gdp_gclmd_t *gmd = NULL;
 	int opt;
 	EP_STAT estat;
 	char *gdpd_addr = NULL;
@@ -31,6 +44,7 @@ main(int argc, char **argv)
 	char *xname = NULL;
 	char buf[200];
 	bool show_usage = false;
+	char *p;
 
 	// collect command-line arguments
 	while ((opt = getopt(argc, argv, "aD:G:")) > 0)
@@ -57,6 +71,32 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (show_usage)
+		usage();
+
+	// collect any metadata
+	while (argc > 0 && (p = strchr(argv[0], '=')) != NULL)
+	{
+		gdp_gclmd_id_t mdid = 0;
+		int i;
+
+		if (gmd == NULL)
+			gmd = gdp_gclmd_new();
+
+		p++;
+		for (i = 0; i < 4; i++)
+		{
+			if (argv[0][i] == '=')
+				break;
+			mdid = (mdid << 8) | (unsigned) argv[0][i];
+		}
+
+		gdp_gclmd_add(gmd, mdid, strlen(p), p);
+
+		argc--;
+		argv++;
+	}
+
 	// name is optional for a new GCL; if omitted one will be created
 	if (argc > 0)
 	{
@@ -64,13 +104,10 @@ main(int argc, char **argv)
 		argc--;
 		argv++;
 	}
-	if (show_usage || argc != 0 || (append && xname == NULL))
-	{
-		fprintf(stderr, "Usage: %s [-a] [-D dbgspec] [-G gdpd_addr] [<gcl_name>]\n"
-				"  (name is required for -a)\n",
-				ep_app_getprogname());
-		exit(EX_USAGE);
-	}
+
+	if (show_usage || argc != 0 ||
+			(append && (xname == NULL || gmd != NULL)))
+		usage();
 
 	// initialize the GDP library
 	estat = gdp_init(gdpd_addr);
@@ -86,7 +123,7 @@ main(int argc, char **argv)
 	if (xname == NULL)
 	{
 		// create a new GCL handle with a new name
-		estat = gdp_gcl_create(NULL, NULL, &gclh);
+		estat = gdp_gcl_create(NULL, gmd, &gclh);
 	}
 	else
 	{
@@ -95,7 +132,7 @@ main(int argc, char **argv)
 		if (append)
 			estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gclh);
 		else
-			estat = gdp_gcl_create(gcliname, NULL, &gclh);
+			estat = gdp_gcl_create(gcliname, gmd, &gclh);
 	}
 	EP_STAT_CHECK(estat, goto fail0);
 
