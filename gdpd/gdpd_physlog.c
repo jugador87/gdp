@@ -39,7 +39,7 @@ typedef struct index_entry
 	int64_t				max_data_offset;
 	int64_t				max_index_offset;
 	CIRCULAR_BUFFER		*index_cache;
-} gcl_log_index;
+} gcl_log_index_t;
 
 #define SIZEOF_INDEX_HEADER		0	//XXX no header yet, but there should be
 #define SIZEOF_INDEX_RECORD		(sizeof(gcl_index_record))
@@ -115,9 +115,9 @@ get_gcl_path(gdp_gcl_t *gclh, const char *ext, char *pbuf, int pbufsiz)
 */
 
 EP_STAT
-gcl_index_create_cache(gdp_gcl_t *gclh, gcl_log_index **out)
+gcl_index_create_cache(gdp_gcl_t *gclh, gcl_log_index_t **out)
 {
-	gcl_log_index *index = ep_mem_malloc(sizeof *index);
+	gcl_log_index_t *index = ep_mem_malloc(sizeof *index);
 
 	if (index == NULL)
 		goto fail0;
@@ -140,7 +140,7 @@ fail0:
 }
 
 EP_STAT
-gcl_index_cache_get(gcl_log_index *entry, int64_t recno, int64_t *out)
+gcl_index_cache_get(gcl_log_index_t *entry, int64_t recno, int64_t *out)
 {
 	EP_STAT estat = EP_STAT_OK;
 
@@ -160,7 +160,7 @@ gcl_index_cache_get(gcl_log_index *entry, int64_t recno, int64_t *out)
 }
 
 EP_STAT
-gcl_index_cache_put(gcl_log_index *entry, int64_t recno, int64_t offset)
+gcl_index_cache_put(gcl_log_index_t *entry, int64_t recno, int64_t offset)
 {
 	EP_STAT estat = EP_STAT_OK;
 	LONG_LONG_PAIR new_pair;
@@ -311,7 +311,7 @@ gcl_physcreate(gdp_gcl_t *gclh, gdp_gclmd_t *gmd)
 		}
 	}
 
-	gcl_log_index *new_index = NULL;
+	gcl_log_index_t *new_index = NULL;
 	estat = gcl_index_create_cache(gclh, &new_index);
 	EP_STAT_CHECK(estat, goto fail3);
 
@@ -410,6 +410,9 @@ gcl_physopen(gdp_gcl_t *gclh)
 		goto fail3;
 	}
 
+	gclh->x->nmetadata = log_header.num_metadata_entries;
+	gclh->x->log_type = log_header.log_type;
+
 	// XXX: read metadata entries
 
 	fd = open(index_pbuf, O_RDWR | O_APPEND);
@@ -428,7 +431,7 @@ gcl_physopen(gdp_gcl_t *gclh)
 	gclh->x->ver = log_header.version;
 	gclh->x->data_offset = log_header.header_size;
 
-	gcl_log_index *index;
+	gcl_log_index_t *index;
 	estat = gcl_index_create_cache(gclh, &index);
 	EP_STAT_CHECK(estat, goto fail5);
 
@@ -509,7 +512,7 @@ gcl_physclose(gdp_gcl_t *gclh)
 gdp_recno_t
 gcl_max_recno(gdp_gcl_t *gclh)
 {
-	gcl_log_index *ix = gclh->x->log_index;
+	gcl_log_index_t *ix = gclh->x->log_index;
 	return ix->max_recno;
 }
 
@@ -534,7 +537,7 @@ gcl_physread(gdp_gcl_t *gclh,
 		gdp_datum_t *datum)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gcl_log_index *entry = gclh->x->log_index;
+	gcl_log_index_t *entry = gclh->x->log_index;
 	LONG_LONG_PAIR *long_pair;
 	int64_t offset = INT64_MAX;
 
@@ -670,7 +673,7 @@ gcl_physappend(gdp_gcl_t *gclh,
 	gcl_index_record index_record;
 	size_t dlen = gdp_buf_getlength(datum->dbuf);
 	int64_t record_size = sizeof(gcl_log_record) + dlen;
-	gcl_log_index *entry = (gcl_log_index *)(gclh->x->log_index);
+	gcl_log_index_t *entry = gclh->x->log_index;
 
 	if (ep_dbg_test(Dbg, 14))
 	{
@@ -714,4 +717,73 @@ gcl_physappend(gdp_gcl_t *gclh,
 
 	datum->recno = log_record.recno;
 	return EP_STAT_OK;
+}
+
+
+/*
+**  GCL_PHYSGETMETADATA --- read metadata from disk
+**
+**		This is depressingly similar to _gdp_gclmd_deserialize.
+*/
+
+EP_STAT
+gcl_physgetmetadata(gdp_gcl_t *gcl,
+		gdp_gclmd_t **gmdp)
+{
+	gdp_gclmd_t *gmd;
+	int i;
+	size_t tlen;
+	gcl_log_index_t *entry = gcl->x->log_index;
+	EP_STAT estat = EP_STAT_OK;
+
+	// allocate and populate the header
+	gmd = ep_mem_zalloc(sizeof *gmd);
+	gmd->flags = GCLMDF_READONLY;
+	gmd->nalloc = gmd->nused = gcl->x->nmetadata;
+	gmd->mds = ep_mem_malloc(gmd->nalloc * sizeof *gmd->mds);
+
+	// lock the GCL so that no one else seeks around on us
+	ep_thr_rwlock_rdlock(&entry->lock);
+
+	// seek to the metadata area
+	(void) fseek(gcl->x->fp, sizeof (struct gcl_log_header), SEEK_SET);
+
+	// read in the individual metadata headers
+	tlen = 0;
+	for (i = 0; i < gmd->nused; i++)
+	{
+		uint32_t t32;
+
+		fread(&t32, sizeof t32, 1, gcl->x->fp);
+		gmd->mds[i].md_id = t32;
+		fread(&t32, sizeof t32, 1, gcl->x->fp);
+		gmd->mds[i].md_len = t32;
+		tlen += t32;
+	}
+
+	// now the data
+	gmd->databuf = ep_mem_malloc(tlen);
+	if (fread(gmd->databuf, tlen, 1, gcl->x->fp) != 1)
+	{
+		// well that's not very good...
+		ep_mem_free(gmd->databuf);
+		ep_mem_free(gmd->mds);
+		ep_mem_free(gmd);
+		estat = GDP_STAT_CORRUPT_GCL;
+		goto fail0;
+	}
+
+	// now map the pointers to the data
+	void *dbuf = gmd->databuf;
+	for (i = 0; i < gmd->nused; i++)
+	{
+		gmd->mds[i].md_data = dbuf;
+		dbuf += gmd->mds[i].md_len;
+	}
+
+	*gmdp = gmd;
+
+fail0:
+	ep_thr_rwlock_unlock(&entry->lock);
+	return estat;
 }

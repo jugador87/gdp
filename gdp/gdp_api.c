@@ -552,3 +552,26 @@ gdp_gcl_unsubscribe(gdp_gcl_t *gclh,
 	XXX;
 }
 #endif
+
+
+EP_STAT
+gdp_gcl_getmetadata(gdp_gcl_t *gcl,
+		gdp_gclmd_t **gmdp)
+{
+	EP_STAT estat;
+	gdp_req_t *req;
+
+	estat = _gdp_req_new(GDP_CMD_GETMETADATA, gcl, _GdpChannel, 0, &req);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	estat = _gdp_invoke(req);
+	EP_STAT_CHECK(estat, goto fail1);
+
+	*gmdp = _gdp_gclmd_deserialize(req->pkt->datum->dbuf);
+
+fail1:
+	_gdp_req_free(req);
+
+fail0:
+	return estat;
+}

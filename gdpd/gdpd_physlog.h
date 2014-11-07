@@ -30,6 +30,10 @@ EP_STAT			gcl_physappend(
 						gdp_gcl_t *gclh,
 						gdp_datum_t *datum);
 
+EP_STAT			gcl_physgetmetadata(
+						gdp_gcl_t *gclh,
+						gdp_gclmd_t **gmdp);
+
 #define GCL_DIR				"/var/tmp/gcl"
 
 #define GCL_LOG_MAGIC		UINT64_C(0x8F4E39104A803299)

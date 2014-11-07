@@ -170,6 +170,11 @@ extern EP_STAT	gdp_gcl_multiread(
 											// callback function for next datum
 					void *cbarg);			// argument passed to callback
 
+// read metadata
+extern EP_STAT	gdp_gcl_getmetadata(
+					gdp_gcl_t *gcl,			// GCL handle
+					gdp_gclmd_t **gmdp);	// out-param for metadata
+
 // return the name of a GCL
 //		XXX: should this be in a more generic "getstat" function?
 extern const gcl_name_t *gdp_gcl_getname(
@@ -220,6 +225,12 @@ EP_STAT			gdp_gclmd_get(
 					gdp_gclmd_id_t *id,
 					size_t *len,
 					const void **data);
+
+// print metadata set (for debugging)
+void			gdp_gclmd_print(
+					gdp_gclmd_t *gmd,
+					FILE *fp,
+					int detail);
 
 // allocate a new message
 gdp_datum_t		*gdp_datum_new(void);

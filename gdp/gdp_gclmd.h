@@ -53,9 +53,3 @@ void			_gdp_gclmd_serialize(
 // deserialize a network buffer to an internal data structure
 gdp_gclmd_t		*_gdp_gclmd_deserialize(
 					struct evbuffer *evb);
-
-// print for debugging
-void			_gdp_gclmd_print(
-					gdp_gclmd_t *gmd,
-					FILE *fp,
-					int detail);

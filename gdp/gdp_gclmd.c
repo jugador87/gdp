@@ -232,6 +232,7 @@ _gdp_gclmd_deserialize(struct evbuffer *evb)
 	if (evbuffer_remove(evb, gmd->databuf, tlen) != tlen)
 	{
 		// bad news
+		ep_mem_free(gmd->databuf);
 		ep_mem_free(gmd->mds);
 		ep_mem_free(gmd);
 		return NULL;
@@ -248,7 +249,7 @@ _gdp_gclmd_deserialize(struct evbuffer *evb)
 	if (ep_dbg_test(Dbg, 24))
 	{
 		ep_dbg_printf("_gdp_gclmd_deserialize:\n  ");
-		_gdp_gclmd_print(gmd, ep_dbg_getfile(), 4);
+		gdp_gclmd_print(gmd, ep_dbg_getfile(), 4);
 	}
 
 	return gmd;
@@ -268,9 +269,9 @@ static EP_PRFLAGS_DESC	MdatumFlags[] =
 };
 
 void
-_gdp_gclmd_print(gdp_gclmd_t *gmd, FILE *fp, int detail)
+gdp_gclmd_print(gdp_gclmd_t *gmd, FILE *fp, int detail)
 {
-	if (detail > 0)
+	if (detail > 1)
 		fprintf(fp, "GCLMD@%p: ", gmd);
 	if (gmd == NULL)
 	{
@@ -278,24 +279,35 @@ _gdp_gclmd_print(gdp_gclmd_t *gmd, FILE *fp, int detail)
 		return;
 	}
 
-	fprintf(fp, "nalloc = %d, nused = %d, databuf = %p\n    flags = ",
-			gmd->nalloc, gmd->nused, gmd->databuf);
-	ep_prflags(gmd->flags, GclmdFlags, fp);
-	fprintf(fp, "\n    mds = %p\n", gmd->mds);
 	if (detail > 1)
+	{
+		fprintf(fp, "nalloc = %d, nused = %d, databuf = %p\n    flags = ",
+				gmd->nalloc, gmd->nused, gmd->databuf);
+		ep_prflags(gmd->flags, GclmdFlags, fp);
+		fprintf(fp, "\n    mds = %p\n", gmd->mds);
+		if (detail > 2)
+		{
+			int i;
+
+			for (i = 0; i < gmd->nused; i++)
+			{
+				fprintf(fp, "\tid = %08x, len = %zd, flags = ",
+						gmd->mds[i].md_id, gmd->mds[i].md_len);
+				ep_prflags(gmd->mds[i].md_flags, MdatumFlags, fp);
+				fprintf(fp, "\n");
+
+				if (detail > 3)
+					ep_hexdump(gmd->mds[i].md_data, gmd->mds[i].md_len, fp,
+							EP_HEXDUMP_ASCII);
+			}
+		}
+	}
+	else if (detail == 1)
 	{
 		int i;
 
 		for (i = 0; i < gmd->nused; i++)
-		{
-			fprintf(fp, "\tid = %08x, len = %zd, flags = ",
-					gmd->mds[i].md_id, gmd->mds[i].md_len);
-			ep_prflags(gmd->mds[i].md_flags, MdatumFlags, fp);
-			fprintf(fp, "\n");
-
-			if (detail > 2)
-				ep_hexdump(gmd->mds[i].md_data, gmd->mds[i].md_len, fp,
-						EP_HEXDUMP_ASCII);
-		}
+			fprintf(fp, "\tMetadata %2d, id %8x, length %zd\n",
+					i, gmd->mds[i].md_id, gmd->mds[i].md_len);
 	}
 }

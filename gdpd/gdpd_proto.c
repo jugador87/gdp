@@ -578,6 +578,42 @@ cmd_multiread(gdp_req_t *req)
 
 
 /*
+**  CMD_GETMETADATA --- get metadata for a GCL
+*/
+
+EP_STAT
+cmd_getmetadata(gdp_req_t *req)
+{
+	gdp_gclmd_t *gmd;
+	EP_STAT estat;
+
+	req->pkt->cmd = GDP_ACK_CONTENT;
+
+	// should have no input data; ignore anything there
+	flush_input_data(req, "cmd_getmetadata");
+
+	estat = get_open_handle(req, GDP_MODE_RO);
+	if (!EP_STAT_ISOK(estat))
+	{
+		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_read: GCL open failure",
+							estat, GDP_NAK_C_BADREQ);
+	}
+
+	// get the metadata into memory
+	estat = gcl_physgetmetadata(req->gclh, &gmd);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	// serialize it to the client
+	_gdp_gclmd_serialize(gmd, req->pkt->datum->dbuf);
+
+fail0:
+	_gdp_gcl_decref(req->gclh);
+	req->gclh = NULL;
+	return estat;
+}
+
+
+/*
 **  CMD_NOT_IMPLEMENTED --- generic "not implemented" error
 */
 
@@ -668,6 +704,7 @@ static struct cmdfuncs	CmdFuncs[] =
 	{ GDP_CMD_PUBLISH,		cmd_publish		},
 	{ GDP_CMD_SUBSCRIBE,	cmd_subscribe	},
 	{ GDP_CMD_MULTIREAD,	cmd_multiread	},
+	{ GDP_CMD_GETMETADATA,	cmd_getmetadata	},
 	{ 0,					NULL			}
 };
 
