@@ -252,8 +252,6 @@ main(int argc, char *argv[])
 			}
 			file_offset += metadata_hdrs[i].md_len;
 		}
-
-		return EX_OK;
 	}
 	else
 	{
