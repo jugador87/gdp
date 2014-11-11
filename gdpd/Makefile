@@ -5,7 +5,10 @@ LOCAL2=		/opt/local
 INCROOT=	..
 LIBROOT=	${INCROOT}
 #LIBSEARCH=	-L${INCROOT}/libs
-LIBSEARCH=	-L${LIBROOT}/ep -L${LIBROOT}/gdp
+LIBSEARCH=	-L${LIBROOT}/ep \
+		-L${LIBROOT}/gdp \
+		-L${LOCAL1}/lib \
+		-L${LOCAL2}/lib
 INCGDP=		-I${INCROOT}
 LIBGDP=		-lgdp
 INCEP=

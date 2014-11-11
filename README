@@ -11,7 +11,11 @@ Required Packages:
 	libevent2 --- Event handling library available from
 		http://libevent.org.  Most systems (Linux, MacOS, and
 		FreeBSD at a minumum) have this available as a package.
-		On linux you have to install the package libevent-dev.
+		On Debian-derived linux systems (Debian, Ubuntu, etc.)
+		you have to install the package libevent-dev; on
+		some other systems (e.g., RHEL 6, which only has
+		libevent1) you'll have to download directly from
+		http://libevent.org and install.
 	libssl-dev --- for the sha256 implementation.
 	lighttpd --- Web server for RESTful interface.
 		Note: I used macports (http://macports.org) to install
