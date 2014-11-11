@@ -286,6 +286,7 @@ gcl_physcreate(gdp_gcl_t *gclh, gdp_gclmd_t *gmd)
 
 		gclh->x->ver = log_header.version;
 		gclh->x->data_offset = log_header.header_size;
+		gclh->x->nmetadata = log_header.num_metadata_entries;
 	}
 
 	// write metadata
@@ -726,6 +727,20 @@ gcl_physappend(gdp_gcl_t *gclh,
 **		This is depressingly similar to _gdp_gclmd_deserialize.
 */
 
+#define STDIOCHECK(tag, targ, f)	\
+			do	\
+			{	\
+				int t = f;	\
+				if (t != targ)	\
+				{	\
+					ep_dbg_cprintf(Dbg, 1,	\
+							"%s: stdio failure; expected %d got %d (errno=%d)\n"	\
+							"\t%s\n",	\
+							tag, targ, t, errno, #f)	\
+					goto fail_stdio;	\
+				}	\
+			} while (0);
+
 EP_STAT
 gcl_physgetmetadata(gdp_gcl_t *gcl,
 		gdp_gclmd_t **gmdp)
@@ -735,6 +750,9 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 	size_t tlen;
 	gcl_log_index_t *entry = gcl->x->log_index;
 	EP_STAT estat = EP_STAT_OK;
+
+	ep_dbg_cprintf(Dbg, 29, "gcl_physgetmetadata: nmetadata %d\n",
+			gcl->x->nmetadata);
 
 	// allocate and populate the header
 	gmd = ep_mem_zalloc(sizeof *gmd);
@@ -746,7 +764,8 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 	ep_thr_rwlock_rdlock(&entry->lock);
 
 	// seek to the metadata area
-	(void) fseek(gcl->x->fp, sizeof (struct gcl_log_header), SEEK_SET);
+	STDIOCHECK("gcl_physgetmetadata: fseek#0", 0,
+			fseek(gcl->x->fp, sizeof (struct gcl_log_header), SEEK_SET));
 
 	// read in the individual metadata headers
 	tlen = 0;
@@ -754,24 +773,24 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 	{
 		uint32_t t32;
 
-		fread(&t32, sizeof t32, 1, gcl->x->fp);
+		STDIOCHECK("gcl_physgetmetadata: fread#0", 1,
+				fread(&t32, sizeof t32, 1, gcl->x->fp));
 		gmd->mds[i].md_id = t32;
-		fread(&t32, sizeof t32, 1, gcl->x->fp);
+		STDIOCHECK("gcl_physgetmetadata: fread#1", 1,
+				fread(&t32, sizeof t32, 1, gcl->x->fp));
 		gmd->mds[i].md_len = t32;
 		tlen += t32;
+		ep_dbg_cprintf(Dbg, 34, "\tid = %08x, len = %zd\n",
+				gmd->mds[i].md_id, gmd->mds[i].md_len);
 	}
+
+	ep_dbg_cprintf(Dbg, 24, "gcl_physgetmetadata: nused = %d, tlen = %zd\n",
+			gmd->nused, tlen);
 
 	// now the data
 	gmd->databuf = ep_mem_malloc(tlen);
-	if (fread(gmd->databuf, tlen, 1, gcl->x->fp) != 1)
-	{
-		// well that's not very good...
-		ep_mem_free(gmd->databuf);
-		ep_mem_free(gmd->mds);
-		ep_mem_free(gmd);
-		estat = GDP_STAT_CORRUPT_GCL;
-		goto fail0;
-	}
+	STDIOCHECK("gcl_physgetmetadata: fread#2", 1,
+			fread(gmd->databuf, tlen, 1, gcl->x->fp));
 
 	// now map the pointers to the data
 	void *dbuf = gmd->databuf;
@@ -783,7 +802,17 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 
 	*gmdp = gmd;
 
-fail0:
+	if (false)
+	{
+fail_stdio:
+		// well that's not very good...
+		if (gmd->databuf != NULL)
+			ep_mem_free(gmd->databuf);
+		ep_mem_free(gmd->mds);
+		ep_mem_free(gmd);
+		estat = GDP_STAT_CORRUPT_GCL;
+	}
+
 	ep_thr_rwlock_unlock(&entry->lock);
 	return estat;
 }
