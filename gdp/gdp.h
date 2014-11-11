@@ -69,6 +69,13 @@ typedef enum
 
 
 /*
+**  GCL Metadata
+*/
+
+#define GDP_GCLMD_XID		0x00584944	// XID
+
+
+/*
 **	 Datums
 **		These are the underlying data unit that is passed through a GCL.
 */

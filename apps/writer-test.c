@@ -132,9 +132,15 @@ main(int argc, char **argv)
 		if (append)
 			estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gclh);
 		else
+		{
+			// save the external name as metadata
+			if (gmd == NULL)
+				gmd = gdp_gclmd_new();
+			gdp_gclmd_add(gmd, GDP_GCLMD_XID, strlen(xname), xname);
 			estat = gdp_gcl_create(gcliname, gmd, &gclh);
+		}
 	}
-	EP_STAT_CHECK(estat, goto fail0);
+	EP_STAT_CHECK(estat, goto fail1);
 
 	// dump the internal version of the GCL to facilitate testing
 	gdp_gcl_print(gclh, stdout, 0, 0);
@@ -162,7 +168,7 @@ main(int argc, char **argv)
 
 		// then send the buffer to the GDP
 		estat = gdp_gcl_publish(gclh, datum);
-		EP_STAT_CHECK(estat, goto fail1);
+		EP_STAT_CHECK(estat, goto fail2);
 
 		// print the return value (shows the record number assigned)
 		gdp_datum_print(datum, stdout);
@@ -171,9 +177,14 @@ main(int argc, char **argv)
 	// OK, all done.  Free our resources and exit
 	gdp_datum_free(datum);
 
-fail1:
+fail2:
 	// tell the GDP that we are done
 	gdp_gcl_close(gclh);
+
+fail1:
+	// free metadata, if set
+	if (gmd != NULL)
+		gdp_gclmd_free(gmd);
 
 fail0:
 	// OK status can have values; hide that from the user
