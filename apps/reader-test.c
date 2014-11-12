@@ -272,7 +272,10 @@ main(int argc, char **argv)
 	}
 
 	// allow thread to settle to avoid interspersed debug output
-	sleep(1);
+	{
+		struct timespec ts = {0, 100000000};	// 100 msec
+		nanosleep(&ts, NULL);
+	}
 
 	// parse the name (either base64-encoded or symbolic)
 	estat = gdp_gcl_parse_name(argv[0], gclname);
