@@ -5,10 +5,17 @@
 #include <ep/ep_dbg.h>
 #include <ep/ep_string.h>
 #include <gdp/gdp.h>
+
+#include <openssl/rsa.h>
+#include <openssl/engine.h>
+#include <openssl/pem.h>
+
 #include <unistd.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include <string.h>
 #include <sysexits.h>
+#include <sys/stat.h>
 
 /*
 **  WRITER-TEST --- writes records to a GCL
@@ -23,9 +30,12 @@ void
 usage(void)
 {
 	fprintf(stderr, "Usage: %s [-a] [-D dbgspec] [-G gdpd_addr]\n"
-			"\t[<mdid>=<metadata>...] [<gcl_name>]\n"
-			"  (name is required for -a)\n"
-			"  (metadata is prohibited for -a)\n",
+			"\t[-k] [-K keyfile]\n"
+			"\t[<mdid>=<metadata>...] [gcl_name]\n"
+			"  * gcl_name is required for -a\n"
+			"  * metadata is prohibited for -a\n"
+			"  * if -K specifies a directory, a .pem file is written there\n"
+			"    with the name of the GCL\n",
 			ep_app_getprogname());
 	exit(EX_USAGE);
 }
@@ -44,10 +54,13 @@ main(int argc, char **argv)
 	char *xname = NULL;
 	char buf[200];
 	bool show_usage = false;
+	bool make_new_key = false;
+	char *keyfile = NULL;
+	RSA *key = NULL;
 	char *p;
 
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "aD:G:")) > 0)
+	while ((opt = getopt(argc, argv, "aD:G:kK:")) > 0)
 	{
 		switch (opt)
 		{
@@ -61,6 +74,14 @@ main(int argc, char **argv)
 
 		 case 'G':
 			gdpd_addr = optarg;
+			break;
+
+		 case 'k':
+			make_new_key = true;
+			break;
+
+		 case 'K':
+			keyfile = optarg;
 			break;
 
 		 default:
@@ -106,8 +127,87 @@ main(int argc, char **argv)
 	}
 
 	if (show_usage || argc != 0 ||
-			(append && (xname == NULL || gmd != NULL)))
+			(append && (xname == NULL || gmd != NULL || make_new_key)))
 		usage();
+
+	// see if we have an existing key
+	bool keyfile_is_directory = false;
+	if (keyfile == NULL)
+	{
+		// nope -- create a key in current directory if requested
+		if (make_new_key)
+		{
+			keyfile_is_directory = true;
+			keyfile = ".";
+		}
+	}
+	else
+	{
+		// might be a directory
+		struct stat st;
+		FILE *key_fp;
+
+		if (stat(keyfile, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR)
+		{
+			keyfile_is_directory = true;
+		}
+		else if ((key_fp = fopen(keyfile, "r")) == NULL)
+		{
+			// no existing key file; OK if we are creating it
+			if (!make_new_key)
+			{
+				ep_app_error("Could not read private key file %s", keyfile);
+				exit(EX_NOINPUT);
+			}
+		}
+		else
+		{
+			key = PEM_read_RSAPrivateKey(key_fp, NULL, NULL, NULL);
+			if (key == NULL)
+			{
+				ep_app_error("Could not read private key %s", keyfile);
+				exit(EX_DATAERR);
+			}
+			else
+			{
+				make_new_key = false;
+			}
+			fclose(key_fp);
+		}
+	}
+
+	// if creating new key, go ahead and do it
+	if (make_new_key)
+	{
+		key = RSA_generate_key(2048, 3, NULL, NULL);
+		if (key == NULL)
+		{
+			ep_app_error("Could not create new key");
+			exit(EX_UNAVAILABLE);
+		}
+	}
+
+	// at this point, key is initialized but not necessarily on disk
+	if (key != NULL)
+	{
+		// add the public key to the metadata
+		uint8_t der_buf[_GDP_MAX_DER_LEN];
+		uint8_t *derp = der_buf;
+
+		if (gmd == NULL)
+			gmd = gdp_gclmd_new();
+		if (i2d_RSAPublicKey(key, &derp) < 0)
+		{
+			ep_app_error("Could not create DER format public key");
+			exit(EX_SOFTWARE);
+		}
+
+		// already too late to test for this
+		if ((derp - der_buf) > sizeof der_buf)
+			ep_app_abort("DANGER: i2d_RSAPublicKey overflowed buffer");
+
+		gdp_gclmd_add(gmd, GDP_GCLMD_PUBKEY, derp - der_buf, der_buf);
+	}
 
 	// initialize the GDP library
 	estat = gdp_init(gdpd_addr);
@@ -118,7 +218,10 @@ main(int argc, char **argv)
 	}
 
 	// allow thread to settle to avoid interspersed debug output
-	sleep(1);
+	{
+		struct timespec ts = {0, 100000000};	// 100 msec
+		nanosleep(&ts, NULL);
+	}
 
 	if (xname == NULL)
 	{
@@ -144,6 +247,46 @@ main(int argc, char **argv)
 
 	// dump the internal version of the GCL to facilitate testing
 	gdp_gcl_print(gclh, stdout, 0, 0);
+
+	// now would be a good time to write the private key to disk
+	if (make_new_key)
+	{
+		char *keyfilebuf = NULL;
+
+		// it might be a directory, in which case we append the GCL name
+		if (keyfile_is_directory)
+		{
+			size_t len;
+			gcl_pname_t pbuf;
+
+			gdp_gcl_printable_name(*gdp_gcl_getname(gclh), pbuf);
+			len = strlen(keyfile) + sizeof pbuf + 6;
+			keyfilebuf = ep_mem_malloc(len);
+			snprintf(keyfilebuf, len, "%s/%s.pem", keyfile, pbuf);
+			keyfile = keyfilebuf;
+		}
+
+		int fd;
+		FILE *fp;
+
+		if ((fd = open(keyfile, O_WRONLY|O_CREAT|O_TRUNC, 0600)) < 0 ||
+				(fp = fdopen(fd, "w")) == NULL)
+		{
+			ep_app_error("Cannot create %s", keyfile);
+			exit(EX_CANTCREAT);
+		}
+
+		// third arg is cipher, which should be settable
+		PEM_write_RSAPrivateKey(fp, key, NULL, NULL, 0, NULL, NULL);
+		fclose(fp);
+
+		// abandon keyfilebuf; we may need the string later
+//		if (keyfilebuf != NULL)
+//		{
+//			ep_mem_free(keyfilebuf);
+//			keyfile = NULL;
+//		}
+	}
 
 	// OK, ready to go!
 	fprintf(stdout, "\nStarting to read input\n");

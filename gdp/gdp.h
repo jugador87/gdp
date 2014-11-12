@@ -51,6 +51,9 @@ typedef uint32_t			gdp_rid_t;
 typedef int64_t				gdp_recno_t;
 #define PRIgdp_recno		PRId64
 
+// the size of a DER crypto buffer
+#define _GDP_MAX_DER_LEN	1024
+
 /*
 **	I/O modes
 **
@@ -73,6 +76,7 @@ typedef enum
 */
 
 #define GDP_GCLMD_XID		0x00584944	// XID
+#define GDP_GCLMD_PUBKEY	0x00505542	// PUB
 
 
 /*
