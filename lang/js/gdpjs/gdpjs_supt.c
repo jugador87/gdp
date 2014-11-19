@@ -13,6 +13,9 @@
 
 #include "gdpjs_supt.h"
 #include "gdp/gdp.h"
+// We really don't want to include gdp_priv.h but we need struct gpd_gcl
+// for our use of gclh->pname below.
+#include "gdp/gdp_priv.h"
 #include "ep/ep.h"
 #include "ep/ep_stat.h"
 // Seems to be a problem defining EP_STAT if ep/ep.h is not included before
@@ -85,6 +88,8 @@ sizeof_EP_STAT_in_bytes()
 // We need these specialized ..._print_stdout() wrappers because Node.js JS
 // cannot supply a true stdout FILE* for calls to the node-ffi FFI.
 
+// Forwards to gcp_gcl_print( const gdp_gcl_t *gclh, stdout, , , );
+//
 // print a GCL (for debugging)
 // extern void
 // gdp_gcl_print(
@@ -93,8 +98,7 @@ sizeof_EP_STAT_in_bytes()
 //     int detail,             // not used at this time
 //     int indent              // not used at this time
 // );
-
-// Forwards to gcp_gcl_print( const gdp_gcl_t *gclh, stdout, , , );
+//
 void
 gdp_gcl_print_stdout(
     const gdp_gcl_t *gclh,  // GCL handle to print
@@ -106,20 +110,128 @@ gdp_gcl_print_stdout(
 }
 
 
+// Forwards to gdp_datum_print( const gdp_datum_t *datum, stdout );
+//
 // print a message (for debugging)
 // extern void
 // gdp_datum_print(
 //     const gdp_datum_t *datum, // message to print
 //     FILE *fp                  // file to print it to
 // );
-
-// Forwards to gdp_datum_print( const gdp_datum_t *datum, stdout );
+//
 void
 gdp_datum_print_stdout(
     const gdp_datum_t *datum // message to print
 )
 {
     gdp_datum_print( datum, stdout );
+}
+
+
+// Return the printable gcl name for the open gcl gclh.
+// Working version of the immediately below function that currently
+// doesn't work.
+//
+// The current libgdp seems not to provide access via function to gclh->pname.
+// We have to include gdp_priv.h to resolve gclh->pname; need a better
+// libgdp interface to pname. TBD
+char *
+gdp_get_pname_from_gclh( const gdp_gcl_t *gclh )
+{
+	return (char *) (gclh->pname);
+}
+//
+// TBD: this routine doesn't work yet -- fix it or delete it.
+// Instead use gdp_get_pname_from_gclh( const gdp_gcl_t *gclh ) just above.
+// See comments there on why this function is still TBD here.
+//
+// Get a printable (base64-encoded) GCL name from an open GCL handle
+// Note, we are returning a char * to a static variable; copy out its contents
+// quickly :-).
+// Combines calls to: gdp/gdp.h
+//    const gcl_name_t *
+//    gdp_gcl_getname(const gdp_gcl_t *gclh)  
+// and
+//    char *
+//    gdp_gcl_printable_name(const gcl_name_t internal, gcl_pname_t external)
+//    
+char *
+gdp_get_printable_name_from_gclh( const gdp_gcl_t *gclh )
+{
+	char               *rv = NULL;
+	// handstands to get types correct for the two calls below
+    const gcl_name_t    int_gcl_name;
+    const gcl_name_t   *int_gcl_name_p = &int_gcl_name;
+    static gcl_pname_t  ext_gcl_name;
+
+	// gcp_gcl_getname() has no check on gclh
+    int_gcl_name_p = gdp_gcl_getname( gclh );
+	// gcp_gcl_printable_name() has no check on either argument
+	// assumes caller allocates ext_gcl_name. rv will point to ext_gcl_name.
+	rv = gdp_gcl_printable_name( int_gcl_name, ext_gcl_name );
+
+#if DEBUG
+	// Yes, atrocious debug output == TBD
+	// fprintf( stderr, "gdp_get_printable_name_from_gclh: int_gcl_name_p = \'%s\'\n", int_gcl_name_p );
+	fprintf( stderr, "gdp_get_printable_name_from_gclh: int_gcl_name = \'%s\'\n", int_gcl_name );
+	fprintf( stderr, "gdp_get_printable_name_from_gclh: ext_gcl_name = \'%s\'\n", ext_gcl_name );
+	fprintf( stderr, "gdp_get_printable_name_from_gclh: rv = \'%s\'\n", rv );
+    fflush(stderr);
+#endif
+
+	return rv;
+}
+
+
+// From ep/ep_time.h
+
+// Variant of ep_time_print(const EP_TIME_SPEC *tv, FILE *fp, bool human)
+// that doesn't print a timestamp; rather returns it as a string.
+//
+// format a time string to a file
+// extern void
+// ep_time_print(
+//     const EP_TIME_SPEC *tv,
+//     FILE               *fp,
+//     bool                human
+// );
+char *
+ep_time_as_string( const EP_TIME_SPEC *tv, bool human )
+{
+	// TBD: watch out, we're using a static to hold our return string contents
+	static char tbuf[100]; // TBD: need a safely defined constant/macro for 100
+	                       // Maybe even a separate gdp.h type.
+
+	ep_time_format(tv, tbuf, sizeof tbuf, human);
+	return tbuf;
+}
+
+
+// Get a timestamp as a string from a datum
+// Note, we are returning a char* to a static variable; copy out its contents
+// quickly :-).
+// Combines calls to:
+//    From gdp/gdp.h
+//    void
+//    gdp_datum_getts( const gdp_datum_t *datum, EP_TIME_SPEC *ts ) 
+// and
+//    From ep/ep_time.h
+//    char *
+//    ep_time_as_string( const EP_TIME_SPEC *tv, bool human )
+//    
+char *
+gdp_datum_getts_as_string( const gdp_datum_t *datum, bool human )
+{
+	char               *rv = NULL;
+
+	// TBD: watch out, ep_time_as_string is using static to hold its
+	//      return string contents
+	rv = ep_time_as_string( &datum->ts, human );
+#if DEBUG
+	fprintf( stderr, "gdp_datum_getts_as_string: rv = \'%s\'\n", rv );
+    fflush(stderr);
+#endif
+	return rv;
 }
 
 
@@ -137,8 +249,8 @@ gdp_stat_nak_notfound()
 	EP_STAT_32_64 rv;
     rv.as_EP_STAT  = (GDP_STAT_NEW(ERROR, GDP_COAP_NOTFOUND));
 #if DEBUG
-    fprintf(stderr, "gdp_stat_nak_notfound:"
-                    "  Returning GDP_STAT_NAK_NOTFOUND = %x\n", rv.as_32_64_t);
+    fprintf( stderr, "gdp_stat_nak_notfound:"
+                     "  Returning GDP_STAT_NAK_NOTFOUND = %x\n", rv.as_32_64_t);
     fflush(stderr);
 #endif
     return (rv.as_EP_STAT);
@@ -160,7 +272,7 @@ ep_stat_ok()
 	EP_STAT_32_64 rv;
     rv.as_EP_STAT = (EP_STAT_NEW(EP_STAT_SEV_OK, 0, 0, 0));
 #if DEBUG
-    fprintf(stderr, "ep_stat_ok:  Returning EP_STAT_OK = %x\n", rv.as_32_64_t);
+    fprintf( stderr, "ep_stat_ok:  Returning EP_STAT_OK = %x\n", rv.as_32_64_t );
     fflush(stderr);
 #endif
     return (rv.as_EP_STAT);
@@ -179,8 +291,8 @@ ep_stat_end_of_file()
 	EP_STAT_32_64 rv;
     rv.as_EP_STAT = ( _EP_STAT_INTERNAL(WARN, EP_STAT_MOD_GENERIC, 3) );
 #if DEBUG
-    fprintf(stderr, "ep_stat_end_of_file:"
-                    "  Returning EP_STAT_END_OF_FILE = %x\n", rv.as_32_64_t);
+    fprintf( stderr, "ep_stat_end_of_file:"
+                     "  Returning EP_STAT_END_OF_FILE = %x\n", rv.as_32_64_t );
     fflush(stderr);
 #endif
     return (rv.as_EP_STAT);
@@ -198,9 +310,9 @@ int /* Boolean */
 ep_stat_isok(EP_STAT ep_stat) {
     int rv = EP_STAT_ISOK(ep_stat);
 #if DEBUG
-    fprintf(stderr, "ep_stat_isok: ep_stat = %x,",
-	        ((EP_STAT_32_64) ep_stat).as_32_64_t );
-    fprintf(stderr, "  Returning EP_STAT_ISOK() = %x\n", rv);
+    fprintf( stderr, "ep_stat_isok: ep_stat = %x,",
+	         ((EP_STAT_32_64) ep_stat).as_32_64_t );
+    fprintf( stderr, "  Returning EP_STAT_ISOK() = %x\n", rv );
     fflush(stderr);
 #endif
     return rv;
@@ -217,11 +329,11 @@ int /* Boolean */
 ep_stat_is_same(EP_STAT a, EP_STAT b) {
     int rv = EP_STAT_IS_SAME(a, b);
 #if DEBUG
-    fprintf(stderr, "ep_stat_is_same: a = %x, b = %x",
-	        (((EP_STAT_32_64) a).as_32_64_t ),
-	        (((EP_STAT_32_64) b).as_32_64_t )
+    fprintf( stderr, "ep_stat_is_same: a = %x, b = %x",
+	         (((EP_STAT_32_64) a).as_32_64_t ),
+	         (((EP_STAT_32_64) b).as_32_64_t )
 		   );
-    fprintf(stderr, "  Returning EP_STAT_IS_SAME() = %x\n", rv);
+    fprintf( stderr, "  Returning EP_STAT_IS_SAME() = %x\n", rv );
     fflush(stderr);
 #endif
     return rv;

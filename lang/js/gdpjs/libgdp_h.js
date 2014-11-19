@@ -423,12 +423,43 @@ var libgdp = ffi.Library( GDP_DIR + '/libs/libgdp.1.0', {
 //CJS extern EP_STAT  gdp_gcl_read( gdp_gcl_t *gclh, gdp_recno_t recno, gdp_datum_t *datum);
    'gdp_gcl_read': [ EP_STAT, [ gdp_gcl_tPtr, gdp_recno_t, gdp_datum_tPtr ] ],
 
+
+// From gdp/gdp.h
+//CJS // get the record number from a datum
+//CJS extern gdp_recno_t      gdp_datum_getrecno(
+//CJS                                         const gdp_datum_t *datum);
+   'gdp_datum_getrecno': [ gdp_recno_t, [ gdp_datum_tPtr ] ],
+
+// From gdp/gdp.h
+//CJS // set a record number in a datum
+//CJS extern void             gdp_datum_setrecno(
+//CJS                                         gdp_datum_t *datum,
+//CJS                                         gdp_recno_t recno);
+   'gdp_datum_setrecno': [ 'void', [ gdp_datum_tPtr, gdp_recno_t ] ],
+
+// From gdp/gdp.h
+//CJS // get the timestamp from a datum
+//CJS extern void             gdp_datum_getts(
+//CJS                                         const gdp_datum_t *datum,
+//CJS                                         EP_TIME_SPEC *ts);
+// TBD: awaits our setup and testing of Node.js FFI access to structs
+// For now use ep_time_as_string()    -- in gdpjs_supt.c
+//         or  ep_time_as_string_js() -- in gdpjs_supt.js
+
+// From gdp/gdp.h
+//CJS // set the timestamp in a datum
+//CJS extern void             gdp_datum_setts(
+//CJS                                         gdp_datum_t *datum,
+//CJS                                         EP_TIME_SPEC *ts);
+// TBD: awaits our setup and testing of Node.js FFI access to structs
+// Not sure if our users will need to create an EP_TIME_SPEC, though.
+
 // From gdp/gdp.h
 //CJS // get the data length from a datum
 //CJS extern size_t   gdp_datum_getdlen( const gdp_datum_t *datum);
    'gdp_datum_getdlen': [ 'size_t', [ gdp_datum_tPtr ] ],
 
-//   Was used to test out calling a C function with a very simple signature
+//   Below was used to test calling a C function with a very simple signature
 //   'log_view_ls': [ 'int', [ ] ]
 
 });
@@ -469,6 +500,30 @@ var libgdpjs = ffi.Library( GDPJS_DIR + '../libs/libgdpjs.1.0', {
 // print a message (for debugging)
 // Forwards to gdp_datum_print( const gdp_datum_t *datum, stdout );
     'gdp_datum_print_stdout':  [ 'void', [ gdp_datum_tPtr ] ],
+
+// From gdp/gdp.h
+// Get a printable (base64-encoded) GCL name from an open GCL handle
+// Accesses gchlh->pname field directly
+    'gdp_get_pname_from_gclh':  [ 'string', [ gdp_gcl_tPtr ] ],
+
+// From gdp/gdp.h
+// Get a printable (base64-encoded) GCL name from an open GCL handle
+// Uses gdp_gcl_getname() and gdp_gcl_printable_name()
+    'gdp_get_printable_name_from_gclh':  [ 'string', [ gdp_gcl_tPtr ] ],
+
+// Get a timestamp as a string from a datum
+// Note, we are returning a char* to a static variable; copy out its contents
+// quickly :-).
+// Combines calls to:
+//    From gdp/gdp.h
+//    void
+//    gdp_datum_getts( const gdp_datum_t *datum, EP_TIME_SPEC *ts ) 
+// and
+//    From ep/ep_time.h
+//    char *
+//    ep_time_as_string( const EP_TIME_SPEC *tv, bool human )
+//    
+    'gdp_datum_getts_as_string':  [ 'string', [ gdp_datum_tPtr, bool_t ] ],
 
 // From gdp/gdp_stat.h
 //CJS #define GDP_STAT_NAK_NOTFOUND   GDP_STAT_NEW(ERROR, GDP_COAP_NOTFOUND)

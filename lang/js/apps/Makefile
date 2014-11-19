@@ -11,12 +11,14 @@
 #
 
 all:
-	@echo 'Nothing to make here - only JavaScript programs.'
+	@echo 'Nothing to make locally here - only JavaScript programs.'
 	@echo 'See the README here as well as the js/tests/ README.'
 	@echo 'for details on how to run the JS programs here.'
+	(cd gdpREST_server; make clean all)
 
 clean:
-	# Currently empty - nothing to clean
+	# nothing to clean locally
+	(cd gdpREST_server; make clean )
 
 run:
 	@echo 'See the README here as well as the js/tests/ README.'

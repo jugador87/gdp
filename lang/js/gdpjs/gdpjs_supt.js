@@ -39,7 +39,18 @@ function sizeof_EP_STAT_in_bytes_js()
 /* EP_STAT */
 function gdp_init_js( /* String */ gdpd_addr )
 {
-	return libgdp.gdp_init( gdpd_addr );
+	// libgdp.gdp_init() seems to have trouble passing in an explicit
+	// null string but an undefined argument works OK to start the
+	// library on the default gdpd host:port .
+	// So we protect this call from incoming JS null strings.
+	if ( gdpd_addr == "" )
+	{	// DEBUG: console.log( 'then: gdpd_addr = \"' + gdpd_addr + '\"' );
+		return libgdp.gdp_init( undefined );
+	}
+	else
+	{	// DEBUG: console.log( 'else: gdpd_addr = \"' + gdpd_addr + '\"' );
+		return libgdp.gdp_init( gdpd_addr );
+	}
 }
 
 /* Boolean */
@@ -124,7 +135,6 @@ function ep_dbg_set_js( /* String */  ep_dbg_pattern )
 function gdp_gcl_printable_name_js( /* gcl_name_t  */ gclname,
                                     /* gcl_pname_t */ gclpname )
 {
-	/* void */
 	var rv_str;
 	rv_str = libgdp.gdp_gcl_printable_name( gclname, gclpname );
 	return rv_str;
@@ -137,6 +147,35 @@ function gdp_gcl_print_stdout_js( gcl_Ptr, /* int */ detail, /* int */ indent )
     libgdpjs.gdp_gcl_print_stdout( gcl_Ptr, detail, indent );
 }
 
+/* String */
+function gdp_get_pname_from_gclh_js( gcl_Ptr )
+{
+	var rv_str;
+    rv_str = libgdpjs.gdp_get_pname_from_gclh( gcl_Ptr );
+	return rv_str;
+}
+
+/* String */
+function gdp_get_printable_name_from_gclh_js( gcl_Ptr )
+{
+	var rv_str;
+	// Note, the below returns a pointer to a statically allocated gcl_pname_t,
+	// currently, typedef char gcl_pname_t[GDP_GCL_PNAME_LEN + 1] in gdp.h
+    rv_str = libgdpjs.gdp_get_printable_name_from_gclh( gcl_Ptr );
+	return rv_str;
+}
+
+/* String */
+function gdp_datum_getts_as_string_js( datum, /* Boolean */ human_format )
+{
+	var rv_str;
+	// Note, the below returns a pointer to a statically allocated 
+	// char tbuf[100] in gdpjs_supt.c/ep_time_as_string() .
+    rv_str = libgdpjs.gdp_datum_getts_as_string( datum, human_format );
+	// DEBUG console.log("gdp_datum_getts_as_string_js: rv_str = '" + rv_str + "'" );
+	return rv_str;
+}
+
 /* datum */
 function gdp_datum_new_js()
 {
@@ -145,9 +184,15 @@ function gdp_datum_new_js()
 };
 
 /* EP_STAT */
-function gdp_gcl_read_js(gclh, recno, datum)
+function gdp_gcl_read_js( gclh, recno, datum )
 {
-	return libgdp.gdp_gcl_read(gclh, recno, datum);
+	return libgdp.gdp_gcl_read( gclh, recno, datum );
+}
+
+/* gdp_recno_t */
+function gdp_datum_getrecno_js( datum )
+{
+	return libgdp.gdp_datum_getrecno( datum );
 }
 
 /* EP_STAT */
@@ -229,6 +274,7 @@ function gdp_datum_print_stdout_js( datum )
 	libgdpjs.gdp_datum_print_stdout( datum );
 }
 
+
 /* EP_STAT */
 function gdp_event_free_js( gev_Ptr )
 // Arg gev_Ptr can be viewed by JS as an opaque handle for a gdp_event.
@@ -240,13 +286,6 @@ function gdp_event_free_js( gev_Ptr )
 function gdp_gcl_close_js( gcl_Ptr )
 {
 	return libgdp.gdp_gcl_close(gcl_Ptr);
-}
-
-/* void */
-function gdp_datum_print_stdout_js( datum )
-{
-	/* void */
-	libgdpjs.gdp_datum_print_stdout( datum );
 }
 
 /* void */
@@ -400,6 +439,9 @@ function get_datum_buf_as_string( datum )
 // contain nulls).
 {
 	var datum_dlen = libgdp.gdp_datum_getdlen( datum );
+
+// DEBUG - keep this output here until we've looked this code over more.
+DEBUG_get_datum_buf_as_string = false;
 
 if ( DEBUG_get_datum_buf_as_string ) {
 	console.log( "get_datum_buf_as_string: After call to gdp_datum_print() gcp_datum_getdlen() = \"" + datum_dlen + "\"" );
