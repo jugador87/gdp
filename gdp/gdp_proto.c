@@ -967,6 +967,7 @@ _gdp_do_init_2(const char *gdpd_addr)
 
 	// attach it to a socket
 	char abuf[100];
+	char pbuf[10];
 	struct addrinfo *res;
 	struct addrinfo hints;
 	int gdpd_port = -1;
@@ -985,7 +986,14 @@ _gdp_do_init_2(const char *gdpd_addr)
 	hints.ai_protocol = IPPROTO_TCP;
 	port = strchr(abuf, ':');
 	if (port != NULL)
+	{
 		*port++ = '\0';
+	}
+	else
+	{
+		port = pbuf;
+		snprintf(pbuf, sizeof pbuf, "%d", GDP_PORT_DEFAULT);
+	}
 	ep_dbg_cprintf(Dbg, 20, "gdp_init: contacting host %s port %s\n",
 			abuf, port);
 	r = getaddrinfo(abuf, port, NULL, &res);
