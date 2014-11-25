@@ -62,7 +62,14 @@
     <p>The symbol &lt;gcl_id&gt; refers only to the base64-encoded name
       of a GCL.<br>
     </p>
-    <hr width="100%" size="2">
+    <p>In all cases, timestamps are in ISO 8601 format (<i>YYYY</i>-<i>MM</i>-<i>DD</i>T<i>HH</i>:<i>MM</i>:<i>SS</i>.<i>SSSSSSSSS</i>Z,
+
+      including nanoseconds, and in UTC) possibly followed by a slash
+      ("/") and a time accuracy in seconds; for example
+      "2014-11-22T13:03:09.395023619/3.5" (you can read the slash as
+      "±").&nbsp; Record numbers may be as large as 2<sup>63</sup> – 1
+      (18,446,744,073,709,551,615). </p>
+    <hr size="2" width="100%">
     <h4>Name</h4>
     GET /gdp/v1/gcl — list all known GCLs<br>
     <h4>Request Body</h4>
@@ -89,7 +96,7 @@
     <p>Not implemented at this time (requires GDP protocol
       extension).&nbsp; Returns 405 Method Not Allowed.<br>
     </p>
-    <hr width="100%" size="2">
+    <hr size="2" width="100%">
     <h4>Name</h4>
     GET /gdp/v1/gcl/&lt;gcl_name&gt; — list information known about
     specified GCL<br>
@@ -113,7 +120,7 @@
       canonical name of the GCL and the number of records.&nbsp; When
       GCL metadata is present it should be returned as well.</p>
     <p> </p>
-    <hr width="100%" size="2">
+    <hr size="2" width="100%">
     <h4>Name</h4>
     POST /gdp/v1/gcl — Create a new GCL<br>
     <h4>Request Data</h4>
@@ -133,7 +140,7 @@
       the information about that GCL in the same format as that
       delivered by the status query.<br>
     </p>
-    <hr width="100%" size="2">
+    <hr size="2" width="100%">
     <h4>Name</h4>
     PUT /gdp/v1/gcl/&lt;symbolic_name&gt; — Create a new named GCL<br>
     <h4>Request Data</h4>
@@ -156,7 +163,7 @@
     <p><i>Question: should this give an error if the GCL already
         exists?&nbsp; If so use 405?</i><br>
     </p>
-    <hr width="100%" size="2">
+    <hr size="2" width="100%">
     <h4>Name</h4>
     DELETE /gdp/v1/gcl/&lt;gcl_name&gt; — delete a GCL<br>
     <h4>Request Data</h4>
@@ -171,7 +178,7 @@
     </h4>
     <p><br>
     </p>
-    <hr width="100%" size="2">
+    <hr size="2" width="100%">
     <h4>Name</h4>
     POST /gdp/v1/gcl/&lt;gcl_name&gt; — add a record to specified GCL<br>
     <h4>Request Data</h4>
@@ -192,7 +199,7 @@
       shows the GDP-assigned metadata associated with the new record.<br>
     </p>
     <p> </p>
-    <hr width="100%" size="2">
+    <hr size="2" width="100%">
     <h4>Name</h4>
     GET /gdp/v1/gcl/&lt;gcl_name&gt;?recno=&lt;#&gt; — return a
     specified record<br>
@@ -208,11 +215,13 @@
     </p>
     <h4>Description</h4>
     <p>Returns the contents of the record indicated by <i>recno</i>.&nbsp;
+
       As a special case, if recno is the text "last" it returns the last
       (most recently written) record.<br>
     </p>
     <p>Note that the metadata is included in the response header, not in
       the data itself, in order to maintain the opacity of that data. <i>Question:
+
 
 
         should we move the metadata into the header for other commands
@@ -221,7 +230,7 @@
     <p>This call is not orthogonal to the others because it does not
       assume that the data is application/json.<br>
     </p>
-    <hr width="100%" size="2">
+    <hr size="2" width="100%">
     <p> </p>
     <h4>Name</h4>
     GET /gdp/v1/gcl/&lt;gcl_name&gt;?recno=&lt;#&gt;&amp;nrecs=&lt;#&gt;
@@ -238,10 +247,11 @@
       zero, all data from <i>recno</i> to the end is returned.&nbsp;
       The <i>recno</i> parameter is optional and defaults to 1.<br>
     </p>
-    <hr width="100%" size="2">
+    <hr size="2" width="100%">
     <h4>Name</h4>
     GET
     /gdp/v1/gcl/gcl_id?recno=&lt;#&gt;&amp;nrecs=&lt;#&gt;&amp;timeout=&lt;seconds&gt;
+
 
 
     — monitor a GCL<br>
@@ -273,7 +283,7 @@
         as WebSockets) for subscriptions. HTTP (and hence REST) isn’t
         designed to handle spontaneous server to client messages.</i><i>]]</i><br>
     </p>
-    <hr width="100%" size="2">
+    <hr size="2" width="100%">
     <h4>Name</h4>
     GET /gdp/v1/post/gcl/&lt;gcl_name&gt;?&lt;arguments&gt; — add data
     to a GCL (<i><b>not REST compliant</b></i>)<br>
@@ -283,12 +293,31 @@
       unencrypted of course.<br>
     </p>
     <p> </p>
-    <hr width="100%" size="2"><br>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    POST /gdp/v1/kv — add data to key-value store<br>
+    <h4>Description</h4>
+    <p>There is a single key-value store.&nbsp; All data must be
+      formatted as JSON objects.&nbsp; POST adds all of the names inside
+      the content to the KV store.&nbsp; For example a POST with the
+      contents { "a": 1, "b": 2 } adds two values to the store.&nbsp; A
+      subsequent POST with contents { "a": 3, "c": 4 } updates the value
+      of a, adds a new value c, and leaves b unchanged.</p>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    <p>GET /gdp/v1/kv/&lt;key&gt;<br>
+    </p>
+    <h4>Description</h4>
+    <p>Returns the value of &lt;key&gt; in JSON notation.<br>
+    </p>
+    <hr size="2" width="100%">
+    <p><br>
+    </p>
     <h2> 4 Summary</h2>
     <p>This is just a quick recap of the material presented above.&nbsp;
       All URLs begin with "/gdp/v1/".<br>
     </p>
-    <table width="100%" border="1" cellpadding="2" cellspacing="2">
+    <table border="1" cellpadding="2" cellspacing="2" width="100%">
       <tbody>
         <tr>
           <td valign="top">Method<br>
@@ -386,6 +415,23 @@
           </td>
           <td valign="top">Add JSON record to GCL &lt;id&gt;
             (deprecated: violates REST standard)<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">POST<br>
+          </td>
+          <td valign="top">kv<br>
+          </td>
+          <td valign="top">Add JSON information to key-value store<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">GET<br>
+          </td>
+          <td valign="top">kv/&lt;key&gt;<br>
+          </td>
+          <td valign="top">Return JSON information associated with
+            &lt;key&gt; in the key-value store<br>
           </td>
         </tr>
       </tbody>
