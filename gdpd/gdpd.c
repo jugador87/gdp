@@ -3,25 +3,25 @@
 #include "gdpd.h"
 #include "gdpd_physlog.h"
 #include "gdpd_pubsub.h"
-#include "thread_pool.h"
 
-#include <ep/ep_string.h>
 #include <ep/ep_hexdump.h>
+#include <ep/ep_string.h>
+#include <ep/ep_thr_pool.h>
 
 #include <event2/event.h>
 #include <event2/listener.h>
 #include <event2/thread.h>
 
 #include <errno.h>
-#include <arpa/inet.h>
 #include <signal.h>
+#include <arpa/inet.h>
 
 
 /************************  PRIVATE	************************/
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdpd.main", "GDP Daemon");
 
-static struct thread_pool *CpuJobThreadPool;
+static EP_THR_POOL	*CpuJobThreadPool;
 
 
 /*
@@ -38,9 +38,6 @@ gdpd_req_thread(void *req_)
 
 	ep_dbg_cprintf(Dbg, 18, "gdpd_req_thread: starting\n");
 
-	// find the GCL handle (if any)
-//	req->gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, 0);
-
 	// got the packet, dispatch it based on the command
 	req->stat = dispatch_cmd(req);
 	//XXX anything to do with estat here?
@@ -54,11 +51,11 @@ gdpd_req_thread(void *req_)
 	//XXX anything to do with estat here?
 
 	// if there is any post-processing to do, invoke the callback
-	if (req->cb != NULL && req->postproc)
+	if (req->cb.gdpd != NULL && req->postproc)
 	{
-		(req->cb)(req);
+		(req->cb.gdpd)(req);
 		req->postproc = false;
-		req->cb = NULL;
+		req->cb.gdpd = NULL;
 	}
 
 	// we can now unlock and free resources
@@ -101,9 +98,7 @@ cmdsock_read_cb(struct bufferevent *bev, void *ctx)
 			req->pkt->cmd, _gdp_proto_cmd_name(req->pkt->cmd),
 			bufferevent_getfd(bev));
 
-	thread_pool_job *new_job = thread_pool_job_new(&gdpd_req_thread,
-									NULL, req);
-	thread_pool_add_job(CpuJobThreadPool, new_job);
+	ep_thr_pool_run(CpuJobThreadPool, &gdpd_req_thread, req);
 }
 
 
@@ -387,7 +382,9 @@ main(int argc, char **argv)
 	int listenport = -1;
 	bool run_in_foreground = false;
 	EP_STAT estat;
-	long nworkers = 0;
+	int nworkers = 0;
+	int min_workers = 0;
+	int max_workers = 0;
 
 	while ((opt = getopt(argc, argv, "D:Fn:P:")) > 0)
 	{
@@ -433,15 +430,22 @@ main(int argc, char **argv)
 		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 
-	if (nworkers <= 0)
+	if (nworkers > 0)
 	{
-		nworkers = sysconf(_SC_NPROCESSORS_ONLN) * 2;
-		nworkers = ep_adm_getintparam("swarm.gdpd.nworkers", nworkers);
-		if (nworkers <= 0)
-			nworkers = 1;
+		// command line parameter
+		min_workers = max_workers = nworkers;
 	}
-	CpuJobThreadPool = thread_pool_new(nworkers);
-	thread_pool_init(CpuJobThreadPool);
+	else
+	{
+		min_workers = ep_adm_getintparam("swarm.gdpd.min_workers", 1);
+		max_workers = sysconf(_SC_NPROCESSORS_ONLN) * 2;
+		max_workers = ep_adm_getintparam("swarm.gdpd.max_workers", max_workers);
+		if (min_workers < 0)
+			min_workers = 0;
+		if (max_workers < min_workers)
+			max_workers = min_workers > 0 ? min_workers : 1;
+	}
+	CpuJobThreadPool = ep_thr_pool_new(min_workers, max_workers);
 
 	// add a debugging signal to print out some internal data structures
 	event_add(evsignal_new(GdpListenerEventBase, SIGINFO, siginfo, NULL), NULL);

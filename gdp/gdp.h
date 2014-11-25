@@ -142,8 +142,7 @@ extern EP_STAT	gdp_gcl_read(
 // subscribe to a readable GCL
 //	If you don't specific cbfunc, events are generated instead
 typedef void	(*gdp_gcl_sub_cbfunc_t)(  // the callback function
-					gdp_gcl_t *gclh,		// the GCL triggering the call
-					gdp_datum_t *datum,		// the message triggering the call
+					gdp_event_t *ev,		// the event triggering the call
 					void *cbarg);			// an arbitrary argument
 
 extern EP_STAT	gdp_gcl_subscribe(

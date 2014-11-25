@@ -99,9 +99,10 @@ struct gdp_gcl
 **		some operations (e.g., subscriptions) can return multiple
 **		results, but they will have the same rid.
 **
-**		The cb (callback) field is used primarily by GDPD to
-**		indicate the routine that should be called in a worker
-**		thread.  The callback gets the request as the parameter.
+**		The cb (callback) field is used by GDPD to indicate the
+**		routine that should be called in a worker thread.  The
+**		callback gets the request as the parameter.  It is also
+**		used in the gdp library for subscription callbacks.
 */
 
 typedef struct gdp_req
@@ -120,9 +121,12 @@ typedef struct gdp_req
 	EP_STAT				stat;		// status code from last operation
 	int32_t				numrecs;	// remaining number of records to return
 	uint32_t			flags;		// see below
-	void				(*cb)(struct gdp_req *);
-									// callback (see above)
-	void				*udata;		// user-supplied opaque data
+	union
+	{
+		void					(*gdpd)(struct gdp_req *);
+		gdp_gcl_sub_cbfunc_t	subs;
+	}					cb;			// callback (see above)
+	void				*udata;		// user-supplied opaque data to cb
 } gdp_req_t;
 
 #define GDP_REQ_DONE			0x00000001	// operation complete

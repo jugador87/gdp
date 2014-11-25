@@ -439,7 +439,7 @@ cmd_subscribe(gdp_req_t *req)
 	if (req->pkt->datum->recno <= gcl_max_recno(req->gclh))
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: doing post processing\n");
-		req->cb = &post_subscribe;
+		req->cb.gdpd = &post_subscribe;
 		req->postproc = true;
 	}
 	else
@@ -534,7 +534,7 @@ cmd_multiread(gdp_req_t *req)
 	if (req->pkt->datum->recno <= gcl_max_recno(req->gclh))
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_multiread: doing post processing\n");
-		req->cb = &post_subscribe;
+		req->cb.gdpd = &post_subscribe;
 		req->postproc = true;
 
 		// make this a "snapshot", i.e., don't read additional records
