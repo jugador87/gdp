@@ -12,7 +12,7 @@
 
 struct gdp_event
 {
-	TAILQ_ENTRY(gdp_event)	queue;		// free/active queue link
+	STAILQ_ENTRY(gdp_event)	queue;		// free/active queue link
 	int						type;		// event type
 	gdp_gcl_t				*gcl;		// GCL handle for event
 	gdp_datum_t				*datum;		// datum for event
