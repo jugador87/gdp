@@ -9,6 +9,7 @@
 
 #include <ep/ep.h>
 #include <ep/ep_dbg.h>
+#include <ep/ep_hexdump.h>
 #include <ep/ep_string.h>
 #include <ep/ep_thr.h>
 
@@ -153,9 +154,7 @@ gdp_datum_print(const gdp_datum_t *datum,
 		fprintf(fp, ", no timestamp");
 	}
 
-	if (l > 0)
-	{
-		fprintf(fp, "\n	 %s%.*s%s", EpChar->lquote, l, d, EpChar->rquote);
-	}
 	fprintf(fp, "\n");
+	if (l > 0)
+		ep_hexdump(d, l, fp, EP_HEXDUMP_ASCII);
 }

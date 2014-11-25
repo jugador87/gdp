@@ -375,11 +375,11 @@ a_new_gcl(scgi_request *req, const char *name)
 		gcl_name_t gclname;
 
 		gdp_gcl_parse_name(name, gclname);
-		estat = gdp_gcl_create(gclname, &gclh);
+		estat = gdp_gcl_create(gclname, NULL, &gclh);
 	}
 	else
 	{
-		estat = gdp_gcl_create(NULL, &gclh);
+		estat = gdp_gcl_create(NULL, NULL, &gclh);
 	}
 	if (EP_STAT_ISOK(estat))
 	{
@@ -824,7 +824,7 @@ kv_initialize(void)
 
 fail0:
 	// couldn't open; try create?
-	estat = gdp_gcl_create(KeyValInternalName, &KeyValGcl);
+	estat = gdp_gcl_create(KeyValInternalName, NULL, &KeyValGcl);
 
 fail1:
 	// couldn't read GCL

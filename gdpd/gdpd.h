@@ -44,6 +44,8 @@ struct gdp_gcl_xtra
 	FILE				*fp;			// pointer to the on-disk file
 	struct index_entry	*log_index;		// ???
 	off_t				data_offset;	// offset for start of data
+	uint16_t			nmetadata;		// number of metadata entries
+	uint16_t			log_type;		// from log header
 };
 
 

@@ -109,6 +109,7 @@ typedef struct gdp_pkt
 #define GDP_CMD_PUBLISH			71		// append a record
 #define GDP_CMD_SUBSCRIBE		72		// subscribe to a GCL
 #define GDP_CMD_MULTIREAD		73		// read more than one records
+#define GDP_CMD_GETMETADATA		74		// fetch metadata
 //		128-191			Positive acks
 #define GDP_ACK_MIN			128				// minimum ack code
 #define GDP_ACK_SUCCESS			_GDP_ACK_FROM_COAP(SUCCESS)

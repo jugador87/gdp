@@ -7,6 +7,7 @@
 #include <ep/ep_string.h>
 
 #include "gdp.h"
+#include "gdp_gclmd.h"
 #include "gdp_log.h"
 #include "gdp_stat.h"
 #include "gdp_priv.h"
@@ -229,12 +230,11 @@ gdp_init(const char *gdpd_addr)
 
 /*
 **	GDP_GCL_CREATE --- create a new GCL
-**
-**		Right now we cheat.	 No network GCL need apply.
 */
 
 EP_STAT
 gdp_gcl_create(gcl_name_t gcl_name,
+				gdp_gclmd_t *gmd,
 				gdp_gcl_t **pgclh)
 {
 	gdp_gcl_t *gclh = NULL;
@@ -251,6 +251,9 @@ gdp_gcl_create(gcl_name_t gcl_name,
 
 	estat = _gdp_req_new(GDP_CMD_CREATE, gclh, _GdpChannel, 0, &req);
 	EP_STAT_CHECK(estat, goto fail1);
+
+	// add the metadata to the output stream
+	_gdp_gclmd_serialize(gmd, req->pkt->datum->dbuf);
 
 	estat = _gdp_invoke(req);
 	EP_STAT_CHECK(estat, goto fail1);
@@ -551,3 +554,26 @@ gdp_gcl_unsubscribe(gdp_gcl_t *gclh,
 	XXX;
 }
 #endif
+
+
+EP_STAT
+gdp_gcl_getmetadata(gdp_gcl_t *gcl,
+		gdp_gclmd_t **gmdp)
+{
+	EP_STAT estat;
+	gdp_req_t *req;
+
+	estat = _gdp_req_new(GDP_CMD_GETMETADATA, gcl, _GdpChannel, 0, &req);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	estat = _gdp_invoke(req);
+	EP_STAT_CHECK(estat, goto fail1);
+
+	*gmdp = _gdp_gclmd_deserialize(req->pkt->datum->dbuf);
+
+fail1:
+	_gdp_req_free(req);
+
+fail0:
+	return estat;
+}

@@ -309,6 +309,7 @@ struct epCharSequences	EpCharASCII =
 	.divide =	"/",		// divide
 	.null =		"NULL",		// null
 	.notequal =	"!=",		// not equal
+	.unprintable =	"?",		// sub for unprintable
 };
 
 // ISO 8859-1:1987
@@ -324,6 +325,7 @@ struct epCharSequences	EpCharISO_8859_1 =
 	.divide =	"\xF7",
 	.null =		"\xD8",
 	.notequal =	"!=",
+	.unprintable =	"\xA4",
 };
 
 // Unicode UTF-8 (US conventions)
@@ -339,6 +341,8 @@ struct epCharSequences	EpCharUTF_8 =
 	.divide =	"\xC3\xB7",	// U+00F7
 	.null =		"\xE2\x88\x85",	// U+2205
 	.notequal =	"\xE2\x89\xA0",	// U+2260
+	.unprintable =	"\xE2\x8C\xA7",	// U+2327, "X" in a box
+//	.unprintable =	"\xE2\x8D\xB0",	// U+2370, question mark in a box
 };
 
 struct epCharSequences	*EpChar = &EpCharUTF_8;

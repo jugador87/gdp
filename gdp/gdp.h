@@ -8,6 +8,7 @@
 #define _GDP_H_
 
 #include <ep/ep.h>
+#include <ep/ep_mem.h>
 #include <ep/ep_stat.h>
 #include <ep/ep_time.h>
 #include <inttypes.h>
@@ -26,6 +27,10 @@
 
 // an open handle on a GCL (opaque)
 typedef struct gdp_gcl		gdp_gcl_t;
+
+// GCL metadata
+typedef struct gdp_gclmd	gdp_gclmd_t;
+typedef uint32_t			gdp_gclmd_id_t;
 
 /**********************************************************************
 **	Other data types
@@ -46,6 +51,9 @@ typedef uint32_t			gdp_rid_t;
 typedef int64_t				gdp_recno_t;
 #define PRIgdp_recno		PRId64
 
+// the size of a DER crypto buffer
+#define _GDP_MAX_DER_LEN	1024
+
 /*
 **	I/O modes
 **
@@ -61,6 +69,14 @@ typedef enum
 	GDP_MODE_RO = 1,	// read only
 	GDP_MODE_AO = 2,	// append only
 } gdp_iomode_t;
+
+
+/*
+**  GCL Metadata
+*/
+
+#define GDP_GCLMD_XID		0x00584944	// XID
+#define GDP_GCLMD_PUBKEY	0x00505542	// PUB
 
 
 /*
@@ -119,6 +135,7 @@ extern void		*gdp_run_accept_event_loop(
 // create a new GCL
 extern EP_STAT	gdp_gcl_create(
 					gcl_name_t,
+					gdp_gclmd_t *,			// pointer to metadata object
 					gdp_gcl_t **);			// pointer to result GCL handle
 
 // open an existing GCL
@@ -165,6 +182,11 @@ extern EP_STAT	gdp_gcl_multiread(
 											// callback function for next datum
 					void *cbarg);			// argument passed to callback
 
+// read metadata
+extern EP_STAT	gdp_gcl_getmetadata(
+					gdp_gcl_t *gcl,			// GCL handle
+					gdp_gclmd_t **gmdp);	// out-param for metadata
+
 // return the name of a GCL
 //		XXX: should this be in a more generic "getstat" function?
 extern const gcl_name_t *gdp_gcl_getname(
@@ -194,6 +216,33 @@ EP_STAT			gdp_gcl_internal_name(
 EP_STAT			gdp_gcl_parse_name(
 					const char *ext,
 					gcl_name_t internal);
+
+// create a new metadata set
+gdp_gclmd_t		*gdp_gclmd_new(void);
+
+// free a metadata set
+void			gdp_gclmd_free(gdp_gclmd_t *gmd);
+
+// add an entry to a metadata set
+EP_STAT			gdp_gclmd_add(
+					gdp_gclmd_t *gmd,
+					gdp_gclmd_id_t id,
+					size_t len,
+					const void *data);
+
+// get an entry from a metadata set
+EP_STAT			gdp_gclmd_get(
+					gdp_gclmd_t *gmd,
+					int indx,
+					gdp_gclmd_id_t *id,
+					size_t *len,
+					const void **data);
+
+// print metadata set (for debugging)
+void			gdp_gclmd_print(
+					gdp_gclmd_t *gmd,
+					FILE *fp,
+					int detail);
 
 // allocate a new message
 gdp_datum_t		*gdp_datum_new(void);

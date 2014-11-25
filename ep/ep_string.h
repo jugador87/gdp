@@ -63,6 +63,7 @@ extern struct epCharSequences
 	const char	*divide;	// divide symbol
 	const char	*null;		// null symbol
 	const char	*notequal;	// not equal symbol
+	const char	*unprintable;	// non-printable character
 } *EpChar;
 
 // function to adjust alternate printing

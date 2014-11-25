@@ -175,7 +175,7 @@ main(int argc, char *argv[])
 			//fprintf(stdout, "record length: %lu\n", strlen(&data[(i * max_record_size)]));
 		}
 
-		estat = gdp_gcl_create(NULL, &gclh_write);
+		estat = gdp_gcl_create(NULL, NULL, &gclh_write);
 
 		EP_STAT_CHECK(estat, goto fail0);
 		gdp_gcl_print(gclh_write, stdout, 0, 0);

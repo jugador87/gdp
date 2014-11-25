@@ -194,6 +194,33 @@ do_multiread(gdp_gcl_t *gclh,
 
 
 /*
+**  PRINT_METADATA --- get and print the metadata
+*/
+
+void
+print_metadata(gdp_gcl_t *gcl)
+{
+	EP_STAT estat;
+	gdp_gclmd_t *gmd;
+
+	estat = gdp_gcl_getmetadata(gcl, &gmd);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	gdp_gclmd_print(gmd, stdout, 5);
+	gdp_gclmd_free(gmd);
+	return;
+
+fail0:
+	{
+		char ebuf[100];
+
+		printf("Could not read metadata!\n    %s\n",
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
+}
+
+
+/*
 **  MAIN --- the name says it all
 */
 
@@ -210,12 +237,13 @@ main(int argc, char **argv)
 	bool subscribe = false;
 	bool multiread = false;
 	bool use_callbacks = false;
+	bool showmetadata = false;
 	int32_t numrecs = 0;
 	gdp_recno_t firstrec = 0;
 	bool show_usage = false;
 
 	// parse command-line options
-	while ((opt = getopt(argc, argv, "cD:f:G:mn:s")) > 0)
+	while ((opt = getopt(argc, argv, "cD:f:G:mMn:s")) > 0)
 	{
 		switch (opt)
 		{
@@ -244,6 +272,10 @@ main(int argc, char **argv)
 			multiread = true;
 			break;
 
+		  case 'M':
+			showmetadata = true;
+			break;
+
 		  case 'n':
 			// select the number of records to be returned
 			numrecs = atol(optarg);
@@ -267,7 +299,7 @@ main(int argc, char **argv)
 	{
 		fprintf(stderr,
 				"Usage: %s [-c] [-D dbgspec] [-f firstrec] [-G gdpd_addr] [-m]\n"
-				"  [-n nrecs] [-s] <gcl_name>\n",
+				"  [-M] [-n nrecs] [-s] <gcl_name>\n",
 				ep_app_getprogname());
 		exit(EX_USAGE);
 	}
@@ -281,7 +313,10 @@ main(int argc, char **argv)
 	}
 
 	// allow thread to settle to avoid interspersed debug output
-	sleep(1);
+	{
+		struct timespec ts = {0, 100000000};	// 100 msec
+		nanosleep(&ts, NULL);
+	}
 
 	// parse the name (either base64-encoded or symbolic)
 	estat = gdp_gcl_parse_name(argv[0], gclname);
@@ -305,6 +340,9 @@ main(int argc, char **argv)
 				ep_stat_tostr(estat, sbuf, sizeof sbuf));
 		goto fail0;
 	}
+
+	if (showmetadata)
+		print_metadata(gclh);
 
 	// arrange to do the reading via one of the helper routines
 	if (subscribe || multiread || use_callbacks)

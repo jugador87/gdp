@@ -218,6 +218,11 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_chan_t *chan)
 			ep_dbg_cprintf(Dbg, 1, "gdp_pkt_out: data write failure: %s\n", nbuf);
 			estat = GDP_STAT_PKT_WRITE_FAIL;
 		}
+		else if (ep_dbg_test(Dbg, 33))
+		{
+			ep_dbg_printf("\tData:\n");
+			ep_hexdump(bp, dlen, ep_dbg_getfile(), 3);
+		}
 	}
 	evbuffer_unlock(obuf);
 
@@ -407,10 +412,12 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	{
 		size_t l;
 
-		ep_dbg_cprintf(Dbg, 40,
+		ep_dbg_cprintf(Dbg, 38,
 				"_gdp_pkt_in: reading %zd more bytes (%zd available)\n",
 				dlen, evbuffer_get_length(ibuf));
 		l = evbuffer_remove_buffer(ibuf, pkt->datum->dbuf, dlen);
+		if (ep_dbg_test(Dbg, 39))
+			ep_hexdump(ibuf, l, ep_dbg_getfile(), 4);
 		if (l < dlen)
 		{
 			// should never happen since we already have all the data in memory

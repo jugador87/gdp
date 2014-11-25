@@ -17,7 +17,8 @@ EP_STAT			gcl_physread(
 						gdp_datum_t *datum);
 
 EP_STAT			gcl_physcreate(
-						gdp_gcl_t *pgclh);
+						gdp_gcl_t *pgclh,
+						gdp_gclmd_t *gmd);
 
 EP_STAT			gcl_physopen(
 						gdp_gcl_t *gclh);
@@ -28,6 +29,10 @@ EP_STAT			gcl_physclose(
 EP_STAT			gcl_physappend(
 						gdp_gcl_t *gclh,
 						gdp_datum_t *datum);
+
+EP_STAT			gcl_physgetmetadata(
+						gdp_gcl_t *gclh,
+						gdp_gclmd_t **gmdp);
 
 #define GCL_DIR				"/var/tmp/gcl"
 
@@ -65,11 +70,10 @@ typedef struct gcl_log_header
 {
 	int64_t magic;
 	int64_t version;
-	int16_t header_size; 	// the total size of the header such that
+	int32_t header_size; 	// the total size of the header such that
 							// the data records begin at offset header_size
-	int16_t log_type;
 	int16_t num_metadata_entries;
-	int16_t pad;			// the header is padded anyway by compiler
+	int16_t log_type;		// directory, indirect, data, etc.
 } gcl_log_header;
 
 typedef struct gcl_index_record
