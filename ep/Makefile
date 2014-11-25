@@ -91,7 +91,6 @@ HFILES=	\
 	ep_string.h \
 	ep_syslog.h \
 	ep_thr.h \
-	ep_thr_pool.h \
 	ep_time.h \
 	ep_xlate.h \
 	ep_version.h \

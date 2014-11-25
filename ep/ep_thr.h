@@ -83,6 +83,21 @@ extern int	ep_thr_rwlock_wrlock(EP_THR_RWLOCK *rwl);
 extern int	ep_thr_rwlock_trywrlock(EP_THR_RWLOCK *rwl);
 extern int	ep_thr_rwlock_unlock(EP_THR_RWLOCK *rwl);
 
+/*
+**  Thread pool declarations
+*/
+
+// initialize a thread pool
+void		ep_thr_pool_init(
+			int min_threads,	// min number of threads
+			int max_threads,	// max number of threads
+			uint32_t flags);	// flag bits (none yet)
+
+// run a function in a worker thread from the pool
+void		ep_thr_pool_run(
+			void (*func)(void *),	// the function
+			void *arg);		// passed to func
+
 # else // ! EP_OSCF_USE_PTHREADS
 
 typedef int	EP_THR_MUTEX;

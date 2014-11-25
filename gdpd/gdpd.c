@@ -6,7 +6,6 @@
 
 #include <ep/ep_hexdump.h>
 #include <ep/ep_string.h>
-#include <ep/ep_thr_pool.h>
 
 #include <event2/event.h>
 #include <event2/listener.h>
@@ -21,7 +20,6 @@
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdpd.main", "GDP Daemon");
 
-static EP_THR_POOL	*CpuJobThreadPool;
 
 
 /*
@@ -98,7 +96,7 @@ cmdsock_read_cb(struct bufferevent *bev, void *ctx)
 			req->pkt->cmd, _gdp_proto_cmd_name(req->pkt->cmd),
 			bufferevent_getfd(bev));
 
-	ep_thr_pool_run(CpuJobThreadPool, &gdpd_req_thread, req);
+	ep_thr_pool_run(&gdpd_req_thread, req);
 }
 
 
@@ -430,6 +428,7 @@ main(int argc, char **argv)
 		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 
+	// initialize the thread pool
 	if (nworkers > 0)
 	{
 		// command line parameter
@@ -445,7 +444,7 @@ main(int argc, char **argv)
 		if (max_workers < min_workers)
 			max_workers = min_workers > 0 ? min_workers : 1;
 	}
-	CpuJobThreadPool = ep_thr_pool_new(min_workers, max_workers);
+	ep_thr_pool_init(min_workers, max_workers, 0);
 
 	// add a debugging signal to print out some internal data structures
 	event_add(evsignal_new(GdpListenerEventBase, SIGINFO, siginfo, NULL), NULL);

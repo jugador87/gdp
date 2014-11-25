@@ -6,7 +6,7 @@
 
 #include <ep.h>
 #include <ep_dbg.h>
-#include <ep_thr_pool.h>
+#include <ep_thr.h>
 
 #include <string.h>
 #include <sys/queue.h>
@@ -60,7 +60,7 @@ twork_free(struct twork *tw)
 **  Implementation of thread pool.
 */
 
-struct ep_thr_pool
+struct thr_pool
 {
 	EP_THR_MUTEX	mutex;
 	EP_THR_COND	has_work;	// signaled when work becomes available
@@ -71,6 +71,7 @@ struct ep_thr_pool
 	struct tworkq	work;		// active work list
 };
 
+static struct thr_pool		Pool;	// the pool!
 
 /*
 **  Worker thread
@@ -86,31 +87,29 @@ struct ep_thr_pool
 */
 
 static void *
-worker_thread(void *tp_)
+worker_thread(void *a)
 {
-	EP_THR_POOL *tp = tp_;
-
 	// start searching for work
 	for (;;)
 	{
 		struct twork *tw;
 
 		// see if there is anything to do
-		ep_thr_mutex_lock(&tp->mutex);
-		tp->free_threads++;
-		if (STAILQ_FIRST(&tp->work) == NULL)
+		ep_thr_mutex_lock(&Pool.mutex);
+		Pool.free_threads++;
+		if (STAILQ_FIRST(&Pool.work) == NULL)
 		{
 			// no, wait for something
-			ep_thr_cond_wait(&tp->has_work, &tp->mutex);
-			ep_thr_mutex_unlock(&tp->mutex);
+			ep_thr_cond_wait(&Pool.has_work, &Pool.mutex);
+			ep_thr_mutex_unlock(&Pool.mutex);
 			continue;
 		}
 
 		// yes, please run it! (but don't stay locked)
-		tw = STAILQ_FIRST(&tp->work);
-		STAILQ_REMOVE_HEAD(&tp->work, next);
-		tp->free_threads--;
-		ep_thr_mutex_unlock(&tp->mutex);
+		tw = STAILQ_FIRST(&Pool.work);
+		STAILQ_REMOVE_HEAD(&Pool.work, next);
+		Pool.free_threads--;
+		ep_thr_mutex_unlock(&Pool.mutex);
 
 		tw->func(tw->arg);
 		twork_free(tw);
@@ -129,13 +128,13 @@ worker_thread(void *tp_)
 */
 
 static void
-tp_add_thread(EP_THR_POOL *tp)
+tp_add_thread(void)
 {
 	pthread_t thread;
 	int err;
 
-	ep_dbg_cprintf(Dbg, 18, "Adding thread to pool %p\n", tp);
-	err = pthread_create(&thread, NULL, &worker_thread, tp);
+	ep_dbg_cprintf(Dbg, 18, "Adding thread to pool\n");
+	err = pthread_create(&thread, NULL, &worker_thread, NULL);
 	if (err != 0)
 	{
 		fprintf(stderr,
@@ -144,13 +143,13 @@ tp_add_thread(EP_THR_POOL *tp)
 	}
 	else
 	{
-		tp->num_threads++;
+		Pool.num_threads++;
 	}
 }
 
 
 /*
-**  EP_THR_POOL_NEW --- create a new thread pool
+**  EP_THR_POOL_INIT --- initialize the thread pool
 **
 **	min_threads threads will be created immediately (may be zero),
 **	and threads will be created dynamically up to max_threads as
@@ -158,23 +157,19 @@ tp_add_thread(EP_THR_POOL *tp)
 **	idle threads eventually go away.
 */
 
-EP_THR_POOL *
-ep_thr_pool_new(int min_threads, int max_threads)
+void
+ep_thr_pool_init(int min_threads, int max_threads, uint32_t flags)
 {
-	EP_THR_POOL *tp;
 	int i;
 
-	tp = ep_mem_zalloc(sizeof *tp);
-	tp->min_threads = min_threads;
-	tp->max_threads = max_threads;
-	ep_thr_mutex_init(&tp->mutex, EP_THR_MUTEX_DEFAULT);
-	ep_thr_cond_init(&tp->has_work);
-	STAILQ_INIT(&tp->work);
+	Pool.min_threads = min_threads;
+	Pool.max_threads = max_threads;
+	ep_thr_mutex_init(&Pool.mutex, EP_THR_MUTEX_DEFAULT);
+	ep_thr_cond_init(&Pool.has_work);
+	STAILQ_INIT(&Pool.work);
 
 	for (i = 0; i < min_threads; i++)
-		tp_add_thread(tp);
-
-	return tp;
+		tp_add_thread();
 }
 
 
@@ -186,19 +181,19 @@ ep_thr_pool_new(int min_threads, int max_threads)
 */
 
 void
-ep_thr_pool_run(EP_THR_POOL *tp, void (*func)(void *), void *arg)
+ep_thr_pool_run(void (*func)(void *), void *arg)
 {
 	struct twork *tw = twork_new();
 
-	ep_thr_mutex_lock(&tp->mutex);
+	ep_thr_mutex_lock(&Pool.mutex);
 	tw->func = func;
 	tw->arg = arg;
-	STAILQ_INSERT_TAIL(&tp->work, tw, next);
+	STAILQ_INSERT_TAIL(&Pool.work, tw, next);
 
 	// start up a new thread if needed and permitted
-	if (tp->free_threads == 0 && tp->num_threads < tp->max_threads)
-		tp_add_thread(tp);
+	if (Pool.free_threads == 0 && Pool.num_threads < Pool.max_threads)
+		tp_add_thread();
 	else
-		ep_thr_cond_signal(&tp->has_work);
-	ep_thr_mutex_unlock(&tp->mutex);
+		ep_thr_cond_signal(&Pool.has_work);
+	ep_thr_mutex_unlock(&Pool.mutex);
 }
