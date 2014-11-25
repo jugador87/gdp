@@ -601,13 +601,13 @@ void (*cbfunc)(gdp_event_t *gev)
     <h4> Name</h4>
     gdp_event_next — get next asynchronous event<br>
     <h4> Synopsis</h4>
-    <pre>gdp_event_t *gdp_event_next(bool wait)</pre>
+    <pre>gdp_event_t *gdp_event_next(EP_TIME_SPEC *timeout)</pre>
     <h4> Notes</h4>
     <ul>
       <li> Returns the next asynchronous event.</li>
-      <li>If <code>wait</code> is true, waits until the next event
-        appears; otherwise returns <code>NULL</code> if no event is
-        pending.<br>
+      <li>Returns <code>NULL</code> if the <code>timeout</code>
+        expires.&nbsp; If <code>timeout</code> is <code>NULL</code>,
+        it waits forever.<br>
       </li>
       <li>Currently the only asynchronous events are data arriving as
         the result of a subscription.</li>

@@ -8,6 +8,7 @@
 #define _EP_THR_H_
 
 # include <ep/ep.h>
+# include <ep/ep_time.h>
 
 # if EP_OSCF_USE_PTHREADS
 #  include <pthread.h>
@@ -70,7 +71,8 @@ typedef pthread_cond_t		EP_THR_COND;
 extern int	ep_thr_cond_init(EP_THR_COND *cv);
 extern int	ep_thr_cond_destroy(EP_THR_COND *cv);
 extern int	ep_thr_cond_signal(EP_THR_COND *cv);
-extern int	ep_thr_cond_wait(EP_THR_COND *cv, EP_THR_MUTEX *mtx);
+extern int	ep_thr_cond_wait(EP_THR_COND *cv, EP_THR_MUTEX *mtx,
+				EP_TIME_SPEC *timeout);
 extern int	ep_thr_cond_broadcast(EP_THR_COND *cv);
 
 typedef pthread_rwlock_t	EP_THR_RWLOCK;
@@ -117,7 +119,7 @@ typedef int	EP_THR_COND;
 #  define	ep_thr_cond_init(cv)		0
 #  define	ep_thr_cond_destroy(cv)		0
 #  define	ep_thr_cond_signal(cv)		0
-#  define	ep_thr_cond_wait(cv, mtx)	0
+#  define	ep_thr_cond_wait(cv, mtx, to)	0
 #  define	ep_thr_cond_broadcast(cv)	0
 
 typedef int	EP_THR_RWLOCK;

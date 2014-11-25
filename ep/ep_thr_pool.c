@@ -101,7 +101,7 @@ worker_thread(void *a)
 		if (STAILQ_FIRST(&Pool.work) == NULL)
 		{
 			// no, wait for something
-			ep_thr_cond_wait(&Pool.has_work, &Pool.mutex);
+			ep_thr_cond_wait(&Pool.has_work, &Pool.mutex, NULL);
 			ep_thr_mutex_unlock(&Pool.mutex);
 			continue;
 		}

@@ -113,7 +113,7 @@ _gdp_invoke(gdp_req_t *req)
 	ep_thr_mutex_lock(&req->mutex);
 	while (!EP_UT_BITSET(GDP_REQ_DONE, req->flags))
 	{
-		ep_thr_cond_wait(&req->cond, &req->mutex);
+		ep_thr_cond_wait(&req->cond, &req->mutex, NULL);
 	}
 	estat = req->stat;
 	// mutex is released below

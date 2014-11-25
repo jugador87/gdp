@@ -59,16 +59,20 @@ gdp_event_free(gdp_event_t *gev)
 
 
 gdp_event_t *
-gdp_event_next(bool wait)
+gdp_event_next(EP_TIME_SPEC *timeout)
 {
 	gdp_event_t *gev;
 
 	ep_thr_mutex_lock(&ActiveListMutex);
 	gev = STAILQ_FIRST(&ActiveList);
-	if (gev == NULL && wait)
+	if (gev == NULL)
 	{
 		while ((gev = STAILQ_FIRST(&ActiveList)) == NULL)
-			ep_thr_cond_wait(&ActiveListSig, &ActiveListMutex);
+		{
+			ep_thr_cond_wait(&ActiveListSig, &ActiveListMutex, timeout);
+			if (timeout != NULL)
+				break;
+		}
 	}
 	if (gev != NULL)
 		STAILQ_REMOVE_HEAD(&ActiveList, queue);

@@ -214,7 +214,7 @@ ep_thr_cond_signal(EP_THR_COND *cv)
 }
 
 int
-ep_thr_cond_wait(EP_THR_COND *cv, EP_THR_MUTEX *mtx)
+ep_thr_cond_wait(EP_THR_COND *cv, EP_THR_MUTEX *mtx, EP_TIME_SPEC *timeout)
 {
 	int err;
 
@@ -222,7 +222,25 @@ ep_thr_cond_wait(EP_THR_COND *cv, EP_THR_MUTEX *mtx)
 	if (!_EpThrUsePthreads)
 		return 0;
 	CHECKMTX(mtx, ">>>");
-	if ((err = pthread_cond_wait(cv, mtx)) != 0)
+	if (timeout == NULL)
+	{
+		err = pthread_cond_wait(cv, mtx);
+	}
+	else
+	{
+		struct timeval tv;
+		struct timespec ts;
+		gettimeofday(&tv, NULL);
+		ts.tv_sec = tv.tv_sec + timeout->tv_sec;
+		ts.tv_nsec = (tv.tv_usec * 1000) + timeout->tv_nsec;
+		if (ts.tv_nsec > 1000000000)
+		{
+			ts.tv_nsec -= 1000000000;
+			ts.tv_sec++;
+		}
+		err = pthread_cond_timedwait(cv, mtx, &ts);
+	}
+	if (err != 0)
 		diagnose_thr_err(err, "cond_wait");
 	CHECKMTX(mtx, "<<<");
 	return err;

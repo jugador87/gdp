@@ -535,7 +535,7 @@ _gdp_pkt_get_active(void)
 	ep_thr_mutex_lock(&ActivePktMutex);
 	while (TAILQ_EMPTY(&ActivePacketQueue))
 	{
-		ep_thr_cond_wait(&ActivePktCond, &ActivePktMutex);
+		ep_thr_cond_wait(&ActivePktCond, &ActivePktMutex, NULL);
 	}
 	pkt = TAILQ_FIRST(&ActivePacketQueue);
 	TAILQ_REMOVE(&ActivePacketQueue, pkt, list);

@@ -172,7 +172,7 @@ do_multiread(gdp_gcl_t *gclh,
 		for (;;)
 		{
 			// get the next incoming event
-			gdp_event_t *gev = gdp_event_next(true);
+			gdp_event_t *gev = gdp_event_next(NULL);
 
 			// print it
 			estat = multiread_print_event(gev, subscribe);

@@ -85,7 +85,7 @@ typedef struct gdp_event	gdp_event_t;
 #define GDP_EVENT_EOS		2	// end of subscription
 
 extern gdp_event_t		*gdp_event_next(	// get event (caller must free!)
-							bool wait);			// wait for an event to appear?
+							EP_TIME_SPEC *timeout);	// wait for event to appear?
 
 extern EP_STAT			gdp_event_free(		// free event from gdp_event_next
 							gdp_event_t *gev);	// event to free

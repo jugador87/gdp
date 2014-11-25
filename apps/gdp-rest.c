@@ -802,7 +802,7 @@ kv_initialize(void)
 	// read all the data
 	estat = gdp_gcl_multiread(KeyValGcl, 1, 0, NULL, NULL);
 	EP_STAT_CHECK(estat, goto fail1);
-	while ((gev = gdp_event_next(true)) != NULL)
+	while ((gev = gdp_event_next(NULL)) != NULL)
 	{
 		if (gdp_event_gettype(gev) == GDP_EVENT_EOS)
 		{
