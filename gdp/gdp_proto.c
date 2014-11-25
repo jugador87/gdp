@@ -575,6 +575,11 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		
 		//XXX link request into GCL list??
 	}
+	else if (ep_dbg_test(Dbg, 43))
+	{
+		ep_dbg_printf("process_packet: using existing ");
+		_gdp_req_dump(req, ep_dbg_getfile());
+	}
 
 	if (req->pkt->datum != NULL)
 	{
@@ -639,9 +644,24 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		gev->type = evtype;
 		gev->gcl = req->gclh;
 		gev->datum = req->pkt->datum;
+		gev->udata = req->udata;
 		req->pkt->datum = NULL;			// avoid use after free
 
-		gdp_event_trigger(gev);
+		if (req->cb.generic != NULL)
+		{
+			// caller wanted a callback
+			// ... to run in I/O event thread ...
+			(*req->cb.generic)(gev);
+			// ... to run in a separate thread ...
+			//ep_thr_pool_run(req->cb.generic, gev);
+		}
+		else
+		{
+			// caller wanted events
+			gdp_event_trigger(gev);
+		}
+
+		// the callback must call gdp_event_free(gev)
 	}
 	else
 	{

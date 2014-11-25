@@ -466,7 +466,6 @@ gdp_gcl_subscribe(gdp_gcl_t *gclh,
 	gdp_req_t *req;
 
 	EP_ASSERT_POINTER_VALID(gclh);
-	EP_ASSERT(cbfunc == NULL);		// callbacks aren't implemented yet
 
 	estat = _gdp_req_new(GDP_CMD_SUBSCRIBE, gclh, _GdpChannel,
 				GDP_REQ_PERSIST, &req);
@@ -480,8 +479,10 @@ gdp_gcl_subscribe(gdp_gcl_t *gclh,
 	estat = _gdp_invoke(req);
 	EP_ASSERT(req->inuse);		// make sure it didn't get freed
 
-	// now arrange for responses to appear as events
+	// now arrange for responses to appear as events or callbacks
 	req->flags |= GDP_REQ_SUBSCRIPTION;
+	req->cb.subs = cbfunc;
+	req->udata = cbarg;
 
 	if (!EP_STAT_ISOK(estat))
 	{
@@ -511,7 +512,6 @@ gdp_gcl_multiread(gdp_gcl_t *gclh,
 	gdp_req_t *req;
 
 	EP_ASSERT_POINTER_VALID(gclh);
-	EP_ASSERT(cbfunc == NULL);		// callbacks aren't implemented yet
 
 	estat = _gdp_req_new(GDP_CMD_MULTIREAD, gclh, _GdpChannel,
 				GDP_REQ_PERSIST, &req);
@@ -525,8 +525,10 @@ gdp_gcl_multiread(gdp_gcl_t *gclh,
 	estat = _gdp_invoke(req);
 	EP_ASSERT(req->inuse);		// make sure it didn't get freed
 
-	// now arrange for responses to appear as events
+	// now arrange for responses to appear as events or callbacks
 	req->flags |= GDP_REQ_SUBSCRIPTION;
+	req->cb.subs = cbfunc;
+	req->udata = cbarg;
 
 	if (!EP_STAT_ISOK(estat))
 	{

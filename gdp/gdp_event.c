@@ -111,3 +111,11 @@ gdp_event_getdatum(gdp_event_t *gev)
 	EP_ASSERT_POINTER_VALID(gev);
 	return gev->datum;
 }
+
+
+void *
+gdp_event_getudata(gdp_event_t *gev)
+{
+	EP_ASSERT_POINTER_VALID(gev);
+	return gev->udata;
+}

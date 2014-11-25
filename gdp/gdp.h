@@ -84,20 +84,23 @@ typedef struct gdp_event	gdp_event_t;
 #define GDP_EVENT_DATA		1	// returned data
 #define GDP_EVENT_EOS		2	// end of subscription
 
-// get next event (fills in gev structure)
-extern gdp_event_t		*gdp_event_next(bool wait);
+extern gdp_event_t		*gdp_event_next(	// get event (caller must free!)
+							bool wait);			// wait for an event to appear?
 
-// free an event (required after gdp_event_next)
-extern EP_STAT			gdp_event_free(gdp_event_t *gev);
+extern EP_STAT			gdp_event_free(		// free event from gdp_event_next
+							gdp_event_t *gev);	// event to free
 
-// get the type of an event
-extern int				gdp_event_gettype(gdp_event_t *gev);
+extern int				gdp_event_gettype(	// get the type of the event
+							gdp_event_t *gev);
 
-// get the GCL handle
-extern gdp_gcl_t		*gdp_event_getgcl(gdp_event_t *gev);
+extern gdp_gcl_t		*gdp_event_getgcl(	// get the GCL of the event
+							gdp_event_t *gev);
 
-// get the datum
-extern gdp_datum_t		*gdp_event_getdatum(gdp_event_t *gev);
+extern gdp_datum_t		*gdp_event_getdatum( // get the datum of the event
+							gdp_event_t *gev);
+
+extern void				*gdp_event_getudata( // get user data (callback only)
+							gdp_event_t *gev);
 
 /**********************************************************************
 **	Public globals and functions
@@ -142,8 +145,7 @@ extern EP_STAT	gdp_gcl_read(
 // subscribe to a readable GCL
 //	If you don't specific cbfunc, events are generated instead
 typedef void	(*gdp_gcl_sub_cbfunc_t)(  // the callback function
-					gdp_event_t *ev,		// the event triggering the call
-					void *cbarg);			// an arbitrary argument
+					gdp_event_t *ev);		// the event triggering the call
 
 extern EP_STAT	gdp_gcl_subscribe(
 					gdp_gcl_t *gclh,		// readable GCL handle

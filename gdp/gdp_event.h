@@ -16,6 +16,7 @@ struct gdp_event
 	int						type;		// event type
 	gdp_gcl_t				*gcl;		// GCL handle for event
 	gdp_datum_t				*datum;		// datum for event
+	void					*udata;		// user data
 };
 
 // allocate an event

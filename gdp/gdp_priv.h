@@ -125,6 +125,7 @@ typedef struct gdp_req
 	{
 		void					(*gdpd)(struct gdp_req *);
 		gdp_gcl_sub_cbfunc_t	subs;
+		void					(*generic)(void *);
 	}					cb;			// callback (see above)
 	void				*udata;		// user-supplied opaque data to cb
 } gdp_req_t;

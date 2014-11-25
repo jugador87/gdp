@@ -380,9 +380,7 @@ main(int argc, char **argv)
 	int listenport = -1;
 	bool run_in_foreground = false;
 	EP_STAT estat;
-	int nworkers = 0;
-	int min_workers = 0;
-	int max_workers = 0;
+	int nworkers = -1;
 
 	while ((opt = getopt(argc, argv, "D:Fn:P:")) > 0)
 	{
@@ -429,22 +427,7 @@ main(int argc, char **argv)
 	}
 
 	// initialize the thread pool
-	if (nworkers > 0)
-	{
-		// command line parameter
-		min_workers = max_workers = nworkers;
-	}
-	else
-	{
-		min_workers = ep_adm_getintparam("swarm.gdpd.min_workers", 1);
-		max_workers = sysconf(_SC_NPROCESSORS_ONLN) * 2;
-		max_workers = ep_adm_getintparam("swarm.gdpd.max_workers", max_workers);
-		if (min_workers < 0)
-			min_workers = 0;
-		if (max_workers < min_workers)
-			max_workers = min_workers > 0 ? min_workers : 1;
-	}
-	ep_thr_pool_init(min_workers, max_workers, 0);
+	ep_thr_pool_init(nworkers, nworkers, 0);
 
 	// add a debugging signal to print out some internal data structures
 	event_add(evsignal_new(GdpListenerEventBase, SIGINFO, siginfo, NULL), NULL);

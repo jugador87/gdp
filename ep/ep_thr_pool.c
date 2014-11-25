@@ -69,6 +69,7 @@ struct thr_pool
 	int		min_threads;	// minimum number of running threads
 	int		max_threads;	// maximum number of running threads
 	struct tworkq	work;		// active work list
+	bool		initialized:1;	// set if initialized
 };
 
 static struct thr_pool		Pool;	// the pool!
@@ -155,12 +156,33 @@ tp_add_thread(void)
 **	and threads will be created dynamically up to max_threads as
 **	needed.  We'll also implement thread shutdown later, so that
 **	idle threads eventually go away.
+**
+**	The minimum and maximum threads will use the system default
+**	if they are negative.
 */
 
 void
 ep_thr_pool_init(int min_threads, int max_threads, uint32_t flags)
 {
 	int i;
+
+	if (Pool.initialized)
+		return;
+
+	if (min_threads < 0)
+	{
+		min_threads = ep_adm_getintparam("libep.thr.pool.min_workers",
+				1);
+		if (min_threads < 0)
+			min_threads = 0;
+	}
+	if (max_threads < min_threads)
+	{
+		max_threads = ep_adm_getintparam("libep.thr.pool.max_workers",
+				sysconf(_SC_NPROCESSORS_ONLN) * 2);
+		if (max_threads < min_threads)
+			max_threads = min_threads > 0 ? min_threads : 1;
+	}
 
 	Pool.min_threads = min_threads;
 	Pool.max_threads = max_threads;
@@ -170,6 +192,7 @@ ep_thr_pool_init(int min_threads, int max_threads, uint32_t flags)
 
 	for (i = 0; i < min_threads; i++)
 		tp_add_thread();
+	Pool.initialized = true;
 }
 
 
@@ -184,6 +207,10 @@ void
 ep_thr_pool_run(void (*func)(void *), void *arg)
 {
 	struct twork *tw = twork_new();
+
+	// in case application doesn't initialized the pool
+	if (!Pool.initialized)
+		ep_thr_pool_init(-1, -1, 0);
 
 	ep_thr_mutex_lock(&Pool.mutex);
 	tw->func = func;

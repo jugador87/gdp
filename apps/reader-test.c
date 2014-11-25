@@ -82,6 +82,45 @@ do_simpleread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int numrecs)
 }
 
 
+EP_STAT
+multiread_print_event(gdp_event_t *gev, bool subscribe)
+{
+	// decode it
+	switch (gdp_event_gettype(gev))
+	{
+	  case GDP_EVENT_DATA:
+		// this event contains a data return
+		fprintf(stdout, " >>> ");
+		gdp_datum_print(gdp_event_getdatum(gev), stdout);
+		break;
+
+	  case GDP_EVENT_EOS:
+		// "end of subscription": no more data will be returned
+		fprintf(stdout, "End of %s\n",
+				subscribe ? "Subscription" : "Multiread");
+		return EP_STAT_END_OF_FILE;
+
+	  default:
+		// should be ignored, but we print it since this is a test program
+		fprintf(stderr, "Unknown event type %d\n", gdp_event_gettype(gev));
+
+		// just in case we get into some crazy loop.....
+		sleep(1);
+		break;
+	}
+
+	return EP_STAT_OK;
+}
+
+
+void
+multiread_cb(gdp_event_t *gev)
+{
+	(void) multiread_print_event(gev, false);
+	gdp_event_free(gev);
+}
+
+
 /*
 **  DO_MULTIREAD --- subscribe or multiread
 **
@@ -90,14 +129,22 @@ do_simpleread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int numrecs)
 */
 
 EP_STAT
-do_multiread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int32_t numrecs, bool subscribe)
+do_multiread(gdp_gcl_t *gclh,
+		gdp_recno_t firstrec,
+		int32_t numrecs,
+		bool subscribe,
+		bool use_callbacks)
 {
 	EP_STAT estat;
+	void (*cbfunc)(gdp_event_t *) = NULL;
+
+	if (use_callbacks)
+		cbfunc = multiread_cb;
 
 	if (subscribe)
 	{
 		// start up a subscription
-		estat = gdp_gcl_subscribe(gclh, firstrec, numrecs, NULL, NULL, NULL);
+		estat = gdp_gcl_subscribe(gclh, firstrec, numrecs, NULL, cbfunc, NULL);
 	}
 	else
 	{
@@ -106,7 +153,7 @@ do_multiread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int32_t numrecs, bool subscr
 			firstrec = 1;
 
 		// start up a multiread
-		estat = gdp_gcl_multiread(gclh, firstrec, numrecs, NULL, NULL);
+		estat = gdp_gcl_multiread(gclh, firstrec, numrecs, cbfunc, NULL);
 	}
 
 	// check to make sure the subscribe/multiread succeeded; if not, bail
@@ -120,40 +167,28 @@ do_multiread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int32_t numrecs, bool subscr
 	}
 
 	// now start reading the events that will be generated
-	for (;;)
+	if (!use_callbacks)
 	{
-		// get the next incoming event
-		gdp_event_t *gev = gdp_event_next(true);
-
-		// decode it
-		switch (gdp_event_gettype(gev))
+		for (;;)
 		{
-		  case GDP_EVENT_DATA:
-			// this event contains a data return
-			fprintf(stdout, " >>> ");
-			gdp_datum_print(gdp_event_getdatum(gev), stdout);
-			break;
+			// get the next incoming event
+			gdp_event_t *gev = gdp_event_next(true);
 
-		  case GDP_EVENT_EOS:
-			// "end of subscription": no more data will be returned
-			fprintf(stdout, "End of %s\n",
-					subscribe ? "Subscription" : "Multiread");
-			return estat;
+			// print it
+			estat = multiread_print_event(gev, subscribe);
 
-		  default:
-			// should be ignored, but we print it since this is a test program
-			fprintf(stderr, "Unknown event type %d\n", gdp_event_gettype(gev));
+			// don't forget to free the event!
+			gdp_event_free(gev);
 
-			// just in case we get into some crazy loop.....
-			sleep(1);
-			break;
+			EP_STAT_CHECK(estat, break);
 		}
-
-		// don't forget to free the event!
-		gdp_event_free(gev);
+	}
+	else
+	{
+		// hang for an hour waiting for events
+		sleep(3600);
 	}
 	
-	// should never get here
 	return estat;
 }
 
@@ -174,15 +209,21 @@ main(int argc, char **argv)
 	char *gdpd_addr = NULL;
 	bool subscribe = false;
 	bool multiread = false;
+	bool use_callbacks = false;
 	int32_t numrecs = 0;
 	gdp_recno_t firstrec = 0;
 	bool show_usage = false;
 
 	// parse command-line options
-	while ((opt = getopt(argc, argv, "D:f:G:mn:s")) > 0)
+	while ((opt = getopt(argc, argv, "cD:f:G:mn:s")) > 0)
 	{
 		switch (opt)
 		{
+		  case 'c':
+			// use callbacks
+			use_callbacks = true;
+			break;
+
 		  case 'D':
 			// turn on debugging
 			ep_dbg_set(optarg);
@@ -225,7 +266,7 @@ main(int argc, char **argv)
 	if (show_usage || argc <= 0)
 	{
 		fprintf(stderr,
-				"Usage: %s [-D dbgspec] [-f firstrec] [-G gdpd_addr] [-m]\n"
+				"Usage: %s [-c] [-D dbgspec] [-f firstrec] [-G gdpd_addr] [-m]\n"
 				"  [-n nrecs] [-s] <gcl_name>\n",
 				ep_app_getprogname());
 		exit(EX_USAGE);
@@ -266,8 +307,8 @@ main(int argc, char **argv)
 	}
 
 	// arrange to do the reading via one of the helper routines
-	if (subscribe || multiread)
-		estat = do_multiread(gclh, firstrec, numrecs, subscribe);
+	if (subscribe || multiread || use_callbacks)
+		estat = do_multiread(gclh, firstrec, numrecs, subscribe, use_callbacks);
 	else
 		estat = do_simpleread(gclh, firstrec, numrecs);
 

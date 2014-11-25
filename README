@@ -226,8 +226,6 @@ Changing Parameters:
 		Defaults to 2468.
 	swarm.gdpd.gcl.dir --- the data directory (e.g., /var/tmp/gcl).
 		Defaults to "/var/tmp/gcl".
-	swarm.gdpd.nworkers --- the number of worker threads.  Defaults
-		to twice the number of cores on the machine.
 	swarm.gdpd.reclaim.interval --- how often to wake up to
 		reclaim unused resources.  Defaults to 15 (seconds).
 	swarm.gdpd.gcl.reclaim-age --- how long a GCL is permitted to
@@ -239,3 +237,11 @@ Changing Parameters:
 		change the lighttpd configuration.  Defaults to 8001.
 	libep.time.accuracy --- the value filled in for the "accuracy"
 		field in time structures (defaults to zero).
+	libep.thr.pool.min_workers --- the default minimum number of
+		worker threads in the thread pool.  If not specified
+		the default is 1.  It can be overridden by the calling
+		application.
+	libep.thr.pool.max_workers --- the default maximum number of
+		worker threads in the thread pool.  If not specified
+		the default is two times the number of available
+		cores.  It can be overridden by the calling application.

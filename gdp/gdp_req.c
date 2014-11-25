@@ -203,8 +203,8 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 			req->postproc ? "" : "!",
 			req->ongcllist ? "" : "!",
 			req->onchanlist ? "" : "!");
-	fprintf(fp, "    chan=%p, udata=%p, stat=%s\n",
-			req->chan, req->udata,
+	fprintf(fp, "    chan=%p, cb=%p, udata=%p\n    stat=%s\n",
+			req->chan, req->cb.generic, req->udata,
 			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
 }
 
