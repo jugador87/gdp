@@ -42,6 +42,7 @@ function run_rw_supt_test()
 	gcl_name   = null;    // default; create a new gcl
 	gcl_append = false;
 	// gcl_append = true;   // TBD: use an existing gcl
+	conout     = true;    // progress output to console for recarray source
 
 	// Test calls to write_gcl_records()
 	console.log( brk );
@@ -52,15 +53,16 @@ function run_rw_supt_test()
 	// recarray = [ ];
 	recsrc   = -1;   // read the gcl records to be written from stdin...
 	recarray = [ ];  // not used for recsrc = -1
-	write_gcl_records( gdpd_addr, gcl_name, gcl_append, recsrc, recarray );
+	write_gcl_records( gdpd_addr, gcl_name, gcl_append,
+	                   recsrc, recarray, conout );
 	console.log( brk );
 
 	// B: write to gcl from JS Array
-	// recsrc =  0;  // read the gcl records from the Array recarray
-	// recarray = [ "Item 01 - from recarray", "Item 02", "Item 03" ];
 	recsrc =  0;  // read the gcl records from the Array recarray
-	recarray = [ "Item 01 - from recarray", "Item 02", "Item 03" ];
-	write_gcl_records( gdpd_addr, gcl_name, gcl_append, recsrc, recarray );
+	recarray = [ "Item 01 - from recarray source", "Item 02", "Item 03",
+	             "Item 04 - last from recarray source" ];
+	write_gcl_records( gdpd_addr, gcl_name, gcl_append,
+	                   recsrc, recarray, conout );
 	console.log( brk );
 
 
@@ -72,7 +74,8 @@ function run_rw_supt_test()
 	// recarray = [ ];
 	recsrc   =  7;
 	recarray = [ ];
-	write_gcl_records( gdpd_addr, gcl_name, gcl_append, recsrc, recarray );
+	write_gcl_records( gdpd_addr, gcl_name, gcl_append,
+	                   recsrc, recarray, conout );
 	console.log( brk );
 
 
