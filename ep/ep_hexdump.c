@@ -8,9 +8,9 @@
 #include <stdio.h>
 
 void
-ep_hexdump(const void *bufp, size_t buflen, FILE *fp, int format)
+ep_hexdump(const void *bufp, size_t buflen, FILE *fp,
+		int format, size_t offset)
 {
-	size_t offset = 0;
 	size_t bufleft = buflen;
 	const uint8_t *b = bufp;
 	const size_t width = 16;
@@ -19,15 +19,25 @@ ep_hexdump(const void *bufp, size_t buflen, FILE *fp, int format)
 	{
 		int lim = bufleft;
 		int i;
+		int shift;
 
 		if (lim > width)
 			lim = width;
+		shift = offset % width;
 		fprintf(fp, "%08zx", offset);
+		if (shift != 0)
+		{
+			fprintf(fp, "%*s", shift * 3, "");
+			if (lim > (width - shift))
+				lim -= shift;
+		}
 		for (i = 0; i < lim; i++)
 			fprintf(fp, " %02x", b[i]);
 		if (EP_UT_BITSET(EP_HEXDUMP_ASCII, format))
 		{
 			fprintf(fp, "\n        ");
+			if ((offset % width) != 0)
+				fprintf(fp, "%*s", shift * 3, "");
 			for (i = 0; i < lim; i++)
 			{
 				if (isprint(b[i]))

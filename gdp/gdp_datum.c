@@ -156,5 +156,5 @@ gdp_datum_print(const gdp_datum_t *datum,
 
 	fprintf(fp, "\n");
 	if (l > 0)
-		ep_hexdump(d, l, fp, EP_HEXDUMP_ASCII);
+		ep_hexdump(d, l, fp, EP_HEXDUMP_ASCII, 0);
 }

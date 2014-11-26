@@ -4,7 +4,6 @@
 #include "gdpd_physlog.h"
 #include "gdpd_pubsub.h"
 
-#include <ep/ep_hexdump.h>
 #include <ep/ep_string.h>
 
 #include <event2/event.h>

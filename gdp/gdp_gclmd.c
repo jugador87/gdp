@@ -75,11 +75,10 @@ gdp_gclmd_add(gdp_gclmd_t *gmd,
 {
 	EP_ASSERT_POINTER_VALID(gmd);
 
-
 	if (ep_dbg_test(Dbg, 36))
 	{
 		ep_dbg_printf("gdp_gclmd_add(%04x, %zd)\n", id, len);
-		ep_hexdump(data, len, ep_dbg_getfile(), EP_HEXDUMP_ASCII);
+		ep_hexdump(data, len, ep_dbg_getfile(), EP_HEXDUMP_ASCII, 0);
 	}
 
 	if (EP_UT_BITSET(GCLMDF_READONLY, gmd->flags))
@@ -298,7 +297,7 @@ gdp_gclmd_print(gdp_gclmd_t *gmd, FILE *fp, int detail)
 
 				if (detail > 3)
 					ep_hexdump(gmd->mds[i].md_data, gmd->mds[i].md_len, fp,
-							EP_HEXDUMP_ASCII);
+							EP_HEXDUMP_ASCII, 0);
 			}
 		}
 	}

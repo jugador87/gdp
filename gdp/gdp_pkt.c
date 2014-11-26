@@ -120,6 +120,7 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	uint8_t pbuf[_GDP_MAX_PKT_HDR];
 	uint8_t *pbp = pbuf;
 	size_t dlen;
+	size_t hdrlen;
 	struct evbuffer *obuf = bufferevent_get_output(chan->bev);
 
 	EP_ASSERT_POINTER_VALID(pkt);
@@ -154,6 +155,8 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	else
 		dlen = 0;
 	PUT32(dlen);
+ep_dbg_printf("dlen = %zd\n", dlen);	//XXX
+
 
 	// request id
 	if (pkt->rid != GDP_PKT_NO_RID)
@@ -188,10 +191,12 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_chan_t *chan)
 
 	//XXX pad out to four octets?
 
+	hdrlen = pbp - pbuf;
+
 	if (ep_dbg_test(Dbg, 32))
 	{
 		ep_dbg_printf("gdp_pkt_out: sending packet:\n");
-		ep_hexdump(pbuf, pbp - pbuf, ep_dbg_getfile(), 0);
+		ep_hexdump(pbuf, hdrlen, ep_dbg_getfile(), EP_HEXDUMP_HEX, 0);
 	}
 
 	evbuffer_lock(obuf);
@@ -221,7 +226,8 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		else if (ep_dbg_test(Dbg, 33))
 		{
 			ep_dbg_printf("\tData:\n");
-			ep_hexdump(bp, dlen, ep_dbg_getfile(), 3);
+			ep_hexdump(bp, dlen, ep_dbg_getfile(), EP_HEXDUMP_ASCII,
+					pbp - pbuf);
 		}
 	}
 	evbuffer_unlock(obuf);
@@ -346,7 +352,7 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_chan_t *chan)
 			if (s > sizeof xbuf)
 				s = sizeof xbuf;
 			gdp_buf_peek(ibuf, xbuf, s);
-			ep_hexdump(xbuf, s, ep_dbg_getfile(), 0);
+			ep_hexdump(xbuf, s, ep_dbg_getfile(), EP_HEXDUMP_HEX, 0);
 		}
 		return GDP_STAT_KEEP_READING;
 	}
@@ -368,7 +374,7 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	if (ep_dbg_test(Dbg, 32))
 	{
 		ep_dbg_printf("gdp_pkt_in: read packet header:\n");
-		ep_hexdump(pbuf, needed - dlen, ep_dbg_getfile(), 0);
+		ep_hexdump(pbuf, needed - dlen, ep_dbg_getfile(), EP_HEXDUMP_ASCII, 0);
 	}
 
 	// Request Id
@@ -417,7 +423,10 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_chan_t *chan)
 				dlen, evbuffer_get_length(ibuf));
 		l = evbuffer_remove_buffer(ibuf, pkt->datum->dbuf, dlen);
 		if (ep_dbg_test(Dbg, 39))
-			ep_hexdump(ibuf, l, ep_dbg_getfile(), 4);
+		{
+			ep_hexdump(ibuf, l, ep_dbg_getfile(), EP_HEXDUMP_ASCII,
+					needed - dlen);
+		}
 		if (l < dlen)
 		{
 			// should never happen since we already have all the data in memory
