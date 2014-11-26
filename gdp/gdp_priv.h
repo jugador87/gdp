@@ -49,9 +49,6 @@ struct gdp_datum
 	bool				inuse:1;	// indicates that the datum is in use
 	gdp_recno_t			recno;		// the record number
 	EP_TIME_SPEC		ts;			// timestamp for this message
-	int32_t				reserved1;	// for future use
-	int32_t				reserved2;	// for future use
-	size_t				dlen;		// length of data buffer (redundant)
 	gdp_buf_t			*dbuf;		// data buffer
 };
 
