@@ -155,8 +155,6 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	else
 		dlen = 0;
 	PUT32(dlen);
-ep_dbg_printf("dlen = %zd\n", dlen);	//XXX
-
 
 	// request id
 	if (pkt->rid != GDP_PKT_NO_RID)
