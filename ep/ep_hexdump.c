@@ -21,22 +21,20 @@ ep_hexdump(const void *bufp, size_t buflen, FILE *fp,
 		int i;
 		int shift;
 
+		shift = offset % width;
 		if (lim > width)
 			lim = width;
-		shift = offset % width;
+		if (lim > (width - shift))
+			lim = width - shift;
 		fprintf(fp, "%08zx", offset);
 		if (shift != 0)
-		{
 			fprintf(fp, "%*s", shift * 3, "");
-			if (lim > (width - shift))
-				lim -= shift;
-		}
 		for (i = 0; i < lim; i++)
 			fprintf(fp, " %02x", b[i]);
 		if (EP_UT_BITSET(EP_HEXDUMP_ASCII, format))
 		{
 			fprintf(fp, "\n        ");
-			if ((offset % width) != 0)
+			if (shift != 0)
 				fprintf(fp, "%*s", shift * 3, "");
 			for (i = 0; i < lim; i++)
 			{
