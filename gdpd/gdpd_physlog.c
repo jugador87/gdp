@@ -276,7 +276,11 @@ gcl_physcreate(gdp_gcl_t *gclh, gdp_gclmd_t *gmd)
 		}
 		else
 		{
+			// allow space for id and length fields
+			metadata_size = gmd->nused * 2 * sizeof (uint32_t);
 			log_header.num_metadata_entries = gmd->nused;
+
+			// compute the space needed for the data fields
 			for (i = 0; i < gmd->nused; i++)
 				metadata_size += gmd->mds[i].md_len;
 		}
