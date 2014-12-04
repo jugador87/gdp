@@ -8,7 +8,6 @@
 
 #include "gdp.h"
 #include "gdp_gclmd.h"
-#include "gdp_log.h"
 #include "gdp_stat.h"
 #include "gdp_priv.h"
 

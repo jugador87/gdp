@@ -78,7 +78,7 @@ cmdsock_read_cb(struct bufferevent *bev, void *ctx)
 	estat = _gdp_req_new(0, NULL, gei->chan, 0, &req);
 	if (!EP_STAT_ISOK(estat))
 	{
-		gdp_log(estat, "cmdsock_read_cb: cannot allocate request");
+		ep_log(estat, "cmdsock_read_cb: cannot allocate request");
 		return;
 	}
 	req->pkt->datum = gdp_datum_new();
@@ -128,7 +128,7 @@ cmdsock_event_cb(struct bufferevent *bev, short events, void *ctx)
 		EP_STAT estat = ep_stat_from_errno(errno);
 		int err = EVUTIL_SOCKET_ERROR();
 
-		gdp_log(estat, "error on command socket: %d (%s)",
+		ep_log(estat, "error on command socket: %d (%s)",
 				err, evutil_socket_error_to_string(err));
 	}
 
@@ -187,14 +187,14 @@ lev_accept_cb(struct evconnlistener *lev,
 
 	if (chan->bev == NULL)
 	{
-		gdp_log(ep_stat_from_errno(errno),
+		ep_log(ep_stat_from_errno(errno),
 				"lev_accept_cb: could not allocate bufferevent");
 		return;
 	}
 
 	if (getpeername(sockfd, &saddr.sa, &slen) < 0)
 	{
-		gdp_log(ep_stat_from_errno(errno),
+		ep_log(ep_stat_from_errno(errno),
 				"lev_accept_cb: connection from unknown peer");
 	}
 	else if (ep_dbg_test(Dbg, 20))
@@ -238,7 +238,7 @@ lev_error_cb(struct evconnlistener *lev, void *ctx)
 	EP_STAT estat;
 
 	estat = ep_stat_from_errno(errno);
-	gdp_log(estat, "listener error %d (%s)",
+	ep_log(estat, "listener error %d (%s)",
 			err, evutil_socket_error_to_string(err));
 	event_base_loopexit(evbase, NULL);
 }
@@ -255,7 +255,7 @@ init_error(const char *msg)
 	char nbuf[40];
 
 	strerror_r(errno, nbuf, sizeof nbuf);
-	gdp_log(estat, "gdpd_init: %s", msg);
+	ep_log(estat, "gdpd_init: %s", msg);
 	ep_app_error("gdpd_init: %s: %s", msg, nbuf);
 	return estat;
 }

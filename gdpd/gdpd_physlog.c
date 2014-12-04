@@ -9,6 +9,7 @@
 #include <gdp/gdp_pkt.h>
 
 #include <ep/ep_hash.h>
+#include <ep/ep_log.h>
 #include <ep/ep_mem.h>
 #include <ep/ep_thr.h>
 
@@ -207,7 +208,7 @@ gcl_physcreate(gdp_gcl_t *gclh, gdp_gclmd_t *gmd)
 
 			estat = ep_stat_from_errno(errno);
 			strerror_r(errno, nbuf, sizeof nbuf);
-			gdp_log(estat, "gcl_create: cannot create %s: %s",
+			ep_log(estat, "gcl_create: cannot create %s: %s",
 					data_pbuf, nbuf);
 			goto fail1;
 		}
@@ -218,7 +219,7 @@ gcl_physcreate(gdp_gcl_t *gclh, gdp_gclmd_t *gmd)
 
 			estat = ep_stat_from_errno(errno);
 			strerror_r(errno, nbuf, sizeof nbuf);
-			gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
+			ep_log(estat, "gcl_create: cannot fdopen %s: %s",
 					data_pbuf, nbuf);
 			(void) close(data_fd);
 			goto fail1;
@@ -241,7 +242,7 @@ gcl_physcreate(gdp_gcl_t *gclh, gdp_gclmd_t *gmd)
 
 			estat = ep_stat_from_errno(errno);
 			strerror_r(errno, nbuf, sizeof nbuf);
-			gdp_log(estat, "gcl_create: cannot create %s: %s",
+			ep_log(estat, "gcl_create: cannot create %s: %s",
 				index_pbuf, nbuf);
 			goto fail2;
 		}
@@ -252,7 +253,7 @@ gcl_physcreate(gdp_gcl_t *gclh, gdp_gclmd_t *gmd)
 
 			estat = ep_stat_from_errno(errno);
 			strerror_r(errno, nbuf, sizeof nbuf);
-			gdp_log(estat, "gcl_create: cannot fdopen %s: %s",
+			ep_log(estat, "gcl_create: cannot fdopen %s: %s",
 				index_pbuf, nbuf);
 			(void) close(index_fd);
 			goto fail2;
@@ -392,14 +393,14 @@ gcl_physopen(gdp_gcl_t *gclh)
 	if (fread(&log_header, sizeof(log_header), 1, data_fp) < 1)
 	{
 		estat = ep_stat_from_errno(errno);
-		gdp_log(estat, "gcl_physopen(%s): header read failure", data_pbuf);
+		ep_log(estat, "gcl_physopen(%s): header read failure", data_pbuf);
 		goto fail3;
 	}
 
 	if (log_header.magic != GCL_LOG_MAGIC)
 	{
 		estat = GDP_STAT_CORRUPT_GCL;
-		gdp_log(estat, "gcl_physopen: bad magic: found: %" PRIx64
+		ep_log(estat, "gcl_physopen: bad magic: found: %" PRIx64
 				", expected: %" PRIx64 "\n",
 				log_header.magic, GCL_LOG_MAGIC);
 		goto fail3;
@@ -409,7 +410,7 @@ gcl_physopen(gdp_gcl_t *gclh)
 			log_header.version > GCL_LOG_MAXVERS)
 	{
 		estat = GDP_STAT_GCL_VERSION_MISMATCH;
-		gdp_log(estat, "gcl_physopen: bad version: found: %" PRIx64
+		ep_log(estat, "gcl_physopen: bad version: found: %" PRIx64
 				", expected: %" PRIx64 "-%" PRIx64 "\n",
 				log_header.version, GCL_LOG_MINVERS, GCL_LOG_MAXVERS);
 		goto fail3;
@@ -425,7 +426,7 @@ gcl_physopen(gdp_gcl_t *gclh)
 			(index_fp = fdopen(fd, "a+")) == NULL)
 	{
 		estat = ep_stat_from_errno(errno);
-		gdp_log(estat, "gcl_physopen(%s): index open failure", index_pbuf);
+		ep_log(estat, "gcl_physopen(%s): index open failure", index_pbuf);
 		if (fd >= 0)
 			close(fd);
 		goto fail4;
@@ -486,7 +487,7 @@ gcl_physclose(gdp_gcl_t *gclh)
 	if (gclh->x->fp == NULL)
 	{
 		estat = EP_STAT_ERROR;
-		gdp_log(estat, "gcl_physclose: null fp");
+		ep_log(estat, "gcl_physclose: null fp");
 	}
 	else
 	{
@@ -564,7 +565,7 @@ gcl_physread(gdp_gcl_t *gclh,
 		if (file_size < 0)
 		{
 			estat = ep_stat_from_errno(errno);
-			gdp_log(estat, "gcl_physread: fsizeof failed");
+			ep_log(estat, "gcl_physread: fsizeof failed");
 			goto fail1;
 		}
 		if (file_size < SIZEOF_INDEX_HEADER)

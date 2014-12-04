@@ -5,7 +5,6 @@ OBJS=	\
 	gdp_event.o \
 	gdp_gcl.o \
 	gdp_gclmd.o \
-	gdp_log.o \
 	gdp_datum.o \
 	gdp_pkt.o \
 	gdp_proto.o \

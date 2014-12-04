@@ -21,7 +21,7 @@ gdpd_gcl_error(gcl_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
 	if (EP_STAT_ISSEVERE(logstat))
 	{
 		// server error (rather than client error)
-		gdp_log(logstat, "%s: %s", msg, pname);
+		ep_log(logstat, "%s: %s", msg, pname);
 	}
 	return logstat;
 }
@@ -336,13 +336,13 @@ post_subscribe(gdp_req_t *req)
 		else if (!EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
 		{
 			// this is some error that should be logged
-			gdp_log(estat, "post_subscribe: bad read");
+			ep_log(estat, "post_subscribe: bad read");
 			req->numrecs = -1;		// terminate subscription
 		}
 		else
 		{
 			// shouldn't happen
-			gdp_log(estat, "post_subscribe: read EOF");
+			ep_log(estat, "post_subscribe: read EOF");
 		}
 
 		// if we didn't successfully send a record, terminate

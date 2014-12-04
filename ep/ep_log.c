@@ -1,544 +1,179 @@
-/* vim: set ai sw=8 sts=8 ts=8 :*/
+/* vim: set ai sw=8 sts=8 ts=8 : */
 
 /***********************************************************************
 **	Copyright (c) 2008-2014, Eric P. Allman.  All rights reserved.
-**	$Id: ep_log.c 286 2014-04-29 18:15:22Z eric $
+**	$Id: unix_syslog.c 288 2014-05-11 04:49:26Z eric $
 ***********************************************************************/
 
-#include <ep.h>
-#include <ep_rpool.h>
-#include <ep_xlate.h>
-#include <ep_stat.h>
-#include <ep_log.h>
+/*
+**  Message logging.
+*/
 
-#include <unistd.h>
+#include <ep/ep.h>
+#include <ep/ep_app.h>
+#include <ep/ep_stat.h>
+#include <ep/ep_string.h>
+#include <ep/ep_syslog.h>
+#include <ep/ep_time.h>
+
+#include <inttypes.h>
 #include <time.h>
+#include <sys/cdefs.h>
 #include <sys/time.h>
 
-EP_SRC_ID("@(#)$Id: ep_log.c 286 2014-04-29 18:15:22Z eric $");
-
-
-/**************************  BEGIN PRIVATE  **************************/
-
-/*
-**  EP_LOG_GET_DEFAULT -- return the default log
-**
-**	Is there any reason for this to be private?
-**
-**	Parameters:
-**		None.
-**
-**	Returns:
-**		The current default log.
-*/
-
-static EP_LOG	*EpDefaultLog;		// default log if none specified
-
-static EP_LOG *
-ep_log_get_default(void)
-{
-	if (EpDefaultLog == NULL)
-		EpDefaultLog = ep_log_open(&EpLogTypeSyslog,
-					"{System Default Log}",
-					EpLibProgname,
-					EP_LOG_NORMAL,
-					"user",
-					NULL);
-	return EpDefaultLog;
-}
-
-/***************************  END PRIVATE  ***************************/
-
-
-/*********************  BASIC LOG IMPLEMENTATION  ********************/
-
-/*
-**  EP_LOG_OPEN -- open a new log reference
-**
-**	Logs should be pretty generic.  Apps can have several open at
-**	one time: for example, having an error log and an accounting log
-**	open at the same time is perfectly reasonable.
-**
-**	Every log has a type.  For example, EpLogTypeFile logs to an
-**	on-disk file, and EpLogTypeSyslog logs to the system log
-**	database.
-**
-**
-**	Parameters:
-**		ltype -- the type of this log
-**		lname -- the name of this log (for some types)
-**		app -- a string to use for identifying log entries that
-**			corresponds to the application name.
-**		flags -- modify the function
-**		priv -- other log-type specific data
-**		pstat -- pointer to status variable for the open
-**
-**	Returns:
-**		a pointer to the log object
-**		NULL on failure, see *pstat
-*/
-
-EP_LOG *
-ep_log_open(const EP_LOG_TYPE *ltype,
-	const char *lname,
-	const char *app,
-	uint32_t flags,
-	const void *priv,
-	EP_STAT *pstat)
-{
-	EP_STAT stat = EP_STAT_OK;
-	EP_LOG *log;
-	EP_RPOOL *rp;
-
-	EP_ASSERT_POINTER_VALID(ltype);
-	EP_ASSERT(app != NULL);
-
-	rp = ep_rpool_new(app, 0);
-	log = EP_OBJ_CREATE(EP_LOG, &EpClassLog, app, rp, 0);
-	log->ltype = ltype;
-	log->name = lname;
-	log->app = app;
-	log->priv = priv;
-	log->flags = flags;
-
-	stat = ltype->open(log);
-	if (EP_STAT_SEV_ISFAIL(stat))
-	{
-		EP_OBJ_DROPREF(log);
-		log = NULL;
-		stat = ep_stat_post(EP_STAT_LOG_CANTOPEN,
-				"Cannot open log: type %1 name %2",
-				ltype->obj_name,
-				lname,
-				NULL);
-	}
-
-	if (EpDefaultLog == NULL &&
-	    !EP_UT_BITSET(EP_LOG_NODEFAULT, flags) &&
-	    EP_STAT_SEV_ISOK(stat))
-		EpDefaultLog = log;
-
-	if (pstat != NULL)
-		*pstat = stat;
-	return log;
-}
-
-
-/*
-**  EP_LOG_CLOSE -- close a log
-**
-**	Parameters:
-**		log -- the log to close.
-**
-**	Returns:
-**		None.
-*/
+static const char	*LogTag = NULL;
+static int		LogFac = -1;
+static FILE		*LogFile1 = NULL;
+static FILE		*LogFile2 = NULL;
+static bool		LogInitialized = false;
 
 void
-ep_log_close(
-	EP_LOG *log)
+ep_log_set(const char *tag,	// NULL => use program name
+	int logfac,		// -1 => don't use syslog
+	FILE *logfile,		// NULL => don't print to open file
+	const char *fname)	// NULL => don't log to disk file
 {
-	EP_ASSERT_POINTER_VALID(log);
-
-	if (log->obj_refcount-- > 0)
-		return;
-
-	if (log->ltype->close != NULL)
-		log->ltype->close(log);
+	LogTag = tag;
+	LogFac = logfac;
+	LogFile1 = logfile;
+	if (fname == NULL)
+		LogFile2 = NULL;
+	else
+		LogFile2 = fopen(fname, "a");
+	LogInitialized = true;
 }
 
 
-/*
-**  EP_LOG_PROPL, EP_LOG_PROPV -- log a property list/vector
-**
-**	Property lists are pairs of {tag, value} strings.
-**
-**	Parameters:
-**		log -- a pointer to the particular log to use.
-**			If NULL, the system default log is used.
-**		sev -- the severity of the message.  This is the same
-**			set used by status codes.
-**		msgid -- a string that can be used to identify the
-**			message.  It should generally be unique to this
-**			application, as identified by the tag presented
-**			to ep_log_open.
-**		av, ... -- the list of alternative tags and values,
-**			terminated by two NULL pointers.
-**			Tags may be NULL to indicate positional
-**			values.
-**
-**	Returns:
-**		none.
-*/
-
-void
-ep_log_propl(
-	EP_LOG *log,
-	int sev,
-	const char *msgid,
-	...)
+static void
+ep_log_file(EP_STAT estat,
+	char *fmt,
+	va_list ap,
+	EP_TIME_SPEC *tv,
+	FILE *fp)
 {
-	va_list av;
+	char tbuf[40];
+	struct tm *tm;
+	time_t tvsec;
 
-	va_start(av, msgid);
-	ep_log_propv(log, sev, msgid, av);
-	va_end(av);
-}
-
-
-void
-ep_log_propv(
-	EP_LOG *log,
-	int sev,
-	const char *msgid,
-	va_list av)
-{
-	if (log == NULL)
-		log = ep_log_get_default();
-	EP_ASSERT_POINTER_VALID(log);
-	EP_ASSERT(log->ltype != NULL);
-	EP_ASSERT(msgid != NULL);
-
-	log->ltype->log(log, sev, msgid, av);
-}
-
-
-/*
-**  EP_LOG_SET_DEFAULT -- set the log to use if none specified
-**
-**	This routine takes a reference to the log (so it should be
-**	dereferenced using ep_log_close unless it is going to be
-**	reused).  The old default log is closed.
-**
-**	Parameters:
-**		log -- the log to use as the default.
-**
-**	Returns:
-**		none.
-*/
-
-void
-ep_log_set_default(
-	EP_LOG *log)
-{
-	EP_ASSERT_POINTER_VALID(log);
-	EP_ASSERT(log->ltype != NULL);
-
-	ep_log_close(EpDefaultLog);
-
-	EpDefaultLog = log;
-	log->obj_refcount++;
-}
-
-
-
-/***********************  LOG-TO-STREAM LOG TYPE  **********************/
-
-/**************************  BEGIN PRIVATE  **************************/
-
-/*
-**  STREAM_LOG_OPEN -- open stacked log
-**
-**	The private data for this log type is the underlying log
-**	stream.
-*/
-
-static EP_STAT
-stream_log_open(EP_LOG *log)
-{
-	((FILE *) log->priv)->obj_refcount++;
-	return EP_STAT_OK;
-}
-
-
-/*
-**  STREAM_LOG_CLOSE -- close stacked log
-**
-**	Also closes the underlying file
-*/
-
-static EP_STAT
-stream_log_close(EP_LOG *log)
-{
-	fclose((FILE *) log->priv);
-
-	// any error will have already been posted
-	return EP_STAT_OK;
-}
-
-
-/*
-**  STREAM_LOG_LOG -- actually do the logging
-*/
-
-static EP_STAT
-stream_log_log(
-	EP_LOG *log,
-	int sev,
-	const char *msgid,
-	va_list av)
-{
-	FILE *fp = (FILE *) log->priv;
-	const char *app;
-	struct tm tm;
-	struct timeval now;
-
-	app = log->app;
-	if (app == NULL)
-		app = "";
-
-	(void) gettimeofday(&now, NULL);
-	(void) localtime_r((time_t *) &now.tv_sec, &tm);
-
-	fprintf(fp, "%04d-%02d-%02d %02d:%02d:%02d.%03d %s[%d] ",
-		tm.tm_year + 1900, tm.tm_mon, tm.tm_mday,
-		tm.tm_hour, tm.tm_min, tm.tm_sec, now.tv_usec / 1000,
-		log->app, getpid());
-	ep_log_tostr(fp, sev, msgid, av);
-	ep_st_puts(fp, ep_st_eolstring(fp));
-
-	return EP_STAT_OK;
-}
-
-/***************************  END PRIVATE  ***************************/
-
-const EP_LOG_TYPE	EpLogTypeStream =
-{
-	EP_OBJ_OBJECT_INITIALIZER(EpClassLogType, "log:stream")
-	stream_log_open,		// openfunc
-	stream_log_close,		// closefunc
-	stream_log_log,			// logfunc
-};
-
-/**************************  UTILITY ROUTINES  *************************/
-
-/*
-**  EP_LOG_TOSTR -- convert a log input to string format
-**
-**	This can be used when logging to a text file or writing to a
-**	text-based format such as UNIX syslog.
-**
-**	Output Format:
-**		severity:msgid tag=value; tag=value; ...
-**		Characters listed in libep.log.forbidchars (default:
-**			"=;") , non-printable characters,
-**			and the "+" character are encoded using +XX
-**			syntax.
-**
-**	Parameters:
-**		logsp -- the stream pointer for the log (or temp buffer).
-**		sev -- the severity of the message
-**		msgid -- the message name
-**		av -- the property (name, value) list
-**
-**	Returns:
-**		None (but you should call ep_st_stat(logsp) to see if
-**		the data was properly output).
-*/
-
-void
-ep_log_tostr(
-	FILE *logsp,
-	int sev,
-	const char *msgid,
-	va_list av)
-{
-	int argno = 0;
-	char const *sevname;
-	bool firstparam = true;
-	int xlatemode = EP_XLATE_PLUS | EP_XLATE_NPRINT;
-	static const char *forbidchars = NULL;
-
-	if (forbidchars == NULL)
-		forbidchars = ep_adm_getstrparam("libep.log.forbidchars", "=;");
-
-	sevname = ep_stat_sev_tostr(sev);
-	(void) ep_xlate_out(sevname,
-			strlen(sevname),
-			logsp,
-			forbidchars,
-			xlatemode);
-	(void) ep_xlate_out(":",
-			1,
-			logsp,
-			forbidchars,
-			xlatemode);
-	(void) ep_xlate_out(msgid,
-			strlen(msgid),
-			logsp,
-			forbidchars,
-			xlatemode);
-
-	// scan the arguments
-	for (;;)
-	{
-		const char *apn;
-		const char *apv;
-
-		argno++;
-		apn = va_arg(av, const char *);
-		if ((apv = va_arg(av, const char *)) == NULL)
-			break;
-
-		if (!firstparam)
-			putc(';', logsp);
-		putc(' ', logsp);
-		firstparam = false;
-
-		if (apn != NULL)
-		{
-			(void) ep_xlate_out(apn,
-					strlen(apn),
-					logsp,
-					forbidchars,
-					xlatemode);
-
-			putc('=', logsp);
-		}
-
-		(void) ep_xlate_out(apv,
-				strlen(apv),
-				logsp,
-				forbidchars,
-				xlatemode);
-	}
-}
-
-/***********************************************************************/
-
-#if 0
-
-void
-ep_log_text(
-	EP_STAT stat,
-	const char *defmsgid,
-	const char *text)
-{
-	EP_STAT rstat = EP_STAT_OK;
-	FILE *vbuf;		// result buffer
-	char *msgid = NULL;
-	char *msgtag = NULL;
-	int pass;
-	char kbuf[1024];		// should be dynamic
-	char msgidbuf[1024];		// probably dynamic
-
-	vbuf = ep_st_open(&EpStType_DMem,
-			"ep_log_text:vbuf",
-			EP_ST_MODE_WR,
-			&rstat,
-			0,
-			NULL);
-	if (EP_STAT_SEV_ISFAIL(rstat))
-	{
-		rstat = ep_stat_post(rstat,
-			"ep_log_text:no-dmem Cannot open dynamic memory",
-			NULL);
-		ep_assert_abort("ep_log_text: cannot create dynamic sorytring");
-	}
-
-	/*
-	**  Look up the message id based on the status code.  If
-	**  not found, use the default that has been passed in.
-	*/
-
-	for (pass = 0; pass < 2; pass++)
-	{
-		switch (pass)
-		{
-		  case 0:
-			snprintf(kbuf, sizeof kbuf,
-				"STAT:%d:%d",
-				EP_STAT_MODULE(stat),
-				EP_STAT_DETAIL(stat));
-			break;
-
-		  case 1:
-			snprintf(kbuf, sizeof kbuf,
-				"STAT:%d",
-				EP_STAT_MODULE(stat));
-			break;
-
-		  default:
-			ep_assert_abort("ep_log_text: illegal pass");
-		}
-
-		if (!EP_STAT_SEV_ISFAIL(ep_mcat_get(kbuf, NULL, vbuf)) &&
-		    !EP_STAT_SEV_ISFAIL(ep_st_getknob(kbuf, EP_ST_KNOB_GETBUF, &msgid)))
-			break;
-	}
-
-	if (msgid == NULL)
-	{
-		msgid = defmsgid;
-	}
+	tvsec = tv->tv_sec;		//XXX may overflow if time_t is 32 bits!
+	if ((tm = localtime(&tvsec)) == NULL)
+		snprintf(tbuf, sizeof tbuf, "%"PRIu64".%06lu",
+				tv->tv_sec, tv->tv_nsec / 1000L);
 	else
 	{
-		// save the message id if necessary
-		strlcpy(msgidbuf, msgid, sizeof msgidbuf);
-		// XXX should check for overflow here
-		msgid = msgidbuf;
+		char lbuf[40];
+
+		snprintf(lbuf, sizeof lbuf, "%%Y-%%m-%%d %%H:%%M:%%S.%06lu %%z",
+				tv->tv_nsec / 1000L);
+		strftime(tbuf, sizeof tbuf, lbuf, tm);
 	}
 
-	/*
-	**  Given the message-id, find the tag associated with it.
-	*/
-
-	snprintf(kbuf, sizeof kbuf,
-		"MSGID:TAG:%s:%s",
-		"",				// XXX language code
-		msgid);
-
-	(void) ep_st_setknob(vbuf, EP_ST_KNOB_REWIND, NULL);
-	if (EP_STAT_SEV_ISFAIL(ep_mcat_get(kbuf, NULL, vbuf)) ||
-	    EP_STAT_SEV_ISFAIL(ep_st_getknob(kbuf, EP_ST_KNOB_GETBUF, &msgtag)))
+	fprintf(fp, "%s %s: ", tbuf, LogTag);
+	vfprintf(fp, fmt, ap);
+	if (!EP_STAT_ISOK(estat))
 	{
-		// no tag: use the id as the tag
-		msgtag = msgid;
+		char ebuf[100];
+
+		ep_stat_tostr(estat, ebuf, sizeof ebuf);
+		fprintf(fp, ": %s", ebuf);
+	}
+	fprintf(fp, "\n");
+}
+
+
+static void
+ep_log_syslog(EP_STAT estat, char *fmt, va_list ap)
+{
+	char ebuf[100];
+	char mbuf[500];
+	int sev = EP_STAT_SEVERITY(estat);
+	int logsev;
+	static bool inited = false;
+
+	// initialize log if necessary
+	if (!inited)
+	{
+		openlog(LogTag, LOG_PID, LogFac);
+		inited = true;
 	}
 
-	/*
-	**  Done with vbuf.
-	*/
+	// map estat severity to syslog priority
+	switch (sev)
+	{
+	  case EP_STAT_SEV_OK:
+		logsev = LOG_INFO;
+		break;
 
-	fclose(vbuf);
+	  case EP_STAT_SEV_WARN:
+		logsev = LOG_WARNING;
+		break;
 
-	/*
-	**  Now do the actual logging.
-	**
-	**	XXX ugh.  Given that ep_log_propl is going to do a
-	**	XXX redundant lookup of stat to get the message id, can
-	**	XXX we somehow short circuit?
-	*/
+	  case EP_STAT_SEV_ERROR:
+		logsev = LOG_ERR;
+		break;
 
-	ep_log_propl(stat,
-		msgid,
-		"tag",		msgtag,
-		"text",		text,
-		NULL);
+	  case EP_STAT_SEV_SEVERE:
+		logsev = LOG_CRIT;
+		break;
+
+	  case EP_STAT_SEV_ABORT:
+		logsev = LOG_ALERT;
+		break;
+
+	  default:
+		// %%% for lack of anything better
+		logsev = LOG_ERR;
+		break;
+
+	}
+
+	if (EP_STAT_ISOK(estat))
+		strlcpy(ebuf, "OK", sizeof ebuf);
+	else
+		ep_stat_tostr(estat, ebuf, sizeof ebuf);
+	vsnprintf(mbuf, sizeof mbuf, fmt, ap);
+	syslog(logsev, "%s: %s", ebuf, mbuf);
 }
 
 
 void
-ep_log_stat(
-	EP_STAT stat,
-	const char *defmsg,
-	...)
+ep_log(EP_STAT estat, char *fmt, ...)
 {
-	va_list av;
+	va_list ap;
+	EP_TIME_SPEC tv;
 
-	va_start(av, defmsg);
-	ep_log_propv(stat, defmsg, av);
-	va_end(av);
+	ep_time_now(&tv);
+
+	if (!LogInitialized)
+	{
+		const char *facname;
+
+		facname = ep_adm_getstrparam("libep.log.facility", "local4");
+		LogFac = ep_syslog_fac_from_name(facname);
+		LogFile1 = stderr;
+		LogInitialized = true;
+	}
+	if (LogTag == NULL)
+		LogTag = ep_app_getprogname();
+
+	if (LogFac >= 0)
+	{
+		va_start(ap, fmt);
+		ep_log_syslog(estat, fmt, ap);
+		va_end(ap);
+	}
+	if (LogFile1 != NULL)
+	{
+		fprintf(LogFile1, "%s", EpVid->vidfgcyan);
+		va_start(ap, fmt);
+		ep_log_file(estat, fmt, ap, &tv, LogFile1);
+		va_end(ap);
+		fprintf(LogFile1, "%s\n", EpVid->vidnorm);
+	}
+	if (LogFile2 != NULL)
+	{
+		va_start(ap, fmt);
+		ep_log_file(estat, fmt, ap, &tv, LogFile2);
+		va_end(ap);
+	}
 }
-
-
-void
-ep_log_statv(
-	EP_STAT stat,
-	const char *defmsg,
-	va_list av)
-{
-	ep_log_propv(DefLog, sev, ms
-}
-
-#endif /* 0 */

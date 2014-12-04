@@ -2,7 +2,6 @@
 
 #include "gdp.h"
 #include "gdp_event.h"
-#include "gdp_log.h"
 #include "gdp_stat.h"
 #include "gdp_priv.h"
 
@@ -11,6 +10,7 @@
 #include <ep/ep_b64.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_hash.h>
+#include <ep/ep_log.h>
 #include <ep/ep_prflags.h>
 #include <ep/ep_string.h>
 #include <ep/ep_thr.h>
@@ -163,9 +163,9 @@ ack_success(gdp_req_t *req)
 	// we require a request
 	estat = GDP_STAT_PROTOCOL_FAIL;
 	if (req == NULL)
-		gdp_log(estat, "ack_success: null request");
+		ep_log(estat, "ack_success: null request");
 	else if (req->pkt->datum == NULL)
-		gdp_log(estat, "ack_success: null datum");
+		ep_log(estat, "ack_success: null datum");
 	else
 		estat = GDP_STAT_FROM_ACK(req->pkt->cmd);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -566,7 +566,7 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		estat = _gdp_req_new(pkt->cmd, gclh, chan, 0, &req);
 		if (!EP_STAT_ISOK(estat))
 		{
-			gdp_log(estat, "gdp_read_cb: cannot allocate request; dropping packet");
+			ep_log(estat, "gdp_read_cb: cannot allocate request; dropping packet");
 
 			// not much to do here other than ignore the input
 			_gdp_pkt_free(pkt);
@@ -777,7 +777,7 @@ init_error(const char *datum, const char *where)
 	char nbuf[40];
 
 	strerror_r(errno, nbuf, sizeof nbuf);
-	gdp_log(estat, "gdp_init: %s: %s", where, datum);
+	ep_log(estat, "gdp_init: %s: %s", where, datum);
 	ep_app_error("gdp_init: %s: %s: %s", where, datum, nbuf);
 	return estat;
 }
@@ -848,7 +848,7 @@ run_event_loop(void *ctx)
 			ep_time_nanosleep(evdelay * 1000LL);		// avoid CPU hogging
 	}
 
-	gdp_log(GDP_STAT_DEAD_DAEMON, "lost connection to gdp daemon");
+	ep_log(GDP_STAT_DEAD_DAEMON, "lost connection to gdp daemon");
 	ep_app_abort("lost connection to gdp daemon");
 }
 

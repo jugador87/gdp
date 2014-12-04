@@ -4,9 +4,9 @@
 #include <ep/ep_app.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_hash.h>
+#include <ep/ep_log.h>
 
 #include "gdp.h"
-#include "gdp_log.h"
 #include "gdp_stat.h"
 #include "gdp_priv.h"
 
@@ -54,7 +54,7 @@ _gdp_gcl_cache_init(void)
 		if (OpenGCLCache == NULL)
 		{
 			estat = ep_stat_from_errno(errno);
-			gdp_log(estat, "gdp_gcl_cache_init: could not create OpenGCLCache");
+			ep_log(estat, "gdp_gcl_cache_init: could not create OpenGCLCache");
 			ep_app_abort("gdp_gcl_cache_init: could not create OpenGCLCache");
 		}
 	}
@@ -179,7 +179,7 @@ _gdp_gcl_decref(gdp_gcl_t *gclh)
 	}
 	else
 	{
-		gdp_log(EP_STAT_ABORT, "_gdp_gcl_decref: %p: zero refcnt", gclh);
+		ep_log(EP_STAT_ABORT, "_gdp_gcl_decref: %p: zero refcnt", gclh);
 	}
 
 	// XXX check for zero refcnt

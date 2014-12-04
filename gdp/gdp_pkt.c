@@ -15,11 +15,11 @@
 #include <ep/ep.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_hexdump.h>
+#include <ep/ep_log.h>
 #include <ep/ep_prflags.h>
 #include <ep/ep_stat.h>
 
 #include "gdp.h"
-#include "gdp_log.h"
 #include "gdp_priv.h"
 #include "gdp_pkt.h"
 
@@ -245,7 +245,7 @@ _gdp_pkt_out_hard(gdp_pkt_t *pkt, gdp_chan_t *chan)
 
 	if (!EP_STAT_ISOK(estat))
 	{
-		gdp_log(estat, "gdp_pkt_out_hard: cannot put packet");
+		ep_log(estat, "gdp_pkt_out_hard: cannot put packet");
 	}
 }
 
@@ -363,7 +363,7 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	{
 		// shouldn't happen, since it's already in memory
 		estat = GDP_STAT_BUFFER_FAILURE;
-		gdp_log(estat,
+		ep_log(estat,
 				"gdp_pkt_in: gdp_buf_drain failed, sz = %zu, needed = %zu\n",
 				sz, needed);
 		// buffer is now out of sync; not clear if we can continue

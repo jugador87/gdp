@@ -21,6 +21,7 @@ OBJS=	\
 	ep_hash.o \
 	ep_hexdump.o \
 	ep_lib.o \
+	ep_log.o \
 	ep_mem.o \
 	ep_pcvt.o \
 	ep_pprint.o \
@@ -41,7 +42,6 @@ OBJS_NOTYET=	\
 	ep_cfg.o \
 	ep_crackargv.o \
 	ep_init.o \
-	ep_log.o \
 	ep_net_cvtaddr.o \
 	ep_pat.o \
 	ep_plist.o \
@@ -81,6 +81,7 @@ HFILES=	\
 	ep_funclist.h \
 	ep_hash.h \
 	ep_hexdump.h \
+	ep_log.h \
 	ep_mem.h \
 	ep_pcvt.h \
 	ep_prflags.h \
@@ -105,7 +106,6 @@ HFILES_NOTYET=	\
 	ep_easynames.h \
 	ep_event.h \
 	ep_gen.h \
-	ep_log.h \
 	ep_netsock.h \
 	ep_obj.h \
 	ep_osdep_gen.h \

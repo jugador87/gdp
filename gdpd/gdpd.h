@@ -10,10 +10,10 @@
 #include <ep/ep.h>
 #include <ep/ep_app.h>
 #include <ep/ep_dbg.h>
+#include <ep/ep_log.h>
 #include <ep/ep_stat.h>
 
 #include <gdp/gdp.h>
-#include <gdp/gdp_log.h>
 #include <gdp/gdp_priv.h>
 #include <gdp/gdp_pkt.h>
 #include <gdp/gdp_stat.h>
