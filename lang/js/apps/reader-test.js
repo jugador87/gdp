@@ -57,7 +57,8 @@ eval( fs.readFileSync( LIBGDP_H_DIR + 'rw_supt.js').toString() );
 //C  */
 
 
-
+if (false)  // Turn off local do_simpleread() and do_multiread() fcns
+{
 //C  /*
 //C  **  DO_SIMPLEREAD --- read from a GCL using the one-record-at-a-time call
 //C  */
@@ -244,6 +245,8 @@ eval( fs.readFileSync( LIBGDP_H_DIR + 'rw_supt.js').toString() );
 		return estat;
 	} /* do_multiread() */
 //C  }
+} /* end if (false)  // Turn off local do_simpleread() and do_multiread() */
+
 //C  
 //C  
 //C  /*
@@ -412,8 +415,13 @@ eval( fs.readFileSync( LIBGDP_H_DIR + 'rw_supt.js').toString() );
 		gcl_numrecs   = numrecs;
 		gcl_subscribe = subscribe;
 		gcl_multiread = multiread;
+		conout        = true;  // recdest = -1 so output to console.log()
+		gdp_event_cbfunc = null; // no callback needed when just logging
+		wait_for_events  = true; // wait indefinitely in read_gcl_records() for
+		                         // a next gdp event (i.e., record available)
 
 		// Example set ups for calls to read_gcl_records()
+		// TBD: Get comment up to date with read_gcl_records() definition
 		//
 		// A: read gcl and write to stdout
 		// recdest = -1;  // writes the gcl records to stdout with
@@ -427,9 +435,15 @@ eval( fs.readFileSync( LIBGDP_H_DIR + 'rw_supt.js').toString() );
 		// Returns:
 		// { error_code: EP_STAT, records: Array of Strings }
 		recdest = -1;  // writes the gcl records to stdout...
+		// DEBUG - TBD: LEFT OFF HERE making consistent with rw-supt.js
+		//         Do the same for writer-test.js
+		// console.log( 'In reader-test.js: main: calling read_gcl_records; firstrec = %d, numrecs = %d',
+		//              firstrec, numrecs );
         read_gcl_records( gdpd_addr, gcl_name,
 		                  gcl_firstrec, gcl_numrecs,
-		                  gcl_subscribe, gcl_multiread, recdest
+		                  gcl_subscribe, gcl_multiread, recdest,
+						  conout, gdp_event_cbfunc,
+						  wait_for_events
 		                );
 
 		// TBD: return ( ! ep_stat_isok_js(estat) );

@@ -16,3 +16,12 @@ clean:
 
 tags:
 	ctags ep/*.[ch] gdp/*.[ch] gdpd/*.[ch] scgilib/scgilib.[ch] apps/*.[ch]
+
+
+# Build the Node.js/JavaScript GDP accessing apps and the Node.js/JS
+# RESTful GDP interface.  Optional for the GDP per se.
+all_JavaScript:
+	(cd lang/js; make clean all)
+
+clean_JavaScript:
+	(cd lang/js; make clean)

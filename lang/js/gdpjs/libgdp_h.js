@@ -1,7 +1,11 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
 // libgdp_h.js - GDP Javascript "header file"
-//
+// 2014-11-02
+// Alec Dara-Abrams
+
+// TBD: put this code into a Node.js module; add Copyrights
+
 // Provides Node.js Javascript definitions for use in accessing the GDP
 // from a Node.js Javascript program.
 //
@@ -91,10 +95,10 @@ if ( NODE_MODULES_DIR == undefined) NODE_MODULES_DIR  = "";
 // look in the "global" node_modules directory (which defaults to
 // /usr/local/lib/node_modules/ ).
 //
-var ffi        = require( NODE_MODULES_DIR + 'ffi'       );
-var ref        = require( NODE_MODULES_DIR + 'ref'       );
-var ref_array  = require( NODE_MODULES_DIR + 'ref-array' );
-// var ref_struct = require( 'ref-struct' );   // currently, not used
+var ffi        = require( NODE_MODULES_DIR + 'ffi'        );
+var ref        = require( NODE_MODULES_DIR + 'ref'        );
+var ref_array  = require( NODE_MODULES_DIR + 'ref-array'  );
+var ref_struct = require( NODE_MODULES_DIR + 'ref-struct' );
 // var ref_union  = require( 'ref-union'  );   // currently, not used
 
 // Some additional supporting Node.js modules
@@ -170,42 +174,124 @@ var libc = ffi.Library('libc', {
 });
 
 
-// We use some functions from libep for debugging here
-
-// First, some C types to define for Node.js ffi/ref modules.
-// From ep/ep_stat.h
-//CJS typedef struct _ep_stat { uint32_t code; } EP_STAT;
-var EP_STAT = 'uint32';
-
-var libep = ffi.Library( GDP_DIR + '/libs/libep.2.0', {
-// From ep/ep_dbg.h
-//CJS // initialization
-//CJS extern void     ep_dbg_init(void);
-// May be called by gdp_init() .
-  'ep_dbg_init': [ 'void', [ ] ],
-//CJS // setting debug flags
-//CJS extern void     ep_dbg_set(const char *s);
-  'ep_dbg_set':  [ 'void', [ 'string' ] ],
-// From ep/ep_app.h
-//CJS extern const char       *ep_app_getprogname(void);
-  'ep_app_getprogname':  [ 'string', [ ] ],
-// From ep/ep_stat.h
-//CJS // return string representation of status
-//CJS char            *ep_stat_tostr(EP_STAT estat, char *buf, size_t bsize);
-// We only get a string back via the char* return value; buf seems unchanged
-  'ep_stat_tostr':  [ 'string', [ EP_STAT, 'string', 'size_t' ] ]
-});
+// First, some definitions culled from gdp/gdp.h and system includes
+// that are referenced in ep/ep_xxxx.h and gdp/gdp_xxxx.h .
 
 // From ?? ==> <sysexits.h>
 //CJS #define EX_USAGE        64      /* command line usage error */
 var EX_USAGE = 64;
-
 
 // From gdp/gdp.h => <inttypes.h> ==> <stdint.h> ==> <sys/_types/_int32_t.h>
 var int32_t = ref.types.int32;
 
 // From gdp/gdp.h => <stdbool.h> 
 var bool_t = ref.types.int;
+
+
+// Now we provide some definitions and functions from libep
+
+// First, some C types to define for Node.js ffi/ref modules.
+// From ep/ep_stat.h
+//CJS typedef struct _ep_stat { uint32_t code; } EP_STAT;
+var EP_STAT = 'uint32';
+
+// From ep/ep_time.h
+//CJS 
+//CJS typedef struct
+//CJS {
+//CJS 	int64_t		tv_sec;		// seconds since Jan 1, 1970
+//CJS 	uint32_t	tv_nsec;	// nanoseconds
+//CJS 	float		tv_accuracy;	// clock accuracy in seconds
+//CJS } EP_TIME_SPEC;
+//CJS 
+// Field types - and, hence, sizes
+var tv_sec_t      = 'int64';  //?? check this size
+var tv_nsec_t     = 'uint32';
+var tv_accuracy_t = 'float';
+//
+// Define the EP_TIME_SPEC_struct JS "struct" type
+// Note, since ep/ep_tine.h doesn't define a typedef here, just struct
+// EP_TIME_SPEC, we use the JS naming convention "<C struct name>_struct"
+// rather that the "<C typedef name>_t" JS convention we use for 
+// typedef struct gdp+gcl gcp_gcl_t below.  Sorry if this is pedantic, but
+// we just don't have any compile-time type checking here on the JS side of
+// our FFI interface - so we use naming convention as a weak crutch.
+// Also note, unlike gdp_gcl_t, EP_TIME_SPEC_struct is NOT opaque for us
+// up here in JS.
+var EP_TIME_SPEC_struct = ref_struct({
+  tv_sec:      tv_sec_t,
+  tv_nsec:     tv_nsec_t,
+  tv_accuracy: tv_accuracy_t
+});
+//
+// a pointer to a C "struct EP_TIME_SPEC"
+var EP_TIME_SPEC_struct_Ptr    = ref.refType(EP_TIME_SPEC_struct);
+//?? just below is not used yet
+var EP_TIME_SPEC_struct_PtrPtr = ref.refType(EP_TIME_SPEC_struct_Ptr);
+
+
+var libep = ffi.Library( GDP_DIR + '/libs/libep.2.0', {
+
+// From ep/ep_dbg.h
+//CJS // initialization
+//CJS extern void     ep_dbg_init(void);
+// May be called by gdp_init() .
+  'ep_dbg_init': [ 'void', [ ] ],
+
+//CJS // setting debug flags
+//CJS extern void     ep_dbg_set(const char *s);
+  'ep_dbg_set':  [ 'void', [ 'string' ] ],
+
+// From ep/ep_app.h
+//CJS extern const char       *ep_app_getprogname(void);
+  'ep_app_getprogname':  [ 'string', [ ] ],
+
+// From ep/ep_stat.h
+//CJS // return string representation of status
+//CJS char            *ep_stat_tostr(EP_STAT estat, char *buf, size_t bsize);
+// We only get a string back via the char* return value; buf seems unchanged
+  'ep_stat_tostr':  [ 'string', [ EP_STAT, 'string', 'size_t' ] ],
+
+// From ep/ep_time.h
+//CJS // return current time
+//CJS extern EP_STAT	ep_time_now(EP_TIME_SPEC *tv);
+// TBD add this calling information to other node-ffi functions
+// How to call from JS:
+//   var ts = new EP_TIME_SPEC_struct;
+//   estat  = libep.ep_time_now( ts.ref() );
+//   now_secs = ts.tv_sec; now_nsecs = ts.tv_nsec; now_acc = tspec.tv_accuracy;
+  'ep_time_now':  [ EP_STAT, [ EP_TIME_SPEC_struct_Ptr ] ],
+
+// From ep/ep_time.h
+//CJS // return putative clock accuracy
+//CJS extern float	ep_time_accuracy(void);
+  'ep_time_accuracy': [ 'float', [ ] ],
+
+// From ep/ep_time.h
+//CJS // set the clock accuracy (may not be available)
+//CJS extern void	ep_time_setaccuracy(float acc);
+//  'ep_time_setaccuracy': [ 'void', [ 'float' ] ],
+
+// From ep/ep_time.h
+// There are problems accessing ep_time_format() using node-ffi with this sig.
+// Use ep_time_as_string_js() instead for access from JS -- via
+// gdpjs_supt.c/ep_time_as_string().  TBD
+//CJS // format a time string into a buffer
+//CJS extern void	ep_time_format(const EP_TIME_SPEC *tv,
+//CJS 				char *buf,
+//CJS 				size_t bz,
+//CJS 				bool human);
+// 'ep_time_format': [ 'void', 
+//                     [ EP_TIME_SPEC_struct_Ptr, 'string', 'size_t', bool_t ] ],
+
+// From ep/ep_time.h
+//CJS // parse a time string
+//CJS extern EP_STAT	ep_time_parse(const char *timestr,
+//CJS 				EP_TIME_SPEC *tv);
+  'ep_time_parse':  [ EP_STAT, [ 'string', EP_TIME_SPEC_struct_Ptr ] ]
+
+});
+
 
 // From gdp/gdp.h
 //CJS // the internal name of a GCL
@@ -229,7 +315,7 @@ var gcl_pname_t = ref_array(char_t);
 // From gdp/gdp.h
 //CJS // a GCL record number
 //CJS typedef int64_t                         gdp_recno_t;
-var gdp_recno_t = ref.types.int64;  //?? check this
+var gdp_recno_t = ref.types.int64;  //?? check this size
 
 // From gdp/gdp.h
 //CJS typedef enum
@@ -249,7 +335,7 @@ var buf_t = ref_array(char_t);
 // From gdp/gdp.h
 //CJS  // an open handle on a GCL (opaque)
 //CJS  typedef struct gdp_gcl gdp_gcl_t;
-
+//
 // So far, we don't need to look inside this struct or other GDP structs
 // These comments are reminders of the internal structure and we hope can
 // be removed in the future.
@@ -266,10 +352,11 @@ var buf_t = ref_array(char_t);
 //         void             *log_index;
 //         off_t            data_offset;
 // };
-
+//
 var gdp_gcl_t       = ref.types.void;  // opaque for us up here in JS
+// a pointer to a C "typedef gdp_gcl_t"
 var gdp_gcl_tPtr    = ref.refType(gdp_gcl_t);
-var gdp_gcl_tPtrPtr = ref.refType(gdp_gcl_tPtr);
+var gdp_gcl_tPtrPtr = ref.refType(gdp_gcl_tPtr);  // pointer to a pointer
 
 //CJS typedef struct gdp_datum        gdp_datum_t;
 
@@ -289,7 +376,18 @@ var gdp_buf_tPtrPtr = ref.refType(gdp_buf_tPtr);  //?? not used yet
 
 var gdp_event_t       = ref.types.void;  // opaque for us up here in JS
 var gdp_event_tPtr    = ref.refType(gdp_event_t);
-var gdp_event_tPtrPtr = ref.refType(gdp_event_tPtr);  //?? not used yet
+var gdp_event_tPtrPtr = ref.refType(gdp_event_tPtr);
+
+
+// Again, just a reminder of the internal structure. Remove in the future.
+// From gdp/gdp_event.h
+// struct gdp_event
+// {       
+//         TAILQ_ENTRY(gdp_event)  queue;          // free/active queue link
+//         int                     type;           // event type
+//         gdp_gcl_t               *gcl;           // GCL handle for event
+//         gdp_datum_t             *datum;         // datum for event
+// };   
 
 // From gdp/gdp.h
 //CJS // event types
@@ -310,6 +408,9 @@ var libgdp = ffi.Library( GDP_DIR + '/libs/libgdp.1.0', {
 //CJS extern gdp_event_t              *gdp_event_next(bool wait);
    'gdp_event_next': [ gdp_event_tPtr, [ bool_t ] ],
 
+//CJS // get next event (fills in gev structure)
+//CJS extern gdp_event_t              *gdp_event_next(bool wait);
+
 //CJS // get the type of an event
 //CJS extern int                       gdp_event_gettype(gdp_event_t *gev);
    'gdp_event_gettype': [ 'int', [ gdp_event_tPtr ] ],
@@ -322,9 +423,19 @@ var libgdp = ffi.Library( GDP_DIR + '/libs/libgdp.1.0', {
 //CJS extern gdp_datum_t              *gdp_event_getdatum(gdp_event_t *gev);
    'gdp_event_getdatum': [ gdp_datum_tPtr, [ gdp_event_tPtr ] ],
 
+// From gdp/gdp_event.h
+//CJS // allocate an event
+//CJS extern EP_STAT                  gdp_event_new(gdp_event_t **gevp);
+   'gdp_event_new': [ EP_STAT, [ gdp_event_tPtrPtr ] ],
+
+//CJS // add an event to the active queue
+//CJS extern void                      gdp_event_trigger(gdp_event_t *gev);
+   'gdp_event_trigger': [ 'void', [ gdp_event_tPtr ] ],
+
+// From gdp/gdp.h
 //CJS // initialize the library
 //CJS EP_STAT gdp_init( const char *gdpd_addr );          // address of gdpd
-  'gdp_init': [ EP_STAT, [ 'string' ] ],
+   'gdp_init': [ EP_STAT, [ 'string' ] ],
 
 // From gdp/gdp.h
 //CJS // create a new GCL
@@ -511,18 +622,16 @@ var libgdpjs = ffi.Library( GDPJS_DIR + '../libs/libgdpjs.1.0', {
 // Uses gdp_gcl_getname() and gdp_gcl_printable_name()
     'gdp_get_printable_name_from_gclh':  [ 'string', [ gdp_gcl_tPtr ] ],
 
+// Get a timestamp as a string from an EP_TIME_SPEC
+// Note, we are returning a char* to a static variable; copy out its contents
+// quickly :-).  See gdpjs_supt.c for details.
+// Wraps ep/ep_time.h ep_time_format()
+    'ep_time_as_string':  [ 'string', [ EP_TIME_SPEC_struct_Ptr, bool_t ] ],
+
 // Get a timestamp as a string from a datum
 // Note, we are returning a char* to a static variable; copy out its contents
-// quickly :-).
-// Combines calls to:
-//    From gdp/gdp.h
-//    void
-//    gdp_datum_getts( const gdp_datum_t *datum, EP_TIME_SPEC *ts ) 
-// and
-//    From ep/ep_time.h
-//    char *
-//    ep_time_as_string( const EP_TIME_SPEC *tv, bool human )
-//    
+// quickly :-).  See gdpjs_supt.c for details.
+// Wraps gdp/gdp.h gdp_datum_getts() & ep/ep_time.h ep_time_format()
     'gdp_datum_getts_as_string':  [ 'string', [ gdp_datum_tPtr, bool_t ] ],
 
 // From gdp/gdp_stat.h

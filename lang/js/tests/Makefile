@@ -28,7 +28,8 @@ run:
 	@echo 'text output differences between output to a file versus'
 	@echo 'output a terminal from a Node.js JS program; yes, TBD.'
 	@echo 'See the README and the below script for details.'
-	./writer_reader-test.js_tests.sh
+	@echo 'Remove the -v option for less progress output.'
+	./writer_reader-test.js_tests.sh -v
 
 tags:
 	# Placeholder to remind us of the utility of tag files

@@ -5,6 +5,10 @@
 //
 // Alec Dara-Abrams
 // 2014-11-06
+//
+// TBD: Copyright, clean up code; regularize indenting with JS-aware tool
+//      Check for possible error returns from libgdp calls.
+
 
 // Documentation:
 //   TBD - but see gdpREST_server.js
@@ -19,7 +23,7 @@
 
 // =============================================================================
 // GDP-related Initialization
-
+//
 function gdp_rest_init( gdp_deamon_host_port )
 {
 	// There may be more initialization for the REST interface so we
@@ -29,6 +33,7 @@ function gdp_rest_init( gdp_deamon_host_port )
 	//          add 
 	gdp_init_js( gdp_deamon_host_port );
 }
+
 
 // =============================================================================
 // Parse a request into its components (not all components may be present)
@@ -64,10 +69,11 @@ function gdp_rest_init( gdp_deamon_host_port )
 //     hier-part   = "//" authority path-abempty / path-absolute
 //                   / path-rootless / path-empty
 //
-
-/* { *( req_component_name: req_component_value, ) } */
+//
+/* Returns: { *( req_component_name: req_component_value, ) } */
 function get_request_components( r )
 {
+	// DEBUG
 	// console.log( 'In get_request_components() r = \n{======', r, '\n======}' );
 	var rv =
 	{
@@ -104,6 +110,7 @@ function get_request_components( r )
 	return rv;
 
 
+// Node.js Express's documentation is sketchy so we take an empirical approach.///
 // Some other fields in rv to look at:
 //    socket:
 //	   {
@@ -149,6 +156,7 @@ function req_asString( req )
 	         ' sent to ' + req.headers.host + req.originalUrl;	
 	// Note: req.headers.host is only HTTP-level convention - not TCP/IP truth
 
+	// DEBUG - a Node.js/JS experiment on hold here
 	// We can't seem to test for a req.body that prints as "{}".
 	if ( false )
 	{
@@ -183,10 +191,20 @@ function req_asString( req )
 // =============================================================================
 // Return an Array of Stings containing the Base64 encoded names of all
 // the GCL's available on this system
+//
+// If gdp_gcl_path is not present or undefined, then use the default path
+// for the local GDP's GCL directory; otherwise, use gdp_gcl_path as the
+// path for that directory.
+// Returns null if there are any errors; e.g., error on file/directory read.
+//
+// Note, this only returns reliable results if the, currently, one-and-only-one
+// GDP daemon is running locally.  Additionally, this function is dependent
+// on internal GDP GCL directory and filename storage details.
 // TBD: Note comments on hard-wired path name GDP_GCL_ABSPATH.
+// TBD: Better method of error return and better error info.
 
-/* Array of Strings */
-function get_gcl_base64_namesSync( )
+/* Array of Strings | null */
+function get_gcl_base64_namesSync( gdp_gcl_path )
 {
 	// This GET REST API awaits support by libgdp. We rely on internal
 	// implementation detail here.
@@ -196,9 +214,23 @@ function get_gcl_base64_namesSync( )
 	//      from libgdp or, more generally, from the currently running local
 	//      gdp daemon(s)?
 	var GDP_GCL_ABSPATH = '/var/tmp/gcl';
+	var gcl_files = "";  // TBD: make sure this falls through on errors
+
+    if( (typeof gdp_gcl_path) === 'undefined' )
+	{ gdp_gcl_path = GDP_GCL_ABSPATH; }
 
 	// TBD: consider asynch??
-	var gcl_files = fs.readdirSync( GDP_GCL_ABSPATH );
+	try
+	{	// TBD: check for error on fs.readdirSync;
+		//      e.g., Error: ENOENT, no such file or directory
+		gcl_files = fs.readdirSync( gdp_gcl_path );
+	} catch(e)
+	{	// gcl_files will be ""
+		// DEBUG
+		// console.log("name:" + e.name + "\nmessage:" + e.message)
+		// console.log( 'gcl_files = ' + gcl_files );
+		return null;
+	}
 	// will hold gcl file names changed to gcl Base64 encoded String names
 	var gcl_names = [];
 	var j = 0;

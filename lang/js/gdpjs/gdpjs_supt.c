@@ -187,6 +187,7 @@ gdp_get_printable_name_from_gclh( const gdp_gcl_t *gclh )
 
 // Variant of ep_time_print(const EP_TIME_SPEC *tv, FILE *fp, bool human)
 // that doesn't print a timestamp; rather returns it as a string.
+// Wraps ep/ep_time.h ep_time_format()
 //
 // format a time string to a file
 // extern void
