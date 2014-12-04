@@ -112,7 +112,7 @@ typedef struct gdp_req
 	bool				postproc:1;	// invoke callback for late cmd processing
 	bool				ongcllist:1;	// this is on a gcl list
 	bool				onchanlist:1;	// this is on a channel list
-	gdp_gcl_t			*gclh;		// the corresponding GCL handle
+	gdp_gcl_t			*gcl;		// the corresponding GCL handle
 	gdp_pkt_t			*pkt;		// packet buffer
 	gdp_chan_t			*chan;		// the network channel for this req
 	EP_STAT				stat;		// status code from last operation
@@ -132,8 +132,8 @@ typedef struct gdp_req
 #define GDP_REQ_PERSIST			0x00000004	// request persists after response
 #define GDP_REQ_SUBUPGRADE		0x00000008	// can upgrade to subscription
 
-extern gdp_req_t	*_gdp_req_find(gdp_gcl_t *gclh, gdp_rid_t rid);
-extern gdp_rid_t	_gdp_rid_new(gdp_gcl_t *gclh);
+extern gdp_req_t	*_gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid);
+extern gdp_rid_t	_gdp_rid_new(gdp_gcl_t *gcl);
 
 
 /*
@@ -175,29 +175,29 @@ gdp_gcl_t		*_gdp_gcl_cache_get(		// get entry from cache
 						gdp_iomode_t mode);
 
 void			_gdp_gcl_cache_add(			// add entry to cache
-						gdp_gcl_t *gclh,
+						gdp_gcl_t *gcl,
 						gdp_iomode_t mode);
 
 void			_gdp_gcl_cache_drop(		// drop entry from cache
-						gdp_gcl_t *gclh);
+						gdp_gcl_t *gcl);
 
 EP_STAT			_gdp_gcl_cache_init(void);	// initialize cache
 
 void			_gdp_gcl_incref(			// increase reference count
-						gdp_gcl_t *gclh);
+						gdp_gcl_t *gcl);
 
 void			_gdp_gcl_decref(			// decrease reference count
-						gdp_gcl_t *gclh);
+						gdp_gcl_t *gcl);
 
 EP_STAT			_gdp_gcl_newhandle(			// create new in-mem handle
 						gcl_name_t gcl_name,
-						gdp_gcl_t **gclhp);
+						gdp_gcl_t **gclp);
 
 void			_gdp_gcl_freehandle(		// free in-memory handle
-						gdp_gcl_t *gclh);
+						gdp_gcl_t *gcl);
 
 void			_gdp_gcl_newname(			// create a new name
-						gdp_gcl_t *gclh);
+						gdp_gcl_t *gcl);
 
 const char		*_gdp_proto_cmd_name(		// return printable cmd name
 						uint8_t cmd);
@@ -211,7 +211,7 @@ EP_STAT			_gdp_do_init(bool run_event_loop);
 
 EP_STAT			_gdp_req_new(				// create new request
 						int cmd,
-						gdp_gcl_t *gclh,
+						gdp_gcl_t *gcl,
 						gdp_chan_t *chan,
 						uint32_t flags,
 						gdp_req_t **reqp);

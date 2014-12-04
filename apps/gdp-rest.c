@@ -364,7 +364,7 @@ error501(scgi_request *req, const char *detail)
 EP_STAT
 a_new_gcl(scgi_request *req, const char *name)
 {
-	gdp_gcl_t *gclh;
+	gdp_gcl_t *gcl;
 	EP_STAT estat;
 
 	ep_dbg_cprintf(Dbg, 5, "=== Create new GCL (%s)\n",
@@ -375,11 +375,11 @@ a_new_gcl(scgi_request *req, const char *name)
 		gcl_name_t gclname;
 
 		gdp_gcl_parse_name(name, gclname);
-		estat = gdp_gcl_create(gclname, NULL, &gclh);
+		estat = gdp_gcl_create(gclname, NULL, &gcl);
 	}
 	else
 	{
-		estat = gdp_gcl_create(NULL, NULL, &gclh);
+		estat = gdp_gcl_create(NULL, NULL, &gcl);
 	}
 	if (EP_STAT_ISOK(estat))
 	{
@@ -390,7 +390,7 @@ a_new_gcl(scgi_request *req, const char *name)
 		char *jbuf;
 
 		// return the name of the GCL
-		nname = gdp_gcl_getname(gclh);
+		nname = gdp_gcl_getname(gcl);
 		gdp_gcl_printable_name(*nname, nbuf);
 		json_object_set_nocheck(j, "gcl_name", json_string(nbuf));
 
@@ -509,13 +509,13 @@ EP_STAT
 a_read_datum(scgi_request *req, gcl_name_t gcliname, gdp_recno_t recno)
 {
 	EP_STAT estat;
-	gdp_gcl_t *gclh = NULL;
+	gdp_gcl_t *gcl = NULL;
 	gdp_datum_t *datum = gdp_datum_new();
 
-	estat = gdp_gcl_open(gcliname, GDP_MODE_RO, &gclh);
+	estat = gdp_gcl_open(gcliname, GDP_MODE_RO, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	estat = gdp_gcl_read(gclh, recno, datum);
+	estat = gdp_gcl_read(gcl, recno, datum);
 	if (!EP_STAT_ISOK(estat))
 		goto fail0;
 
@@ -584,7 +584,7 @@ a_read_datum(scgi_request *req, gcl_name_t gcliname, gdp_recno_t recno)
 
 	// finished
 	gdp_datum_free(datum);
-	gdp_gcl_close(gclh);
+	gdp_gcl_close(gcl);
 	return estat;
 
 fail0:
@@ -597,8 +597,8 @@ fail0:
 				"GCL", gclpname,
 				"reason", ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
-	if (gclh != NULL)
-		gdp_gcl_close(gclh);
+	if (gcl != NULL)
+		gdp_gcl_close(gcl);
 	return estat;
 }
 

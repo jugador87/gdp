@@ -45,22 +45,22 @@ EP_STAT
 _gdp_req_send(gdp_req_t *req)
 {
 	EP_STAT estat;
-	gdp_gcl_t *gclh = req->gclh;
+	gdp_gcl_t *gcl = req->gcl;
 
 	ep_dbg_cprintf(Dbg, 45, "gdp_req_send: cmd=%d (%s), req=%p\n",
 			req->pkt->cmd, _gdp_proto_cmd_name(req->pkt->cmd), req);
-	EP_ASSERT(gclh != NULL);
+	EP_ASSERT(gcl != NULL);
 
 	// link the request to the GCL
-	ep_thr_mutex_lock(&gclh->mutex);
+	ep_thr_mutex_lock(&gcl->mutex);
 	EP_ASSERT(!req->ongcllist);
-	LIST_INSERT_HEAD(&gclh->reqs, req, gcllist);
+	LIST_INSERT_HEAD(&gcl->reqs, req, gcllist);
 	req->ongcllist = true;
-	ep_thr_mutex_unlock(&gclh->mutex);
+	ep_thr_mutex_unlock(&gcl->mutex);
 
 	// register this handle so we can process the results
 	//		(it's likely that it's already in the cache)
-	_gdp_gcl_cache_add(gclh, 0);
+	_gdp_gcl_cache_add(gcl, 0);
 
 	// write the message out
 	estat = _gdp_pkt_out(req->pkt, req->chan);
@@ -88,11 +88,11 @@ _gdp_invoke(gdp_req_t *req)
 	EP_ASSERT_POINTER_VALID(req);
 	if (ep_dbg_test(Dbg, 22))
 	{
-		ep_dbg_printf("gdp_invoke(%p): cmd=%d (%s)\n    gclh@%p: ",
+		ep_dbg_printf("gdp_invoke(%p): cmd=%d (%s)\n    gcl@%p: ",
 				req,
 				req->pkt->cmd,
 				_gdp_proto_cmd_name(req->pkt->cmd),
-				req->gclh);
+				req->gcl);
 		gdp_datum_print(req->pkt->datum, ep_dbg_getfile());
 	}
 
@@ -158,7 +158,7 @@ static EP_STAT
 ack_success(gdp_req_t *req)
 {
 	EP_STAT estat;
-	gdp_gcl_t *gclh;
+	gdp_gcl_t *gcl;
 
 	// we require a request
 	estat = GDP_STAT_PROTOCOL_FAIL;
@@ -170,14 +170,14 @@ ack_success(gdp_req_t *req)
 		estat = GDP_STAT_FROM_ACK(req->pkt->cmd);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	gclh = req->gclh;
+	gcl = req->gcl;
 
 	//	If we started with no gcl id, adopt from incoming packet.
 	//	This can happen when creating a GCL.
-	if (gclh != NULL && gdp_gcl_name_is_zero(gclh->gcl_name))
+	if (gcl != NULL && gdp_gcl_name_is_zero(gcl->gcl_name))
 	{
-		memcpy(gclh->gcl_name, req->pkt->gcl_name, sizeof gclh->gcl_name);
-		gdp_gcl_printable_name(gclh->gcl_name, gclh->pname);
+		memcpy(gcl->gcl_name, req->pkt->gcl_name, sizeof gcl->gcl_name);
+		gdp_gcl_printable_name(gcl->gcl_name, gcl->pname);
 	}
 
 fail0:
@@ -538,14 +538,14 @@ static EP_STAT
 process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 {
 	EP_STAT estat;
-	gdp_gcl_t *gclh = NULL;
+	gdp_gcl_t *gcl = NULL;
 	gdp_req_t *req = NULL;
 
 	// find the handle for the associated GCL
 	if (EP_UT_BITSET(GDP_PKT_HAS_ID, pkt->flags))
 	{
-		gclh = _gdp_gcl_cache_get(pkt->gcl_name, 0);
-		if (gclh == NULL)
+		gcl = _gdp_gcl_cache_get(pkt->gcl_name, 0);
+		if (gcl == NULL)
 		{
 			gcl_pname_t pbuf;
 
@@ -555,15 +555,15 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		else
 		{
 			// find the request
-			req = _gdp_req_find(gclh, pkt->rid);
+			req = _gdp_req_find(gcl, pkt->rid);
 		}
 	}
 
 	if (req == NULL)
 	{
 		ep_dbg_cprintf(Dbg, 43,
-				"gdp_read_cb: allocating new req for gclh %p\n", gclh);
-		estat = _gdp_req_new(pkt->cmd, gclh, chan, 0, &req);
+				"gdp_read_cb: allocating new req for gcl %p\n", gcl);
+		estat = _gdp_req_new(pkt->cmd, gcl, chan, 0, &req);
 		if (!EP_STAT_ISOK(estat))
 		{
 			ep_log(estat, "gdp_read_cb: cannot allocate request; dropping packet");
@@ -642,7 +642,7 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		EP_STAT_CHECK(estat, goto fail1);
 
 		gev->type = evtype;
-		gev->gcl = req->gclh;
+		gev->gcl = req->gcl;
 		gev->datum = req->pkt->datum;
 		gev->udata = req->udata;
 		req->pkt->datum = NULL;			// avoid use after free

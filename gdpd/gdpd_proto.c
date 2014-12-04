@@ -78,15 +78,15 @@ EP_STAT
 cmd_create(gdp_req_t *req)
 {
 	EP_STAT estat;
-	gdp_gcl_t *gclh;
+	gdp_gcl_t *gcl;
 	gdp_gclmd_t *gmd;
 
 	req->pkt->cmd = GDP_ACK_CREATED;
 
 	// get the memory space
-	estat = gcl_alloc(req->pkt->gcl_name, GDP_MODE_AO, &gclh);
+	estat = gcl_alloc(req->pkt->gcl_name, GDP_MODE_AO, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
-	req->gclh = gclh;			// for debugging
+	req->gcl = gcl;			// for debugging
 
 	// collect metadata, if any
 	gmd = _gdp_gclmd_deserialize(req->pkt->datum->dbuf);
@@ -95,24 +95,24 @@ cmd_create(gdp_req_t *req)
 	flush_input_data(req, "cmd_create");
 
 	// do the physical create
-	estat = gcl_physcreate(gclh, gmd);
+	estat = gcl_physcreate(gcl, gmd);
 	gdp_gclmd_free(gmd);
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// cache the open GCL Handle for possible future use
-	EP_ASSERT_INSIST(!gdp_gcl_name_is_zero(gclh->gcl_name));
-	_gdp_gcl_cache_add(gclh, GDP_MODE_AO);
+	EP_ASSERT_INSIST(!gdp_gcl_name_is_zero(gcl->gcl_name));
+	_gdp_gcl_cache_add(gcl, GDP_MODE_AO);
 
 	// pass any creation info back to the caller
 	// (none at this point)
 
 	// release resources
-	_gdp_gcl_decref(gclh);
-	req->gclh = NULL;
+	_gdp_gcl_decref(gcl);
+	req->gcl = NULL;
 	return estat;
 
 fail1:
-	_gdp_gcl_freehandle(gclh);
+	_gdp_gcl_freehandle(gcl);
 
 fail0:
 	return estat;
@@ -141,9 +141,9 @@ cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 							estat, GDP_NAK_C_BADREQ);
 	}
 
-	req->pkt->datum->recno = gcl_max_recno(req->gclh);
-	_gdp_gcl_decref(req->gclh);
-	req->gclh = NULL;
+	req->pkt->datum->recno = gcl_max_recno(req->gcl);
+	_gdp_gcl_decref(req->gcl);
+	req->gcl = NULL;
 	return estat;
 }
 
@@ -188,9 +188,9 @@ cmd_close(gdp_req_t *req)
 		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_close: GCL not open",
 							estat, GDP_NAK_C_BADREQ);
 	}
-	req->pkt->datum->recno = gcl_max_recno(req->gclh);
-	_gdp_gcl_decref(req->gclh);
-	req->gclh = NULL;
+	req->pkt->datum->recno = gcl_max_recno(req->gcl);
+	_gdp_gcl_decref(req->gcl);
+	req->gcl = NULL;
 
 	return estat;
 }
@@ -223,7 +223,7 @@ cmd_read(gdp_req_t *req)
 	// handle record numbers relative to the end
 	if (req->pkt->datum->recno <= 0)
 	{
-		req->pkt->datum->recno += gcl_max_recno(req->gclh) + 1;
+		req->pkt->datum->recno += gcl_max_recno(req->gcl) + 1;
 		if (req->pkt->datum->recno <= 0)
 		{
 			// can't read before the beginning
@@ -232,12 +232,12 @@ cmd_read(gdp_req_t *req)
 	}
 
 	gdp_buf_reset(req->pkt->datum->dbuf);
-	estat = gcl_physread(req->gclh, req->pkt->datum);
+	estat = gcl_physread(req->gcl, req->pkt->datum);
 
 	if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
 		estat = GDP_STAT_NAK_NOTFOUND;
-	_gdp_gcl_decref(req->gclh);
-	req->gclh = NULL;
+	_gdp_gcl_decref(req->gcl);
+	req->gcl = NULL;
 	return estat;
 }
 
@@ -266,7 +266,7 @@ cmd_publish(gdp_req_t *req)
 	estat = ep_time_now(&req->pkt->datum->ts);
 
 	// create the message
-	estat = gcl_physappend(req->gclh, req->pkt->datum);
+	estat = gcl_physappend(req->gcl, req->pkt->datum);
 
 	// send the new data to any subscribers
 	if (EP_STAT_ISOK(estat))
@@ -277,8 +277,8 @@ cmd_publish(gdp_req_t *req)
 			evbuffer_get_length(req->pkt->datum->dbuf));
 
 	// we're no longer using this handle
-	_gdp_gcl_decref(req->gclh);
-	req->gclh = NULL;
+	_gdp_gcl_decref(req->gcl);
+	req->gcl = NULL;
 
 	return estat;
 }
@@ -308,14 +308,14 @@ post_subscribe(gdp_req_t *req)
 	while (req->numrecs >= 0)
 	{
 		// see if data pre-exists in the GCL
-		if (req->pkt->datum->recno > gcl_max_recno(req->gclh))
+		if (req->pkt->datum->recno > gcl_max_recno(req->gcl))
 		{
 			// no, it doesn't; convert to long-term subscription
 			break;
 		}
 
 		// get the next record and return it as an event
-		estat = gcl_physread(req->gclh, req->pkt->datum);
+		estat = gcl_physread(req->gcl, req->pkt->datum);
 		if (EP_STAT_ISOK(estat))
 		{
 			// OK, the next record exists: send it
@@ -360,11 +360,11 @@ post_subscribe(gdp_req_t *req)
 		req->flags |= GDP_REQ_SUBSCRIPTION;
 
 		// link this request into the GCL so the subscription can be found
-		ep_thr_mutex_lock(&req->gclh->mutex);
+		ep_thr_mutex_lock(&req->gcl->mutex);
 		EP_ASSERT(!req->ongcllist);
-		LIST_INSERT_HEAD(&req->gclh->reqs, req, gcllist);
+		LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
 		req->ongcllist = true;
-		ep_thr_mutex_unlock(&req->gclh->mutex);
+		ep_thr_mutex_unlock(&req->gcl->mutex);
 	}
 }
 
@@ -412,7 +412,7 @@ cmd_subscribe(gdp_req_t *req)
 	{
 		ep_dbg_printf("cmd_subscribe: first = %" PRIgdp_recno ", numrecs = %d\n  ",
 				req->pkt->datum->recno, req->numrecs);
-		gdp_gcl_print(req->gclh, ep_dbg_getfile(), 1, 0);
+		gdp_gcl_print(req->gcl, ep_dbg_getfile(), 1, 0);
 	}
 
 	// should have no more input data; ignore anything there
@@ -430,7 +430,7 @@ cmd_subscribe(gdp_req_t *req)
 	// get our starting point, which may be relative to the end
 	if (req->pkt->datum->recno <= 0)
 	{
-		req->pkt->datum->recno += gcl_max_recno(req->gclh) + 1;
+		req->pkt->datum->recno += gcl_max_recno(req->gcl) + 1;
 		if (req->pkt->datum->recno <= 0)
 		{
 			// still starts before beginning; start from beginning
@@ -443,7 +443,7 @@ cmd_subscribe(gdp_req_t *req)
 			req->pkt->datum->recno, req->numrecs);
 
 	// if some of the records already exist, arrange to return them
-	if (req->pkt->datum->recno <= gcl_max_recno(req->gclh))
+	if (req->pkt->datum->recno <= gcl_max_recno(req->gcl))
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: doing post processing\n");
 		req->cb.gdpd = &post_subscribe;
@@ -456,11 +456,11 @@ cmd_subscribe(gdp_req_t *req)
 		req->flags |= GDP_REQ_SUBSCRIPTION;
 
 		// link this request into the GCL so the subscription can be found
-		ep_thr_mutex_lock(&req->gclh->mutex);
+		ep_thr_mutex_lock(&req->gcl->mutex);
 		EP_ASSERT(!req->ongcllist);
-		LIST_INSERT_HEAD(&req->gclh->reqs, req, gcllist);
+		LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
 		req->ongcllist = true;
-		ep_thr_mutex_unlock(&req->gclh->mutex);
+		ep_thr_mutex_unlock(&req->gcl->mutex);
 	}
 
 	// we don't drop the GCL reference until the subscription is satisified
@@ -499,7 +499,7 @@ cmd_multiread(gdp_req_t *req)
 	{
 		ep_dbg_printf("cmd_multiread: first = %" PRIgdp_recno ", numrecs = %d\n  ",
 				req->pkt->datum->recno, req->numrecs);
-		gdp_gcl_print(req->gclh, ep_dbg_getfile(), 1, 0);
+		gdp_gcl_print(req->gcl, ep_dbg_getfile(), 1, 0);
 	}
 
 	// should have no more input data; ignore anything there
@@ -508,7 +508,7 @@ cmd_multiread(gdp_req_t *req)
 	// get our starting point, which may be relative to the end
 	if (req->pkt->datum->recno <= 0)
 	{
-		req->pkt->datum->recno += gcl_max_recno(req->gclh) + 1;
+		req->pkt->datum->recno += gcl_max_recno(req->gcl) + 1;
 		if (req->pkt->datum->recno <= 0)
 		{
 			// still starts before beginning; start from beginning
@@ -525,7 +525,7 @@ cmd_multiread(gdp_req_t *req)
 	// get our starting point, which may be relative to the end
 	if (req->pkt->datum->recno <= 0)
 	{
-		req->pkt->datum->recno += gcl_max_recno(req->gclh) + 1;
+		req->pkt->datum->recno += gcl_max_recno(req->gcl) + 1;
 		if (req->pkt->datum->recno <= 0)
 		{
 			// still starts before beginning; start from beginning
@@ -538,14 +538,14 @@ cmd_multiread(gdp_req_t *req)
 			req->pkt->datum->recno, req->numrecs);
 
 	// if some of the records already exist, arrange to return them
-	if (req->pkt->datum->recno <= gcl_max_recno(req->gclh))
+	if (req->pkt->datum->recno <= gcl_max_recno(req->gcl))
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_multiread: doing post processing\n");
 		req->cb.gdpd = &post_subscribe;
 		req->postproc = true;
 
 		// make this a "snapshot", i.e., don't read additional records
-		int32_t nrec = gcl_max_recno(req->gclh) - req->pkt->datum->recno;
+		int32_t nrec = gcl_max_recno(req->gcl) - req->pkt->datum->recno;
 		if (nrec < req->numrecs || req->numrecs == 0)
 			req->numrecs = nrec + 1;
 
@@ -559,11 +559,11 @@ cmd_multiread(gdp_req_t *req)
 		req->flags |= GDP_REQ_SUBSCRIPTION;
 
 		// link this request into the GCL so the subscription can be found
-		ep_thr_mutex_lock(&req->gclh->mutex);
+		ep_thr_mutex_lock(&req->gcl->mutex);
 		EP_ASSERT(!req->ongcllist);
-		LIST_INSERT_HEAD(&req->gclh->reqs, req, gcllist);
+		LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
 		req->ongcllist = true;
-		ep_thr_mutex_unlock(&req->gclh->mutex);
+		ep_thr_mutex_unlock(&req->gcl->mutex);
 	}
 
 	return EP_STAT_OK;
@@ -600,15 +600,15 @@ cmd_getmetadata(gdp_req_t *req)
 	}
 
 	// get the metadata into memory
-	estat = gcl_physgetmetadata(req->gclh, &gmd);
+	estat = gcl_physgetmetadata(req->gcl, &gmd);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// serialize it to the client
 	_gdp_gclmd_serialize(gmd, req->pkt->datum->dbuf);
 
 fail0:
-	_gdp_gcl_decref(req->gclh);
-	req->gclh = NULL;
+	_gdp_gcl_decref(req->gcl);
+	req->gcl = NULL;
 	return estat;
 }
 

@@ -16,39 +16,39 @@ EP_THR_MUTEX			GclsByUseMutex EP_THR_MUTEX_INITIALIZER;
 */
 
 EP_STAT
-gcl_alloc(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
+gcl_alloc(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
 {
 	EP_STAT estat;
-	gdp_gcl_t *gclh;
+	gdp_gcl_t *gcl;
 	struct timeval tv;
-	extern void gcl_close(gdp_gcl_t *gclh);
+	extern void gcl_close(gdp_gcl_t *gcl);
 
 	// get the standard handle
-	estat = _gdp_gcl_newhandle(gcl_name, &gclh);
+	estat = _gdp_gcl_newhandle(gcl_name, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
-	gclh->iomode = iomode;
+	gcl->iomode = iomode;
 
 	// add the gdpd-specific information
-	gclh->x = ep_mem_zalloc(sizeof *gclh->x);
-	if (gclh->x == NULL)
+	gcl->x = ep_mem_zalloc(sizeof *gcl->x);
+	if (gcl->x == NULL)
 	{
 		estat = EP_STAT_OUT_OF_MEMORY;
 		goto fail0;
 	}
-	gclh->x->gcl = gclh;
+	gcl->x->gcl = gcl;
 	gettimeofday(&tv, NULL);
-	gclh->x->utime = tv.tv_sec;
+	gcl->x->utime = tv.tv_sec;
 
 	// link it into the usage chain
 	ep_thr_mutex_lock(&GclsByUseMutex);
-	LIST_INSERT_HEAD(&GclsByUse, gclh->x, ulist);
+	LIST_INSERT_HEAD(&GclsByUse, gcl->x, ulist);
 	ep_thr_mutex_unlock(&GclsByUseMutex);
 
 	// make sure that if this is freed it gets removed from GclsByUse
-	gclh->freefunc = gcl_close;
+	gcl->freefunc = gcl_close;
 
 	// OK, return the value
-	*pgclh = gclh;
+	*pgcl = gcl;
 
 fail0:
 	return estat;
@@ -60,24 +60,24 @@ fail0:
 */
 
 EP_STAT
-gcl_open(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgclh)
+gcl_open(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
 {
 	EP_STAT estat;
-	gdp_gcl_t *gclh;
+	gdp_gcl_t *gcl;
 
-	estat = gcl_alloc(gcl_name, iomode, &gclh);
+	estat = gcl_alloc(gcl_name, iomode, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// so far, so good...  do the physical open
-	estat = gcl_physopen(gclh);
+	estat = gcl_physopen(gcl);
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// success!
-	*pgclh = gclh;
+	*pgcl = gcl;
 	return estat;
 
 fail1:
-	_gdp_gcl_freehandle(gclh);
+	_gdp_gcl_freehandle(gcl);
 fail0:
 	return estat;
 }
@@ -91,24 +91,24 @@ fail0:
 */
 
 void
-gcl_close(gdp_gcl_t *gclh)
+gcl_close(gdp_gcl_t *gcl)
 {
-	if (gclh->x == NULL)
+	if (gcl->x == NULL)
 		return;
 
 	// remove it from the ByUse chain
-	if (!gclh->x->islocked)
+	if (!gcl->x->islocked)
 		ep_thr_mutex_lock(&GclsByUseMutex);
-	LIST_REMOVE(gclh->x, ulist);
-	if (!gclh->x->islocked)
+	LIST_REMOVE(gcl->x, ulist);
+	if (!gcl->x->islocked)
 	ep_thr_mutex_unlock(&GclsByUseMutex);
 
 	// close the underlying files
-	if (gclh->x->fp != NULL)
-		gcl_physclose(gclh);
+	if (gcl->x->fp != NULL)
+		gcl_physclose(gcl);
 
-	ep_mem_free(gclh->x);
-	gclh->x = NULL;
+	ep_mem_free(gcl->x);
+	gcl->x = NULL;
 }
 
 
@@ -117,20 +117,20 @@ gcl_close(gdp_gcl_t *gclh)
 */
 
 void
-gcl_touch(gdp_gcl_t *gclh)
+gcl_touch(gdp_gcl_t *gcl)
 {
 	struct timeval tv;
 
-	ep_dbg_cprintf(Dbg, 46, "gcl_touch(%p)\n", gclh);
+	ep_dbg_cprintf(Dbg, 46, "gcl_touch(%p)\n", gcl);
 
 	// mark the current time
 	gettimeofday(&tv, NULL);
-	gclh->x->utime = tv.tv_sec;
+	gcl->x->utime = tv.tv_sec;
 
 	// move this entry to the front of the usage list
 	ep_thr_mutex_lock(&GclsByUseMutex);
-	LIST_REMOVE(gclh->x, ulist);
-	LIST_INSERT_HEAD(&GclsByUse, gclh->x, ulist);
+	LIST_REMOVE(gcl->x, ulist);
+	LIST_INSERT_HEAD(&GclsByUse, gcl->x, ulist);
 	ep_thr_mutex_unlock(&GclsByUseMutex);
 }
 
@@ -161,11 +161,11 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 {
 	EP_STAT estat;
 
-	EP_ASSERT(req->gclh == NULL);
+	EP_ASSERT(req->gcl == NULL);
 
 	// see if we can find the handle in the cache
-	req->gclh = _gdp_gcl_cache_get(req->pkt->gcl_name, iomode);
-	if (req->gclh != NULL)
+	req->gcl = _gdp_gcl_cache_get(req->pkt->gcl_name, iomode);
+	if (req->gcl != NULL)
 	{
 		if (ep_dbg_test(Dbg, 40))
 		{
@@ -173,11 +173,11 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 
 			gdp_gcl_printable_name(req->pkt->gcl_name, pname);
 			ep_dbg_printf("get_open_handle: using cached GCL:\n\t%s => %p\n",
-					pname, req->gclh);
+					pname, req->gcl);
 		}
 
 		// mark it as most recently used
-		gcl_touch(req->gclh);
+		gcl_touch(req->gcl);
 		return EP_STAT_OK;
 	}
 
@@ -189,9 +189,9 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 		gdp_gcl_printable_name(req->pkt->gcl_name, pname);
 		ep_dbg_printf("get_open_handle: opening %s\n", pname);
 	}
-	estat = gcl_open(req->pkt->gcl_name, iomode, &req->gclh);
+	estat = gcl_open(req->pkt->gcl_name, iomode, &req->gcl);
 	if (EP_STAT_ISOK(estat))
-		_gdp_gcl_cache_add(req->gclh, iomode);
+		_gdp_gcl_cache_add(req->gcl, iomode);
 	if (ep_dbg_test(Dbg, 40))
 	{
 		gcl_pname_t pname;
@@ -200,7 +200,7 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 		gdp_gcl_printable_name(req->pkt->gcl_name, pname);
 		ep_stat_tostr(estat, ebuf, sizeof ebuf);
 		ep_dbg_printf("get_open_handle: %s:\n\t@%p: %s\n",
-				pname, req->gclh, ebuf);
+				pname, req->gcl, ebuf);
 	}
 	return estat;
 }

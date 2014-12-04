@@ -54,7 +54,7 @@ sub_notify_all_subscribers(gdp_req_t *pubreq)
 		_gdp_req_dump(pubreq, ep_dbg_getfile());
 	}
 
-	LIST_FOREACH(req, &pubreq->gclh->reqs, gcllist)
+	LIST_FOREACH(req, &pubreq->gcl->reqs, gcllist)
 	{
 		// make sure we don't tell ourselves
 		if (req == pubreq)
@@ -78,13 +78,13 @@ sub_end_subscription(gdp_req_t *req)
 	req->flags &= ~(GDP_REQ_PERSIST | GDP_REQ_SUBSCRIPTION);
 
 	// remove the request from the work list
-	ep_thr_mutex_lock(&req->gclh->mutex);
+	ep_thr_mutex_lock(&req->gcl->mutex);
 	if (req->ongcllist)
 		LIST_REMOVE(req, gcllist);
 	req->ongcllist = false;
-	ep_thr_mutex_unlock(&req->gclh->mutex);
+	ep_thr_mutex_unlock(&req->gcl->mutex);
 
-	// _gdp_gcl_decref(req->gclh) will happen in gdpd_req_thread cleanup
+	// _gdp_gcl_decref(req->gcl) will happen in gdpd_req_thread cleanup
 
 	// send an "end of subscription" event
 	req->pkt->cmd = GDP_ACK_DELETED;

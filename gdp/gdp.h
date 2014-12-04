@@ -142,20 +142,20 @@ extern EP_STAT	gdp_gcl_create(
 extern EP_STAT	gdp_gcl_open(
 					gcl_name_t name,		// GCL name to open
 					gdp_iomode_t rw,		// read/write (append)
-					gdp_gcl_t **gclh);		// pointer to result GCL handle
+					gdp_gcl_t **gcl);		// pointer to result GCL handle
 
 // close an open GCL
 extern EP_STAT	gdp_gcl_close(
-					gdp_gcl_t *gclh);		// GCL handle to close
+					gdp_gcl_t *gcl);		// GCL handle to close
 
 // append to a writable GCL
 extern EP_STAT	gdp_gcl_publish(
-					gdp_gcl_t *gclh,		// writable GCL handle
+					gdp_gcl_t *gcl,			// writable GCL handle
 					gdp_datum_t *);			// message to write
 
 // read from a readable GCL
 extern EP_STAT	gdp_gcl_read(
-					gdp_gcl_t *gclh,		// readable GCL handle
+					gdp_gcl_t *gcl,			// readable GCL handle
 					gdp_recno_t recno,		// GCL record number
 					gdp_datum_t *datum);	// pointer to result message
 
@@ -165,7 +165,7 @@ typedef void	(*gdp_gcl_sub_cbfunc_t)(  // the callback function
 					gdp_event_t *ev);		// the event triggering the call
 
 extern EP_STAT	gdp_gcl_subscribe(
-					gdp_gcl_t *gclh,		// readable GCL handle
+					gdp_gcl_t *gcl,			// readable GCL handle
 					gdp_recno_t start,		// first record to retrieve
 					int32_t numrecs,		// number of records to retrieve
 					EP_TIME_SPEC *timeout,	// timeout
@@ -175,7 +175,7 @@ extern EP_STAT	gdp_gcl_subscribe(
 
 // read multiple records (no subscriptions)
 extern EP_STAT	gdp_gcl_multiread(
-					gdp_gcl_t *gclh,		// readable GCL handle
+					gdp_gcl_t *gcl,			// readable GCL handle
 					gdp_recno_t start,		// first record to retrieve
 					int32_t numrecs,		// number of records to retrieve
 					gdp_gcl_sub_cbfunc_t cbfunc,
@@ -190,14 +190,15 @@ extern EP_STAT	gdp_gcl_getmetadata(
 // return the name of a GCL
 //		XXX: should this be in a more generic "getstat" function?
 extern const gcl_name_t *gdp_gcl_getname(
-					const gdp_gcl_t *gclh);		// open GCL handle
+					const gdp_gcl_t *gcl);	// open GCL handle
 
 // check to see if a GCL name is valid
-extern bool		gdp_gcl_name_is_zero(const gcl_name_t);
+extern bool		gdp_gcl_name_is_zero(
+					const gcl_name_t);
 
 // print a GCL (for debugging)
 extern void		gdp_gcl_print(
-					const gdp_gcl_t *gclh,	// GCL handle to print
+					const gdp_gcl_t *gcl,	// GCL handle to print
 					FILE *fp,				// file to print it to
 					int detail,				// not used at this time
 					int indent);			// not used at this time

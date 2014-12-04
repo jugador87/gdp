@@ -56,18 +56,18 @@ struct gdp_gcl_xtra
 extern EP_STAT	gcl_alloc(				// allocate a new GCL
 					gcl_name_t gcl_name,
 					gdp_iomode_t iomode,
-					gdp_gcl_t **pgclh);
+					gdp_gcl_t **pgcl);
 
 extern EP_STAT	gcl_open(				// open an existing physical GCL
 					gcl_name_t gcl_name,
 					gdp_iomode_t iomode,
-					gdp_gcl_t **pgclh);
+					gdp_gcl_t **pgcl);
 
 extern void		gcl_close(				// close an open GCL
-					gdp_gcl_t *gclh);
+					gdp_gcl_t *gcl);
 
 extern void		gcl_touch(				// make a GCL recently used
-					gdp_gcl_t *gclh);
+					gdp_gcl_t *gcl);
 
 extern void		gcl_showusage(			// show GCL LRU list
 					FILE *fp);

@@ -32,7 +32,7 @@
 */
 
 EP_STAT
-do_simpleread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int numrecs)
+do_simpleread(gdp_gcl_t *gcl, gdp_recno_t firstrec, int numrecs)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gdp_recno_t recno;
@@ -51,7 +51,7 @@ do_simpleread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int numrecs)
 	while (numrecs < 0 || --numrecs >= 0)
 	{
 		// ask the GDP to give us a record
-		estat = gdp_gcl_read(gclh, recno, datum);
+		estat = gdp_gcl_read(gcl, recno, datum);
 
 		// make sure it did; if not, break out of the loop
 		EP_STAT_CHECK(estat, break);
@@ -129,7 +129,7 @@ multiread_cb(gdp_event_t *gev)
 */
 
 EP_STAT
-do_multiread(gdp_gcl_t *gclh,
+do_multiread(gdp_gcl_t *gcl,
 		gdp_recno_t firstrec,
 		int32_t numrecs,
 		bool subscribe,
@@ -144,7 +144,7 @@ do_multiread(gdp_gcl_t *gclh,
 	if (subscribe)
 	{
 		// start up a subscription
-		estat = gdp_gcl_subscribe(gclh, firstrec, numrecs, NULL, cbfunc, NULL);
+		estat = gdp_gcl_subscribe(gcl, firstrec, numrecs, NULL, cbfunc, NULL);
 	}
 	else
 	{
@@ -153,7 +153,7 @@ do_multiread(gdp_gcl_t *gclh,
 			firstrec = 1;
 
 		// start up a multiread
-		estat = gdp_gcl_multiread(gclh, firstrec, numrecs, cbfunc, NULL);
+		estat = gdp_gcl_multiread(gcl, firstrec, numrecs, cbfunc, NULL);
 	}
 
 	// check to make sure the subscribe/multiread succeeded; if not, bail
@@ -227,7 +227,7 @@ fail0:
 int
 main(int argc, char **argv)
 {
-	gdp_gcl_t *gclh;
+	gdp_gcl_t *gcl;
 	EP_STAT estat;
 	char buf[200];
 	gcl_name_t gclname;
@@ -331,7 +331,7 @@ main(int argc, char **argv)
 	fprintf(stdout, "Reading GCL %s\n", gclpname);
 
 	// open the GCL; arguably this shouldn't be necessary
-	estat = gdp_gcl_open(gclname, GDP_MODE_RO, &gclh);
+	estat = gdp_gcl_open(gclname, GDP_MODE_RO, &gcl);
 	if (!EP_STAT_ISOK(estat))
 	{
 		char sbuf[100];
@@ -342,16 +342,16 @@ main(int argc, char **argv)
 	}
 
 	if (showmetadata)
-		print_metadata(gclh);
+		print_metadata(gcl);
 
 	// arrange to do the reading via one of the helper routines
 	if (subscribe || multiread || use_callbacks)
-		estat = do_multiread(gclh, firstrec, numrecs, subscribe, use_callbacks);
+		estat = do_multiread(gcl, firstrec, numrecs, subscribe, use_callbacks);
 	else
-		estat = do_simpleread(gclh, firstrec, numrecs);
+		estat = do_simpleread(gcl, firstrec, numrecs);
 
 	// might as well let the GDP know we're going away
-	gdp_gcl_close(gclh);
+	gdp_gcl_close(gcl);
 
 fail0:
 	// might as well let the user know what's going on....

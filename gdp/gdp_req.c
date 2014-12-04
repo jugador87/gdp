@@ -24,19 +24,19 @@ static EP_THR_MUTEX		ReqFreeListMutex	EP_THR_MUTEX_INITIALIZER;
 **
 **	Parameters:
 **		cmd --- the command to be issued
-**		gclh --- the associated GCL handle
+**		gcl --- the associated GCL handle
 **		reqp --- a pointer to the output area
 **
 **	Returns:
 **		status
-**		The request has been allocated an id (possibly unique to gclh),
+**		The request has been allocated an id (possibly unique to gcl),
 **			but the request has not been linked onto the GCL's request list.
 **			This allows the caller to adjust the request without locking it.
 */
 
 EP_STAT
 _gdp_req_new(int cmd,
-		gdp_gcl_t *gclh,
+		gdp_gcl_t *gcl,
 		gdp_chan_t *chan,
 		uint32_t flags,
 		gdp_req_t **reqp)
@@ -62,7 +62,7 @@ _gdp_req_new(int cmd,
 	EP_ASSERT(!req->ongcllist);
 	EP_ASSERT(!req->onchanlist);
 	req->pkt = _gdp_pkt_new();
-	req->gclh = gclh;
+	req->gcl = gcl;
 	req->stat = EP_STAT_OK;
 	req->flags = flags;
 	req->chan = chan;
@@ -72,9 +72,9 @@ _gdp_req_new(int cmd,
 		req->onchanlist = true;
 	}
 	req->pkt->cmd = cmd;
-	if (gclh != NULL)
-		memcpy(req->pkt->gcl_name, gclh->gcl_name, sizeof req->pkt->gcl_name);
-	if (gclh == NULL || !EP_UT_BITSET(GDP_REQ_PERSIST, flags))
+	if (gcl != NULL)
+		memcpy(req->pkt->gcl_name, gcl->gcl_name, sizeof req->pkt->gcl_name);
+	if (gcl == NULL || !EP_UT_BITSET(GDP_REQ_PERSIST, flags))
 	{
 		// just use constant zero; any value would be fine
 		req->pkt->rid = GDP_PKT_NO_RID;
@@ -82,13 +82,13 @@ _gdp_req_new(int cmd,
 	else
 	{
 		// allocate a new unique request id
-		req->pkt->rid = _gdp_rid_new(gclh);
+		req->pkt->rid = _gdp_rid_new(gcl);
 	}
 
 	// success
 	req->inuse = true;
 	*reqp = req;
-	ep_dbg_cprintf(Dbg, 48, "gdp_req_new(gcl=%p) => %p\n", gclh, req);
+	ep_dbg_cprintf(Dbg, 48, "gdp_req_new(gcl=%p) => %p\n", gcl, req);
 	return estat;
 }
 
@@ -96,7 +96,7 @@ _gdp_req_new(int cmd,
 void
 _gdp_req_free(gdp_req_t *req)
 {
-	ep_dbg_cprintf(Dbg, 48, "gdp_req_free(%p)  gclh=%p\n", req, req->gclh);
+	ep_dbg_cprintf(Dbg, 48, "gdp_req_free(%p)  gcl=%p\n", req, req->gcl);
 
 	ep_thr_mutex_lock(&req->mutex);
 	EP_ASSERT(req->inuse);
@@ -116,11 +116,11 @@ _gdp_req_free(gdp_req_t *req)
 		_gdp_pkt_free(req->pkt);
 	req->pkt = NULL;
 
-	// dereference the gclh
-	if (req->gclh != NULL)
+	// dereference the gcl
+	if (req->gcl != NULL)
 	{
-		_gdp_gcl_decref(req->gclh);
-		req->gclh = NULL;
+		_gdp_gcl_decref(req->gcl);
+		req->gcl = NULL;
 	}
 
 	req->inuse = false;
@@ -149,12 +149,12 @@ _gdp_req_freeall(struct req_head *reqlist)
 
 
 gdp_req_t *
-_gdp_req_find(gdp_gcl_t *gclh, gdp_rid_t rid)
+_gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 {
 	gdp_req_t *req;
 
-	ep_thr_mutex_lock(&gclh->mutex);
-	LIST_FOREACH(req, &gclh->reqs, gcllist)
+	ep_thr_mutex_lock(&gcl->mutex);
+	LIST_FOREACH(req, &gcl->reqs, gcllist)
 	{
 		if (req->pkt->rid == rid)
 			break;
@@ -165,9 +165,9 @@ _gdp_req_find(gdp_gcl_t *gclh, gdp_rid_t rid)
 		LIST_REMOVE(req, gcllist);
 		req->ongcllist = false;
 	}
-	ep_thr_mutex_unlock(&gclh->mutex);
-	ep_dbg_cprintf(Dbg, 48, "gdp_req_find(gclh=%p, rid=%" PRIgdp_rid ") => %p\n",
-			gclh, rid, req);
+	ep_thr_mutex_unlock(&gcl->mutex);
+	ep_dbg_cprintf(Dbg, 48, "gdp_req_find(gcl=%p, rid=%" PRIgdp_rid ") => %p\n",
+			gcl, rid, req);
 	return req;
 }
 
@@ -193,7 +193,7 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 		return;
 	}
 	fprintf(fp, "\n    ");
-	gdp_gcl_print(req->gclh, fp, 1, 0);
+	gdp_gcl_print(req->gcl, fp, 1, 0);
 	fprintf(fp, "    ");
 	_gdp_pkt_dump(req->pkt, fp);
 	fprintf(fp, "    flags=");
@@ -220,7 +220,7 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 static gdp_rid_t	MaxRid = 0;
 
 gdp_rid_t
-_gdp_rid_new(gdp_gcl_t *gclh)
+_gdp_rid_new(gdp_gcl_t *gcl)
 {
 	return ++MaxRid;
 }

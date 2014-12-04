@@ -44,7 +44,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	gdp_gcl_t *gclh;
+	gdp_gcl_t *gcl;
 	gcl_name_t gcliname;
 	gdp_gclmd_t *gmd = NULL;
 	int opt;
@@ -226,27 +226,27 @@ main(int argc, char **argv)
 	if (xname == NULL)
 	{
 		// create a new GCL handle with a new name
-		estat = gdp_gcl_create(NULL, gmd, &gclh);
+		estat = gdp_gcl_create(NULL, gmd, &gcl);
 	}
 	else
 	{
 		// open or create a GCL with the provided name
 		gdp_gcl_parse_name(xname, gcliname);
 		if (append)
-			estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gclh);
+			estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gcl);
 		else
 		{
 			// save the external name as metadata
 			if (gmd == NULL)
 				gmd = gdp_gclmd_new();
 			gdp_gclmd_add(gmd, GDP_GCLMD_XID, strlen(xname), xname);
-			estat = gdp_gcl_create(gcliname, gmd, &gclh);
+			estat = gdp_gcl_create(gcliname, gmd, &gcl);
 		}
 	}
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// dump the internal version of the GCL to facilitate testing
-	gdp_gcl_print(gclh, stdout, 0, 0);
+	gdp_gcl_print(gcl, stdout, 0, 0);
 
 	// now would be a good time to write the private key to disk
 	if (make_new_key)
@@ -259,7 +259,7 @@ main(int argc, char **argv)
 			size_t len;
 			gcl_pname_t pbuf;
 
-			gdp_gcl_printable_name(*gdp_gcl_getname(gclh), pbuf);
+			gdp_gcl_printable_name(*gdp_gcl_getname(gcl), pbuf);
 			len = strlen(keyfile) + sizeof pbuf + 6;
 			keyfilebuf = ep_mem_malloc(len);
 			snprintf(keyfilebuf, len, "%s/%s.pem", keyfile, pbuf);
@@ -310,7 +310,7 @@ main(int argc, char **argv)
 		gdp_buf_write(gdp_datum_getbuf(datum), buf, strlen(buf));
 
 		// then send the buffer to the GDP
-		estat = gdp_gcl_publish(gclh, datum);
+		estat = gdp_gcl_publish(gcl, datum);
 		EP_STAT_CHECK(estat, goto fail2);
 
 		// print the return value (shows the record number assigned)
@@ -322,7 +322,7 @@ main(int argc, char **argv)
 
 fail2:
 	// tell the GDP that we are done
-	gdp_gcl_close(gclh);
+	gdp_gcl_close(gcl);
 
 fail1:
 	// free metadata, if set

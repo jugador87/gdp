@@ -10,28 +10,28 @@
 EP_STAT			gcl_physlog_init();
 
 EP_STAT			gcl_offset_cache_init(
-						gdp_gcl_t *gclh);
+						gdp_gcl_t *gcl);
 
 EP_STAT			gcl_physread(
-						gdp_gcl_t *gclh,
+						gdp_gcl_t *gcl,
 						gdp_datum_t *datum);
 
 EP_STAT			gcl_physcreate(
-						gdp_gcl_t *pgclh,
+						gdp_gcl_t *pgcl,
 						gdp_gclmd_t *gmd);
 
 EP_STAT			gcl_physopen(
-						gdp_gcl_t *gclh);
+						gdp_gcl_t *gcl);
 
 EP_STAT			gcl_physclose(
-						gdp_gcl_t *gclh);
+						gdp_gcl_t *gcl);
 
 EP_STAT			gcl_physappend(
-						gdp_gcl_t *gclh,
+						gdp_gcl_t *gcl,
 						gdp_datum_t *datum);
 
 EP_STAT			gcl_physgetmetadata(
-						gdp_gcl_t *gclh,
+						gdp_gcl_t *gcl,
 						gdp_gclmd_t **gmdp);
 
 #define GCL_DIR				"/var/tmp/gcl"
@@ -83,4 +83,4 @@ typedef struct gcl_index_record
 } gcl_index_record;
 
 // return maximum record number for a given GCL
-extern gdp_recno_t	gcl_max_recno(gdp_gcl_t *gclh);
+extern gdp_recno_t	gcl_max_recno(gdp_gcl_t *gcl);
