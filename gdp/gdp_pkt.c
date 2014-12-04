@@ -223,7 +223,6 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		}
 		else if (ep_dbg_test(Dbg, 33))
 		{
-			ep_dbg_printf("\tData:\n");
 			ep_hexdump(bp, dlen, ep_dbg_getfile(), EP_HEXDUMP_ASCII,
 					pbp - pbuf);
 		}
@@ -372,7 +371,7 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	if (ep_dbg_test(Dbg, 32))
 	{
 		ep_dbg_printf("gdp_pkt_in: read packet header:\n");
-		ep_hexdump(pbuf, needed - dlen, ep_dbg_getfile(), EP_HEXDUMP_ASCII, 0);
+		ep_hexdump(pbuf, needed - dlen, ep_dbg_getfile(), EP_HEXDUMP_HEX, 0);
 	}
 
 	// Request Id
