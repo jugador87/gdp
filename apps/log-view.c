@@ -1,6 +1,7 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
 #include <ep/ep.h>
+#include <ep/ep_hexdump.h>
 #include <ep/ep_string.h>
 #include <ep/ep_time.h>
 #include <gdpd/gdpd_physlog.h>
@@ -16,56 +17,6 @@
 #include <sysexits.h>
 #include <time.h>
 
-void hexdump(FILE *stream, void *buf, size_t n, int start_label, bool show_ascii)
-{
-	unsigned char *char_buf = (unsigned char *)buf;
-	size_t width = 16;
-	size_t end = (n / width) * width;
-	size_t i;
-
-	for (i = 0; i < end; i += width)
-	{
-		size_t j;
-
-		fprintf(stream, "%08zx", start_label + i);
-		for (j = i; j < i + width; ++j)
-		{
-			fprintf(stream, " %02x", char_buf[j]);
-		}
-		fprintf(stream, "\n");
-
-		if (show_ascii)
-		{
-			fprintf(stream, "%-8s", "");
-			for (j = i; j < i + width; ++j)
-			{
-				fprintf(stream, " %c ", char_buf[j]);
-			}
-			fprintf(stream, "\n");
-		}
-	}
-
-	if (end < n)
-	{
-		fprintf(stream, "%08zx", start_label + end);
-		for (i = end; i < n; ++i)
-		{
-			fprintf(stream, " %02x", char_buf[i]);
-		}
-		fprintf(stream, "\n");
-
-		if (show_ascii)
-		{
-			fprintf(stream, "%-8s", "");
-			for (i = end; i < n; ++i)
-			{
-				fprintf(stream, " %c ", char_buf[i]);
-			}
-			fprintf(stream, "\n");
-		}
-	}
-}
-
 
 void
 usage(const char *msg)
@@ -79,8 +30,24 @@ usage(const char *msg)
 }
 
 /*
- * log-view is a utility to aid in the debugging of the GDP on-disk storage format
- */
+**  LOG-VIEW --- display raw on-disk storage
+**
+**		Not for user consumption.
+*/
+
+
+#define CHECK_FILE_OFFSET	check_file_offset
+
+void
+check_file_offset(FILE *fp, long offset)
+{
+	if (ftell(fp) != offset)
+	{
+		printf("%sWARNING: file offset error (%ld != %ld)%s\n",
+				EpVid->vidfgred, ftell(fp), offset, EpVid->vidnorm);
+	}
+}
+
 
 int
 main(int argc, char *argv[])
@@ -170,26 +137,30 @@ main(int argc, char *argv[])
 	if (data_fp == NULL)
 	{
 		fprintf(stderr, "Could not open %s, errno = %d\n", data_filename, errno);
-		return 1;
+		return EX_NOINPUT;
 	}
 
-	if (fread(&header, sizeof(header), 1, data_fp) != 1)
+	if (fread(&header, sizeof header, 1, data_fp) != 1)
 	{
 		fprintf(stderr, "fread() failed while reading header, ferror = %d\n",
 				ferror(data_fp));
-		return 1;
+		return EX_DATAERR;
 	}
 
-	printf("Header: magic = 0x%016" PRIx64 ", version = %" PRIi64
+	printf("Header: magic = 0x%016" PRIx64
+			", version = %" PRIi64
 			", type = %" PRIi16 "\n",
 			header.magic, header.version, header.log_type);
-	printf("\theader size = %" PRIi32 ", metadata entries = %d\n",
-			header.header_size, header.num_metadata_entries);
+	printf("\theader size = %" PRId32 " (0x%" PRIx32 ")"
+			", metadata entries = %d\n",
+			header.header_size, header.header_size,
+			header.num_metadata_entries);
 	if (print_raw)
 	{
-		hexdump(stdout, &header, sizeof(header), file_offset, false);
+		ep_hexdump(&header, sizeof header, stdout, EP_HEXDUMP_HEX, file_offset);
 	}
-	file_offset += sizeof(header);
+	file_offset += sizeof header;
+	CHECK_FILE_OFFSET(data_fp, file_offset);
 
 	if (header.num_metadata_entries > 0)
 	{
@@ -216,24 +187,26 @@ main(int argc, char *argv[])
 
 		for (i = 0; i < header.num_metadata_entries; ++i)
 		{
-			printf("\n\tMetadata entry %d: name = %" PRIx32
-							", len = %" PRIx32 "\n",
+			printf("\n\tMetadata entry %d: name = 0x%" PRIx32
+							", len = %" PRId32 "\n",
 					i, metadata_hdrs[i].md_id, metadata_hdrs[i].md_len);
 		}
 
 		if (print_raw)
 		{
-			hexdump(stdout, metadata_hdrs,
+			ep_hexdump(metadata_hdrs,
 					header.num_metadata_entries * sizeof *metadata_hdrs,
-					file_offset, false);
+					stdout, EP_HEXDUMP_ASCII, file_offset);
 		}
 		file_offset += header.num_metadata_entries * sizeof *metadata_hdrs;
+		CHECK_FILE_OFFSET(data_fp, file_offset);
 
 		fprintf(stdout, "\n");
 
 		for (i = 0; i < header.num_metadata_entries; ++i)
 		{
-			char *metadata_string = malloc(metadata_hdrs[i].md_len + 1); // +1 for null-terminator
+			char *metadata_string = malloc(metadata_hdrs[i].md_len + 1);
+												// +1 for null-terminator
 			if (fread(metadata_string, metadata_hdrs[i].md_len, 1, data_fp) != 1)
 			{
 				fprintf(stderr, "fread() failed while reading metadata string, ferror = %d\n", ferror(data_fp));
@@ -247,10 +220,11 @@ main(int argc, char *argv[])
 			{
 				fprintf(stdout, "\n");
 				fprintf(stdout, "Raw:\n");
-				hexdump(stdout, metadata_string, metadata_hdrs[i].md_len,
-						file_offset, true);
+				ep_hexdump(metadata_string, metadata_hdrs[i].md_len,
+						stdout, EP_HEXDUMP_ASCII, file_offset);
 			}
 			file_offset += metadata_hdrs[i].md_len;
+			CHECK_FILE_OFFSET(data_fp, file_offset);
 		}
 	}
 	else
@@ -261,9 +235,10 @@ main(int argc, char *argv[])
 	fprintf(stdout, "\n");
 	fprintf(stdout, "Data records\n");
 
-	while (fread(&record, sizeof(record), 1, data_fp) == 1)
+	while (fread(&record, sizeof record, 1, data_fp) == 1)
 	{
 		fprintf(stdout, "\n");
+		fprintf(stdout, "Offset = %zd (0x%zx)\n", file_offset, file_offset);
 		fprintf(stdout, "Record number: %" PRIgdp_recno "\n", record.recno);
 		fprintf(stdout, "Human readable timestamp: ");
 		ep_time_print(&record.timestamp, stdout, true);
@@ -277,9 +252,11 @@ main(int argc, char *argv[])
 		{
 			fprintf(stdout, "\n");
 			fprintf(stdout, "Raw:\n");
-			hexdump(stdout, &record, sizeof(record), file_offset, false);
+			ep_hexdump(&record, sizeof record, stdout,
+					EP_HEXDUMP_HEX, file_offset);
 		}
-		file_offset += sizeof(record);
+		file_offset += sizeof record;
+		CHECK_FILE_OFFSET(data_fp, file_offset);
 
 		char *data_buffer = malloc(record.data_length);
 		if (fread(data_buffer, record.data_length, 1, data_fp) != 1)
@@ -290,8 +267,10 @@ main(int argc, char *argv[])
 
 		fprintf(stdout, "\n");
 		fprintf(stdout, "Data:\n");
-		hexdump(stdout, data_buffer, record.data_length, file_offset, true);
+		ep_hexdump(data_buffer, record.data_length,
+				stdout, EP_HEXDUMP_ASCII, file_offset);
 		file_offset += record.data_length;
+		CHECK_FILE_OFFSET(data_fp, file_offset);
 
 		free(data_buffer);
 	}
