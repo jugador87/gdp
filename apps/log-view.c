@@ -147,8 +147,8 @@ main(int argc, char *argv[])
 		return EX_DATAERR;
 	}
 
-	printf("Header: magic = 0x%016" PRIx64
-			", version = %" PRIi64
+	printf("Header: magic = 0x%016" PRIx32
+			", version = %" PRIi32
 			", type = %" PRIi16 "\n",
 			header.magic, header.version, header.log_type);
 	printf("\theader size = %" PRId32 " (0x%" PRIx32 ")"

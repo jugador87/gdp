@@ -400,8 +400,8 @@ gcl_physopen(gdp_gcl_t *gcl)
 	if (log_header.magic != GCL_LOG_MAGIC)
 	{
 		estat = GDP_STAT_CORRUPT_GCL;
-		ep_log(estat, "gcl_physopen: bad magic: found: %" PRIx64
-				", expected: %" PRIx64 "\n",
+		ep_log(estat, "gcl_physopen: bad magic: found: %" PRIx32
+				", expected: %" PRIx32 "\n",
 				log_header.magic, GCL_LOG_MAGIC);
 		goto fail3;
 	}
@@ -410,8 +410,8 @@ gcl_physopen(gdp_gcl_t *gcl)
 			log_header.version > GCL_LOG_MAXVERS)
 	{
 		estat = GDP_STAT_GCL_VERSION_MISMATCH;
-		ep_log(estat, "gcl_physopen: bad version: found: %" PRIx64
-				", expected: %" PRIx64 "-%" PRIx64 "\n",
+		ep_log(estat, "gcl_physopen: bad version: found: %" PRIx32
+				", expected: %" PRIx32 "-%" PRIx32 "\n",
 				log_header.version, GCL_LOG_MINVERS, GCL_LOG_MAXVERS);
 		goto fail3;
 	}
