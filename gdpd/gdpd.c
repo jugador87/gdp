@@ -283,7 +283,7 @@ gdpd_init(int listenport)
 		if (GdpListenerEventBase == NULL)
 		{
 			estat = ep_stat_from_errno(errno);
-			ep_app_error("gdpd_init: could not GdpListenerEventBase");
+			ep_app_error("gdpd_init: could not create GdpListenerEventBase");
 		}
 	}
 
@@ -301,7 +301,7 @@ gdpd_init(int listenport)
 				lev_accept_cb,
 				NULL,		// context
 				LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_THREADSAFE,
-				-1,
+				-1,			// backlog
 				&saddr.sa,
 				sizeof saddr.sin);
 	}

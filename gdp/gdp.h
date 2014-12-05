@@ -7,19 +7,22 @@
 #ifndef _GDP_H_
 #define _GDP_H_
 
+#include <gdp/gdp_buf.h>
+#include <gdp/gdp_stat.h>
+
 #include <ep/ep.h>
 #include <ep/ep_mem.h>
 #include <ep/ep_stat.h>
 #include <ep/ep_time.h>
+
+#include <event2/event.h>
+#include <event2/bufferevent.h>
+
 #include <inttypes.h>
 #include <stdbool.h>
 #include <sys/queue.h>
-#include <sys/types.h>
 #include <sys/time.h>
-#include <event2/event.h>
-#include <event2/bufferevent.h>
-#include <gdp/gdp_buf.h>
-#include <gdp/gdp_stat.h>
+#include <sys/types.h>
 
 /**********************************************************************
 **	Opaque structures

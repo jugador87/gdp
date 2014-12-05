@@ -74,7 +74,8 @@ _gdp_req_new(int cmd,
 	req->pkt->cmd = cmd;
 	if (gcl != NULL)
 		memcpy(req->pkt->gcl_name, gcl->gcl_name, sizeof req->pkt->gcl_name);
-	if (gcl == NULL || !EP_UT_BITSET(GDP_REQ_PERSIST, flags))
+	if ((gcl == NULL || !EP_UT_BITSET(GDP_REQ_PERSIST, flags)) &&
+			!EP_UT_BITSET(GDP_REQ_ALLOC_RID, flags))
 	{
 		// just use constant zero; any value would be fine
 		req->pkt->rid = GDP_PKT_NO_RID;
@@ -82,7 +83,7 @@ _gdp_req_new(int cmd,
 	else
 	{
 		// allocate a new unique request id
-		req->pkt->rid = _gdp_rid_new(gcl);
+		req->pkt->rid = _gdp_rid_new(gcl, chan);
 	}
 
 	// success
@@ -178,6 +179,7 @@ static EP_PRFLAGS_DESC	ReqFlags[] =
 	{ GDP_REQ_PERSIST,		GDP_REQ_PERSIST,		"PERSIST"		},
 	{ GDP_REQ_SUBSCRIPTION,	GDP_REQ_SUBSCRIPTION,	"SUBSCRIPTION"	},
 	{ GDP_REQ_SUBUPGRADE,	GDP_REQ_SUBUPGRADE,		"SUBUPGRADE"	},
+	{ GDP_REQ_ALLOC_RID,	GDP_REQ_ALLOC_RID,		"ALLOC_RID"		},
 	{ 0,					0,						NULL			}
 };
 
@@ -214,13 +216,13 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 **	Request ID handling
 **
 **		Very simplistic for now.  RIDs really only need to be unique
-**		within a given GCL.
+**		within a given GCL/channel tuple.
 */
 
 static gdp_rid_t	MaxRid = 0;
 
 gdp_rid_t
-_gdp_rid_new(gdp_gcl_t *gcl)
+_gdp_rid_new(gdp_gcl_t *gcl, gdp_chan_t *chan)
 {
 	return ++MaxRid;
 }

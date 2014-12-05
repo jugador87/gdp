@@ -13,7 +13,8 @@
 
 #include <stdio.h>
 
-typedef struct gdp_chan	gdp_chan_t;
+typedef struct gdp_chan		gdp_chan_t;
+typedef struct gcl_class	gcl_class_t;
 
 extern pthread_t		_GdpIoEventLoopThread;
 gdp_chan_t				*_GdpChannel;	// our primary app-level protocol port
@@ -28,6 +29,7 @@ struct gdp_chan
 {
 	struct bufferevent	*bev;			// associated bufferevent (socket)
 	struct req_head		reqs;			// reqs associated with this channel
+	gcl_name_t			serverid;		// the name of the server (random nonce)
 };
 
 
@@ -55,6 +57,10 @@ struct gdp_datum
 
 /*
 **  GDP Channel/Logs
+**
+**		The implementation class is currently used only by gdpd,
+**		to distinguish between GCLs that are locally stored and
+**		those available remotely.
 */
 
 struct gdp_gcl
@@ -69,6 +75,8 @@ struct gdp_gcl
 	int					refcnt;			// reference counter
 	void				(*freefunc)(struct gdp_gcl *);
 										// called when this is freed
+	gcl_class_t			*cl;			// implementation class
+	void				*cd;			// class-specific data
 	struct gdp_gcl_xtra	*x;				// for use by gdpd, gdp-rest
 };
 
@@ -131,9 +139,10 @@ typedef struct gdp_req
 #define GDP_REQ_SUBSCRIPTION	0x00000002	// this is a subscription
 #define GDP_REQ_PERSIST			0x00000004	// request persists after response
 #define GDP_REQ_SUBUPGRADE		0x00000008	// can upgrade to subscription
+#define GDP_REQ_ALLOC_RID		0x00000010	// force allocation of new rid
 
 extern gdp_req_t	*_gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid);
-extern gdp_rid_t	_gdp_rid_new(gdp_gcl_t *gcl);
+extern gdp_rid_t	_gdp_rid_new(gdp_gcl_t *gcl, gdp_chan_t *chan);
 
 
 /*
@@ -152,23 +161,19 @@ struct cmdfuncs
 	cmdfunc_t	*func;				// pointer to implementing function
 };
 
-void			_gdp_register_cmdfuncs(struct cmdfuncs *);
+void			_gdp_register_cmdfuncs(
+						struct cmdfuncs *);
 
-// callback info passed into event loops
-struct event_loop_info
-{
-	struct event_base	*evb;		// the event base for this loop
-	const char			*where;		// a name to convey in errors
-};
+const char		*_gdp_proto_cmd_name(		// return printable cmd name
+						uint8_t cmd);
 
-// callback info passed into individual events
-struct gdp_event_info
-{
-	void				(*exit_cb)(		// called on event loop exit
-							struct event_base *evb,
-							struct gdp_event_info *gei);
-	gdp_chan_t			*chan;			// I/O channel
-};
+/*
+**  GCL cache.
+**
+**		Implemented in gdp/gdp_gcl_cache.c.
+*/
+
+EP_STAT			_gdp_gcl_cache_init(void);	// initialize cache
 
 gdp_gcl_t		*_gdp_gcl_cache_get(		// get entry from cache
 						gcl_name_t gcl_name,
@@ -181,17 +186,22 @@ void			_gdp_gcl_cache_add(			// add entry to cache
 void			_gdp_gcl_cache_drop(		// drop entry from cache
 						gdp_gcl_t *gcl);
 
-EP_STAT			_gdp_gcl_cache_init(void);	// initialize cache
-
 void			_gdp_gcl_incref(			// increase reference count
 						gdp_gcl_t *gcl);
 
 void			_gdp_gcl_decref(			// decrease reference count
 						gdp_gcl_t *gcl);
 
+/*
+**  Other GCL handling.  These are shared between client access
+**  and the GDP daemon.
+**
+**  Implemented in gdp/gdp_gcl_ops.c.
+*/
+
 EP_STAT			_gdp_gcl_newhandle(			// create new in-mem handle
 						gcl_name_t gcl_name,
-						gdp_gcl_t **gclp);
+						gdp_gcl_t **gclhp);
 
 void			_gdp_gcl_freehandle(		// free in-memory handle
 						gdp_gcl_t *gcl);
@@ -199,8 +209,55 @@ void			_gdp_gcl_freehandle(		// free in-memory handle
 void			_gdp_gcl_newname(			// create a new name
 						gdp_gcl_t *gcl);
 
-const char		*_gdp_proto_cmd_name(		// return printable cmd name
-						uint8_t cmd);
+EP_STAT			_gdp_gcl_create(			// create a new GCL
+						gdp_gcl_t *gcl,
+						gdp_gclmd_t *gmd,
+						gdp_chan_t *chan,
+						uint32_t reqflags);
+
+EP_STAT			_gdp_gcl_open(				// open a GCL
+						gdp_gcl_t *gcl,
+						int cmd,
+						gdp_chan_t *chan,
+						uint32_t reqflags);
+
+EP_STAT			_gdp_gcl_close(				// close a GCL (handle)
+						gdp_gcl_t *gcl,
+						gdp_chan_t *chan,
+						uint32_t reqflags);
+
+EP_STAT			_gdp_gcl_read(				// read a GCL record (gdpd shared)
+						gdp_gcl_t *gcl,
+						gdp_datum_t *datum,
+						gdp_chan_t *chan,
+						uint32_t reqflags);
+
+EP_STAT			_gdp_gcl_publish(			// publish a record (gdpd shared)
+						gdp_gcl_t *gcl,
+						gdp_datum_t *datum,
+						gdp_chan_t *chan,
+						uint32_t reqflags);
+
+EP_STAT			_gdp_gcl_subscribe(			// subscribe to data
+						gdp_gcl_t *gcl,
+						int cmd,
+						gdp_recno_t start,
+						int32_t numrecs,
+						EP_TIME_SPEC *timeout,
+						gdp_gcl_sub_cbfunc_t cbfunc,
+						void *cbarg,
+						gdp_chan_t *chan,
+						uint32_t reqflags);
+
+EP_STAT			_gdp_gcl_getmetadata(		// retrieve metadata
+						gdp_gcl_t *gcl,
+						gdp_gclmd_t **gmdp,
+						gdp_chan_t *chan,
+						uint32_t reqflags);
+
+/*
+**  Initialization.
+*/
 
 EP_STAT			_gdp_start_event_loop_thread(
 						pthread_t *thr,
@@ -208,6 +265,10 @@ EP_STAT			_gdp_start_event_loop_thread(
 						const char *where);
 
 EP_STAT			_gdp_do_init(bool run_event_loop);
+
+/*
+**  Request handling.
+*/
 
 EP_STAT			_gdp_req_new(				// create new request
 						int cmd,
@@ -234,6 +295,34 @@ void			_gdp_req_dump(				// print (debug) request
 
 void			_gdp_chan_drain_input(		// drain all input from channel
 						gdp_chan_t *chan);
+
+/*
+**  Gdpd communication
+*/
+
+EP_STAT			_gdp_open_connection(		// open connection to gdpd
+						const char *gdpd_addr,
+						gdp_chan_t **pchan);
+
+/*
+**  Libevent support
+*/
+
+// callback info passed into event loops
+struct event_loop_info
+{
+	struct event_base	*evb;		// the event base for this loop
+	const char			*where;		// a name to convey in errors
+};
+
+// callback info passed into individual events
+struct gdp_event_info
+{
+	void				(*exit_cb)(		// called on event loop exit
+							struct event_base *evb,
+							struct gdp_event_info *gei);
+	gdp_chan_t			*chan;			// I/O channel
+};
 
 void			_gdp_event_cb(				// handle unusual events
 						struct bufferevent *bev,

@@ -421,7 +421,8 @@ _gdp_pkt_in(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		l = evbuffer_remove_buffer(ibuf, pkt->datum->dbuf, dlen);
 		if (ep_dbg_test(Dbg, 39))
 		{
-			ep_hexdump(ibuf, l, ep_dbg_getfile(), EP_HEXDUMP_ASCII,
+			ep_hexdump(evbuffer_pullup(pkt->datum->dbuf, l), l,
+					ep_dbg_getfile(), EP_HEXDUMP_ASCII,
 					needed - dlen);
 		}
 		if (l < dlen)

@@ -16,14 +16,13 @@
 #include <string.h>
 
 /*
-**	This implements GDP Connection Log (GCL) utilities.
+**	This implements GDP Connection Log Cache
 */
 
 /************************  PRIVATE	************************/
 
-static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl", "GCL utilities for GDP");
-static EP_DBG	DbgCache = EP_DBG_INIT("gdp.gcl.cache",
-							"GCL cache and reference counting");
+static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl.cache",
+						"GCL cache and reference counting");
 
 
 
@@ -104,7 +103,7 @@ done:
 
 	if (gcl == NULL)
 	{
-		if (ep_dbg_test(DbgCache, 42))
+		if (ep_dbg_test(Dbg, 42))
 		{
 			gcl_pname_t pname;
 
@@ -114,7 +113,7 @@ done:
 	}
 	else
 	{
-		ep_dbg_cprintf(DbgCache, 42, "gdp_gcl_cache_get: %s => %p %d\n",
+		ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_get: %s => %p %d\n",
 					gcl->pname, gcl, gcl->refcnt);
 	}
 	return gcl;
@@ -132,7 +131,7 @@ _gdp_gcl_cache_add(gdp_gcl_t *gcl, gdp_iomode_t mode)
 	(void) ep_hash_insert(OpenGCLCache,
 						sizeof (gcl_name_t), gcl->gcl_name, gcl);
 	gcl->flags |= GCLF_INCACHE;
-	ep_dbg_cprintf(DbgCache, 42, "gdp_gcl_cache_add: added %s => %p\n",
+	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_add: added %s => %p\n",
 			gcl->pname, gcl);
 }
 
@@ -143,7 +142,7 @@ _gdp_gcl_cache_drop(gdp_gcl_t *gcl)
 	(void) ep_hash_insert(OpenGCLCache, sizeof (gcl_name_t), gcl->gcl_name,
 						NULL);
 	gcl->flags &= ~GCLF_INCACHE;
-	ep_dbg_cprintf(DbgCache, 42, "gdp_gcl_cache_drop: dropping %s => %p\n",
+	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_drop: dropping %s => %p\n",
 			gcl->pname, gcl);
 }
 
@@ -157,7 +156,7 @@ _gdp_gcl_incref(gdp_gcl_t *gcl)
 {
 	ep_thr_mutex_lock(&gcl->mutex);
 	gcl->refcnt++;
-	ep_dbg_cprintf(DbgCache, 44, "_gdp_gcl_incref: %p %d\n", gcl, gcl->refcnt);
+	ep_dbg_cprintf(Dbg, 44, "_gdp_gcl_incref: %p %d\n", gcl, gcl->refcnt);
 	ep_thr_mutex_unlock(&gcl->mutex);
 }
 
@@ -171,7 +170,7 @@ _gdp_gcl_incref(gdp_gcl_t *gcl)
 void
 _gdp_gcl_decref(gdp_gcl_t *gcl)
 {
-	ep_dbg_cprintf(DbgCache, 70, "_gdp_gcl_decref(%p)...\n", gcl);
+	ep_dbg_cprintf(Dbg, 70, "_gdp_gcl_decref(%p)...\n", gcl);
 	ep_thr_mutex_lock(&gcl->mutex);
 	if (gcl->refcnt > 0)
 	{
@@ -187,13 +186,13 @@ _gdp_gcl_decref(gdp_gcl_t *gcl)
 	{
 		// XXX temporary for debugging.  Actual reclaim should be done
 		// XXX asynchronously after a timeout.
-		if (ep_dbg_test(DbgCache, 101))
+		if (ep_dbg_test(Dbg, 101))
 			gcl->flags |= GCLF_DROPPING;
-		ep_dbg_cprintf(DbgCache, 41, "_gdp_gcl_decref: %p: zero\n", gcl);
+		ep_dbg_cprintf(Dbg, 41, "_gdp_gcl_decref: %p: zero\n", gcl);
 	}
 	else
 	{
-		ep_dbg_cprintf(DbgCache, 44, "_gdl_gcl_decref: %p: %d\n",
+		ep_dbg_cprintf(Dbg, 44, "_gdl_gcl_decref: %p: %d\n",
 				gcl, gcl->refcnt);
 	}
 	ep_thr_mutex_unlock(&gcl->mutex);
@@ -202,94 +201,7 @@ _gdp_gcl_decref(gdp_gcl_t *gcl)
 	if (EP_UT_BITSET(GCLF_DROPPING, gcl->flags))
 	{
 		// deallocate physical memory and remove from cache
-		ep_dbg_cprintf(DbgCache, 20, "_gdp_gcl_decref: deallocating\n");
+		ep_dbg_cprintf(Dbg, 20, "_gdp_gcl_decref: deallocating\n");
 		_gdp_gcl_freehandle(gcl);
 	}
-}
-
-
-
-/*
-**	CREATE_GCL_NAME -- create a name for a new GCL
-*/
-
-void
-_gdp_gcl_newname(gdp_gcl_t *gcl)
-{
-	evutil_secure_rng_get_bytes(gcl->gcl_name, sizeof gcl->gcl_name);
-	gdp_gcl_printable_name(gcl->gcl_name, gcl->pname);
-}
-
-/*
-**	_GDP_GCL_NEWHANDLE --- create a new gcl_handle & initialize
-*/
-
-EP_STAT
-_gdp_gcl_newhandle(gcl_name_t gcl_name, gdp_gcl_t **pgcl)
-{
-	EP_STAT estat = EP_STAT_OK;
-	gdp_gcl_t *gcl;
-
-	// allocate the memory to hold the gcl_handle
-	gcl = ep_mem_zalloc(sizeof *gcl);
-	if (gcl == NULL)
-		goto fail1;
-
-	ep_thr_mutex_init(&gcl->mutex, EP_THR_MUTEX_DEFAULT);
-	LIST_INIT(&gcl->reqs);
-	if (gcl_name != NULL)
-	{
-		memcpy(gcl->gcl_name, gcl_name, sizeof gcl->gcl_name);
-		gdp_gcl_printable_name(gcl_name, gcl->pname);
-	}
-	gcl->refcnt = 1;
-
-	// success
-	*pgcl = gcl;
-	ep_dbg_cprintf(Dbg, 28, "_gdp_gcl_newhandle => %p (%s)\n",
-			gcl, gcl->pname);
-	return estat;
-
-fail1:
-	estat = ep_stat_from_errno(errno);
-	return estat;
-}
-
-/*
-**  _GDP_GCL_FREEHANDLE --- drop an existing handle
-*/
-
-void
-_gdp_gcl_freehandle(gdp_gcl_t *gcl)
-{
-	ep_dbg_cprintf(Dbg, 28, "_gdp_gcl_freehandle(%p)\n", gcl);
-
-	// drop it from the name -> handle cache
-	_gdp_gcl_cache_drop(gcl);
-
-	// release any remaining requests
-	if (!LIST_EMPTY(&gcl->reqs))
-	{
-		// release any remaining requests (shouldn't be any left)
-		ep_dbg_cprintf(Dbg, 1, "gdp_gcl_freehandle: non-null request list\n");
-		_gdp_req_freeall(&gcl->reqs);
-	}
-
-	// free any additional per-GCL resources
-	if (gcl->freefunc != NULL)
-		(*gcl->freefunc)(gcl);
-
-	// release the locks and cache entry
-	ep_thr_mutex_destroy(&gcl->mutex);
-
-	// if there is any "extra" data, drop that
-	//		(redundant; should be done by the freefunc)
-	if (gcl->x != NULL)
-	{
-		ep_mem_free(gcl->x);
-		gcl->x = NULL;
-	}
-
-	// finally release the memory for the handle itself
-	ep_mem_free(gcl);
 }

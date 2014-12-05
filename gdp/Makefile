@@ -3,7 +3,8 @@ OBJS=	\
 	gdp_api.o \
 	gdp_buf.o \
 	gdp_event.o \
-	gdp_gcl.o \
+	gdp_gcl_cache.o \
+	gdp_gcl_ops.o \
 	gdp_gclmd.o \
 	gdp_datum.o \
 	gdp_pkt.o \

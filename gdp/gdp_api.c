@@ -237,7 +237,6 @@ gdp_gcl_create(gcl_name_t gcl_name,
 				gdp_gcl_t **pgcl)
 {
 	gdp_gcl_t *gcl = NULL;
-	gdp_req_t *req = NULL;
 	EP_STAT estat = EP_STAT_OK;
 
 	// allocate the memory to hold the gcl_handle
@@ -245,28 +244,15 @@ gdp_gcl_create(gcl_name_t gcl_name,
 	estat = _gdp_gcl_newhandle(gcl_name, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	if (gcl_name == NULL || gdp_gcl_name_is_zero(gcl_name))
-		_gdp_gcl_newname(gcl);
-
-	estat = _gdp_req_new(GDP_CMD_CREATE, gcl, _GdpChannel, 0, &req);
+	estat = _gdp_gcl_create(gcl, gmd, _GdpChannel, GDP_REQ_ALLOC_RID);
 	EP_STAT_CHECK(estat, goto fail1);
 
-	// add the metadata to the output stream
-	_gdp_gclmd_serialize(gmd, req->pkt->datum->dbuf);
-
-	estat = _gdp_invoke(req);
-	EP_STAT_CHECK(estat, goto fail1);
-
-	// success
-	_gdp_req_free(req);
 	*pgcl = gcl;
 	return estat;
 
 fail1:
 	if (gcl != NULL)
 		_gdp_gcl_freehandle(gcl);
-	if (req != NULL)
-		_gdp_req_free(req);
 
 fail0:
 	if (ep_dbg_test(Dbg, 8))
@@ -283,12 +269,6 @@ fail0:
 
 /*
 **	GDP_GCL_OPEN --- open a GCL for reading or further appending
-**
-**		XXX: Should really specify whether we want to start reading:
-**		(a) At the beginning of the log (easy).	 This includes random
-**			access.
-**		(b) Anything new that comes into the log after it is opened.
-**			To do this we need to read the existing log to find the end.
 */
 
 EP_STAT
@@ -296,9 +276,8 @@ gdp_gcl_open(gcl_name_t gcl_name,
 			gdp_iomode_t mode,
 			gdp_gcl_t **pgcl)
 {
-	EP_STAT estat = EP_STAT_OK;
+	EP_STAT estat;
 	gdp_gcl_t *gcl = NULL;
-	gdp_req_t *req = NULL;
 	int cmd;
 
 	if (mode == GDP_MODE_RO)
@@ -319,38 +298,20 @@ gdp_gcl_open(gcl_name_t gcl_name,
 		return GDP_STAT_NULL_GCL;
 	}
 
-	// XXX determine if name exists and is a GCL
 	estat = _gdp_gcl_newhandle(gcl_name, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
 	gcl->iomode = mode;
 
-	estat = _gdp_req_new(cmd, gcl, _GdpChannel, 0, &req);
-	EP_STAT_CHECK(estat, goto fail1);
-
-	estat = _gdp_invoke(req);
-	EP_STAT_CHECK(estat, goto fail1);
-
-	// success!
-	*pgcl = req->gcl;
-	ep_dbg_cprintf(Dbg, 10, "Opened GCL %s\n", gcl->pname);
-	_gdp_req_free(req);
-	return estat;
-
-fail0:
-	if (gcl != NULL)
-		ep_mem_free(gcl);
-fail1:
-	if (req != NULL)
-		_gdp_req_free(req);
-
-	// log failure
+	estat = _gdp_gcl_open(gcl, cmd, _GdpChannel, GDP_REQ_ALLOC_RID);
+	if (EP_STAT_ISOK(estat))
 	{
-		char ebuf[100];
-
-		ep_dbg_cprintf(Dbg, 10,
-				"Couldn't open GCL %s: %s\n",
-				gcl->pname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		*pgcl = gcl;
 	}
+	else
+	{
+		_gdp_gcl_freehandle(gcl);
+	}
+fail0:
 	return estat;
 }
 
@@ -362,23 +323,7 @@ fail1:
 EP_STAT
 gdp_gcl_close(gdp_gcl_t *gcl)
 {
-	EP_STAT estat;
-	gdp_req_t *req;
-
-	EP_ASSERT_POINTER_VALID(gcl);
-
-	estat = _gdp_req_new(GDP_CMD_CLOSE, gcl, _GdpChannel, 0, &req);
-	EP_STAT_CHECK(estat, goto fail0);
-
-	// tell the daemon to close it
-	estat = _gdp_invoke(req);
-
-	//XXX should probably check status
-
-	// release resources held by this handle
-	_gdp_req_free(req);		// also drops gcl reference
-fail0:
-	return estat;
+	return _gdp_gcl_close(gcl, _GdpChannel, 0);
 }
 
 
@@ -387,29 +332,9 @@ fail0:
 */
 
 EP_STAT
-gdp_gcl_publish(gdp_gcl_t *gcl,
-			gdp_datum_t *datum)
+gdp_gcl_publish(gdp_gcl_t *gcl, gdp_datum_t *datum)
 {
-	EP_STAT estat;
-	gdp_req_t *req = NULL;
-
-	EP_ASSERT_POINTER_VALID(gcl);
-	EP_ASSERT_POINTER_VALID(datum);
-
-
-	estat = _gdp_req_new(GDP_CMD_PUBLISH, gcl, _GdpChannel, 0, &req);
-	EP_STAT_CHECK(estat, goto fail0);
-	gdp_datum_free(req->pkt->datum);
-	(void) ep_time_now(&datum->ts);
-	req->pkt->datum = datum;
-	EP_ASSERT(datum->inuse);
-
-	estat = _gdp_invoke(req);
-
-	req->pkt->datum = NULL;			// owned by caller
-	_gdp_req_free(req);
-fail0:
-	return estat;
+	return _gdp_gcl_publish(gcl, datum, _GdpChannel, 0);
 }
 
 
@@ -427,28 +352,10 @@ gdp_gcl_read(gdp_gcl_t *gcl,
 			gdp_recno_t recno,
 			gdp_datum_t *datum)
 {
-	EP_STAT estat;
-	gdp_req_t *req;
-
-	EP_ASSERT_POINTER_VALID(gcl);
 	EP_ASSERT_POINTER_VALID(datum);
-	estat = _gdp_req_new(GDP_CMD_READ, gcl, _GdpChannel, 0, &req);
-	EP_STAT_CHECK(estat, goto fail0);
-
 	datum->recno = recno;
-	EP_TIME_INVALIDATE(&datum->ts);
 
-	gdp_datum_free(req->pkt->datum);
-	req->pkt->datum = datum;
-	EP_ASSERT(datum->inuse);
-
-	estat = _gdp_invoke(req);
-
-	// ok, done!
-	req->pkt->datum = NULL;			// owned by caller
-	_gdp_req_free(req);
-fail0:
-	return estat;
+	return _gdp_gcl_read(gcl, datum, _GdpChannel, 0);
 }
 
 
@@ -464,35 +371,8 @@ gdp_gcl_subscribe(gdp_gcl_t *gcl,
 		gdp_gcl_sub_cbfunc_t cbfunc,
 		void *cbarg)
 {
-	EP_STAT estat = EP_STAT_OK;
-	gdp_req_t *req;
-
-	EP_ASSERT_POINTER_VALID(gcl);
-
-	estat = _gdp_req_new(GDP_CMD_SUBSCRIBE, gcl, _GdpChannel,
-				GDP_REQ_PERSIST, &req);
-	EP_STAT_CHECK(estat, goto fail0);
-
-	// add start and stop parameters to packet
-	req->pkt->datum->recno = start;
-	gdp_buf_put_uint32(req->pkt->datum->dbuf, numrecs);
-
-	// issue the subscription --- no data returned
-	estat = _gdp_invoke(req);
-	EP_ASSERT(req->inuse);		// make sure it didn't get freed
-
-	// now arrange for responses to appear as events or callbacks
-	req->flags |= GDP_REQ_SUBSCRIPTION;
-	req->cb.subs = cbfunc;
-	req->udata = cbarg;
-
-	if (!EP_STAT_ISOK(estat))
-	{
-		_gdp_req_free(req);
-	}
-
-fail0:
-	return estat;
+	return _gdp_gcl_subscribe(gcl, GDP_CMD_SUBSCRIBE, start, numrecs,
+					timeout, cbfunc, cbarg, _GdpChannel, 0);
 }
 
 
@@ -510,35 +390,8 @@ gdp_gcl_multiread(gdp_gcl_t *gcl,
 		gdp_gcl_sub_cbfunc_t cbfunc,
 		void *cbarg)
 {
-	EP_STAT estat = EP_STAT_OK;
-	gdp_req_t *req;
-
-	EP_ASSERT_POINTER_VALID(gcl);
-
-	estat = _gdp_req_new(GDP_CMD_MULTIREAD, gcl, _GdpChannel,
-				GDP_REQ_PERSIST, &req);
-	EP_STAT_CHECK(estat, goto fail0);
-
-	// add start and stop parameters to packet
-	req->pkt->datum->recno = start;
-	gdp_buf_put_uint32(req->pkt->datum->dbuf, numrecs);
-
-	// issue the subscription --- no data returned
-	estat = _gdp_invoke(req);
-	EP_ASSERT(req->inuse);		// make sure it didn't get freed
-
-	// now arrange for responses to appear as events or callbacks
-	req->flags |= GDP_REQ_SUBSCRIPTION;
-	req->cb.subs = cbfunc;
-	req->udata = cbarg;
-
-	if (!EP_STAT_ISOK(estat))
-	{
-		_gdp_req_free(req);
-	}
-
-fail0:
-	return estat;
+	return _gdp_gcl_subscribe(gcl, GDP_CMD_MULTIREAD, start, numrecs,
+					NULL, cbfunc, cbarg, _GdpChannel, 0);
 }
 
 #if 0
@@ -559,20 +412,5 @@ EP_STAT
 gdp_gcl_getmetadata(gdp_gcl_t *gcl,
 		gdp_gclmd_t **gmdp)
 {
-	EP_STAT estat;
-	gdp_req_t *req;
-
-	estat = _gdp_req_new(GDP_CMD_GETMETADATA, gcl, _GdpChannel, 0, &req);
-	EP_STAT_CHECK(estat, goto fail0);
-
-	estat = _gdp_invoke(req);
-	EP_STAT_CHECK(estat, goto fail1);
-
-	*gmdp = _gdp_gclmd_deserialize(req->pkt->datum->dbuf);
-
-fail1:
-	_gdp_req_free(req);
-
-fail0:
-	return estat;
+	return _gdp_gcl_getmetadata(gcl, gmdp, _GdpChannel, 0);
 }

@@ -56,7 +56,7 @@ fail0:
 
 
 /*
-**  GCL_OPEN --- open a new GCL
+**  GCL_OPEN --- open an existing GCL
 */
 
 EP_STAT

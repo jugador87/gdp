@@ -144,7 +144,7 @@ fail0:
 
 /***********************************************************************
 **
-**	Protocol processing (ACK/NAK)
+**	Protocol processing (CMD/ACK/NAK)
 **
 **		All of these take as parameters:
 **			req --- the request information (including packet header)
@@ -153,6 +153,11 @@ fail0:
 **		layer that the whole packet hasn't been read yet.
 **
 ***********************************************************************/
+
+
+/*
+**  ACKs (success)
+*/
 
 static EP_STAT
 ack_success(gdp_req_t *req)
@@ -184,6 +189,10 @@ fail0:
 	return estat;
 }
 
+
+/*
+**  NAK_CLIENT, NAK_SERVER --- handle NAKs (negative acknowlegements)
+*/
 
 static EP_STAT
 nak_client(gdp_req_t *req)
@@ -545,17 +554,17 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	if (EP_UT_BITSET(GDP_PKT_HAS_ID, pkt->flags))
 	{
 		gcl = _gdp_gcl_cache_get(pkt->gcl_name, 0);
-		if (gcl == NULL)
+		if (gcl != NULL)
+		{
+			// find the request
+			req = _gdp_req_find(gcl, pkt->rid);
+		}
+		else if (ep_dbg_test(Dbg, 1))
 		{
 			gcl_pname_t pbuf;
 
 			gdp_gcl_printable_name(pkt->gcl_name, pbuf);
-			ep_dbg_cprintf(Dbg, 1, "gdp_read_cb: GCL %s has no handle\n", pbuf);
-		}
-		else
-		{
-			// find the request
-			req = _gdp_req_find(gcl, pkt->rid);
+			ep_dbg_printf("gdp_read_cb: GCL %s has no handle\n", pbuf);
 		}
 	}
 
@@ -650,10 +659,13 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		if (req->cb.generic != NULL)
 		{
 			// caller wanted a callback
+#ifdef RUN_CALLBACKS_IN_THREAD
+			// ... to run in a separate thread ...
+			ep_thr_pool_run(req->cb.generic, gev);
+#else
 			// ... to run in I/O event thread ...
 			(*req->cb.generic)(gev);
-			// ... to run in a separate thread ...
-			//ep_thr_pool_run(req->cb.generic, gev);
+#endif
 		}
 		else
 		{
@@ -759,9 +771,9 @@ _gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 	if (exitloop)
 	{
 		if (gei->exit_cb != NULL)
-			(*gei->exit_cb)(GdpIoEventBase, gei);
+			(*gei->exit_cb)(bufferevent_get_base(bev), gei);
 		else
-			event_base_loopexit(GdpIoEventBase, NULL);
+			event_base_loopexit(bufferevent_get_base(bev), NULL);
 	}
 }
 
@@ -889,6 +901,132 @@ evlib_log_cb(int severity, const char *msg)
 
 
 /*
+**  _GDP_OPEN_CONNECTION --- open connection to a gdp daemon
+*/
+
+EP_STAT
+_gdp_open_connection(const char *gdpd_addr, gdp_chan_t **pchan)
+{
+	EP_STAT estat = EP_STAT_OK;
+	gdp_chan_t *chan;
+
+	// allocate a new channel structure
+	chan = ep_mem_zalloc(sizeof *chan);
+	LIST_INIT(&chan->reqs);
+
+	// set up the bufferevent
+	chan->bev = bufferevent_socket_new(GdpIoEventBase,
+						-1,
+						BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE |
+						BEV_OPT_DEFER_CALLBACKS);
+	if (chan->bev == NULL)
+	{
+		estat = init_error("could not allocate bufferevent", "gdp_init");
+		goto fail0;
+	}
+
+	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
+	gei->chan = chan;
+
+	bufferevent_setcb(chan->bev, gdp_read_cb, NULL, _gdp_event_cb, gei);
+	bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
+
+	// attach it to a socket
+	char abuf[100];
+	char pbuf[10];
+	struct addrinfo *res;
+	struct addrinfo hints;
+	int r;
+	char *port;
+	char *host;
+
+	// get the host:port info into abuf
+	if (gdpd_addr == NULL)
+		gdpd_addr = ep_adm_getstrparam("swarm.gdp.gdpd.addr", NULL);
+	if (gdpd_addr == NULL)
+		gdpd_addr = "127.0.0.1";
+	strlcpy(abuf, gdpd_addr, sizeof abuf);
+
+	// have to handle IPv6 literals, which have [...] before the port
+	// ... note that square brackets are stripped off to satisfy getaddrinfo
+	port = host = abuf;
+	if (*host == '[')
+	{
+		host++;
+		port = strchr(host, ']');
+		if (port != NULL)
+			*port++ = '\0';
+	}
+
+	// see if we have a port number
+	if (port != NULL)
+	{
+		port = strchr(port, ':');
+		if (port != NULL)
+			*port++ = '\0';
+	}
+	if (port == NULL || *port == '\0')
+	{
+		port = pbuf;
+		snprintf(pbuf, sizeof pbuf, "%d", GDP_PORT_DEFAULT);
+	}
+	ep_dbg_cprintf(Dbg, 20, "gdp_init: contacting host %s port %s\n",
+			host, port);
+
+	// parsing done....  let's try the lookup
+	memset(&hints, '\0', sizeof hints);
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
+	r = getaddrinfo(host, port, &hints, &res);
+	if (r == 0)
+	{
+		struct addrinfo *a = res;
+		while (a != NULL)
+		{
+			if (bufferevent_socket_connect(chan->bev, a->ai_addr,
+						a->ai_addrlen) >= 0)
+				break;
+			a = a->ai_next;
+		}
+		if (a == NULL)
+		{
+			estat = init_error("could not connect to GDP socket",
+						"gdp_init");
+			goto fail1;
+		}
+		freeaddrinfo(res);
+	}
+	else
+	{
+		fprintf(stderr, "gdp_init: %s\n", gai_strerror(r));
+		estat = init_error("could not find GDP socket", "gdp_init");
+		goto fail1;
+	}
+
+	// success
+	*pchan = chan;
+
+	// error cleanup and return
+	if (false)
+	{
+fail1:
+		ep_mem_free(gei);
+		bufferevent_free(chan->bev);
+		chan->bev = NULL;
+fail0:
+		ep_mem_free(chan);
+	}
+	{
+		char ebuf[80];
+
+		ep_dbg_cprintf(Dbg, 20, "_gdp_open_connection => %s\n",
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
+	return estat;
+}
+
+
+/*
 **  Initialization, Part 1:
 **		Initialize the various external libraries.
 **		Set up the I/O event loop base.
@@ -962,90 +1100,14 @@ EP_STAT
 _gdp_do_init_2(const char *gdpd_addr)
 {
 	gdp_chan_t *chan;
-	EP_STAT estat = EP_STAT_OK;
+	EP_STAT estat;
 
-	// allocate a new channel structure
-	chan = ep_mem_zalloc(sizeof *chan);
-	LIST_INIT(&chan->reqs);
-
-	// set up the bufferevent
-	chan->bev = bufferevent_socket_new(GdpIoEventBase,
-						-1,
-						BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE |
-						BEV_OPT_DEFER_CALLBACKS);
-	if (chan->bev == NULL)
-	{
-		estat = init_error("could not allocate bufferevent", "gdp_init");
-		goto fail0;
-	}
-
-	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
-	gei->chan = chan;
-
-	bufferevent_setcb(chan->bev, gdp_read_cb, NULL, _gdp_event_cb, gei);
-	bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
-
-	// attach it to a socket
-	char abuf[100];
-	char pbuf[10];
-	struct addrinfo *res;
-	struct addrinfo hints;
-	int gdpd_port = -1;
-	int r;
-	char *port;
-
-	// get the host:port info into abuf
-	if (gdpd_addr == NULL)
-		gdpd_addr = ep_adm_getstrparam("swarm.gdp.gdpd.addr", NULL);
-	if (gdpd_addr == NULL)
-		snprintf(abuf, sizeof abuf, "127.0.0.1:%d", GDP_PORT_DEFAULT);
-	else
-		strlcpy(abuf, gdpd_addr, sizeof abuf);
-	memset(&hints, '\0', sizeof hints);
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
-	port = strchr(abuf, ':');
-	if (port != NULL)
-	{
-		*port++ = '\0';
-	}
-	else
-	{
-		port = pbuf;
-		snprintf(pbuf, sizeof pbuf, "%d", GDP_PORT_DEFAULT);
-	}
-	ep_dbg_cprintf(Dbg, 20, "gdp_init: contacting host %s port %s\n",
-			abuf, port);
-	r = getaddrinfo(abuf, port, NULL, &res);
-	if (r == 0)
-	{
-		struct addrinfo *a = res;
-		while (a != NULL)
-		{
-			gdpd_port = ((struct sockaddr_in *) a->ai_addr)->sin_port;
-			if (bufferevent_socket_connect(chan->bev, a->ai_addr,
-						a->ai_addrlen) >= 0)
-				break;
-			a = a->ai_next;
-		}
-		if (a == NULL)
-		{
-			estat = init_error("could not connect to GDP socket",
-						"gdp_init");
-			goto fail1;
-		}
-		freeaddrinfo(res);
-	}
-	else
-	{
-		fprintf(stderr, "gdp_init: %s\n", gai_strerror(r));
-		estat = init_error("could not find GDP socket", "gdp_init");
-		goto fail1;
-	}
+	estat = _gdp_open_connection(gdpd_addr, &chan);
+	EP_STAT_CHECK(estat, goto fail0);
 
 	_GdpChannel = chan;
-	ep_dbg_cprintf(Dbg, 10, "gdp_init: talking on port %d, fd %d\n",
-			ntohs(gdpd_port), bufferevent_getfd(chan->bev));
+	ep_dbg_cprintf(Dbg, 10, "gdp_init: talking on fd %d\n",
+			bufferevent_getfd(chan->bev));
 
 	// create a thread to run the event loop
 	estat = _gdp_start_event_loop_thread(&_GdpIoEventLoopThread,
@@ -1058,6 +1120,7 @@ _gdp_do_init_2(const char *gdpd_addr)
 fail1:
 	bufferevent_free(chan->bev);
 	chan->bev = NULL;
+	ep_mem_free(chan);
 
 fail0:
 	{

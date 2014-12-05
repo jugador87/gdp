@@ -14,8 +14,14 @@ clean:
 	(cd gdpd; make clean)
 	(cd apps; make clean)
 
+CSRCS=		ep/*.[ch] \
+		gdp/*.[ch] \
+		gdpd/*.[ch] \
+		scgilib/scgilib.[ch] \
+		apps/*.[ch] \
+
 tags:
-	ctags ep/*.[ch] gdp/*.[ch] gdpd/*.[ch] scgilib/scgilib.[ch] apps/*.[ch]
+	ctags ${CSRCS}
 
 
 # Build the Node.js/JavaScript GDP accessing apps and the Node.js/JS
