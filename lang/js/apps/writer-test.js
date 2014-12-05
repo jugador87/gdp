@@ -152,34 +152,51 @@ eval( fs.readFileSync( LIBGDP_H_DIR + 'rw_supt.js').toString() );
 			process.exit(EX_USAGE);
 		}
 
-		// Set up call to write_gcl_records()
+		// Example set ups for calls to write_gcl_records()
+		//
+		// A: write to gcl from stdin
+		// recsrc   = -1;   // read from stdin the gcl records to be written,
+		//                  // with optional prompts to and echoing for the
+		//                  // user on stdout.
+		// conout   = true; // do prompt and echo to stdout.
+		// recarray = [ ]; recarray_out = []; // ignored for recsrc = -1
+		//
+		// B: write to gcl from JS Array, recarray[]
+		// recsrc   =  0;      // read the gcl records from the Array recarray[]
+		// recarray = [ "Item 01 - from recarray", "Item 02", "Item 03" ];
+		// conout   = false;   // don't echo to console.log()
+		// recarray_out = [];  // will hold recno's and timestamps for newly
+		//                     // written records
+		//
+		// C: write to gcl N records with integers as contents
+		// recsrc >  0;     // write recsrc records with automatically generated
+		//                  // content: the integers starting at 1 and going
+		//                  // up to recsrc, inclusive.
+		// recsrc =  7;
+		// conout = false;  // don't echo to console.log()
+		// recarray = [ ]; recarray_out = []; // ignored for recsrc > 0
+		//
+		// write_gcl_records( gdpd_addr, gcl_name, gcl_append, recsrc,
+		//                    recarray, conout, recarray_out
+		//                  );
+
+		// Set up our particular call to write_gcl_records()
 		gdpd_addr  = gdpd_addr;
 		gcl_name   = xname;
 		gcl_append = append;
 
-		// Example set ups for calls to write_gcl_records()
-		//
-		// A: write to gcl from stdin
-		// recsrc = -1;  // read the gcl records to be written from stdin with
-		//               // prompts to and echoing for the user on stdout
-        // recarray = [ ];
-		//
-		// B: write to gcl from JS Array
-		// recsrc =  0;  // read the gcl records from the Array recarray
-		// recarray = [ "Item 01 - from recarray", "Item 02", "Item 03" ];
-		//
-		// C: write to gcl N records with integers as contents
-		// recsrc >  0;  // write recsrc records with automatically generated
-		//               // content: the integers starting at 1 and going up to
-		//               // recsrc, inclusive.
-		// recsrc   =  7;
-        // recarray = [ ];
-		//
-		// Finally, call the function:
-		recsrc   = -1;   // read the gcl records to be written from stdin...
-        recarray = [ ];  // not used for recsrc = -1
-        write_gcl_records( gdpd_addr, gcl_name, gcl_append, recsrc, recarray );
-
+		recsrc       = -1;   // read the gcl records to be written from stdin..
+        recarray     = [ ];  // not used for recsrc = -1
+		conout       = true; // echo to stdout == console.log()
+        recarray_out = [ ];  // not used for recsrc = -1
+		/*  Returns:
+			{ error_isok: false|true, error_code: EP_STAT, error_msg: String,
+			gcl_name: String
+			}
+		*/
+        write_gcl_records( gdpd_addr, gcl_name, gcl_append, recsrc,
+		                   recarray, conout, recarray_out
+						 );
 		// TBD: return ( ! ep_stat_isok_js(estat) );
 
 	 } /* end function main() */

@@ -2,35 +2,48 @@
 
 // Node.js Javascript support routines for reading and writing gcl's
 //
+// Alec Dara-Abrams
+// 2014-11-05
+//
+// TBD: Copyright, clean up code; bring internal doc up to date;
+//      regularize indenting with JS-aware tool
+//      Check for possible error returns from libgdp calls - see TBD1 .
+//
 // Used by:
-//    writer-test.js -- Node.js Javascript version of gdp/apps/writer-test.c
-//    reader-test.js -- Node.js Javascript version of gdp/apps/reader-test.c
+//  writer-test.js    -- Node.js Javascript version of gdp/apps/writer-test.c
+//  reader-test.js    -- Node.js Javascript version of gdp/apps/reader-test.c
+//  gdpREST_server.js -- Node.js-Based JavaScript server to provide a
+//                       REST interface to the GDP
 
 
 // ========================================================================
 // Example set ups for calls to write_gcl_records()
 //
 // A: write to gcl from stdin
-// recsrc = -1;  // read the gcl records to be written from stdin with
-//               // prompts to and echoing for the user on stdout
-// recarray = [ ];
+// recsrc   = -1;   // read from stdin the gcl records to be written,
+//                  // with optional prompts to and echoing for the
+//                  // user on stdout.
+// conout   = true; // do prompt and echo to stdout.
+// recarray = [ ]; recarray_out = []; // ignored for recsrc = -1
 //
-// B: write to gcl from JS Array
-// recsrc =  0;  // read the gcl records from the Array recarray
+// B: write to gcl from JS Array, recarray[]
+// recsrc   =  0;      // read the gcl records from the Array recarray[]
 // recarray = [ "Item 01 - from recarray", "Item 02", "Item 03" ];
+// conout   = false;   // don't echo to console.log()
+// recarray_out = [];  // will hold recno's and timestamps for newly
+//                     // written records
 //
 // C: write to gcl N records with integers as contents
-// recsrc >  0;  // write recsrc records with automatically generated
-//               // content: the integers starting at 1 and going up to
-//               // recsrc, inclusive.
-// recsrc   =  7;
-// recarray = [ ];
+// recsrc >  0;     // write recsrc records with automatically generated
+//                  // content: the integers starting at 1 and going
+//                  // up to recsrc, inclusive.
+// recsrc =  7;
+// conout = false;  // don't echo to console.log()
+// recarray = [ ]; recarray_out = []; // ignored for recsrc > 0
 //
-// Finally, call the function:
-// recsrc   = -1;   // read the gcl records to be written from stdin...
-// recarray = [ ];  // not used for recsrc = -1
-// write_gcl_records( gdpd_addr, gcl_name, gcl_append, recsrc, recarray );
-
+// write_gcl_records( gdpd_addr, gcl_name, gcl_append, recsrc,
+//                    recarray, conout, recarray_out
+//                  );
 
 /*  Returns:
     { error_isok: false|true, error_code: EP_STAT, error_msg: String,
@@ -55,12 +68,18 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 // recsrc >  0  write recsrc records with automatically generated
 //              content: the integers starting at 1 and going up to
 //              recsrc, inclusive.
-// conout       Boolean
-// Iff recsrc == 0 and conout == true; the Array entries written to the gcl
-// will also be echoed to console.log().  The other recsrc sources will
-// ALL result in console.log() output; conout is ignored.
-// Note, there still may be undesired output via console.log() and
-// console.error(). TBD
+// conout       Boolean: iff true,
+//              for recsrc = -1, prompt user and echo written records on stdout;
+//              for recsrc = 0, echo written records on stdout, not recommended;
+//              for recsrc > 0,  "
+//              Note, echoed written records also include GCL record number
+//              (recno) and timestamp.
+// recarray_out Array: see recsrc = 0, above.
+//
+// TBD: Note, there still may be undesired output via console.log() and
+// console.error(). Check all uses of  if ( conout == true ) below.
+// TBD: We could also return recarray_out[] for recsrc > 0. And, even
+// augmented with the manually entered record content, for recsrc = -1.
 {	
 	// internal variables for historical reasons
 	var xname   = gcl_name;
@@ -78,8 +97,11 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 	estat = gdp_init_js( /* String */ gdpd_addr );
     // TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
 
-	// allow thread to settle to avoid interspersed debug output
-	sleep.sleep(1); // needed only for stdout and stderr
+	if ( conout == true )
+	{	// allow thread to settle to avoid interspersed debug output
+		// TBD check this
+		sleep.sleep(1); // needed only for stdout and stderr
+	}
 
 	if ( xname == null )
 	{
@@ -93,6 +115,8 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 	else
 	{
 		gdp_gcl_parse_name_js( xname, gcliname );
+
+		// TBD: especially check for gcliname already existing??!!
 	
 		if (append)
 		{
@@ -120,8 +144,10 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 		
 	if ( numrecs < 0 )
 	{
-		// read records from stdin, prompting & echoing to user on stdout
-		console.log( "\nStarting to read input - ^D to end" );
+		// Read records from stdin, prompting & echoing to user on stdout
+
+		if ( conout == true )  // TBD is if(conout) is correct here?
+		{ console.log( "\nStarting to read input - ^D to end" ); }
 		var rvget;  /* String */
 		// really a dummy for gets's parameter; we ignore its value.
 		// Just trying to avoid possible buffer overruns inside gets().
@@ -134,18 +160,26 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 			{  buf[i] = rvgets.charCodeAt(i);  // not sure if really necessary
 			}
 			buf[rvgets.length] = 0;  // Hopefully, interpreted in C as \0
-			console.log( "Got input %s%s%s", "<<", rvgets, ">>" );
+			if ( conout == true )  // TBD is if(conout) is correct here?
+			{ console.log( "Got input %s%s%s", "<<", rvgets, ">>" ); }
 
 			estat = gdp_gcl_publish_buf_js( gcl_Ptr, datum, buf );
 			// TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
 
-			gdp_datum_print_stdout_js( datum );
+			if ( conout == true )  // TBD is if(conout) is correct here?
+			{ gdp_datum_print_stdout_js( datum ); }
 
 		} /* end while */
 	}
 	else if ( numrecs > 0 )
 	{
-		// generate numrecs records with contents = integers 1 to numrecs.
+		// Generate numrecs records with contents = integers 1 to numrecs.
+
+		// For each gcl record written we will return in the parallel array
+		// recarray_out:
+		//    { recno: Integer, time_stamp: <timestamp_as_String> }.
+		// Note, recarray_out must be in the incoming parameter list above.
+
 		for ( var crec = 1; crec <= numrecs; crec++ )
 		{
 			var rvgets;  /* String */
@@ -156,17 +190,25 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 			{  buf[i] = rvgets.charCodeAt(i);  // not sure if really necessary
 			}
 			buf[rvgets.length] = 0;  // Hopefully, interpreted in C as \0
-			console.log( "Got input %s%s%s", "<<", rvgets, ">>" );
+			if ( conout == true )  // TBD is if(conout) is correct here?
+			{ console.log( "Got input %s%s%s", "<<", rvgets, ">>" ); }
 
 			estat = gdp_gcl_publish_buf_js( gcl_Ptr, datum, buf );
 			// TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
 
-			gdp_datum_print_stdout_js( datum );
-		}
+			// grab record number and timestamp for this newly written record
+			var ts = gdp_datum_getts_as_string_js( datum, true /* format */ );
+			// TBD: below check for 64-bit integer return type, gdp_recno_t
+			var rn = gdp_datum_getrecno_js( datum );
+            recarray_out[crec-1] = { recno: rn, time_stamp: ts };
+
+			if ( conout == true )  // TBD is if(conout) is correct here?
+			{ gdp_datum_print_stdout_js( datum ); }
+		} /* end for ( var crec = 1 ...) */
 	}
-	else
+	else  // numrecs == 0
 	{
-		// write contents of recarray to the gcl
+		// Write contents of recarray[] to the gcl
 
 		// For each gcl record written we will return in the parallel array
 		// recarray_out:
@@ -184,7 +226,7 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 			}
 			buf[rvgets.length] = 0;  // Hopefully, interpreted in C as \0
 			if ( conout == true )
-			{	console.log( "Got input %s%s%s", "<<", rvgets, ">>" ); }
+			{ console.log( "Got input %s%s%s", "<<", rvgets, ">>" ); }
 
 			estat = gdp_gcl_publish_buf_js( gcl_Ptr, datum, buf );
 			// TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
@@ -197,7 +239,7 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 
 			if ( conout == true )
 			{	gdp_datum_print_stdout_js( datum ); }
-		}
+		} /* end for ( var crec = 0 ...) */
 	}
 
 	gdp_datum_free_js( datum );
@@ -229,6 +271,9 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 
 // ========================================================================
 // Example set ups for calls to read_gcl_records()
+// TBD1 Bring this doc up to date
+// TBD update these examples and those in reader-test.js
+// TBD recdest has been replaced by conout ??
 //
 // A: read gcl and write to stdout
 // recdest = -1;  // writes the gcl records to stdout with
@@ -248,9 +293,8 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 //                 );
 //
 // Note, read_gcl_records() calls:
-//   do_multiread(gcl_Ptr, gcl_firstrec, gcl_numrecs, gcl_subscribe);
-//   do_simpleread(gcl_Ptr, gcl_firstrec, gcl_numrecs);
-// TBD: These functions are currently only in reader-test.js .
+//   do_multiread(gcl_Ptr, gcl_firstrec, gcl_numrecs, gcl_subscribe, ... );
+//   do_simpleread(gcl_Ptr, gcl_firstrec, gcl_numrecs, ... );
 
 /* Returns:
     { error_isok: false|true, error_code: EP_STAT, error_msg: String,
@@ -266,13 +310,15 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 function read_gcl_records( gdpd_addr, gcl_name,
                            gcl_firstrec, gcl_numrecs,
                            gcl_subscribe, gcl_multiread, recdest,
-						   conout
-                         )
+						   conout, gdp_event_cbfunc,
+	                       /* Boolean */ wait_for_events
+						 )
 
 // gdpd_addr     gdp daemon's <host:port>; if null, use default "127.0.0.1:2468"
 // gcl_name      name of existing GCL 
 // gcl_firstrec, gcl_numrecs, gcl_subscribe, gcl_multiread
 //               as for reader-test.js -f, -n, -s and -m cmd line options
+// TBD recdest is not used anymore
 // recdest = -1  writes the gcl records to stdout with readable formatting
 // recdest =  0  read the gcl records into the return value's Array { records: }
 // conout        Boolean
@@ -282,68 +328,59 @@ function read_gcl_records( gdpd_addr, gcl_name,
 // Note, there still may be undesired output via console.log() and
 // console.error(). TBD
 {
-		// Local working variables
-		var gcl_Ptr; // gclh
-		var estat;   // EP_STAT
-		var gclname  = new gcl_name_t(32);
-		var gclpname = new gcl_pname_t(GDP_GCL_PNAME_LEN);
-		var recarray_out = [];  // will hold contents of records read
+	// Local working variables
+	var gcl_Ptr; // gclh
+	var estat;   // EP_STAT
+	var gclname  = new gcl_name_t(32);
+	var gclpname = new gcl_pname_t(GDP_GCL_PNAME_LEN);
+	var recarray_out = [];  // will hold contents of records read
 
 
-		estat = gdp_init_js( /* String */ gdpd_addr );
-		// TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
+	estat = gdp_init_js( /* String */ gdpd_addr );
+	// TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
 
-		// allow thread to settle to avoid interspersed debug output
+	if ( conout == true )
+	{	// allow thread to settle to avoid interspersed debug output
+		// TBD check this
 		sleep.sleep(1); // needed only for stdout and stderr
+	}
 
-		estat = gdp_gcl_parse_name_js( gcl_name, gclname );
-		// TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
+	estat = gdp_gcl_parse_name_js( gcl_name, gclname );
+	// TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
 
-		var rv_str = gdp_gcl_printable_name_js( gclname, gclpname );
+	var rv_str = gdp_gcl_printable_name_js( gclname, gclpname );
 	if ( conout == true )
 	{ console.log( "Reading GCL %s", array_to_String(gclpname) ); }
 
-		// TBD: is this ref.alloc() necessary?
-        var gclPtrPtr = ref.alloc( gdp_gcl_tPtrPtr );
-		// TBD: check signature
-		var gclopenrv = gdp_gcl_open_js(gclname, GDP_MODE_RO, gclPtrPtr);
-		estat   = gclopenrv.error_code;
-		gcl_Ptr = gclopenrv.gclH;
-		// TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
+	// TBD: is this ref.alloc() necessary?
+    var gclPtrPtr = ref.alloc( gdp_gcl_tPtrPtr );
+	// TBD: check signature
+	var gclopenrv = gdp_gcl_open_js(gclname, GDP_MODE_RO, gclPtrPtr);
+	estat   = gclopenrv.error_code;
+	gcl_Ptr = gclopenrv.gclH;
+	// TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
 
-		if (gcl_subscribe || gcl_multiread)
-		{
-			estat = do_multiread(gcl_Ptr, gcl_firstrec, gcl_numrecs, gcl_subscribe, recarray_out, conout);
-		}
-		else
-		{
+	if (gcl_subscribe || gcl_multiread)
+	{
+		// DEBUG TBD1
+		// console.log( 'In read_gcl_records(): before do_multiread()' );
+		// true for reader-test.js; false for gdpREST_server.js
+		estat = do_multiread( gcl_Ptr, gcl_firstrec, gcl_numrecs, gcl_subscribe,
+	                          wait_for_events,
+							  recarray_out, conout, gdp_event_cbfunc
+							);
+	}
+	else
+	{
+		estat = do_simpleread( gcl_Ptr, gcl_firstrec, gcl_numrecs,
+		                       recarray_out, conout
+							 );
+	}
+	// TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
 
-	// LEFT OFF
-	// recarray_out [
-	// {
-    //   recno:     <integer record number>,
-	//   timestamp: <String timestamp of record>,
-	//   value:     <String contents of record>
-	// }
-	// ];
-			estat = do_simpleread(gcl_Ptr, gcl_firstrec, gcl_numrecs, recarray_out, conout);
-		}
-		// TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
+	gdp_gcl_close_js( gcl_Ptr );
 
-		gdp_gcl_close_js( gcl_Ptr );
-
-		// TBD: fix this error return - see corresponding location in reader-test.js
-		if (false)
-		{
-		// string.repeat not available for us here in ECMASscript<6
-		var str = new Array( 200 + 1 ).join( " " );  // long enough??
-		console.error( "exiting with status %s",
-			           ep_stat_tostr_js(estat, str, str.length) );
-		fflush_all_js();  // sometimes Node.js may not empty buffers
-		return ( ! ep_stat_isok_js(estat) );
-		}
-		else
-		{
+	// TBD: fix this error return - see corresponding location in reader-test.js
 	// string.repeat not available for us here in ECMASscript<6
 	var str = new Array( 200 + 1 ).join( " " );  // long enough??
 	var emsg = ( "exiting with status " +
@@ -364,8 +401,6 @@ function read_gcl_records( gdpd_addr, gcl_name,
 			records:    recarray_out
 		 };
 	return rv;
-		}
-
 } /* end read_gcl_records( ) */
 
 
@@ -382,7 +417,9 @@ function read_gcl_records( gdpd_addr, gcl_name,
 	// Note, firstrec is a JS Number not a ref gdp_recno_t and, similarly,
 	//       numrecs is a JS Number not a ref int
 	/* EP_STAT */
-	function do_simpleread(gclh, firstrec, numrecs, recarray_out, conout)
+	function do_simpleread( gclh, firstrec, numrecs,
+	                        recarray_out, conout
+						  )
 	{
 //C  	EP_STAT estat = EP_STAT_OK;
 		// ?? make sure this can hold & allow access to gdp EP_STAT's
@@ -398,6 +435,7 @@ function read_gcl_records( gdpd_addr, gcl_name,
 //C  	gdp_datum_t *datum = gdp_datum_new();
 		var datum;
 		datum = gdp_datum_new_js();
+		// TBD where is datum freed?
 //C  
 //C  	// change the "infinity" sentinel to make the loop easier
 		if ( numrecs == 0 ) numrecs = -1;
@@ -433,7 +471,7 @@ function read_gcl_records( gdpd_addr, gcl_name,
 			gdp_datum_print_stdout_js( datum );
 			}
 //C  
-	// LEFT OFF
+			// TBD1 - error checks
 			// grab record contents for this newly read record
 	        var val = get_datum_buf_as_string( datum );
 			// grab record number and timestamp for this newly read record
@@ -482,18 +520,31 @@ function read_gcl_records( gdpd_addr, gcl_name,
 //C  **		This routine handles calls that return multiple values via the
 //C  **		event interface.  They might include subscriptions.
 //C  */
+//   TBD: document the additional functionality we have added to the original
+//   C version of this function:
+//	      wait_for_events, recarray_out, conout, gdp_event_cbfunc
+//   Note: gdp_event_cbfunc is, currently, not all that useful since it's
+//   not really Node.js asynchrouous -- there is no handling of C-level
+//   callbacks (which, BTW, aren't yet implemented).
+//   TBD ensure wait_for_events == true/false works for gdp_gcl_multiread..()
+//   TBD to better handle errors, put error info in a structured return value
 //C  
 //C  EP_STAT
 //C  do_multiread(gdp_gcl_t *gclh, gdp_recno_t firstrec, int32_t numrecs, bool subscribe)
 //C  {
 	// Note, firstrec is a JS Number not a ref gdp_recno_t and, similarly,
-	//       numrecs is a JS Number not a ref int32_t
+	//      true numrecs is a JS Number not a ref int32_t
 	/* EP_STAT */
-	function do_multiread(gclh, firstrec, numrecs, subscribe, recarray_out, conout)
+	function do_multiread( gclh, firstrec, numrecs, subscribe, 
+	                       /* Boolean */ wait_for_events,
+	                       recarray_out, conout, gdp_event_cbfunc
+						 )
 	{
 //C  	EP_STAT estat;
 		var estat;  //?? make sure this can hold & allow access to gdp EP_STAT's
 //C  
+		// DEBUG
+		// console.log( 'In rw_supt.js: do_multiread() At A' );
 		if (subscribe)
 		{
 //C  		// start up a subscription
@@ -507,10 +558,13 @@ function read_gcl_records( gdpd_addr, gcl_name,
 //C  
 //C  		// start up a multiread
 //C  		estat = gdp_gcl_multiread(gclh, firstrec, numrecs, NULL, NULL);
+			// TBD1 - does this case still work for testing and for server use?
 			estat = gdp_gcl_multiread_no_callback_js( gclh, firstrec, numrecs );
 		}
 //C  
 //C  	// check to make sure the subscribe/multiread succeeded; if not, bail
+		// DEBUG
+		// console.log( 'In rw_supt.js: do_multiread() At B' );
 		if ( ! ep_stat_isok_js(estat) )
 		{
 //C  		char ebuf[200];
@@ -521,63 +575,139 @@ function read_gcl_records( gdpd_addr, gcl_name,
 			// No need for ep_app_abort's PRINTFLIKE behavior here - just
 			// give an error msg and exit.
 			// ??consider var ebuf = new buf_t(100);
+			// TBD place this error info in a structured return value
 			var ebuf = new Array( 200 + 1 ).join( " " );  // long enough??
 			console.error( "Cannot %s:\n\t%s",
 			               subscribe ? "subscribe" : "multiread",
 						   ep_stat_tostr_js(estat, ebuf, ebuf.length)
 						   );
 			fflush_all_js();  // sometimes Node.js may not empty buffers
+			// TBD! not acceptable error behavior for a server!
 			process.exit(1);  // could have better error code; e.g., EX_USAGE
 		}
 //C  
+		// DEBUG
+		// console.log( 'In rw_supt.js: do_multiread() At C' );
+		var crec = 0;  // counts records read - an index into recarray_out[]
 //C  	// now start reading the events that will be generated
 		for (;;)
 		{
 //C  		// get the next incoming event
+//C         gdp_event_t *gev = gdp_event_next(true);
 			var gev_Ptr; // gev
-			gev_Ptr = gdp_event_next_js(true);
-			var evtype_int = gdp_event_gettype_js(gev_Ptr);
+			var evtype_int;
+			// OLD gev_Ptr = gdp_event_next_js(true);
+			// if wait_for_events == false, do a single
+			// synchronous poll here for a currently waiting gdp event; don't 
+			// wait for any future events; if there is no currently waiting
+			// event, return immediately with a null
+			// if wait_for_events == true, wait (indefinitely)
+			// for a next gdp event
+			gev_Ptr = gdp_event_next_js( wait_for_events );
+			// TBD: what if gev_Ptr is null; happens on gdp_event_next_js(false)
+			//      with no event available.
+			// DEBUG
+			// console.log( 'In rw_supt.js: do_multiread() At D; gev_Ptr = ', gev_Ptr );
+			// if ( gev_Ptr == null )
+			if ( gev_Ptr.isNull() )
+			{	// no next event found - just return with no side-effects
+			    // on recarray_out, or call of gdp_event_cbfunc.
+				// DEBUG
+				// console.log( 'In rw_supt.js: do_multiread() At E' );
+  			    return estat;
+			}
+			else
+			{	// we have seen an event - process it based on its type
+			// DEBUG
+			// console.log( 'In rw_supt.js: do_multiread() At F' );
+			evtype_int = gdp_event_gettype_js(gev_Ptr);
 //C  
 //C  		// decode it
   		    switch ( evtype_int )
   		    {
   		      case GDP_EVENT_DATA:
 //C  			// this event contains a data return
+			    var datum = gdp_event_getdatum_js( gev_Ptr );
+	            if ( conout == true )
+				{
 //C  			fprintf(stdout, " >>> ");A
 			    // See process.stdout.write comments above in do_simpleread() .
 			    process.stdout.write( " >>> " );
 			    fflush_all_js();  // sometimes Node.js may not empty buffers
-			    var datum = gdp_event_getdatum_js( gev_Ptr );
 			    gdp_datum_print_stdout_js( datum );
-  			    break;
+				}
+  			    if ( gdp_event_cbfunc )
+  			    {
+					// TBD1 - cleanup here
+					// do this stashing into recarray_out even if we
+					// don't have a non-null gdp_event_cbfunc()
+					// grab record contents for this newly read record
+					var val = get_datum_buf_as_string( datum );
+					// grab record number and timestamp for this newly read record
+					var ts = gdp_datum_getts_as_string_js( datum, true /* format */ );
+					// TBD: below check for 64-bit integer return type, gdp_recno_t
+					var rn = gdp_datum_getrecno_js( datum );
+					// TBD: check that recno and rn agree - which to use here?
+					recarray_out[crec] = 
+					{
+					recno:     rn,   // for now we use gdp's record number
+					timestamp: ts,
+					value:     val
+					};
+					crec++;
+					// DEBUG
+					// console.log( 'In rw_supt.js: do_multiread() At G' );
+					// TBD1 - cleanup here
+					gdp_event_cbfunc( evtype_int, datum, recarray_out );
+				}
+
+				break;
 //C  
   		      case GDP_EVENT_EOS:
 //C  			// "end of subscription": no more data will be returned
 //C  			fprintf(stdout, "End of %s\n",
 //C  					subscribe ? "Subscription" : "Multiread");
+				// TBD should we also return this as error info?
 	            if ( conout == true )
 				{ console.log("End of %s", subscribe ? "Subscription" : "Multiread" ); }
+  			    if ( gdp_event_cbfunc )
+  			    { 
+					// DEBUG
+					// console.log( 'In rw_supt.js: do_multiread() At G' );
+					gdp_event_cbfunc( evtype_int, null, estat );
+				
+				}
   			    return estat;
 //C  
   		      default:
 //C  			// should be ignored, but we print it since this is a test program
 //C  			fprintf(stderr, "Unknown event type %d\n", gdp_event_gettype(gev));
+				// TBD handle this error situation more usefully
+				// TBD should we also return this as error info?
+	            if ( conout == true )
+				{
 			    console.error( "Unknown event type %d\n",
                                gdp_event_gettype_js(gev_Ptr) );
 			    fflush_all_js();  // sometimes Node.js may not empty buffers
+				}
 //C  
 //C  			// just in case we get into some crazy loop.....
+				// TBD check the need for this in server code
 			    sleep.sleep(1);
   			    break;
   		    } /* switch */
 //C  
 //C  		// don't forget to free the event!
-			gdp_event_free_js(gev_Ptr);
+			// protect against freeing nulls
+			if ( gev_Ptr != null )
+			{ gdp_event_free_js(gev_Ptr); }
+
+			} /* end if ( gev_Ptr == null ) else */
 		} /* for (;;) */
 //C  	
 //C  	// should never get here
 		return estat;
-	} /* do_multiread() */
+	} /* end do_multiread() */
 //C  }
 //C  
 

@@ -1,5 +1,5 @@
 #
-#  Makefile for libgdpjs  (based on Makefile for libep)
+#  Makefile for libgdpjs  (based on gdp/libep/Makefile)
 #
 #	$Id$
 #
@@ -9,24 +9,33 @@
 # Alec Dara-Abrams
 # 2014-10-24
 #
+# TBD: Copyrights, one-button tests, README files
+#
 # Caveats:
 #
 #    This Makefile assumes that it is located in gdp/lang/js/gdpjs/ ,
 #    where gdp/ is a GDP Git local repository.  See GDPROOT and
 #    the (unstructured) -I..'s below.
 #
-#    Products of the bulid:
+#    It will not force a re-build of the system up in gdp/ .
+#    gdp/ must be re-built and kept up to date separately.
+#
+#    Products of the build:
 #      1) *.o and *.a are left in the current directory
 #      2) the dynamic library, libgdpjs.so.<<major>>.<<minor>> is moved
 #      to gdpjs/libs/ and variously named copies are sym linked to it there.
 #    Note, some of the various dynamic library sym linked files have
 #    version information within their file names.
 #
-#    This Makefile will not force a re-build of the system up in gdp/ .
-#    gdp/ must be re-built and kept up to date separately.
-#
 #    Yes, this Makefile is not as clean, structured, and parameterized
 #    as it could be!
+
+
+# External makefile targets below: all, clean
+# TBD: provide a test/ sub-directory.
+
+
+# Internal makefile variables
 
 CURDIR=	.
 
@@ -82,11 +91,6 @@ libgdpjs.so.${GDPJS_LIBVER}: ${OBJS}
 
 gdpjs_version.o: gdpjs_version.c FORCE
 	${CC} ${CFLAGS} -D_CURRENT_DATE_=\"`date +'%Y-%m-%d_%H:%M'`\" -c gdpjs_version.c
-
-#ep_stat.h: ep_status_codes.stat procstatus.py
-#	-mv -f ep_stat.h ep_stat.h~
-#	./procstatus.py < ep_status_codes.stat > ep_stat.h
-#	chmod 444 ep_stat.h
 
 FORCE:
 

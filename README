@@ -48,6 +48,13 @@ Directory Structure:
 		CGI fork/exec.  This is only used for the REST interface.
 	apps --- Application programs, including tests.
 	doc --- Some documentation, woefully incomplete.
+	lang --- sub-directories with language-specific application
+                programs and supporting code.
+        lang/js - JavaScript-specific apps and libraries.  Also contains
+                the Node.js/JS GDP RESTful interface code.  See associated
+                README files for details.
+        lang/python
+                - Python-specific apps and libraries.
 
 Compiling:
 	First, install the prerequisite packages.
@@ -64,6 +71,13 @@ Compiling:
 	Ubuntu 12.04 (using gcc or clang), and Freebsd 10.0 (using
 	clang).  I believe one person has it running on MacOS 10.7
 	using gcc.
+
+        Note, the lang/js/ JavaScript system currently must be built
+        separately using the target all_JavaScript in gdp/Makefile:
+            make all_JavaScript
+        To clean (including removing a rather extensive set of Node.js
+        modules which are installed by all_JavaScript):
+            make clean_JavaScript
 
 Running a GDP-based program:
 	For anything interesting to happen, an instance of the GDP
