@@ -142,13 +142,15 @@ gdp_gcl_parse_name(const char *ext, gcl_name_t gcl_name)
 }
 
 /*
-**	GDP_GCL_NAME_IS_ZERO --- test whether a GCL name is all zero
+**	GDP_GCL_NAME_IS_VALID --- test whether a GCL name is valid
 **
-**		We assume that this means "no name".
+**		Unfortunately, since SHA-256 is believed to be surjective
+**		(that is, all values are possible), there is a slight
+**		risk of a collision.
 */
 
 bool
-gdp_gcl_name_is_zero(const gcl_name_t gcl_name)
+gdp_gcl_name_is_valid(const gcl_name_t gcl_name)
 {
 	const uint32_t *up;
 	int i;
@@ -156,8 +158,8 @@ gdp_gcl_name_is_zero(const gcl_name_t gcl_name)
 	up = (uint32_t *) gcl_name;
 	for (i = 0; i < sizeof (gcl_name_t) / 4; i++)
 		if (*up++ != 0)
-			return false;
-	return true;
+			return true;
+	return false;
 }
 
 /*
@@ -179,7 +181,7 @@ gdp_gcl_print(
 	}
 	else
 	{
-		if (gdp_gcl_name_is_zero(gcl->gcl_name))
+		if (!gdp_gcl_name_is_valid(gcl->gcl_name))
 		{
 			fprintf(fp, "no name\n");
 		}
@@ -291,7 +293,7 @@ gdp_gcl_open(gcl_name_t gcl_name,
 		return GDP_STAT_BAD_IOMODE;
 	}
 
-	if (gdp_gcl_name_is_zero(gcl_name))
+	if (!gdp_gcl_name_is_valid(gcl_name))
 	{
 		// illegal GCL name
 		ep_dbg_cprintf(Dbg, 6, "gdp_gcl_open: null GCL name\n");

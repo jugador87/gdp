@@ -187,7 +187,7 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 	FILE *index_fp;
 
 	// allocate a name
-	if (gdp_gcl_name_is_zero(gcl->gcl_name))
+	if (!gdp_gcl_name_is_valid(gcl->gcl_name))
 	{
 		_gdp_gcl_newname(gcl);
 	}

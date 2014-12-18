@@ -100,7 +100,7 @@ cmd_create(gdp_req_t *req)
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// cache the open GCL Handle for possible future use
-	EP_ASSERT_INSIST(!gdp_gcl_name_is_zero(gcl->gcl_name));
+	EP_ASSERT_INSIST(gdp_gcl_name_is_valid(gcl->gcl_name));
 	_gdp_gcl_cache_add(gcl, GDP_MODE_AO);
 
 	// pass any creation info back to the caller

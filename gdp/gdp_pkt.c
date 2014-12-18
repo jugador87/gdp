@@ -52,7 +52,7 @@ _gdp_pkt_dump(gdp_pkt_t *pkt, FILE *fp)
 				pkt->reserved1, pkt->rid);
 	ep_prflags(pkt->flags, PktFlags, fp);
 	fprintf(fp, "\n\tgcl_name=");
-	if (gdp_gcl_name_is_zero(pkt->gcl_name))
+	if (!gdp_gcl_name_is_valid(pkt->gcl_name))
 		fprintf(fp, "(none)");
 	else
 	{
@@ -164,7 +164,7 @@ _gdp_pkt_out(gdp_pkt_t *pkt, gdp_chan_t *chan)
 	}
 
 	// GCL name
-	if (!gdp_gcl_name_is_zero(pkt->gcl_name))
+	if (gdp_gcl_name_is_valid(pkt->gcl_name))
 	{
 		pbuf[2] |= GDP_PKT_HAS_ID;
 		memcpy(pbp, pkt->gcl_name, sizeof pkt->gcl_name);

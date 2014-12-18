@@ -124,7 +124,7 @@ _gdp_gcl_create(gdp_gcl_t *gcl,
 	gdp_req_t *req = NULL;
 	EP_STAT estat = EP_STAT_OK;
 
-	if (gdp_gcl_name_is_zero(gcl->gcl_name))
+	if (!gdp_gcl_name_is_valid(gcl->gcl_name))
 		_gdp_gcl_newname(gcl);
 
 	estat = _gdp_req_new(GDP_CMD_CREATE, gcl, chan, reqflags, &req);

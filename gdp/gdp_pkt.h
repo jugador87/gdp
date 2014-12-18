@@ -152,8 +152,8 @@ typedef struct gdp_pkt
 #define GDP_PKT_HAS_TS		0x08		// has a timestamp field
 
 /***** dummy values for other fields *****/
-#define GDP_PKT_NO_RID		0L			// no request id
-#define GDP_PKT_NO_RECNO	-1			// no record number
+#define GDP_PKT_NO_RID		UINT32_C(0)		// no request id
+#define GDP_PKT_NO_RECNO	UINT64_C(-1)	// no record number
 
 
 gdp_pkt_t	*_gdp_pkt_new(void);		// allocate a new packet

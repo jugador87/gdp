@@ -179,7 +179,7 @@ ack_success(gdp_req_t *req)
 
 	//	If we started with no gcl id, adopt from incoming packet.
 	//	This can happen when creating a GCL.
-	if (gcl != NULL && gdp_gcl_name_is_zero(gcl->gcl_name))
+	if (gcl != NULL && !gdp_gcl_name_is_valid(gcl->gcl_name))
 	{
 		memcpy(gcl->gcl_name, req->pkt->gcl_name, sizeof gcl->gcl_name);
 		gdp_gcl_printable_name(gcl->gcl_name, gcl->pname);

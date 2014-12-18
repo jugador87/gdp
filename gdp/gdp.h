@@ -196,7 +196,7 @@ extern const gcl_name_t *gdp_gcl_getname(
 					const gdp_gcl_t *gcl);	// open GCL handle
 
 // check to see if a GCL name is valid
-extern bool		gdp_gcl_name_is_zero(
+extern bool		gdp_gcl_name_is_valid(
 					const gcl_name_t);
 
 // print a GCL (for debugging)

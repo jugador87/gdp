@@ -125,7 +125,7 @@ _gdp_gcl_cache_add(gdp_gcl_t *gcl, gdp_iomode_t mode)
 {
 	// sanity checks
 	EP_ASSERT_POINTER_VALID(gcl);
-	EP_ASSERT_REQUIRE(!gdp_gcl_name_is_zero(gcl->gcl_name));
+	EP_ASSERT_REQUIRE(gdp_gcl_name_is_valid(gcl->gcl_name));
 
 	// save it in the cache
 	(void) ep_hash_insert(OpenGCLCache,
