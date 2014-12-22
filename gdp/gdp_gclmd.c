@@ -1,8 +1,8 @@
 /* vim: set ai sw=4 sts=4 ts=4 :*/
 
-#include <gdp.h>
-#include <gdp_priv.h>
-#include <gdp_gclmd.h>
+#include "gdp.h"
+#include "gdp_priv.h"
+#include "gdp_gclmd.h"
 
 #include <ep/ep_dbg.h>
 #include <ep/ep_hexdump.h>
