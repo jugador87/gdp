@@ -31,8 +31,8 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl.ops", "GCL operations for GDP");
 void
 _gdp_gcl_newname(gdp_gcl_t *gcl)
 {
-	evutil_secure_rng_get_bytes(gcl->gcl_name, sizeof gcl->gcl_name);
-	gdp_gcl_printable_name(gcl->gcl_name, gcl->pname);
+	evutil_secure_rng_get_bytes(gcl->name, sizeof gcl->name);
+	gdp_printable_name(gcl->name, gcl->pname);
 }
 
 
@@ -41,7 +41,7 @@ _gdp_gcl_newname(gdp_gcl_t *gcl)
 */
 
 EP_STAT
-_gdp_gcl_newhandle(gcl_name_t gcl_name, gdp_gcl_t **pgcl)
+_gdp_gcl_newhandle(gdp_name_t gcl_name, gdp_gcl_t **pgcl)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gdp_gcl_t *gcl;
@@ -55,8 +55,8 @@ _gdp_gcl_newhandle(gcl_name_t gcl_name, gdp_gcl_t **pgcl)
 	LIST_INIT(&gcl->reqs);
 	if (gcl_name != NULL)
 	{
-		memcpy(gcl->gcl_name, gcl_name, sizeof gcl->gcl_name);
-		gdp_gcl_printable_name(gcl_name, gcl->pname);
+		memcpy(gcl->name, gcl_name, sizeof gcl->name);
+		gdp_printable_name(gcl_name, gcl->pname);
 	}
 	gcl->refcnt = 1;
 
@@ -124,14 +124,14 @@ _gdp_gcl_create(gdp_gcl_t *gcl,
 	gdp_req_t *req = NULL;
 	EP_STAT estat = EP_STAT_OK;
 
-	if (!gdp_gcl_name_is_valid(gcl->gcl_name))
+	if (!gdp_name_is_valid(gcl->name))
 		_gdp_gcl_newname(gcl);
 
 	estat = _gdp_req_new(GDP_CMD_CREATE, gcl, chan, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// add the metadata to the output stream
-	_gdp_gclmd_serialize(gmd, req->pkt->datum->dbuf);
+	_gdp_gclmd_serialize(gmd, req->pdu->datum->dbuf);
 
 	estat = _gdp_invoke(req);
 	EP_STAT_CHECK(estat, goto fail1);
@@ -245,14 +245,14 @@ _gdp_gcl_publish(gdp_gcl_t *gcl,
 
 	estat = _gdp_req_new(GDP_CMD_PUBLISH, gcl, chan, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
-	gdp_datum_free(req->pkt->datum);
+	gdp_datum_free(req->pdu->datum);
 	(void) ep_time_now(&datum->ts);
-	req->pkt->datum = datum;
+	req->pdu->datum = datum;
 	EP_ASSERT(datum->inuse);
 
 	estat = _gdp_invoke(req);
 
-	req->pkt->datum = NULL;			// owned by caller
+	req->pdu->datum = NULL;			// owned by caller
 	_gdp_req_free(req);
 fail0:
 	return estat;
@@ -287,14 +287,14 @@ _gdp_gcl_read(gdp_gcl_t *gcl,
 
 	EP_TIME_INVALIDATE(&datum->ts);
 
-	gdp_datum_free(req->pkt->datum);
-	req->pkt->datum = datum;
+	gdp_datum_free(req->pdu->datum);
+	req->pdu->datum = datum;
 	EP_ASSERT(datum->inuse);
 
 	estat = _gdp_invoke(req);
 
 	// ok, done!
-	req->pkt->datum = NULL;			// owned by caller
+	req->pdu->datum = NULL;			// owned by caller
 	_gdp_req_free(req);
 fail0:
 	return estat;
@@ -327,8 +327,8 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// add start and stop parameters to packet
-	req->pkt->datum->recno = start;
-	gdp_buf_put_uint32(req->pkt->datum->dbuf, numrecs);
+	req->pdu->datum->recno = start;
+	gdp_buf_put_uint32(req->pdu->datum->dbuf, numrecs);
 
 	// issue the subscription --- no data returned
 	estat = _gdp_invoke(req);
@@ -364,7 +364,7 @@ _gdp_gcl_getmetadata(gdp_gcl_t *gcl,
 	estat = _gdp_invoke(req);
 	EP_STAT_CHECK(estat, goto fail1);
 
-	*gmdp = _gdp_gclmd_deserialize(req->pkt->datum->dbuf);
+	*gmdp = _gdp_gclmd_deserialize(req->pdu->datum->dbuf);
 
 fail1:
 	_gdp_req_free(req);

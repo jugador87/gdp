@@ -15,7 +15,7 @@
 
 #include <gdp/gdp.h>
 #include <gdp/gdp_priv.h>
-#include <gdp/gdp_pkt.h>
+#include <gdp/gdp_pdu.h>
 #include <gdp/gdp_stat.h>
 
 #include <unistd.h>
@@ -54,12 +54,12 @@ struct gdp_gcl_xtra
 */
 
 extern EP_STAT	gcl_alloc(				// allocate a new GCL
-					gcl_name_t gcl_name,
+					gdp_name_t gcl_name,
 					gdp_iomode_t iomode,
 					gdp_gcl_t **pgcl);
 
 extern EP_STAT	gcl_open(				// open an existing physical GCL
-					gcl_name_t gcl_name,
+					gdp_name_t gcl_name,
 					gdp_iomode_t iomode,
 					gdp_gcl_t **pgcl);
 

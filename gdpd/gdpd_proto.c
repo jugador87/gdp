@@ -13,11 +13,11 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdpd.proto", "GDP Daemon protocol");
 */
 
 EP_STAT
-gdpd_gcl_error(gcl_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
+gdpd_gcl_error(gdp_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
 {
-	gcl_pname_t pname;
+	gdp_pname_t pname;
 
-	gdp_gcl_printable_name(gcl_name, pname);
+	gdp_printable_name(gcl_name, pname);
 	if (EP_STAT_ISSEVERE(logstat))
 	{
 		// server error (rather than client error)
@@ -31,13 +31,13 @@ flush_input_data(gdp_req_t *req, char *where)
 {
 	int i;
 
-	if (req->pkt->datum != NULL &&
-			(i = evbuffer_get_length(req->pkt->datum->dbuf)) > 0)
+	if (req->pdu->datum != NULL &&
+			(i = evbuffer_get_length(req->pdu->datum->dbuf)) > 0)
 	{
 		ep_dbg_cprintf(Dbg, 4,
 				"flush_input_data: %s: flushing %d bytes of unexpected input\n",
 				where, i);
-		gdp_buf_reset(req->pkt->datum->dbuf);
+		gdp_buf_reset(req->pdu->datum->dbuf);
 	}
 }
 
@@ -58,7 +58,7 @@ implement_me(char *s)
 **
 **		Each of these takes a request as the argument.
 **
-**		These routines should set req->pkt->cmd to the "ACK" reply
+**		These routines should set req->pdu->cmd to the "ACK" reply
 **		code, which will be used if the command succeeds (i.e.,
 **		returns EP_STAT_OK).  Otherwise the return status is decoded
 **		to produce a NAK code.  A specific NAK code can be sent
@@ -81,15 +81,15 @@ cmd_create(gdp_req_t *req)
 	gdp_gcl_t *gcl;
 	gdp_gclmd_t *gmd;
 
-	req->pkt->cmd = GDP_ACK_CREATED;
+	req->pdu->cmd = GDP_ACK_CREATED;
 
 	// get the memory space
-	estat = gcl_alloc(req->pkt->gcl_name, GDP_MODE_AO, &gcl);
+	estat = gcl_alloc(req->pdu->dst, GDP_MODE_AO, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
 	req->gcl = gcl;			// for debugging
 
 	// collect metadata, if any
-	gmd = _gdp_gclmd_deserialize(req->pkt->datum->dbuf);
+	gmd = _gdp_gclmd_deserialize(req->pdu->datum->dbuf);
 
 	// no further input, so we can reset the buffer just to be safe
 	flush_input_data(req, "cmd_create");
@@ -100,7 +100,7 @@ cmd_create(gdp_req_t *req)
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// cache the open GCL Handle for possible future use
-	EP_ASSERT_INSIST(gdp_gcl_name_is_valid(gcl->gcl_name));
+	EP_ASSERT_INSIST(gdp_name_is_valid(gcl->name));
 	_gdp_gcl_cache_add(gcl, GDP_MODE_AO);
 
 	// pass any creation info back to the caller
@@ -128,7 +128,7 @@ cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 {
 	EP_STAT estat = EP_STAT_OK;
 
-	req->pkt->cmd = GDP_ACK_SUCCESS;
+	req->pdu->cmd = GDP_ACK_SUCCESS;
 
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_open_xx");
@@ -137,11 +137,11 @@ cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 	estat = get_open_handle(req, iomode);
 	if (!EP_STAT_ISOK(estat))
 	{
-		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_openxx: could not open GCL",
+		return gdpd_gcl_error(req->pdu->dst, "cmd_openxx: could not open GCL",
 							estat, GDP_NAK_C_BADREQ);
 	}
 
-	req->pkt->datum->recno = gcl_max_recno(req->gcl);
+	req->pdu->datum->recno = gcl_max_recno(req->gcl);
 	_gdp_gcl_decref(req->gcl);
 	req->gcl = NULL;
 	return estat;
@@ -176,7 +176,7 @@ cmd_close(gdp_req_t *req)
 {
 	EP_STAT estat = EP_STAT_OK;
 
-	req->pkt->cmd = GDP_ACK_SUCCESS;
+	req->pdu->cmd = GDP_ACK_SUCCESS;
 
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_close");
@@ -185,10 +185,10 @@ cmd_close(gdp_req_t *req)
 	estat = get_open_handle(req, GDP_MODE_ANY);
 	if (!EP_STAT_ISOK(estat))
 	{
-		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_close: GCL not open",
+		return gdpd_gcl_error(req->pdu->dst, "cmd_close: GCL not open",
 							estat, GDP_NAK_C_BADREQ);
 	}
-	req->pkt->datum->recno = gcl_max_recno(req->gcl);
+	req->pdu->datum->recno = gcl_max_recno(req->gcl);
 	_gdp_gcl_decref(req->gcl);
 	req->gcl = NULL;
 
@@ -208,7 +208,7 @@ cmd_read(gdp_req_t *req)
 {
 	EP_STAT estat;
 
-	req->pkt->cmd = GDP_ACK_CONTENT;
+	req->pdu->cmd = GDP_ACK_CONTENT;
 
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_read");
@@ -216,23 +216,23 @@ cmd_read(gdp_req_t *req)
 	estat = get_open_handle(req, GDP_MODE_RO);
 	if (!EP_STAT_ISOK(estat))
 	{
-		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_read: GCL open failure",
+		return gdpd_gcl_error(req->pdu->dst, "cmd_read: GCL open failure",
 							estat, GDP_NAK_C_BADREQ);
 	}
 
 	// handle record numbers relative to the end
-	if (req->pkt->datum->recno <= 0)
+	if (req->pdu->datum->recno <= 0)
 	{
-		req->pkt->datum->recno += gcl_max_recno(req->gcl) + 1;
-		if (req->pkt->datum->recno <= 0)
+		req->pdu->datum->recno += gcl_max_recno(req->gcl) + 1;
+		if (req->pdu->datum->recno <= 0)
 		{
 			// can't read before the beginning
-			req->pkt->datum->recno = 1;
+			req->pdu->datum->recno = 1;
 		}
 	}
 
-	gdp_buf_reset(req->pkt->datum->dbuf);
-	estat = gcl_physread(req->gcl, req->pkt->datum);
+	gdp_buf_reset(req->pdu->datum->dbuf);
+	estat = gcl_physread(req->gcl, req->pdu->datum);
 
 	if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
 		estat = GDP_STAT_NAK_NOTFOUND;
@@ -253,28 +253,28 @@ cmd_publish(gdp_req_t *req)
 {
 	EP_STAT estat;
 
-	req->pkt->cmd = GDP_ACK_CREATED;
+	req->pdu->cmd = GDP_ACK_CREATED;
 
 	estat = get_open_handle(req, GDP_MODE_AO);
 	if (!EP_STAT_ISOK(estat))
 	{
-		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_publish: GCL not open",
+		return gdpd_gcl_error(req->pdu->dst, "cmd_publish: GCL not open",
 							estat, GDP_NAK_C_BADREQ);
 	}
 
 	// make sure the timestamp is current
-	estat = ep_time_now(&req->pkt->datum->ts);
+	estat = ep_time_now(&req->pdu->datum->ts);
 
 	// create the message
-	estat = gcl_physappend(req->gcl, req->pkt->datum);
+	estat = gcl_physappend(req->gcl, req->pdu->datum);
 
 	// send the new data to any subscribers
 	if (EP_STAT_ISOK(estat))
 		sub_notify_all_subscribers(req);
 
 	// we can now let the data in the request go
-	evbuffer_drain(req->pkt->datum->dbuf,
-			evbuffer_get_length(req->pkt->datum->dbuf));
+	evbuffer_drain(req->pdu->datum->dbuf,
+			evbuffer_get_length(req->pdu->datum->dbuf));
 
 	// we're no longer using this handle
 	_gdp_gcl_decref(req->gcl);
@@ -300,30 +300,30 @@ post_subscribe(gdp_req_t *req)
 
 	ep_dbg_cprintf(Dbg, 38,
 			"post_subscribe: numrecs = %d, recno = %"PRIgdp_recno"\n",
-			req->numrecs, req->pkt->datum->recno);
+			req->numrecs, req->pdu->datum->recno);
 
 	// make sure the request has the right command
-	req->pkt->cmd = GDP_ACK_CONTENT;
+	req->pdu->cmd = GDP_ACK_CONTENT;
 
 	while (req->numrecs >= 0)
 	{
 		// see if data pre-exists in the GCL
-		if (req->pkt->datum->recno > gcl_max_recno(req->gcl))
+		if (req->pdu->datum->recno > gcl_max_recno(req->gcl))
 		{
 			// no, it doesn't; convert to long-term subscription
 			break;
 		}
 
 		// get the next record and return it as an event
-		estat = gcl_physread(req->gcl, req->pkt->datum);
+		estat = gcl_physread(req->gcl, req->pdu->datum);
 		if (EP_STAT_ISOK(estat))
 		{
 			// OK, the next record exists: send it
-			req->stat = estat = _gdp_pkt_out(req->pkt, req->chan);
+			req->stat = estat = _gdp_pdu_out(req->pdu, req->chan);
 
 			// have to clear the old data
-			evbuffer_drain(req->pkt->datum->dbuf,
-					evbuffer_get_length(req->pkt->datum->dbuf));
+			evbuffer_drain(req->pdu->datum->dbuf,
+					evbuffer_get_length(req->pdu->datum->dbuf));
 
 			// advance to the next record
 			if (req->numrecs > 0 && --req->numrecs == 0)
@@ -331,7 +331,7 @@ post_subscribe(gdp_req_t *req)
 				// numrecs was positive, now zero, but zero means infinity
 				req->numrecs--;
 			}
-			req->pkt->datum->recno++;
+			req->pdu->datum->recno++;
 		}
 		else if (!EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
 		{
@@ -394,24 +394,24 @@ cmd_subscribe(gdp_req_t *req)
 	EP_STAT estat;
 	EP_TIME_SPEC timeout;
 
-	req->pkt->cmd = GDP_ACK_SUCCESS;
+	req->pdu->cmd = GDP_ACK_SUCCESS;
 
 	// find the GCL handle
 	estat = get_open_handle(req, GDP_MODE_RO);
 	if (!EP_STAT_ISOK(estat))
 	{
-		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_subscribe: GCL not open",
+		return gdpd_gcl_error(req->pdu->dst, "cmd_subscribe: GCL not open",
 							estat, GDP_NAK_C_BADREQ);
 	}
 
 	// get the additional parameters: number of records and timeout
-	req->numrecs = (int) gdp_buf_get_uint32(req->pkt->datum->dbuf);
-	gdp_buf_get_timespec(req->pkt->datum->dbuf, &timeout);
+	req->numrecs = (int) gdp_buf_get_uint32(req->pdu->datum->dbuf);
+	gdp_buf_get_timespec(req->pdu->datum->dbuf, &timeout);
 
 	if (ep_dbg_test(Dbg, 14))
 	{
 		ep_dbg_printf("cmd_subscribe: first = %" PRIgdp_recno ", numrecs = %d\n  ",
-				req->pkt->datum->recno, req->numrecs);
+				req->pdu->datum->recno, req->numrecs);
 		gdp_gcl_print(req->gcl, ep_dbg_getfile(), 1, 0);
 	}
 
@@ -420,30 +420,30 @@ cmd_subscribe(gdp_req_t *req)
 
 	if (req->numrecs < 0)
 	{
-		req->pkt->cmd = GDP_NAK_C_BADOPT;
-		return GDP_STAT_FROM_C_NAK(req->pkt->cmd);
+		req->pdu->cmd = GDP_NAK_C_BADOPT;
+		return GDP_STAT_FROM_C_NAK(req->pdu->cmd);
 	}
 
 	// mark this as persistent and upgradable
 	req->flags |= GDP_REQ_PERSIST | GDP_REQ_SUBUPGRADE;
 
 	// get our starting point, which may be relative to the end
-	if (req->pkt->datum->recno <= 0)
+	if (req->pdu->datum->recno <= 0)
 	{
-		req->pkt->datum->recno += gcl_max_recno(req->gcl) + 1;
-		if (req->pkt->datum->recno <= 0)
+		req->pdu->datum->recno += gcl_max_recno(req->gcl) + 1;
+		if (req->pdu->datum->recno <= 0)
 		{
 			// still starts before beginning; start from beginning
-			req->pkt->datum->recno = 1;
+			req->pdu->datum->recno = 1;
 		}
 	}
 
 	ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: starting from %" PRIgdp_recno
 			", %d records\n",
-			req->pkt->datum->recno, req->numrecs);
+			req->pdu->datum->recno, req->numrecs);
 
 	// if some of the records already exist, arrange to return them
-	if (req->pkt->datum->recno <= gcl_max_recno(req->gcl))
+	if (req->pdu->datum->recno <= gcl_max_recno(req->gcl))
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: doing post processing\n");
 		req->cb.gdpd = &post_subscribe;
@@ -482,23 +482,23 @@ cmd_multiread(gdp_req_t *req)
 {
 	EP_STAT estat;
 
-	req->pkt->cmd = GDP_ACK_SUCCESS;
+	req->pdu->cmd = GDP_ACK_SUCCESS;
 
 	// find the GCL handle
 	estat  = get_open_handle(req, GDP_MODE_RO);
 	if (!EP_STAT_ISOK(estat))
 	{
-		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_multiread: GCL not open",
+		return gdpd_gcl_error(req->pdu->dst, "cmd_multiread: GCL not open",
 							estat, GDP_NAK_C_BADREQ);
 	}
 
 	// get the additional parameters: number of records and timeout
-	req->numrecs = (int) gdp_buf_get_uint32(req->pkt->datum->dbuf);
+	req->numrecs = (int) gdp_buf_get_uint32(req->pdu->datum->dbuf);
 
 	if (ep_dbg_test(Dbg, 14))
 	{
 		ep_dbg_printf("cmd_multiread: first = %" PRIgdp_recno ", numrecs = %d\n  ",
-				req->pkt->datum->recno, req->numrecs);
+				req->pdu->datum->recno, req->numrecs);
 		gdp_gcl_print(req->gcl, ep_dbg_getfile(), 1, 0);
 	}
 
@@ -506,46 +506,46 @@ cmd_multiread(gdp_req_t *req)
 	flush_input_data(req, "cmd_multiread");
 
 	// get our starting point, which may be relative to the end
-	if (req->pkt->datum->recno <= 0)
+	if (req->pdu->datum->recno <= 0)
 	{
-		req->pkt->datum->recno += gcl_max_recno(req->gcl) + 1;
-		if (req->pkt->datum->recno <= 0)
+		req->pdu->datum->recno += gcl_max_recno(req->gcl) + 1;
+		if (req->pdu->datum->recno <= 0)
 		{
 			// still starts before beginning; start from beginning
-			req->pkt->datum->recno = 1;
+			req->pdu->datum->recno = 1;
 		}
 	}
 
 	if (req->numrecs < 0)
 	{
-		req->pkt->cmd = GDP_NAK_C_BADOPT;
-		return GDP_STAT_FROM_C_NAK(req->pkt->cmd);
+		req->pdu->cmd = GDP_NAK_C_BADOPT;
+		return GDP_STAT_FROM_C_NAK(req->pdu->cmd);
 	}
 
 	// get our starting point, which may be relative to the end
-	if (req->pkt->datum->recno <= 0)
+	if (req->pdu->datum->recno <= 0)
 	{
-		req->pkt->datum->recno += gcl_max_recno(req->gcl) + 1;
-		if (req->pkt->datum->recno <= 0)
+		req->pdu->datum->recno += gcl_max_recno(req->gcl) + 1;
+		if (req->pdu->datum->recno <= 0)
 		{
 			// still starts before beginning; start from beginning
-			req->pkt->datum->recno = 1;
+			req->pdu->datum->recno = 1;
 		}
 	}
 
 	ep_dbg_cprintf(Dbg, 24, "cmd_multiread: starting from %" PRIgdp_recno
 			", %d records\n",
-			req->pkt->datum->recno, req->numrecs);
+			req->pdu->datum->recno, req->numrecs);
 
 	// if some of the records already exist, arrange to return them
-	if (req->pkt->datum->recno <= gcl_max_recno(req->gcl))
+	if (req->pdu->datum->recno <= gcl_max_recno(req->gcl))
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_multiread: doing post processing\n");
 		req->cb.gdpd = &post_subscribe;
 		req->postproc = true;
 
 		// make this a "snapshot", i.e., don't read additional records
-		int32_t nrec = gcl_max_recno(req->gcl) - req->pkt->datum->recno;
+		int32_t nrec = gcl_max_recno(req->gcl) - req->pdu->datum->recno;
 		if (nrec < req->numrecs || req->numrecs == 0)
 			req->numrecs = nrec + 1;
 
@@ -587,7 +587,7 @@ cmd_getmetadata(gdp_req_t *req)
 	gdp_gclmd_t *gmd;
 	EP_STAT estat;
 
-	req->pkt->cmd = GDP_ACK_CONTENT;
+	req->pdu->cmd = GDP_ACK_CONTENT;
 
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_getmetadata");
@@ -595,7 +595,7 @@ cmd_getmetadata(gdp_req_t *req)
 	estat = get_open_handle(req, GDP_MODE_RO);
 	if (!EP_STAT_ISOK(estat))
 	{
-		return gdpd_gcl_error(req->pkt->gcl_name, "cmd_read: GCL open failure",
+		return gdpd_gcl_error(req->pdu->dst, "cmd_read: GCL open failure",
 							estat, GDP_NAK_C_BADREQ);
 	}
 
@@ -604,7 +604,7 @@ cmd_getmetadata(gdp_req_t *req)
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// serialize it to the client
-	_gdp_gclmd_serialize(gmd, req->pkt->datum->dbuf);
+	_gdp_gclmd_serialize(gmd, req->pdu->datum->dbuf);
 
 fail0:
 	_gdp_gcl_decref(req->gcl);
@@ -625,8 +625,8 @@ cmd_not_implemented(gdp_req_t *req)
 	// should have no input data; ignore anything there
 	flush_input_data(req, "cmd_not_implemented");
 
-	req->pkt->cmd = GDP_NAK_S_NOTIMPL;
-	_gdp_pkt_out_hard(req->pkt, req->chan);
+	req->pdu->cmd = GDP_NAK_S_NOTIMPL;
+	_gdp_pdu_out_hard(req->pdu, req->chan);
 	return GDP_STAT_NAK_NOTIMPL;
 }
 
@@ -646,7 +646,7 @@ EP_STAT
 dispatch_cmd(gdp_req_t *req)
 {
 	EP_STAT estat;
-	int cmd = req->pkt->cmd;
+	int cmd = req->pdu->cmd;
 
 	if (ep_dbg_test(Dbg, 18))
 	{
@@ -661,18 +661,18 @@ dispatch_cmd(gdp_req_t *req)
 	// decode return status as an ACK/NAK command
 	if (!EP_STAT_ISOK(estat))
 	{
-		req->pkt->cmd = GDP_NAK_S_INTERNAL;
+		req->pdu->cmd = GDP_NAK_S_INTERNAL;
 		if (EP_STAT_REGISTRY(estat) == EP_REGISTRY_UCB &&
 			EP_STAT_MODULE(estat) == GDP_MODULE)
 		{
 			int d = EP_STAT_DETAIL(estat);
 
 			if (d >= 400 && d < (400 + GDP_NAK_C_MAX - GDP_NAK_C_MIN))
-				req->pkt->cmd = d - 400 + GDP_NAK_C_MIN;
+				req->pdu->cmd = d - 400 + GDP_NAK_C_MIN;
 			else if (d >= 500 && d < (500 + GDP_NAK_S_MAX - GDP_NAK_S_MIN))
-				req->pkt->cmd = d - 500 + GDP_NAK_S_MIN;
+				req->pdu->cmd = d - 500 + GDP_NAK_S_MIN;
 			else
-				req->pkt->cmd = GDP_NAK_S_INTERNAL;
+				req->pdu->cmd = GDP_NAK_S_INTERNAL;
 		}
 	}
 
@@ -681,10 +681,10 @@ dispatch_cmd(gdp_req_t *req)
 		char ebuf[200];
 
 		ep_dbg_printf("dispatch_cmd: <<< %s, status %s (%s)\n",
-				_gdp_proto_cmd_name(cmd), _gdp_proto_cmd_name(req->pkt->cmd),
+				_gdp_proto_cmd_name(cmd), _gdp_proto_cmd_name(req->pdu->cmd),
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		if (ep_dbg_test(Dbg, 30))
-			_gdp_pkt_dump(req->pkt, ep_dbg_getfile());
+			_gdp_pdu_dump(req->pdu, ep_dbg_getfile());
 	}
 	return estat;
 }

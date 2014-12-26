@@ -22,8 +22,8 @@ sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum)
 {
 	EP_STAT estat;
 
-	req->pkt->cmd = GDP_ACK_CONTENT;
-	req->pkt->datum = datum;
+	req->pdu->cmd = GDP_ACK_CONTENT;
+	req->pdu->datum = datum;
 
 	if (ep_dbg_test(Dbg, 33))
 	{
@@ -31,8 +31,8 @@ sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum)
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
-	estat = _gdp_pkt_out(req->pkt, req->chan);
-	req->pkt->datum = NULL;				// we just borrowed the datum
+	estat = _gdp_pdu_out(req->pdu, req->chan);
+	req->pdu->datum = NULL;				// we just borrowed the datum
 
 	if (req->numrecs > 0 && --req->numrecs <= 0)
 		sub_end_subscription(req);
@@ -62,7 +62,7 @@ sub_notify_all_subscribers(gdp_req_t *pubreq)
 
 		// notify subscribers
 		if (EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, req->flags))
-			sub_send_message_notification(req, pubreq->pkt->datum);
+			sub_send_message_notification(req, pubreq->pdu->datum);
 	}
 }
 
@@ -87,7 +87,7 @@ sub_end_subscription(gdp_req_t *req)
 	// _gdp_gcl_decref(req->gcl) will happen in gdpd_req_thread cleanup
 
 	// send an "end of subscription" event
-	req->pkt->cmd = GDP_ACK_DELETED;
+	req->pdu->cmd = GDP_ACK_DELETED;
 
 	if (ep_dbg_test(Dbg, 61))
 	{
@@ -95,5 +95,5 @@ sub_end_subscription(gdp_req_t *req)
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
-	(void) _gdp_pkt_out(req->pkt, req->chan);
+	(void) _gdp_pdu_out(req->pdu, req->chan);
 }

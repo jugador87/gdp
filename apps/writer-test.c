@@ -45,7 +45,7 @@ int
 main(int argc, char **argv)
 {
 	gdp_gcl_t *gcl;
-	gcl_name_t gcliname;
+	gdp_name_t gcliname;
 	gdp_gclmd_t *gmd = NULL;
 	int opt;
 	EP_STAT estat;
@@ -231,7 +231,7 @@ main(int argc, char **argv)
 	else
 	{
 		// open or create a GCL with the provided name
-		gdp_gcl_parse_name(xname, gcliname);
+		gdp_parse_name(xname, gcliname);
 		if (append)
 			estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gcl);
 		else
@@ -257,9 +257,9 @@ main(int argc, char **argv)
 		if (keyfile_is_directory)
 		{
 			size_t len;
-			gcl_pname_t pbuf;
+			gdp_pname_t pbuf;
 
-			gdp_gcl_printable_name(*gdp_gcl_getname(gcl), pbuf);
+			gdp_printable_name(*gdp_gcl_getname(gcl), pbuf);
 			len = strlen(keyfile) + sizeof pbuf + 6;
 			keyfilebuf = ep_mem_malloc(len);
 			snprintf(keyfilebuf, len, "%s/%s.pem", keyfile, pbuf);

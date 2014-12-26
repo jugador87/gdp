@@ -145,8 +145,8 @@ main(int argc, char *argv[])
 	size_t data_size = num_records * (max_record_size);
 	char *cur_record;
 	char *cur_record_b64;
-	gcl_name_t internal_name;
-	gcl_pname_t printable_name;
+	gdp_name_t internal_name;
+	gdp_pname_t printable_name;
 
 	data = malloc(data_size);
 	cur_record = malloc(max_record_size);
@@ -201,7 +201,7 @@ main(int argc, char *argv[])
 		get_elapsed_time(&start_time, &end_time, &trial_write_times[t]);
 		print_elapsed_time(stdout, &trial_write_times[t]);
 		memcpy(internal_name, gdp_gcl_getname(gcl_write), sizeof internal_name);
-		gdp_gcl_printable_name(internal_name, printable_name);
+		gdp_printable_name(internal_name, printable_name);
 		gdp_gcl_close(gcl_write);
 		estat = gdp_gcl_open(internal_name, GDP_MODE_RO, &gcl_read);
 		ep_time_now(&start_time);

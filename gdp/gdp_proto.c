@@ -48,7 +48,7 @@ _gdp_req_send(gdp_req_t *req)
 	gdp_gcl_t *gcl = req->gcl;
 
 	ep_dbg_cprintf(Dbg, 45, "gdp_req_send: cmd=%d (%s), req=%p\n",
-			req->pkt->cmd, _gdp_proto_cmd_name(req->pkt->cmd), req);
+			req->pdu->cmd, _gdp_proto_cmd_name(req->pdu->cmd), req);
 	EP_ASSERT(gcl != NULL);
 
 	// link the request to the GCL
@@ -63,7 +63,7 @@ _gdp_req_send(gdp_req_t *req)
 	_gdp_gcl_cache_add(gcl, 0);
 
 	// write the message out
-	estat = _gdp_pkt_out(req->pkt, req->chan);
+	estat = _gdp_pdu_out(req->pdu, req->chan);
 
 	// done
 	return estat;
@@ -90,10 +90,10 @@ _gdp_invoke(gdp_req_t *req)
 	{
 		ep_dbg_printf("gdp_invoke(%p): cmd=%d (%s)\n    gcl@%p: ",
 				req,
-				req->pkt->cmd,
-				_gdp_proto_cmd_name(req->pkt->cmd),
+				req->pdu->cmd,
+				_gdp_proto_cmd_name(req->pdu->cmd),
 				req->gcl);
-		gdp_datum_print(req->pkt->datum, ep_dbg_getfile());
+		gdp_datum_print(req->pdu->datum, ep_dbg_getfile());
 	}
 
 	/*
@@ -169,20 +169,20 @@ ack_success(gdp_req_t *req)
 	estat = GDP_STAT_PROTOCOL_FAIL;
 	if (req == NULL)
 		ep_log(estat, "ack_success: null request");
-	else if (req->pkt->datum == NULL)
+	else if (req->pdu->datum == NULL)
 		ep_log(estat, "ack_success: null datum");
 	else
-		estat = GDP_STAT_FROM_ACK(req->pkt->cmd);
+		estat = GDP_STAT_FROM_ACK(req->pdu->cmd);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	gcl = req->gcl;
 
 	//	If we started with no gcl id, adopt from incoming packet.
 	//	This can happen when creating a GCL.
-	if (gcl != NULL && !gdp_gcl_name_is_valid(gcl->gcl_name))
+	if (gcl != NULL && !gdp_name_is_valid(gcl->name))
 	{
-		memcpy(gcl->gcl_name, req->pkt->gcl_name, sizeof gcl->gcl_name);
-		gdp_gcl_printable_name(gcl->gcl_name, gcl->pname);
+		memcpy(gcl->name, req->pdu->src, sizeof gcl->name);
+		gdp_printable_name(gcl->name, gcl->pname);
 	}
 
 fail0:
@@ -197,16 +197,16 @@ fail0:
 static EP_STAT
 nak_client(gdp_req_t *req)
 {
-	ep_dbg_cprintf(Dbg, 2, "nak_client: received %d\n", req->pkt->cmd);
-	return GDP_STAT_FROM_C_NAK(req->pkt->cmd);
+	ep_dbg_cprintf(Dbg, 2, "nak_client: received %d\n", req->pdu->cmd);
+	return GDP_STAT_FROM_C_NAK(req->pdu->cmd);
 }
 
 
 static EP_STAT
 nak_server(gdp_req_t *req)
 {
-	ep_dbg_cprintf(Dbg, 2, "nak_server: received %d\n", req->pkt->cmd);
-	return GDP_STAT_FROM_S_NAK(req->pkt->cmd);
+	ep_dbg_cprintf(Dbg, 2, "nak_server: received %d\n", req->pdu->cmd);
+	return GDP_STAT_FROM_S_NAK(req->pdu->cmd);
 }
 
 
@@ -530,7 +530,7 @@ _gdp_req_dispatch(gdp_req_t *req)
 	EP_STAT estat;
 	dispatch_ent_t *d;
 
-	d = &DispatchTable[req->pkt->cmd];
+	d = &DispatchTable[req->pdu->cmd];
 	if (d->func == NULL)
 		estat = cmd_not_implemented(req);
 	else
@@ -544,41 +544,38 @@ _gdp_req_dispatch(gdp_req_t *req)
 */
 
 static EP_STAT
-process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
+process_packet(gdp_pdu_t *pdu, gdp_chan_t *chan)
 {
 	EP_STAT estat;
 	gdp_gcl_t *gcl = NULL;
 	gdp_req_t *req = NULL;
 
-	// find the handle for the associated GCL
-	if (EP_UT_BITSET(GDP_PKT_HAS_ID, pkt->flags))
+	// find the handle for the target GCL
+	gcl = _gdp_gcl_cache_get(pdu->dst, 0);
+	if (gcl != NULL)
 	{
-		gcl = _gdp_gcl_cache_get(pkt->gcl_name, 0);
-		if (gcl != NULL)
-		{
-			// find the request
-			req = _gdp_req_find(gcl, pkt->rid);
-		}
-		else if (ep_dbg_test(Dbg, 1))
-		{
-			gcl_pname_t pbuf;
+		// find the request
+		req = _gdp_req_find(gcl, pdu->rid);
+	}
+	else if (ep_dbg_test(Dbg, 1))
+	{
+		gdp_pname_t pbuf;
 
-			gdp_gcl_printable_name(pkt->gcl_name, pbuf);
-			ep_dbg_printf("gdp_read_cb: GCL %s has no handle\n", pbuf);
-		}
+		gdp_printable_name(pdu->dst, pbuf);
+		ep_dbg_printf("gdp_read_cb: GCL %s has no handle\n", pbuf);
 	}
 
 	if (req == NULL)
 	{
 		ep_dbg_cprintf(Dbg, 43,
 				"gdp_read_cb: allocating new req for gcl %p\n", gcl);
-		estat = _gdp_req_new(pkt->cmd, gcl, chan, 0, &req);
+		estat = _gdp_req_new(pdu->cmd, gcl, chan, 0, &req);
 		if (!EP_STAT_ISOK(estat))
 		{
 			ep_log(estat, "gdp_read_cb: cannot allocate request; dropping packet");
 
 			// not much to do here other than ignore the input
-			_gdp_pkt_free(pkt);
+			_gdp_pdu_free(pdu);
 			return estat;
 		}
 		
@@ -590,31 +587,31 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
-	if (req->pkt->datum != NULL)
+	if (req->pdu->datum != NULL)
 	{
 		ep_dbg_cprintf(Dbg, 43,
 				"gdp_read_cb: reusing old datum for req %p\n", req);
 
 		// don't need the old dbuf
-		gdp_buf_free(req->pkt->datum->dbuf);
+		gdp_buf_free(req->pdu->datum->dbuf);
 
 		// copy the contents of the new message over the old
-		memcpy(req->pkt->datum, pkt->datum, sizeof *req->pkt->datum);
+		memcpy(req->pdu->datum, pdu->datum, sizeof *req->pdu->datum);
 
 		// we no longer need the new message
-		pkt->datum->dbuf = NULL;
-		gdp_datum_free(pkt->datum);
+		pdu->datum->dbuf = NULL;
+		gdp_datum_free(pdu->datum);
 
 		// point the new packet at the old datum
-		pkt->datum = req->pkt->datum;
-		EP_ASSERT(pkt->datum->inuse);
+		pdu->datum = req->pdu->datum;
+		EP_ASSERT(pdu->datum->inuse);
 	}
 
-	// can now drop the old pkt and switch to the new one
-	req->pkt->datum = NULL;
-	_gdp_pkt_free(req->pkt);
-	req->pkt = pkt;
-	pkt = NULL;
+	// can now drop the old pdu and switch to the new one
+	req->pdu->datum = NULL;
+	_gdp_pdu_free(req->pdu);
+	req->pdu = pdu;
+	pdu = NULL;
 
 	// invoke the command-specific (or ack-specific) function
 	estat = _gdp_req_dispatch(req);
@@ -630,7 +627,7 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 		int evtype;
 
 		// for the moment we only understand data responses (for subscribe)
-		switch (req->pkt->cmd)
+		switch (req->pdu->cmd)
 		{
 		  case GDP_ACK_CONTENT:
 			evtype = GDP_EVENT_DATA;
@@ -642,7 +639,7 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 			break;
 
 		  default:
-			ep_dbg_cprintf(Dbg, 3, "Got unexpected ack %d\n", req->pkt->cmd);
+			ep_dbg_cprintf(Dbg, 3, "Got unexpected ack %d\n", req->pdu->cmd);
 			estat = GDP_STAT_PROTOCOL_FAIL;
 			goto fail1;
 		}
@@ -652,9 +649,9 @@ process_packet(gdp_pkt_t *pkt, gdp_chan_t *chan)
 
 		gev->type = evtype;
 		gev->gcl = req->gcl;
-		gev->datum = req->pkt->datum;
+		gev->datum = req->pdu->datum;
 		gev->udata = req->udata;
-		req->pkt->datum = NULL;			// avoid use after free
+		req->pdu->datum = NULL;			// avoid use after free
 
 		if (req->cb.generic != NULL)
 		{
@@ -701,7 +698,7 @@ static void
 gdp_read_cb(struct bufferevent *bev, void *ctx)
 {
 	EP_STAT estat;
-	gdp_pkt_t *pkt;
+	gdp_pdu_t *pdu;
 	gdp_buf_t *ievb = bufferevent_get_input(bev);
 	struct gdp_event_info *gei = ctx;
 
@@ -710,18 +707,18 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 
 	while (evbuffer_get_length(ievb) > 0)
 	{
-		pkt = _gdp_pkt_new();
-		estat = _gdp_pkt_in(pkt, gei->chan);
+		pdu = _gdp_pdu_new();
+		estat = _gdp_pdu_in(pdu, gei->chan);
 		if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
 		{
-			_gdp_pkt_free(pkt);
+			_gdp_pdu_free(pdu);
 			return;
 		}
 
 #ifdef GDP_PACKET_QUEUE
-		_gdp_pkt_add_to_queue(pkt, gei->chan);
+		_gdp_pdu_add_to_queue(pdu, gei->chan);
 #else
-		estat = process_packet(pkt, gei->chan);
+		estat = process_packet(pdu, gei->chan);
 #endif
 	}
 }

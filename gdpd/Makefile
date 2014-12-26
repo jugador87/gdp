@@ -40,7 +40,7 @@ HDEPS=	\
 		gdpd_pubsub.h \
 		gdp_circular_buffer.h \
 		../gdp/gdp.h \
-		../gdp/gdp_pkt.h \
+		../gdp/gdp_pdu.h \
 
 LIBDEPS= \
 	 	../gdp/libgdp.a \

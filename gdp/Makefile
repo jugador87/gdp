@@ -7,7 +7,7 @@ OBJS=	\
 	gdp_gcl_ops.o \
 	gdp_gclmd.o \
 	gdp_datum.o \
-	gdp_pkt.o \
+	gdp_pdu.o \
 	gdp_proto.o \
 	gdp_req.o \
 	gdp_stat.o \
@@ -17,7 +17,7 @@ HFILES=	\
 	gdp_buf.h \
 	gdp_event.h \
 	gdp_gclmd.h \
-	gdp_pkt.h \
+	gdp_pdu.h \
 	gdp_priv.h \
 	gdp_stat.h \
 

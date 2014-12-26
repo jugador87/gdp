@@ -16,7 +16,7 @@ EP_THR_MUTEX			GclsByUseMutex EP_THR_MUTEX_INITIALIZER;
 */
 
 EP_STAT
-gcl_alloc(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
+gcl_alloc(gdp_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
 {
 	EP_STAT estat;
 	gdp_gcl_t *gcl;
@@ -60,7 +60,7 @@ fail0:
 */
 
 EP_STAT
-gcl_open(gcl_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
+gcl_open(gdp_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
 {
 	EP_STAT estat;
 	gdp_gcl_t *gcl;
@@ -164,14 +164,14 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 	EP_ASSERT(req->gcl == NULL);
 
 	// see if we can find the handle in the cache
-	req->gcl = _gdp_gcl_cache_get(req->pkt->gcl_name, iomode);
+	req->gcl = _gdp_gcl_cache_get(req->pdu->dst, iomode);
 	if (req->gcl != NULL)
 	{
 		if (ep_dbg_test(Dbg, 40))
 		{
-			gcl_pname_t pname;
+			gdp_pname_t pname;
 
-			gdp_gcl_printable_name(req->pkt->gcl_name, pname);
+			gdp_printable_name(req->pdu->dst, pname);
 			ep_dbg_printf("get_open_handle: using cached GCL:\n\t%s => %p\n",
 					pname, req->gcl);
 		}
@@ -184,20 +184,20 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 	// not in cache?  create a new one.
 	if (ep_dbg_test(Dbg, 40))
 	{
-		gcl_pname_t pname;
+		gdp_pname_t pname;
 
-		gdp_gcl_printable_name(req->pkt->gcl_name, pname);
+		gdp_printable_name(req->pdu->dst, pname);
 		ep_dbg_printf("get_open_handle: opening %s\n", pname);
 	}
-	estat = gcl_open(req->pkt->gcl_name, iomode, &req->gcl);
+	estat = gcl_open(req->pdu->dst, iomode, &req->gcl);
 	if (EP_STAT_ISOK(estat))
 		_gdp_gcl_cache_add(req->gcl, iomode);
 	if (ep_dbg_test(Dbg, 40))
 	{
-		gcl_pname_t pname;
+		gdp_pname_t pname;
 		char ebuf[60];
 
-		gdp_gcl_printable_name(req->pkt->gcl_name, pname);
+		gdp_printable_name(req->pdu->dst, pname);
 		ep_stat_tostr(estat, ebuf, sizeof ebuf);
 		ep_dbg_printf("get_open_handle: %s:\n\t@%p: %s\n",
 				pname, req->gcl, ebuf);

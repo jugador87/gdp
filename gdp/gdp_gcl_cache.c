@@ -72,14 +72,14 @@ _gdp_gcl_cache_init(void)
 */
 
 gdp_gcl_t *
-_gdp_gcl_cache_get(gcl_name_t gcl_name, gdp_iomode_t mode)
+_gdp_gcl_cache_get(gdp_name_t gcl_name, gdp_iomode_t mode)
 {
 	gdp_gcl_t *gcl;
 
 	ep_thr_mutex_lock(&GclCacheMutex);
 
 	// see if we have a pointer to this GCL in the cache
-	gcl = ep_hash_search(OpenGCLCache, sizeof (gcl_name_t), (void *) gcl_name);
+	gcl = ep_hash_search(OpenGCLCache, sizeof (gdp_name_t), (void *) gcl_name);
 	if (gcl == NULL)
 		goto done;
 	ep_thr_mutex_lock(&gcl->mutex);
@@ -105,9 +105,9 @@ done:
 	{
 		if (ep_dbg_test(Dbg, 42))
 		{
-			gcl_pname_t pname;
+			gdp_pname_t pname;
 
-			gdp_gcl_printable_name(gcl_name, pname);
+			gdp_printable_name(gcl_name, pname);
 			ep_dbg_printf("gdp_gcl_cache_get: %s => NULL\n", pname);
 		}
 	}
@@ -125,11 +125,11 @@ _gdp_gcl_cache_add(gdp_gcl_t *gcl, gdp_iomode_t mode)
 {
 	// sanity checks
 	EP_ASSERT_POINTER_VALID(gcl);
-	EP_ASSERT_REQUIRE(gdp_gcl_name_is_valid(gcl->gcl_name));
+	EP_ASSERT_REQUIRE(gdp_name_is_valid(gcl->name));
 
 	// save it in the cache
 	(void) ep_hash_insert(OpenGCLCache,
-						sizeof (gcl_name_t), gcl->gcl_name, gcl);
+						sizeof (gdp_name_t), gcl->name, gcl);
 	gcl->flags |= GCLF_INCACHE;
 	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_add: added %s => %p\n",
 			gcl->pname, gcl);
@@ -139,7 +139,7 @@ _gdp_gcl_cache_add(gdp_gcl_t *gcl, gdp_iomode_t mode)
 void
 _gdp_gcl_cache_drop(gdp_gcl_t *gcl)
 {
-	(void) ep_hash_insert(OpenGCLCache, sizeof (gcl_name_t), gcl->gcl_name,
+	(void) ep_hash_insert(OpenGCLCache, sizeof (gdp_name_t), gcl->name,
 						NULL);
 	gcl->flags &= ~GCLF_INCACHE;
 	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_drop: dropping %s => %p\n",

@@ -40,11 +40,11 @@ typedef uint32_t			gdp_gclmd_id_t;
 */
 
 // the internal name of a GCL
-typedef uint8_t				gcl_name_t[32];
+typedef uint8_t				gdp_name_t[32];
 
 // the printable name of a GCL
 #define GDP_GCL_PNAME_LEN	43			// length of an encoded pname
-typedef char				gcl_pname_t[GDP_GCL_PNAME_LEN + 1];
+typedef char				gdp_pname_t[GDP_GCL_PNAME_LEN + 1];
 
 // a GDP request id (used for correlating commands and responses)
 typedef uint32_t			gdp_rid_t;
@@ -137,13 +137,13 @@ extern void		*gdp_run_accept_event_loop(
 
 // create a new GCL
 extern EP_STAT	gdp_gcl_create(
-					gcl_name_t,
+					gdp_name_t,
 					gdp_gclmd_t *,			// pointer to metadata object
 					gdp_gcl_t **);			// pointer to result GCL handle
 
 // open an existing GCL
 extern EP_STAT	gdp_gcl_open(
-					gcl_name_t name,		// GCL name to open
+					gdp_name_t name,		// GCL name to open
 					gdp_iomode_t rw,		// read/write (append)
 					gdp_gcl_t **gcl);		// pointer to result GCL handle
 
@@ -192,12 +192,12 @@ extern EP_STAT	gdp_gcl_getmetadata(
 
 // return the name of a GCL
 //		XXX: should this be in a more generic "getstat" function?
-extern const gcl_name_t *gdp_gcl_getname(
+extern const gdp_name_t *gdp_gcl_getname(
 					const gdp_gcl_t *gcl);	// open GCL handle
 
-// check to see if a GCL name is valid
-extern bool		gdp_gcl_name_is_valid(
-					const gcl_name_t);
+// check to see if a GDP object name is valid
+extern bool		gdp_name_is_valid(
+					const gdp_name_t);
 
 // print a GCL (for debugging)
 extern void		gdp_gcl_print(
@@ -206,20 +206,25 @@ extern void		gdp_gcl_print(
 					int detail,				// not used at this time
 					int indent);			// not used at this time
 
-// make a printable GCL name from a binary version
-char			*gdp_gcl_printable_name(
-					const gcl_name_t internal,
-					gcl_pname_t external);
+// make a printable GDP object name from a binary version
+char			*gdp_printable_name(
+					const gdp_name_t internal,
+					gdp_pname_t external);
 
-// make a binary GCL name from a printable version
-EP_STAT			gdp_gcl_internal_name(
-					const gcl_pname_t external,
-					gcl_name_t internal);
+// print an internal name for human use
+void			gdp_print_name(
+					const gdp_name_t internal,
+					FILE *fp);
 
-// parse a (possibly human-friendly) GCL name
-EP_STAT			gdp_gcl_parse_name(
+// make a binary GDP object name from a printable version
+EP_STAT			gdp_internal_name(
+					const gdp_pname_t external,
+					gdp_name_t internal);
+
+// parse a (possibly human-friendly) GDP object name
+EP_STAT			gdp_parse_name(
 					const char *ext,
-					gcl_name_t internal);
+					gdp_name_t internal);
 
 // create a new metadata set
 gdp_gclmd_t		*gdp_gclmd_new(void);

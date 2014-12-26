@@ -41,10 +41,10 @@ gdpd_req_thread(void *req_)
 
 	// see if we have any return data
 	ep_dbg_cprintf(Dbg, 41, "gdpd_req_thread: sending %zd bytes\n",
-			evbuffer_get_length(req->pkt->datum->dbuf));
+			evbuffer_get_length(req->pdu->datum->dbuf));
 
 	// send the response packet header
-	req->stat = _gdp_pkt_out(req->pkt, req->chan);
+	req->stat = _gdp_pdu_out(req->pdu, req->chan);
 	//XXX anything to do with estat here?
 
 	// if there is any post-processing to do, invoke the callback
@@ -81,9 +81,9 @@ cmdsock_read_cb(struct bufferevent *bev, void *ctx)
 		ep_log(estat, "cmdsock_read_cb: cannot allocate request");
 		return;
 	}
-	req->pkt->datum = gdp_datum_new();
+	req->pdu->datum = gdp_datum_new();
 
-	estat = _gdp_pkt_in(req->pkt, gei->chan);
+	estat = _gdp_pdu_in(req->pdu, gei->chan);
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
 	{
 		// we don't yet have the entire packet in memory
@@ -92,7 +92,7 @@ cmdsock_read_cb(struct bufferevent *bev, void *ctx)
 	}
 
 	ep_dbg_cprintf(Dbg, 10, "\n*** Processing command %d=%s from socket %d\n",
-			req->pkt->cmd, _gdp_proto_cmd_name(req->pkt->cmd),
+			req->pdu->cmd, _gdp_proto_cmd_name(req->pdu->cmd),
 			bufferevent_getfd(bev));
 
 	ep_thr_pool_run(&gdpd_req_thread, req);

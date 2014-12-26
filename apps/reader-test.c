@@ -230,8 +230,8 @@ main(int argc, char **argv)
 	gdp_gcl_t *gcl;
 	EP_STAT estat;
 	char buf[200];
-	gcl_name_t gclname;
-	gcl_pname_t gclpname;
+	gdp_name_t gclname;
+	gdp_pname_t gclpname;
 	int opt;
 	char *gdpd_addr = NULL;
 	bool subscribe = false;
@@ -319,7 +319,7 @@ main(int argc, char **argv)
 	}
 
 	// parse the name (either base64-encoded or symbolic)
-	estat = gdp_gcl_parse_name(argv[0], gclname);
+	estat = gdp_parse_name(argv[0], gclname);
 	if (!EP_STAT_ISOK(estat))
 	{
 		ep_app_abort("illegal GCL name syntax:\n\t%s", argv[0]);
@@ -327,7 +327,7 @@ main(int argc, char **argv)
 	}
 
 	// convert it to printable format and tell the user what we are doing
-	gdp_gcl_printable_name(gclname, gclpname);
+	gdp_printable_name(gclname, gclpname);
 	fprintf(stdout, "Reading GCL %s\n", gclpname);
 
 	// open the GCL; arguably this shouldn't be necessary

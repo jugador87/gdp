@@ -16,10 +16,11 @@
 typedef struct gdp_chan		gdp_chan_t;
 typedef struct gcl_class	gcl_class_t;
 
-extern pthread_t		_GdpIoEventLoopThread;
-gdp_chan_t				*_GdpChannel;	// our primary app-level protocol port
+extern pthread_t	_GdpIoEventLoopThread;
+gdp_chan_t			*_GdpChannel;		// our primary app-level protocol port
+gdp_name_t			_GdpDefaultSource;	// source name for PDUs
 
-#include "gdp_pkt.h"
+#include "gdp_pdu.h"
 
 // declare the type of the gdp_req linked list (used multiple places)
 LIST_HEAD(req_head, gdp_req);
@@ -29,7 +30,7 @@ struct gdp_chan
 {
 	struct bufferevent	*bev;			// associated bufferevent (socket)
 	struct req_head		reqs;			// reqs associated with this channel
-	gcl_name_t			serverid;		// the name of the server (random nonce)
+	gdp_name_t			serverid;		// the name of the server (random nonce)
 };
 
 
@@ -68,8 +69,8 @@ struct gdp_gcl
 	EP_THR_MUTEX		mutex;			// lock on this data structure
 //	EP_THR_COND			cond;			// pthread wakeup signal
 	struct req_head		reqs;			// list of outstanding requests
-	gcl_name_t			gcl_name;		// the internal name
-	gcl_pname_t			pname;			// printable name (for debugging)
+	gdp_name_t			name;			// the internal name
+	gdp_pname_t			pname;			// printable name (for debugging)
 	gdp_iomode_t		iomode;			// read only or append only
 	uint16_t			flags;			// flag bits, see below
 	int					refcnt;			// reference counter
@@ -121,7 +122,7 @@ typedef struct gdp_req
 	bool				ongcllist:1;	// this is on a gcl list
 	bool				onchanlist:1;	// this is on a channel list
 	gdp_gcl_t			*gcl;		// the corresponding GCL handle
-	gdp_pkt_t			*pkt;		// packet buffer
+	gdp_pdu_t			*pdu;		// packet buffer
 	gdp_chan_t			*chan;		// the network channel for this req
 	EP_STAT				stat;		// status code from last operation
 	int32_t				numrecs;	// remaining number of records to return
@@ -176,7 +177,7 @@ const char		*_gdp_proto_cmd_name(		// return printable cmd name
 EP_STAT			_gdp_gcl_cache_init(void);	// initialize cache
 
 gdp_gcl_t		*_gdp_gcl_cache_get(		// get entry from cache
-						gcl_name_t gcl_name,
+						gdp_name_t gcl_name,
 						gdp_iomode_t mode);
 
 void			_gdp_gcl_cache_add(			// add entry to cache
@@ -200,7 +201,7 @@ void			_gdp_gcl_decref(			// decrease reference count
 */
 
 EP_STAT			_gdp_gcl_newhandle(			// create new in-mem handle
-						gcl_name_t gcl_name,
+						gdp_name_t gcl_name,
 						gdp_gcl_t **gclhp);
 
 void			_gdp_gcl_freehandle(		// free in-memory handle

@@ -1,7 +1,7 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
-#ifndef _GDP_PKT_H_
-#define _GDP_PKT_H_
+#ifndef _GDP_PDU_H_
+#define _GDP_PDU_H_
 
 #include <stdio.h>
 #include <netinet/in.h>
@@ -51,38 +51,53 @@
 **			"seq" since this is a lower-level concept that is
 **			subsumed by TCP.
 **
-**		The structure of an on-the-wire packet is:
-**			1	protocol version
+**		The structure of an on-the-wire PDU is:
+**			1	protocol version and format
+**			1	time to live (in hops)
 **			1	command or ack/nak
-**			1	flags (indicate presence/lack of additional fields)
-**			1	reserved (must be zero on send, ignored on receive
-**			4	length of data portion
+**			1	signature algorithm and key size
+**			32	destination address
+**			32	source address
+**			1	optionals length (in 32 bit words)
+**			1	flags (indicate presence/lack of optional fields)
+**			6	length of data portion
 **			[4	request id (optional)]
-**			[32	GCL name (optional)]
 **			[8	record number (optional)]
+**			[8	sequence number (optional)]
 **			[16	commit timestamp (optional)]
-**			N	data (length indicated above)
-**		The structure shown below is the in-memory version
+**			V	additional optional data
+**			V	data (length indicated above)
+**			V	signature (length indicated above)
+**		The structure shown below is the in-memory version and does
+**		not correspond 1::1 to the on-wire format.
 */
 
-typedef struct gdp_pkt
+typedef uint64_t		gdp_seqno_t;	// protocol sequence number
+
+typedef struct gdp_pdu
 {
 	// metadata
-	TAILQ_ENTRY(gdp_pkt)	list;		// work list
+	TAILQ_ENTRY(gdp_pdu)	list;		// work list
 //	gdp_chan_t				*chan;		// I/O channel for this packet entry
 	bool					inuse:1;	// indicates that this is allocated
 
-	// packet data
-	uint8_t				ver;		// protocol version
-	uint8_t				cmd;		// command or ack/nak
+	// PDU data
+	uint8_t				ver;		// protocol version and format
+	uint8_t				ttl;		// time to live
+	uint16_t			olen;		// optionals length (in octets)
 	uint8_t				flags;		// see below
-	uint8_t				reserved1;	// must be zero on send, ignored on receive
-	gdp_rid_t			rid;		// sequence number (GDP_PKT_NO_RID => none)
-	gcl_name_t			gcl_name;	// name of the GCL of interest (0 => none)
-	gdp_datum_t			*datum;		// pointer to data record
-} gdp_pkt_t;
+	uint8_t				cmd;		// command or ack/nak
+	uint8_t				sigalg;		// signature algorithm and size
+	gdp_name_t			dst;		// destination address
+	gdp_name_t			src;		// source address
+	gdp_rid_t			rid;		// request id (GDP_PDU_NO_RID => none)
+	gdp_seqno_t			seqno;		// sequence number
 
-#define _GDP_MAX_PKT_HDR		128		// max size of on-wire packet header
+	// data length, record number, timestamp, and data are in the datum
+	gdp_datum_t			*datum;		// pointer to data record
+} gdp_pdu_t;
+
+#define _GDP_MAX_PDU_HDR		128		// max size of on-wire packet header
 
 /*
 **  Protocol command values
@@ -146,34 +161,34 @@ typedef struct gdp_pkt
 
 
 /***** values for gdp_pkg_hdr flags field *****/
-#define GDP_PKT_HAS_RID		0x01		// has a rid field
-#define GDP_PKT_HAS_ID		0x02		// has a gcl_name field
-#define GDP_PKT_HAS_RECNO	0x04		// has a recno field
-#define GDP_PKT_HAS_TS		0x08		// has a timestamp field
+#define GDP_PDU_HAS_RID		0x01		// has a rid field
+#define GDP_PDU_HAS_RECNO	0x02		// has a recno field
+#define GDP_PDU_HAS_SEQNO	0x04		// has a seqno field
+#define GDP_PDU_HAS_TS		0x08		// has a timestamp field
 
 /***** dummy values for other fields *****/
-#define GDP_PKT_NO_RID		UINT32_C(0)		// no request id
-#define GDP_PKT_NO_RECNO	UINT64_C(-1)	// no record number
+#define GDP_PDU_NO_RID		UINT32_C(0)		// no request id
+#define GDP_PDU_NO_RECNO	UINT64_C(-1)	// no record number
 
 
-gdp_pkt_t	*_gdp_pkt_new(void);		// allocate a new packet
+gdp_pdu_t	*_gdp_pdu_new(void);		// allocate a new PDU
 
-void		_gdp_pkt_free(gdp_pkt_t *);	// free a packet
+void		_gdp_pdu_free(gdp_pdu_t *);	// free a PDU
 
-EP_STAT		_gdp_pkt_out(				// send a packet to a network buffer
-				gdp_pkt_t *,			// the packet information
+EP_STAT		_gdp_pdu_out(				// send a PDU to a network buffer
+				gdp_pdu_t *,			// the PDU information
 				gdp_chan_t *);			// the network channel
 
-void		_gdp_pkt_out_hard(			// send a packet to a network buffer
-				gdp_pkt_t *,			// the packet information
+void		_gdp_pdu_out_hard(			// send a PDU to a network buffer
+				gdp_pdu_t *,			// the PDU information
 				gdp_chan_t *);			// the network channel
 
-EP_STAT		_gdp_pkt_in(				// read a packet from a network buffer
-				gdp_pkt_t *,			// the buffer to store the result
+EP_STAT		_gdp_pdu_in(				// read a PDU from a network buffer
+				gdp_pdu_t *,			// the buffer to store the result
 				gdp_chan_t *);			// the network channel
 
-void		_gdp_pkt_dump(
-				gdp_pkt_t *pkt,
+void		_gdp_pdu_dump(
+				gdp_pdu_t *pdu,
 				FILE *fp);
 
 // generic sockaddr union	XXX does this belong in this header file?
@@ -184,4 +199,4 @@ union sockaddr_xx
 	struct sockaddr_in6 sin6;
 };
 
-#endif // _GDP_PKT_H_
+#endif // _GDP_PDU_H_

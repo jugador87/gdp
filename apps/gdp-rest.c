@@ -372,9 +372,9 @@ a_new_gcl(scgi_request *req, const char *name)
 
 	if (name != NULL)
 	{
-		gcl_name_t gclname;
+		gdp_name_t gclname;
 
-		gdp_gcl_parse_name(name, gclname);
+		gdp_parse_name(name, gclname);
 		estat = gdp_gcl_create(gclname, NULL, &gcl);
 	}
 	else
@@ -384,14 +384,14 @@ a_new_gcl(scgi_request *req, const char *name)
 	if (EP_STAT_ISOK(estat))
 	{
 		char sbuf[SCGI_MAX_OUTBUF_SIZE];
-		const gcl_name_t *nname;
-		gcl_pname_t nbuf;
+		const gdp_name_t *nname;
+		gdp_pname_t nbuf;
 		json_t *j = json_object();
 		char *jbuf;
 
 		// return the name of the GCL
 		nname = gdp_gcl_getname(gcl);
-		gdp_gcl_printable_name(*nname, nbuf);
+		gdp_printable_name(*nname, nbuf);
 		json_object_set_nocheck(j, "gcl_name", json_string(nbuf));
 
 		jbuf = json_dumps(j, JSON_INDENT(4));
@@ -426,7 +426,7 @@ a_new_gcl(scgi_request *req, const char *name)
 */
 
 EP_STAT
-a_show_gcl(scgi_request *req, gcl_name_t gcliname)
+a_show_gcl(scgi_request *req, gdp_name_t gcliname)
 {
 	return error501(req, "GCL status not implemented");
 }
@@ -437,7 +437,7 @@ a_show_gcl(scgi_request *req, gcl_name_t gcliname)
 */
 
 EP_STAT
-a_publish(scgi_request *req, gcl_name_t gcliname, gdp_datum_t *datum)
+a_publish(scgi_request *req, gdp_name_t gcliname, gdp_datum_t *datum)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gdp_gcl_t *gcl = NULL;
@@ -456,9 +456,9 @@ a_publish(scgi_request *req, gcl_name_t gcliname, gdp_datum_t *datum)
 	if (!EP_STAT_ISOK(estat))
 	{
 		char ebuf[200];
-		gcl_pname_t gclpname;
+		gdp_pname_t gclpname;
 
-		gdp_gcl_printable_name(gcliname, gclpname);
+		gdp_printable_name(gcliname, gclpname);
 		gdp_failure(req, "420", "Cannot append to GCL", "ss",
 				"GCL", gclpname,
 				"error", ep_stat_tostr(estat, ebuf, sizeof ebuf));
@@ -506,7 +506,7 @@ a_publish(scgi_request *req, gcl_name_t gcliname, gdp_datum_t *datum)
 */
 
 EP_STAT
-a_read_datum(scgi_request *req, gcl_name_t gcliname, gdp_recno_t recno)
+a_read_datum(scgi_request *req, gdp_name_t gcliname, gdp_recno_t recno)
 {
 	EP_STAT estat;
 	gdp_gcl_t *gcl = NULL;
@@ -526,7 +526,7 @@ a_read_datum(scgi_request *req, gcl_name_t gcliname, gdp_recno_t recno)
 		// figure out the response header
 		{
 			FILE *fp;
-			gcl_pname_t gclpname;
+			gdp_pname_t gclpname;
 
 			fp = ep_fopensmem(rbuf, sizeof rbuf, "w");
 			if (fp == NULL)
@@ -537,7 +537,7 @@ a_read_datum(scgi_request *req, gcl_name_t gcliname, gdp_recno_t recno)
 				ep_app_abort("Cannot open memory for GCL read response: %s",
 						nbuf);
 			}
-			gdp_gcl_printable_name(gcliname, gclpname);
+			gdp_printable_name(gcliname, gclpname);
 			fprintf(fp, "HTTP/1.1 200 GCL Message\r\n"
 						"Content-Type: application/json\r\n"
 						"GDP-GCL-Name: %s\r\n"
@@ -590,9 +590,9 @@ a_read_datum(scgi_request *req, gcl_name_t gcliname, gdp_recno_t recno)
 fail0:
 	{
 		char ebuf[200];
-		gcl_pname_t gclpname;
+		gdp_pname_t gclpname;
 
-		gdp_gcl_printable_name(gcliname, gclpname);
+		gdp_printable_name(gcliname, gclpname);
 		gdp_failure(req, "404", "Cannot read GCL", "ss", 
 				"GCL", gclpname,
 				"reason", ep_stat_tostr(estat, ebuf, sizeof ebuf));
@@ -612,7 +612,7 @@ fail0:
 */
 
 EP_STAT
-gcl_do_get(scgi_request *req, gcl_name_t gcliname, struct qkvpair *qkvs)
+gcl_do_get(scgi_request *req, gdp_name_t gcliname, struct qkvpair *qkvs)
 {
 	EP_STAT estat;
 	char *qrecno = find_query_kv("recno", qkvs);
@@ -691,10 +691,10 @@ pfx_gcl(scgi_request *req, char *uri)
 	}
 	else
 	{
-		gcl_name_t gcliname;
+		gdp_name_t gcliname;
 
 		// next component is the GCL id (name) in external format
-		gdp_gcl_parse_name(uri, gcliname);
+		gdp_parse_name(uri, gcliname);
 
 		// have a GCL name
 		switch (req->request_method)
@@ -756,7 +756,7 @@ pfx_post(scgi_request *req, char *uri)
 json_t			*KeyValStore = NULL;
 gdp_gcl_t		*KeyValGcl = NULL;
 const char		*KeyValStoreName;
-gcl_name_t		KeyValInternalName;
+gdp_name_t		KeyValInternalName;
 
 
 EP_STAT
@@ -795,7 +795,7 @@ kv_initialize(void)
 							"sys/kv/KeyValStore");
 
 	// open the "KeyVal" GCL
-	gdp_gcl_parse_name(KeyValStoreName, KeyValInternalName);
+	gdp_parse_name(KeyValStoreName, KeyValInternalName);
 	estat = gdp_gcl_open(KeyValInternalName, GDP_MODE_AO, &KeyValGcl);
 	EP_STAT_CHECK(estat, goto fail0);
 

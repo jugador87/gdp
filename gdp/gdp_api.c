@@ -40,10 +40,10 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.api", "C API for GDP");
 **	GDP_GCL_GETNAME --- get the name of a GCL
 */
 
-const gcl_name_t *
+const gdp_name_t *
 gdp_gcl_getname(const gdp_gcl_t *gcl)
 {
-	return &gcl->gcl_name;
+	return &gcl->name;
 }
 
 
@@ -54,10 +54,10 @@ gdp_gcl_getname(const gdp_gcl_t *gcl)
 */
 
 char *
-gdp_gcl_printable_name(const gcl_name_t internal, gcl_pname_t external)
+gdp_printable_name(const gdp_name_t internal, gdp_pname_t external)
 {
-	EP_STAT estat = ep_b64_encode(internal, sizeof (gcl_name_t),
-							external, sizeof (gcl_pname_t),
+	EP_STAT estat = ep_b64_encode(internal, sizeof (gdp_name_t),
+							external, sizeof (gdp_pname_t),
 							EP_B64_ENC_URL);
 
 	if (!EP_STAT_ISOK(estat))
@@ -65,7 +65,7 @@ gdp_gcl_printable_name(const gcl_name_t internal, gcl_pname_t external)
 		char ebuf[100];
 
 		ep_dbg_cprintf(Dbg, 2,
-				"gdp_gcl_printable_name: ep_b64_encode failure\n"
+				"gdp_printable_name: ep_b64_encode failure\n"
 				"\tstat = %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		strcpy("(unknown)", external);
@@ -73,18 +73,33 @@ gdp_gcl_printable_name(const gcl_name_t internal, gcl_pname_t external)
 	else if (EP_STAT_TO_INT(estat) != 43)
 	{
 		ep_dbg_cprintf(Dbg, 2,
-				"gdp_gcl_printable_name: ep_b64_encode length failure (%d != 43)\n",
+				"gdp_printable_name: ep_b64_encode length failure (%d != 43)\n",
 				EP_STAT_TO_INT(estat));
 	}
 	return external;
 }
 
 /*
-**  GDP_GCL_INTERNAL_NAME --- parse a string GCL name to internal representation
+**  GDP_GCL_PRINT_NAME --- print a GDP name to a file
+*/
+
+void
+gdp_print_name(const gdp_name_t name, FILE *fp)
+{
+	gdp_pname_t pname;
+
+	if (!gdp_name_is_valid(name))
+		fprintf(fp, "(none)");
+	else
+		fprintf(fp, "%s", gdp_printable_name(name, pname));
+}
+
+/*
+**  GDP_INTERNAL_NAME --- parse a string GDP name to internal representation
 */
 
 EP_STAT
-gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
+gdp_internal_name(const gdp_pname_t external, gdp_name_t internal)
 {
 	EP_STAT estat;
 
@@ -94,8 +109,8 @@ gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
 	}
 	else
 	{
-		estat = ep_b64_decode(external, sizeof (gcl_pname_t) - 1,
-							internal, sizeof (gcl_name_t),
+		estat = ep_b64_decode(external, sizeof (gdp_pname_t) - 1,
+							internal, sizeof (gdp_name_t),
 							EP_B64_ENC_URL);
 	}
 
@@ -104,15 +119,15 @@ gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
 		char ebuf[100];
 
 		ep_dbg_cprintf(Dbg, 2,
-				"gdp_gcl_internal_name: ep_b64_decode failure\n"
+				"gdp_internal_name: ep_b64_decode failure\n"
 				"\tstat = %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
-	else if (EP_STAT_TO_INT(estat) != sizeof (gcl_name_t))
+	else if (EP_STAT_TO_INT(estat) != sizeof (gdp_name_t))
 	{
 		ep_dbg_cprintf(Dbg, 2,
-				"gdp_gcl_internal_name: ep_b64_decode length failure (%d != %zd)\n",
-				EP_STAT_TO_INT(estat), sizeof (gcl_name_t));
+				"gdp_internal_name: ep_b64_decode length failure (%d != %zd)\n",
+				EP_STAT_TO_INT(estat), sizeof (gdp_name_t));
 		estat = EP_STAT_ABORT;
 	}
 
@@ -120,7 +135,7 @@ gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
 }
 
 /*
-**	GDP_GCL_PARSENAME --- parse a (possibily human-friendly) GCL name
+**	GDP_PARSE_NAME --- parse a (possibily human-friendly) GDP object name
 **
 **		An externally printable version of an internal name must be
 **		exactly GDP_GCL_PNAME_LEN (43) characters long and contain only
@@ -130,19 +145,19 @@ gdp_gcl_internal_name(const gcl_pname_t external, gcl_name_t internal)
 */
 
 EP_STAT
-gdp_gcl_parse_name(const char *ext, gcl_name_t gcl_name)
+gdp_parse_name(const char *ext, gdp_name_t name)
 {
 	if (strlen(ext) == GDP_GCL_PNAME_LEN &&
-			EP_STAT_ISOK(gdp_gcl_internal_name(ext, gcl_name)))
+			EP_STAT_ISOK(gdp_internal_name(ext, name)))
 		return EP_STAT_OK;
 
 	// must be human-oriented name
-	SHA256((const uint8_t *) ext, strlen(ext), gcl_name);
+	SHA256((const uint8_t *) ext, strlen(ext), name);
 	return EP_STAT_OK;
 }
 
 /*
-**	GDP_GCL_NAME_IS_VALID --- test whether a GCL name is valid
+**	GDP_NAME_IS_VALID --- test whether a GDP object name is valid
 **
 **		Unfortunately, since SHA-256 is believed to be surjective
 **		(that is, all values are possible), there is a slight
@@ -150,13 +165,13 @@ gdp_gcl_parse_name(const char *ext, gcl_name_t gcl_name)
 */
 
 bool
-gdp_gcl_name_is_valid(const gcl_name_t gcl_name)
+gdp_name_is_valid(const gdp_name_t name)
 {
 	const uint32_t *up;
 	int i;
 
-	up = (uint32_t *) gcl_name;
-	for (i = 0; i < sizeof (gcl_name_t) / 4; i++)
+	up = (uint32_t *) name;
+	for (i = 0; i < sizeof (gdp_name_t) / 4; i++)
 		if (*up++ != 0)
 			return true;
 	return false;
@@ -181,7 +196,7 @@ gdp_gcl_print(
 	}
 	else
 	{
-		if (!gdp_gcl_name_is_valid(gcl->gcl_name))
+		if (!gdp_name_is_valid(gcl->name))
 		{
 			fprintf(fp, "no name\n");
 		}
@@ -234,7 +249,7 @@ gdp_init(const char *gdpd_addr)
 */
 
 EP_STAT
-gdp_gcl_create(gcl_name_t gcl_name,
+gdp_gcl_create(gdp_name_t name,
 				gdp_gclmd_t *gmd,
 				gdp_gcl_t **pgcl)
 {
@@ -243,7 +258,7 @@ gdp_gcl_create(gcl_name_t gcl_name,
 
 	// allocate the memory to hold the gcl_handle
 	//		Note that ep_mem_* always returns, hence no test here
-	estat = _gdp_gcl_newhandle(gcl_name, &gcl);
+	estat = _gdp_gcl_newhandle(name, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	estat = _gdp_gcl_create(gcl, gmd, _GdpChannel, GDP_REQ_ALLOC_RID);
@@ -274,7 +289,7 @@ fail0:
 */
 
 EP_STAT
-gdp_gcl_open(gcl_name_t gcl_name,
+gdp_gcl_open(gdp_name_t name,
 			gdp_iomode_t mode,
 			gdp_gcl_t **pgcl)
 {
@@ -293,14 +308,14 @@ gdp_gcl_open(gcl_name_t gcl_name,
 		return GDP_STAT_BAD_IOMODE;
 	}
 
-	if (!gdp_gcl_name_is_valid(gcl_name))
+	if (!gdp_name_is_valid(name))
 	{
 		// illegal GCL name
 		ep_dbg_cprintf(Dbg, 6, "gdp_gcl_open: null GCL name\n");
 		return GDP_STAT_NULL_GCL;
 	}
 
-	estat = _gdp_gcl_newhandle(gcl_name, &gcl);
+	estat = _gdp_gcl_newhandle(name, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
 	gcl->iomode = mode;
 

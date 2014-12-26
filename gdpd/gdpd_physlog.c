@@ -6,7 +6,6 @@
 
 #include <gdp/gdp_buf.h>
 #include <gdp/gdp_gclmd.h>
-#include <gdp/gdp_pkt.h>
 
 #include <ep/ep_hash.h>
 #include <ep/ep_log.h>
@@ -92,12 +91,12 @@ gcl_physlog_init()
 static EP_STAT
 get_gcl_path(gdp_gcl_t *gcl, const char *ext, char *pbuf, int pbufsiz)
 {
-	gcl_pname_t pname;
+	gdp_pname_t pname;
 	int i;
 
 	EP_ASSERT_POINTER_VALID(gcl);
 
-	gdp_gcl_printable_name(gcl->gcl_name, pname);
+	gdp_printable_name(gcl->name, pname);
 	i = snprintf(pbuf, pbufsiz, "%s/%s%s", GCLDir, pname, ext);
 	if (i < pbufsiz)
 		return EP_STAT_OK;
@@ -187,7 +186,7 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 	FILE *index_fp;
 
 	// allocate a name
-	if (!gdp_gcl_name_is_valid(gcl->gcl_name))
+	if (!gdp_name_is_valid(gcl->name))
 	{
 		_gdp_gcl_newname(gcl);
 	}

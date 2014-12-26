@@ -47,7 +47,7 @@ gdp_datum_new(void)
 	EP_ASSERT(!datum->inuse);
 
 	// initialize metadata
-	datum->recno = GDP_PKT_NO_RECNO;
+	datum->recno = GDP_PDU_NO_RECNO;
 	EP_TIME_INVALIDATE(&datum->ts);
 	if (datum->dbuf == NULL)
 	{

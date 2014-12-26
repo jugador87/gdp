@@ -61,7 +61,7 @@ _gdp_req_new(int cmd,
 	EP_ASSERT(!req->inuse);
 	EP_ASSERT(!req->ongcllist);
 	EP_ASSERT(!req->onchanlist);
-	req->pkt = _gdp_pkt_new();
+	req->pdu = _gdp_pdu_new();
 	req->gcl = gcl;
 	req->stat = EP_STAT_OK;
 	req->flags = flags;
@@ -71,19 +71,19 @@ _gdp_req_new(int cmd,
 		LIST_INSERT_HEAD(&chan->reqs, req, chanlist);
 		req->onchanlist = true;
 	}
-	req->pkt->cmd = cmd;
+	req->pdu->cmd = cmd;
 	if (gcl != NULL)
-		memcpy(req->pkt->gcl_name, gcl->gcl_name, sizeof req->pkt->gcl_name);
+		memcpy(req->pdu->dst, gcl->name, sizeof req->pdu->dst);
 	if ((gcl == NULL || !EP_UT_BITSET(GDP_REQ_PERSIST, flags)) &&
 			!EP_UT_BITSET(GDP_REQ_ALLOC_RID, flags))
 	{
 		// just use constant zero; any value would be fine
-		req->pkt->rid = GDP_PKT_NO_RID;
+		req->pdu->rid = GDP_PDU_NO_RID;
 	}
 	else
 	{
 		// allocate a new unique request id
-		req->pkt->rid = _gdp_rid_new(gcl, chan);
+		req->pdu->rid = _gdp_rid_new(gcl, chan);
 	}
 
 	// success
@@ -113,9 +113,9 @@ _gdp_req_free(gdp_req_t *req)
 	req->ongcllist = false;
 
 	// free the associated packet
-	if (req->pkt != NULL)
-		_gdp_pkt_free(req->pkt);
-	req->pkt = NULL;
+	if (req->pdu != NULL)
+		_gdp_pdu_free(req->pdu);
+	req->pdu = NULL;
 
 	// dereference the gcl
 	if (req->gcl != NULL)
@@ -157,7 +157,7 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 	ep_thr_mutex_lock(&gcl->mutex);
 	LIST_FOREACH(req, &gcl->reqs, gcllist)
 	{
-		if (req->pkt->rid == rid)
+		if (req->pdu->rid == rid)
 			break;
 	}
 	if (req != NULL && !EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
@@ -197,7 +197,7 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 	fprintf(fp, "\n    ");
 	gdp_gcl_print(req->gcl, fp, 1, 0);
 	fprintf(fp, "    ");
-	_gdp_pkt_dump(req->pkt, fp);
+	_gdp_pdu_dump(req->pdu, fp);
 	fprintf(fp, "    flags=");
 	ep_prflags(req->flags, ReqFlags, fp);
 	fprintf(fp, "\n    %sinuse, %spostproc, %songcllist, %sonchanlist\n",
