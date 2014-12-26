@@ -145,7 +145,7 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	if (!gdp_name_is_valid(pdu->src))
 	{
 		// use our own name as the source if nothing specified
-		memcpy(pdu->src, _GdpDefaultSource, sizeof pdu->src);
+		memcpy(pdu->src, _GdpRoutingName, sizeof pdu->src);
 	}
 
 	// version number

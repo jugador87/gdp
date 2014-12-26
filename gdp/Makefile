@@ -11,6 +11,7 @@ OBJS=	\
 	gdp_proto.o \
 	gdp_req.o \
 	gdp_stat.o \
+	gdp_util.o \
 
 HFILES=	\
 	gdp.h \

@@ -1034,6 +1034,8 @@ EP_STAT
 _gdp_do_init_1(void)
 {
 	EP_STAT estat = EP_STAT_OK;
+	const char *progname;
+	const char *myname = NULL;
 
 	ep_dbg_cprintf(Dbg, 4, "gdp_init: initializing\n");
 
@@ -1048,9 +1050,32 @@ _gdp_do_init_1(void)
 	// initialize the EP library
 	ep_lib_init(EP_LIB_USEPTHREADS);
 	ep_adm_readparams("gdp");
+	progname = ep_app_getprogname();
+	if (progname != NULL)
+		ep_adm_readparams(progname);
 
 	// register status strings
 	_gdp_stat_init();
+
+	// figure out or generate our name
+	if (progname != NULL)
+	{
+		char argname[100];
+
+		snprintf(argname, sizeof argname, "swarm.%s.gname", progname);
+		myname = ep_adm_getstrparam(argname, NULL);
+		if (myname != NULL)
+		{
+			estat = gdp_parse_name(myname, _GdpRoutingName);
+			EP_STAT_CHECK(estat, myname = NULL);
+		}
+	}
+	if (myname == NULL)
+	{
+		// no name found in configuration
+		_gdp_newname(_GdpRoutingName);
+	}
+
 
 	// tell the event library that we're using pthreads
 	if (evthread_use_pthreads() < 0)

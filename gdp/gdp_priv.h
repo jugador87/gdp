@@ -18,7 +18,7 @@ typedef struct gcl_class	gcl_class_t;
 
 extern pthread_t	_GdpIoEventLoopThread;
 gdp_chan_t			*_GdpChannel;		// our primary app-level protocol port
-gdp_name_t			_GdpDefaultSource;	// source name for PDUs
+gdp_name_t			_GdpRoutingName;	// source name for PDUs
 
 #include "gdp_pdu.h"
 
@@ -266,6 +266,8 @@ EP_STAT			_gdp_start_event_loop_thread(
 						const char *where);
 
 EP_STAT			_gdp_do_init(bool run_event_loop);
+
+void			_gdp_newname(gdp_name_t gname);
 
 /*
 **  Request handling.

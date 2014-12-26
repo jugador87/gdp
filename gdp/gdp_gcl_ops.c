@@ -31,7 +31,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl.ops", "GCL operations for GDP");
 void
 _gdp_gcl_newname(gdp_gcl_t *gcl)
 {
-	evutil_secure_rng_get_bytes(gcl->name, sizeof gcl->name);
+	_gdp_newname(gcl->name);
 	gdp_printable_name(gcl->name, gcl->pname);
 }
 

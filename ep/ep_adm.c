@@ -167,6 +167,9 @@ ep_adm_readparams(const char *name)
 	char *path = get_param_path();
 	char *p;
 
+	if (name == NULL)
+		return;
+
 	strlcpy(pbuf, get_param_path(), sizeof pbuf);
 	while ((p = strrchr(pbuf, ':')) != NULL)
 	{
