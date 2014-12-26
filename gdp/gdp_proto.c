@@ -540,18 +540,19 @@ _gdp_req_dispatch(gdp_req_t *req)
 
 
 /*
-**  PROCESS_PACKET --- execute the command in the packet
+**  PROCESS_MESSAGE --- execute the command in the packet
 */
 
 static EP_STAT
-process_packet(gdp_pdu_t *pdu, gdp_chan_t *chan)
+process_message(gdp_pdu_t *pdu, gdp_chan_t *chan)
 {
 	EP_STAT estat;
 	gdp_gcl_t *gcl = NULL;
 	gdp_req_t *req = NULL;
 
-	// find the handle for the target GCL
-	gcl = _gdp_gcl_cache_get(pdu->dst, 0);
+	// find the handle for the GCL
+	// (since this is an app, the dst is us, and the src is the GCL)
+	gcl = _gdp_gcl_cache_get(pdu->src, 0);
 	if (gcl != NULL)
 	{
 		// find the request
@@ -562,17 +563,17 @@ process_packet(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		gdp_pname_t pbuf;
 
 		gdp_printable_name(pdu->dst, pbuf);
-		ep_dbg_printf("gdp_read_cb: GCL %s has no handle\n", pbuf);
+		ep_dbg_printf("process_message: GCL %s has no handle\n", pbuf);
 	}
 
 	if (req == NULL)
 	{
 		ep_dbg_cprintf(Dbg, 43,
-				"gdp_read_cb: allocating new req for gcl %p\n", gcl);
+				"process_message: allocating new req for gcl %p\n", gcl);
 		estat = _gdp_req_new(pdu->cmd, gcl, chan, 0, &req);
 		if (!EP_STAT_ISOK(estat))
 		{
-			ep_log(estat, "gdp_read_cb: cannot allocate request; dropping packet");
+			ep_log(estat, "process_message: cannot allocate request; dropping packet");
 
 			// not much to do here other than ignore the input
 			_gdp_pdu_free(pdu);
@@ -583,14 +584,14 @@ process_packet(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	}
 	else if (ep_dbg_test(Dbg, 43))
 	{
-		ep_dbg_printf("process_packet: using existing ");
+		ep_dbg_printf("process_message: using existing ");
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
 	if (req->pdu->datum != NULL)
 	{
 		ep_dbg_cprintf(Dbg, 43,
-				"gdp_read_cb: reusing old datum for req %p\n", req);
+				"process_message: reusing old datum for req %p\n", req);
 
 		// don't need the old dbuf
 		gdp_buf_free(req->pdu->datum->dbuf);
@@ -679,7 +680,7 @@ process_packet(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		req->flags |= GDP_REQ_DONE;
 		if (ep_dbg_test(Dbg, 44))
 		{
-			ep_dbg_printf("gdp_read_cb: on return, ");
+			ep_dbg_printf("process_message: on return, ");
 			_gdp_req_dump(req, ep_dbg_getfile());
 		}
 		ep_thr_cond_signal(&req->cond);
@@ -718,7 +719,7 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 #ifdef GDP_PACKET_QUEUE
 		_gdp_pdu_add_to_queue(pdu, gei->chan);
 #else
-		estat = process_packet(pdu, gei->chan);
+		estat = process_message(pdu, gei->chan);
 #endif
 	}
 }
@@ -1076,6 +1077,13 @@ _gdp_do_init_1(void)
 		_gdp_newname(_GdpRoutingName);
 	}
 
+	if (ep_dbg_test(Dbg, 1))
+	{
+		gdp_pname_t pname;
+
+		ep_dbg_printf("Our name = %s\n",
+				gdp_printable_name(_GdpRoutingName, pname));
+	}
 
 	// tell the event library that we're using pthreads
 	if (evthread_use_pthreads() < 0)

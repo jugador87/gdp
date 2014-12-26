@@ -658,6 +658,15 @@ dispatch_cmd(gdp_req_t *req)
 
 	estat = _gdp_req_dispatch(req);
 
+	// swap source and destination addresses
+	{
+		gdp_name_t temp;
+
+		memcpy(temp, req->pdu->src, sizeof temp);
+		memcpy(req->pdu->src, req->pdu->dst, sizeof req->pdu->src);
+		memcpy(req->pdu->dst, temp, sizeof req->pdu->dst);
+	}
+
 	// decode return status as an ACK/NAK command
 	if (!EP_STAT_ISOK(estat))
 	{
