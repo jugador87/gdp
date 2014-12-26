@@ -20,8 +20,10 @@ CSRCS=		ep/*.[ch] \
 		scgilib/scgilib.[ch] \
 		apps/*.[ch] \
 
-tags:
+tags:	.FORCE
 	ctags ${CSRCS}
+
+.FORCE:
 
 
 # Build the Node.js/JavaScript GDP accessing apps and the Node.js/JS
