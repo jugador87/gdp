@@ -1,12 +1,12 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
-#include "gdpd.h"
-#include "gdpd_physlog.h"
-#include "gdpd_pubsub.h"
+#include "logd.h"
+#include "logd_physlog.h"
+#include "logd_pubsub.h"
 
 #include <gdp/gdp_gclmd.h>
 
-static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdpd.proto", "GDP Daemon protocol");
+static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.proto", "GDP Log Daemon protocol");
 
 /*
 **	GDPD_GCL_ERROR --- helper routine for returning errors

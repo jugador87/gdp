@@ -1,9 +1,9 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
-#include "gdpd.h"
-#include "gdpd_physlog.h"
+#include "logd.h"
+#include "logd_physlog.h"
 
-static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdpd.gcl", "GDP Daemon GCL handling");
+static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.gcl", "GDP Log Daemon GCL handling");
 
 // list of current GCLs sorted by usage time
 LIST_HEAD(gcl_use_head, gdp_gcl_xtra)
@@ -220,7 +220,8 @@ void
 gcl_reclaim_resources(void)
 {
 	// how long to leave GCLs open before reclaiming (default: 5 minutes)
-	time_t gcl_minage = ep_adm_getlongparam("swarm.gdpd.gcl.reclaim-age", 300L);
+	time_t gcl_minage = ep_adm_getlongparam("swarm.gdplogd.gcl.reclaim-age",
+								300L);
 	struct timeval tv;
 	struct gdp_gcl_xtra *x, *x2;
 

@@ -4,13 +4,14 @@
 **  Handle publish/subscribe requests
 */
 
-#include "gdpd.h"
-#include "gdpd_pubsub.h"
+#include "logd.h"
+#include "logd_pubsub.h"
 
 #include <gdp/gdp_priv.h>
 #include <ep/ep_dbg.h>
 
-static EP_DBG	Dbg = EP_DBG_INIT("gdpd.pubsub", "GDP Daemon pub/sub handling");
+static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.pubsub",
+								"GDP Log Daemon pub/sub handling");
 
 
 /*

@@ -1,4 +1,4 @@
-ALL=		gdpd
+ALL=		gdplogd
 
 LOCAL1=		/usr/local
 LOCAL2=		/opt/local
@@ -27,18 +27,18 @@ COPTS=		${PG} -g ${WALL} $O ${STD}
 CFLAGS=		${COPTS} ${INCS}
 
 OBJS=	\
-		gdpd.o \
-		gdpd_gcl.o \
-		gdpd_physlog.o \
-		gdpd_proto.o \
-		gdpd_pubsub.o \
-		gdp_circular_buffer.o \
+		logd.o \
+		logd_gcl.o \
+		logd_physlog.o \
+		logd_proto.o \
+		logd_pubsub.o \
+		logd_circular_buffer.o \
 
 HDEPS=	\
-		gdpd.h \
-		gdpd_physlog.h \
-		gdpd_pubsub.h \
-		gdp_circular_buffer.h \
+		logd.h \
+		logd_physlog.h \
+		logd_pubsub.h \
+		logd_circular_buffer.h \
 		../gdp/gdp.h \
 		../gdp/gdp_pdu.h \
 
@@ -47,7 +47,7 @@ LIBDEPS= \
 
 all: ${ALL}
 
-gdpd: ${OBJS}
+gdplogd: ${OBJS}
 	${CC} -o $@ ${OBJS} ${LDFLAGS}
 
 ${OBJS}: ${HDEPS} ${LIBDEPS}

@@ -1,8 +1,8 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
-#include "gdp_circular_buffer.h"
-#include "gdpd.h"
-#include "gdpd_physlog.h"
+#include "logd.h"
+#include "logd_circular_buffer.h"
+#include "logd_physlog.h"
 
 #include <gdp/gdp_buf.h>
 #include <gdp/gdp_gclmd.h>
@@ -24,7 +24,8 @@
 
 /************************  PRIVATE	************************/
 
-static EP_DBG	Dbg = EP_DBG_INIT("gdpd.physlog", "GDP Daemon Physical Log");
+static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.physlog",
+								"GDP Log Daemon Physical Log");
 
 #define GCL_PATH_MAX		200		// max length of pathname
 
@@ -73,7 +74,7 @@ gcl_physlog_init()
 	EP_STAT estat = EP_STAT_OK;
 
 	// find physical location of GCL directory
-	GCLDir = ep_adm_getstrparam("swarm.gdpd.gcl.dir", GCL_DIR);
+	GCLDir = ep_adm_getstrparam("swarm.gdplogd.gcl.dir", GCL_DIR);
 
 	return estat;
 }
@@ -127,7 +128,7 @@ gcl_index_create_cache(gdp_gcl_t *gcl, gcl_log_index_t **out)
 	index->max_recno = 0;
 	index->max_data_offset = gcl->x->data_offset;
 	index->max_index_offset = SIZEOF_INDEX_HEADER;
-	int cache_size = ep_adm_getintparam("swarm.gdpd.index.cachesize", 65536);
+	int cache_size = ep_adm_getintparam("swarm.gdplogd.index.cachesize", 65536);
 								// 1 MiB index cache
 	index->index_cache = circular_buffer_new(cache_size);
 	*out = index;

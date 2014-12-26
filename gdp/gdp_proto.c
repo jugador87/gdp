@@ -1081,7 +1081,7 @@ _gdp_do_init_1(void)
 	{
 		gdp_pname_t pname;
 
-		ep_dbg_printf("Our name = %s\n",
+		ep_dbg_printf("My GDP routing name = %s\n",
 				gdp_printable_name(_GdpRoutingName, pname));
 	}
 

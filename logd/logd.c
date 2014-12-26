@@ -1,8 +1,8 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
-#include "gdpd.h"
-#include "gdpd_physlog.h"
-#include "gdpd_pubsub.h"
+#include "logd.h"
+#include "logd_physlog.h"
+#include "logd_pubsub.h"
 
 #include <ep/ep_string.h>
 
@@ -17,7 +17,7 @@
 
 /************************  PRIVATE	************************/
 
-static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdpd.main", "GDP Daemon");
+static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.main", "GDP Log Daemon");
 
 
 
@@ -288,7 +288,7 @@ gdpd_init(int listenport)
 
 	// set up the incoming evconnlistener
 	if (listenport <= 0)
-		listenport = ep_adm_getintparam("swarm.gdpd.controlport",
+		listenport = ep_adm_getintparam("swarm.gdplogd.controlport",
 										GDP_PORT_DEFAULT);
 	{
 		union sockaddr_xx saddr;
@@ -432,7 +432,8 @@ main(int argc, char **argv)
 
 	// arrange to clean up resources periodically
 	{
-		long gc_intvl = ep_adm_getlongparam("swarm.gdpd.reclaim.interval", 15L);
+		long gc_intvl = ep_adm_getlongparam("swarm.gdplogd.reclaim.interval",
+								15L);
 		struct timeval tv = { gc_intvl, 0 };
 		struct event *evtimer = event_new(GdpListenerEventBase, -1,
 									EV_PERSIST, &gdpd_reclaim_resources, NULL);

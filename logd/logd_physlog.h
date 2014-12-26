@@ -1,6 +1,6 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
-#include "gdpd.h"
+#include "logd.h"
 
 /*
 **	Headers for the physical log implementation.

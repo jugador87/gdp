@@ -3,7 +3,7 @@ all:
 	(cd ep; make clean all)
 	(cd gdp; make clean all)
 	(cd scgilib; make clean all)
-	(cd gdpd; make clean all)
+	(cd logd; make clean all)
 	(cd apps; make clean all)
 
 clean:
@@ -11,12 +11,12 @@ clean:
 	(cd ep; make clean)
 	(cd gdp; make clean)
 	(cd scgilib; make clean)
-	(cd gdpd; make clean)
+	(cd logd; make clean)
 	(cd apps; make clean)
 
 CSRCS=		ep/*.[ch] \
 		gdp/*.[ch] \
-		gdpd/*.[ch] \
+		logd/*.[ch] \
 		scgilib/scgilib.[ch] \
 		apps/*.[ch] \
 
