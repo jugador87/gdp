@@ -30,9 +30,6 @@
 
 EP_DBG	Dbg = EP_DBG_INIT("gdp.pdu", "GDP PDU traffic");
 
-// ver, ttl, rsvd, cmd, dst, src, sigalg, siglen, olen, flags, dlen
-#define FIXEDHDRSZ	(1 + 1 + 1 + 1 + 32 + 32+ 1 + 1 + 6)
-
 
 static EP_PRFLAGS_DESC	PduFlags[] =
 {
@@ -46,7 +43,7 @@ static EP_PRFLAGS_DESC	PduFlags[] =
 void
 _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 {
-	int len = FIXEDHDRSZ + pdu->olen;
+	int len = _GDP_PDU_FIXEDHDRSZ + pdu->olen;
 
 	fprintf(fp, "pdu @ %p: v=%d, ttl=%d, cmd=%d=%s, olen=%d, rid=%u, sigalg=%x"
 				"\n\tflags=",
@@ -118,14 +115,14 @@ _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 			*pbp++ = ((v) & 0xff); \
 		}
 
-#define OOFF		71		// ofset of olen from beginning of pdu
-#define FOFF		72		// offet of flags from beginning of pdu
+#define OOFF		70		// ofset of olen from beginning of pdu
+#define FOFF		71		// offet of flags from beginning of pdu
 
 EP_STAT
 _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 {
 	EP_STAT estat = EP_STAT_OK;
-	uint8_t pbuf[_GDP_MAX_PDU_HDR];
+	uint8_t pbuf[_GDP_PDU_MAXHDRSZ];
 	uint8_t *pbp = pbuf;
 	size_t dlen;
 	size_t hdrlen;
@@ -185,6 +182,9 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		dlen = 0;
 	PUT48(dlen);
 
+	// end of fixed part of header
+	EP_ASSERT((pbp - pbuf) == _GDP_PDU_FIXEDHDRSZ);
+
 	// request id
 	if (pdu->rid != GDP_PDU_NO_RID)
 	{
@@ -216,7 +216,7 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	}
 
 	hdrlen = pbp - pbuf;
-	pbuf[OOFF] = ((hdrlen - FIXEDHDRSZ) + 3) / 4;
+	pbuf[OOFF] = ((hdrlen - _GDP_PDU_FIXEDHDRSZ) + 3) / 4;
 
 	if (ep_dbg_test(Dbg, 32))
 	{
@@ -316,38 +316,53 @@ _gdp_pdu_out_hard(gdp_pdu_t *pdu, gdp_chan_t *chan)
 				v |= ((uint64_t) *pbp++); \
 		}
 
+
+// read the fixed header portion in; shared with routing code
 EP_STAT
-_gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
+_gdp_pdu_hdr_in(gdp_pdu_t *pdu,
+		gdp_chan_t *chan,
+		size_t *pduszp,
+		uint64_t *dlenp)
 {
-	EP_STAT estat = EP_STAT_OK;
-	uint32_t dlen;
-	size_t needed;
-	size_t sz;
-	uint8_t pbuf[_GDP_MAX_PDU_HDR];
+	uint64_t dlen;
+	uint8_t pbuf[_GDP_PDU_MAXHDRSZ];
 	uint8_t *pbp;
 	gdp_buf_t *ibuf;
+	size_t needed;
 
-	EP_ASSERT_POINTER_VALID(pdu);
-
-	ep_dbg_cprintf(Dbg, 60, "_gdp_pdu_in\n");	// XXX
-	EP_ASSERT(pdu->datum != NULL);
-	EP_ASSERT(pdu->datum->dbuf != NULL);
 	ibuf = bufferevent_get_input(chan->bev);
 
 	// see if the fixed part of the header is all in
-	needed = FIXEDHDRSZ;			// size to optional fields
+	needed = gdp_buf_peek(ibuf, pbuf, _GDP_PDU_FIXEDHDRSZ);
 
-	if (gdp_buf_peek(ibuf, pbuf, needed) < needed)
+	if (ep_dbg_test(Dbg, 50))
+	{
+		ep_dbg_printf("_gdp_pdu_in: fixed pdu header:\n");
+		ep_hexdump(pbuf, needed, ep_dbg_getfile(), EP_HEXDUMP_HEX, 0);
+	}
+
+	if (needed < _GDP_PDU_FIXEDHDRSZ)
 	{
 		// try again after we read more in
 		ep_dbg_cprintf(Dbg, 42,
-						"_gdp_pdu_in: keep reading (have %zd, need %zd)\n",
-						gdp_buf_getlength(ibuf), needed);
+						"_gdp_pdu_in: keep reading (have %zd, need %d)\n",
+						gdp_buf_getlength(ibuf), _GDP_PDU_FIXEDHDRSZ);
 		return GDP_STAT_KEEP_READING;
 	}
 
+	// read the fixed part of the packet header in
 	pbp = pbuf;
 	pdu->ver = *pbp++;
+
+	// no point in continuing if we don't recognize the PDU
+	if (pdu->ver < GDP_PROTO_MIN_VERSION || pdu->ver > GDP_PROTO_CUR_VERSION)
+	{
+		ep_dbg_cprintf(Dbg, 1, "_gdp_pdu_in: version %d out of range (%d-%d)\n",
+				pdu->ver, GDP_PROTO_MIN_VERSION, GDP_PROTO_CUR_VERSION);
+		return GDP_STAT_PDU_VERSION_MISMATCH;
+	}
+
+	// ok, we recognize it
 	pdu->ttl = *pbp++;
 	pdu->rsvd1 = *pbp++;
 	pdu->cmd = *pbp++;
@@ -359,19 +374,32 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	pdu->siglen = *pbp++ * 4;
 	pdu->olen = *pbp++ * 4;
 	pdu->flags = *pbp++;
-	GET48(dlen)
+	GET48(dlen);
 
-	// do some initial error checking
-	if (pdu->ver < GDP_PROTO_MIN_VERSION || pdu->ver > GDP_PROTO_CUR_VERSION)
+	// do some error checking
+	int olen = 0;
+	if (EP_UT_BITSET(GDP_PDU_HAS_RID, pdu->flags))
+		olen += sizeof (gdp_rid_t);
+	if (EP_UT_BITSET(GDP_PDU_HAS_SEQNO, pdu->flags))
+		olen += sizeof (gdp_seqno_t);
+	if (EP_UT_BITSET(GDP_PDU_HAS_RECNO, pdu->flags))
+		olen += sizeof (gdp_recno_t);
+	if (EP_UT_BITSET(GDP_PDU_HAS_TS, pdu->flags))
+		olen += sizeof (EP_TIME_SPEC);
+	if (pdu->olen < olen)
 	{
-		ep_dbg_cprintf(Dbg, 1, "_gdp_pdu_in: version %d out of range (%d-%d)\n",
-				pdu->ver, GDP_PROTO_MIN_VERSION, GDP_PROTO_CUR_VERSION);
-		estat = GDP_STAT_PDU_VERSION_MISMATCH;
+		// oops!  ten pounds in a five pound sack
+		EP_STAT estat = GDP_STAT_PDU_CORRUPT;
+		ep_log(estat,
+				"_gdp_pdu_in: option overflow, needs %d, has %d",
+				olen, pdu->olen);
+		return estat;
 	}
 
 	// figure out how much additional data we will need
-	needed += pdu->olen + dlen;
-	// XXX needed += signature length;
+	needed += pdu->olen + dlen + pdu->siglen;
+	*dlenp = dlen;
+	*pduszp = needed;
 
 	// see if the entire packet (header + data) is available
 	if (gdp_buf_getlength(ibuf) < needed)
@@ -393,24 +421,49 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		return GDP_STAT_KEEP_READING;
 	}
 
+	return EP_STAT_OK;
+}
+
+EP_STAT
+_gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
+{
+	EP_STAT estat = EP_STAT_OK;
+	size_t sz;
+	uint8_t pbuf[_GDP_PDU_MAXHDRSZ];
+	uint8_t *pbp;
+	gdp_buf_t *ibuf;
+	size_t needed;
+	uint64_t dlen;
+
+	EP_ASSERT_POINTER_VALID(pdu);
+
+	ep_dbg_cprintf(Dbg, 60, "_gdp_pdu_in\n");	// XXX
+	EP_ASSERT(pdu->datum != NULL);
+	EP_ASSERT(pdu->datum->dbuf != NULL);
+	ibuf = bufferevent_get_input(chan->bev);
+
+	estat = _gdp_pdu_hdr_in(pdu, chan, &needed, &dlen);
+	EP_STAT_CHECK(estat, return estat);
+
 	// the entire packet is now in ibuf
 
 	// now drain the data we have processed
-	sz = gdp_buf_read(ibuf, pbuf, needed - dlen);
-	if (sz < needed - dlen)
+	sz = gdp_buf_read(ibuf, pbuf, _GDP_PDU_FIXEDHDRSZ + pdu->olen);
+	if (sz < _GDP_PDU_FIXEDHDRSZ + pdu->olen)
 	{
 		// shouldn't happen, since it's already in memory
 		estat = GDP_STAT_BUFFER_FAILURE;
 		ep_log(estat,
-				"_gdp_pdu_in: gdp_buf_drain failed, sz = %zu, needed = %zu\n",
-				sz, needed);
+				"_gdp_pdu_in: gdp_buf_drain failed, sz = %zu, needed = %u\n",
+				sz, _GDP_PDU_FIXEDHDRSZ);
 		// buffer is now out of sync; not clear if we can continue
 	}
+	pbp = &pbuf[_GDP_PDU_FIXEDHDRSZ];
 
 	if (ep_dbg_test(Dbg, 32))
 	{
 		ep_dbg_printf("_gdp_pdu_in: read packet header:\n");
-		ep_hexdump(pbuf, needed - dlen, ep_dbg_getfile(), EP_HEXDUMP_HEX, 0);
+		ep_hexdump(pbuf, sz, ep_dbg_getfile(), EP_HEXDUMP_HEX, 0);
 	}
 
 	// Request Id

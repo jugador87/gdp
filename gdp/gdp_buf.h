@@ -71,6 +71,13 @@ extern void			gdp_buf_put_uint32(
 						gdp_buf_t *buf,
 						const uint32_t v);
 
+extern uint64_t		gdp_buf_get_uint48(
+						gdp_buf_t *buf);
+
+extern void			gdp_buf_put_uint48(
+						gdp_buf_t *buf,
+						const uint64_t v);
+
 extern uint64_t		gdp_buf_get_uint64(
 						gdp_buf_t *buf);
 

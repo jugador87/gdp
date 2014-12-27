@@ -106,6 +106,17 @@ gdp_buf_get_uint32(gdp_buf_t *buf)
 }
 
 uint64_t
+gdp_buf_get_uint48(gdp_buf_t *buf)
+{
+	uint16_t h;
+	uint32_t l;
+
+	evbuffer_remove(buf, &h, sizeof h);
+	evbuffer_remove(buf, &l, sizeof l);
+	return ((uint64_t) ntohs(h) << 32) | ((uint64_t) ntohl(l));
+}
+
+uint64_t
 gdp_buf_get_uint64(gdp_buf_t *buf)
 {
 	uint64_t t;
@@ -142,6 +153,16 @@ gdp_buf_put_uint32(gdp_buf_t *buf, const uint32_t v)
 {
 	uint32_t t = htonl(v);
 	evbuffer_add(buf, &t, sizeof t);
+}
+
+
+void
+gdp_buf_put_uint48(gdp_buf_t *buf, const uint64_t v)
+{
+	uint16_t h = htons((v >> 32) & 0xffff);
+	uint32_t l = htonl((uint32_t) (v & UINT64_C(0xffffffff)));
+	evbuffer_add(buf, &h, sizeof h);
+	evbuffer_add(buf, &l, sizeof l);
 }
 
 

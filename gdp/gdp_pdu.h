@@ -101,7 +101,16 @@ typedef struct gdp_pdu
 	gdp_datum_t			*datum;		// pointer to data record
 } gdp_pdu_t;
 
-#define _GDP_MAX_PDU_HDR		128		// max size of on-wire packet header
+
+// size of fixed size part of header
+// (ver, ttl, rsvd, cmd, dst, src, sigalg, siglen, olen, flags, dlen)
+#define _GDP_PDU_FIXEDHDRSZ		(1 + 1 + 1 + 1 + 32 + 32+ 1 + 1 + 1 + 1 + 6)
+
+// maximum size of options portion
+#define _GDP_PDU_MAXOPTSZ		(255 * 4)
+
+// maximum size of an on-wire header (excluding data and signature)
+#define _GDP_PDU_MAXHDRSZ		(_GDP_PDU_FIXEDHDRSZ + _GDP_PDU_MAXOPTSZ)
 
 /*
 **  Protocol command values
