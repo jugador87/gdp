@@ -159,6 +159,10 @@ tp_add_thread(void)
 **
 **	The minimum and maximum threads will use the system default
 **	if they are negative.
+**
+**	The current default for max_threads is twice the number of
+**	available cores.  It isn't clear this is a good choice,
+**	particularly for I/O intensive loads.
 */
 
 void

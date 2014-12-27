@@ -362,9 +362,6 @@ siginfo(int sig, short what, void *arg)
 /*
 **  MAIN!
 **
-**		Sets the number of threads in the pool to twice the number
-**		of cores.  It's not clear this is a good number.
-**
 **		XXX	Currently always runs in foreground.  This will change
 **			to run in background unless -D or -F are specified.
 **			Running in background should probably also turn off
