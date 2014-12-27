@@ -4,7 +4,7 @@
 #include <ep/ep_hexdump.h>
 #include <ep/ep_string.h>
 #include <ep/ep_time.h>
-#include <logd/logd_physlog.h>
+#include <gdplogd/logd_physlog.h>
 
 #include <dirent.h>
 #include <errno.h>
