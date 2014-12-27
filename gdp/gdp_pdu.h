@@ -54,10 +54,12 @@
 **		The structure of an on-the-wire PDU is:
 **			1	protocol version and format
 **			1	time to live (in hops)
+**			1	reserved
 **			1	command or ack/nak
-**			1	signature algorithm and key size
 **			32	destination address
 **			32	source address
+**			1	signature algorithm
+**			1	signature length (in 32 bit words)
 **			1	optionals length (in 32 bit words)
 **			1	flags (indicate presence/lack of optional fields)
 **			6	length of data portion
@@ -84,12 +86,14 @@ typedef struct gdp_pdu
 	// PDU data
 	uint8_t				ver;		// protocol version and format
 	uint8_t				ttl;		// time to live
-	uint16_t			olen;		// optionals length (in octets)
-	uint8_t				flags;		// see below
+	uint8_t				rsvd1;		// reserved
 	uint8_t				cmd;		// command or ack/nak
-	uint8_t				sigalg;		// signature algorithm and size
 	gdp_name_t			dst;		// destination address
 	gdp_name_t			src;		// source address
+	uint8_t				sigalg;		// signature algorithm
+	uint8_t				siglen;		// signature length (in octets)
+	uint16_t			olen;		// optionals length (in octets)
+	uint8_t				flags;		// see below
 	gdp_rid_t			rid;		// request id (GDP_PDU_NO_RID => none)
 	gdp_seqno_t			seqno;		// sequence number
 

@@ -30,8 +30,8 @@
 
 EP_DBG	Dbg = EP_DBG_INIT("gdp.pdu", "GDP PDU traffic");
 
+// ver, ttl, rsvd, cmd, dst, src, sigalg, siglen, olen, flags, dlen
 #define FIXEDHDRSZ	(1 + 1 + 1 + 1 + 32 + 32+ 1 + 1 + 6)
-					// ver, ttl, cmd, sigalg, dst, src, olen, flags, dlen
 
 
 static EP_PRFLAGS_DESC	PduFlags[] =
@@ -118,8 +118,8 @@ _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 			*pbp++ = ((v) & 0xff); \
 		}
 
-#define OOFF		68		// ofset of olen from beginning of pdu
-#define FOFF		69		// offet of flags from beginning of pdu
+#define OOFF		71		// ofset of olen from beginning of pdu
+#define FOFF		72		// offet of flags from beginning of pdu
 
 EP_STAT
 _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
@@ -154,11 +154,11 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	// time to live (in hops)
 	*pbp++ = pdu->ttl;
 
+	// reserved field
+	*pbp++ = pdu->rsvd1;
+
 	// command
 	*pbp++ = pdu->cmd;
-
-	// signature algorithm and size
-	*pbp++ = pdu->sigalg;
 
 	// destination address
 	memcpy(pbp, pdu->dst, sizeof pdu->dst);
@@ -167,6 +167,10 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	// source address
 	memcpy(pbp, pdu->src, sizeof pdu->src);
 	pbp += sizeof pdu->src;
+
+	// signature algorithm and size
+	*pbp++ = pdu->sigalg;
+	*pbp++ = pdu->siglen;
 
 	// length of options (filled in later)
 	*pbp++ = 0;
@@ -345,12 +349,14 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	pbp = pbuf;
 	pdu->ver = *pbp++;
 	pdu->ttl = *pbp++;
+	pdu->rsvd1 = *pbp++;
 	pdu->cmd = *pbp++;
-	pdu->sigalg = *pbp++;
 	memcpy(pdu->dst, pbp, sizeof pdu->dst);
 	pbp += sizeof pdu->dst;
 	memcpy(pdu->src, pbp, sizeof pdu->src);
 	pbp += sizeof pdu->src;
+	pdu->sigalg = *pbp++;
+	pdu->siglen = *pbp++ * 4;
 	pdu->olen = *pbp++ * 4;
 	pdu->flags = *pbp++;
 	GET48(dlen)
