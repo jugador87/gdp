@@ -3,8 +3,10 @@ apps/gdp-rest
 apps/reader-test
 apps/rw-bench
 apps/writer-test
-gdpd/gdpd
+gdplogd/gdplogd
+gdprouted/gdprouted
 scgilib/helloworld
+tags
 */tags
 *.swp
 *.o
