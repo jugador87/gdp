@@ -218,10 +218,15 @@ ep_hash_delete(
 	}
 
 	n = *npp;
-	*npp = n->next;
 	v = n->val;
-	ep_rpool_mfree(hp->rpool, n->key);
-	ep_rpool_mfree(hp->rpool, n);
+	n->val = NULL;
+
+	// since ep_rpool_mfree doesn't free yet, leave this node in
+	// the list to allow re-use of the key without losing more memory
+	//*npp = n->next;
+	//ep_rpool_mfree(hp->rpool, n->key);
+	//ep_rpool_mfree(hp->rpool, n);
+
 	ep_thr_mutex_unlock(&hp->mutex);
 	return v;
 }
