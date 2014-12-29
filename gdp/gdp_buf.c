@@ -11,11 +11,20 @@
 #include <string.h>
 #include <arpa/inet.h>
 
+/*
+**  Create a new buffer
+*/
+
 gdp_buf_t *
 gdp_buf_new(void)
 {
 	return evbuffer_new();
 }
+
+/*
+**  Reset the contents of a buffer.
+**		Returns 0 on success, -1 on failure.
+*/
 
 int
 gdp_buf_reset(gdp_buf_t *b)
@@ -23,11 +32,19 @@ gdp_buf_reset(gdp_buf_t *b)
 	return evbuffer_drain(b, evbuffer_get_length(b));
 }
 
+/*
+**  Free a buffer.
+*/
+
 void
 gdp_buf_free(gdp_buf_t *b)
 {
 	evbuffer_free(b);
 }
+
+/*
+**  Set a mutex for a buffer.
+*/
 
 void
 gdp_buf_setlock(gdp_buf_t *buf, EP_THR_MUTEX *m)
@@ -35,11 +52,20 @@ gdp_buf_setlock(gdp_buf_t *buf, EP_THR_MUTEX *m)
 	evbuffer_enable_locking(buf, m);
 }
 
+/*
+**  Get the amount of data in a buffer.
+*/
+
 size_t
 gdp_buf_getlength(gdp_buf_t *buf)
 {
 	return evbuffer_get_length(buf);
 }
+
+/*
+**  Read data from buffer.
+**		Returns number of bytes actually read.
+*/
 
 size_t
 gdp_buf_read(gdp_buf_t *buf, void *out, size_t sz)
@@ -47,11 +73,21 @@ gdp_buf_read(gdp_buf_t *buf, void *out, size_t sz)
 	return evbuffer_remove(buf, out, sz);
 }
 
+/*
+**  "Peek" at data in a buffer.
+**		Like read, but leaves the buffer intact.
+*/
+
 size_t
 gdp_buf_peek(gdp_buf_t *buf, void *out, size_t sz)
 {
 	return evbuffer_copyout(buf, out, sz);
 }
+
+/*
+**  Remove data from a buffer (and discard it).
+**		Returns 0 on success, -1 on failure.
+*/
 
 int
 gdp_buf_drain(gdp_buf_t *buf, size_t sz)
@@ -59,17 +95,31 @@ gdp_buf_drain(gdp_buf_t *buf, size_t sz)
 	return evbuffer_drain(buf, sz);
 }
 
+/*
+**  Return a pointer to the data in a buffer (kind of like peek w/o copy).
+*/
+
 unsigned char *
 gdp_buf_getptr(gdp_buf_t *buf, size_t sz)
 {
 	return evbuffer_pullup(buf, sz);
 }
 
+/*
+**  Write data to a buffer.
+**		Returns 0 on success, -1 on failure.
+*/
+
 int
 gdp_buf_write(gdp_buf_t *buf, void *in, size_t sz)
 {
 	return evbuffer_add(buf, in, sz);
 }
+
+/*
+**  Do a "printf" on to the end of a buffer.
+**		Returns the number of bytes added.
+*/
 
 int
 gdp_buf_printf(gdp_buf_t *buf, const char *fmt, ...)
@@ -83,11 +133,20 @@ gdp_buf_printf(gdp_buf_t *buf, const char *fmt, ...)
 	return res;
 }
 
+/*
+**  Append the contents of one buffer onto another.
+**		Returns 0 on success, -1 on failure.
+*/
+
 int
 gdp_buf_copy(gdp_buf_t *ibuf, gdp_buf_t *obuf)
 {
 	return evbuffer_add_buffer(obuf, ibuf);
 }
+
+/*
+**  Dump buffer to a file (for debugging).
+*/
 
 void
 gdp_buf_dump(gdp_buf_t *buf, FILE *fp)
@@ -95,6 +154,10 @@ gdp_buf_dump(gdp_buf_t *buf, FILE *fp)
 	fprintf(fp, "gdp_buf @ %p: len=%zu\n",
 			buf, gdp_buf_getlength(buf));
 }
+
+/*
+**  Get a 32 bit unsigned int in network byte order from a buffer.
+*/
 
 uint32_t
 gdp_buf_get_uint32(gdp_buf_t *buf)
@@ -104,6 +167,10 @@ gdp_buf_get_uint32(gdp_buf_t *buf)
 	evbuffer_remove(buf, &t, sizeof t);
 	return ntohl(t);
 }
+
+/*
+**  Get a 48 bit unsigned int in network byte order from a buffer.
+*/
 
 uint64_t
 gdp_buf_get_uint48(gdp_buf_t *buf)
@@ -115,6 +182,10 @@ gdp_buf_get_uint48(gdp_buf_t *buf)
 	evbuffer_remove(buf, &l, sizeof l);
 	return ((uint64_t) ntohs(h) << 32) | ((uint64_t) ntohl(l));
 }
+
+/*
+**  Get a 64 bit unsigned int in network byte order from a buffer.
+*/
 
 uint64_t
 gdp_buf_get_uint64(gdp_buf_t *buf)
@@ -136,6 +207,10 @@ gdp_buf_get_uint64(gdp_buf_t *buf)
 	}
 }
 
+/*
+**  Get a time stamp in network byte order from a buffer.
+*/
+
 void
 gdp_buf_get_timespec(gdp_buf_t *buf, EP_TIME_SPEC *ts)
 {
@@ -148,6 +223,10 @@ gdp_buf_get_timespec(gdp_buf_t *buf, EP_TIME_SPEC *ts)
 }
 
 
+/*
+**  Put a 32 bit unsigned integer to a buffer in network byte order.
+*/
+
 void
 gdp_buf_put_uint32(gdp_buf_t *buf, const uint32_t v)
 {
@@ -155,6 +234,10 @@ gdp_buf_put_uint32(gdp_buf_t *buf, const uint32_t v)
 	evbuffer_add(buf, &t, sizeof t);
 }
 
+
+/*
+**  Put a 48 bit unsigned integer to a buffer in network byte order.
+*/
 
 void
 gdp_buf_put_uint48(gdp_buf_t *buf, const uint64_t v)
@@ -165,6 +248,10 @@ gdp_buf_put_uint48(gdp_buf_t *buf, const uint64_t v)
 	evbuffer_add(buf, &l, sizeof l);
 }
 
+
+/*
+**  Put a 64 bit unsigned integer to a buffer in network byte order.
+*/
 
 void
 gdp_buf_put_uint64(gdp_buf_t *buf, const uint64_t v)
@@ -184,6 +271,10 @@ gdp_buf_put_uint64(gdp_buf_t *buf, const uint64_t v)
 	}
 }
 
+
+/*
+**  Put a time stamp to a buffer in network byte order.
+*/
 
 void
 gdp_buf_put_timespec(gdp_buf_t *buf, EP_TIME_SPEC *ts)
