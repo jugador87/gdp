@@ -1,5 +1,8 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
+#ifndef _GDPLOGD_PHYSLOG_H_
+#define _GDPLOGD_PHYSLOG_H_		1
+
 #include "logd.h"
 
 /*
@@ -33,6 +36,12 @@ EP_STAT			gcl_physappend(
 EP_STAT			gcl_physgetmetadata(
 						gdp_gcl_t *gcl,
 						gdp_gclmd_t **gmdp);
+
+void			gcl_physforeach(
+						void (*func)(
+							gdp_name_t name,
+							void *ctx),
+						void *ctx);
 
 #define GCL_DIR				"/var/tmp/gcl"
 
@@ -96,3 +105,5 @@ typedef struct gcl_index_record
 
 // return maximum record number for a given GCL
 extern gdp_recno_t	gcl_max_recno(gdp_gcl_t *gcl);
+
+#endif //_GDPLOGD_PHYSLOG_H_

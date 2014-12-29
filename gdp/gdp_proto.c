@@ -30,7 +30,6 @@
 **	TSN/AVB, but for now we don't worry about that.
 */
 
-/************************  PRIVATE	************************/
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.proto", "GDP protocol processing");
 
@@ -49,18 +48,20 @@ _gdp_req_send(gdp_req_t *req)
 
 	ep_dbg_cprintf(Dbg, 45, "gdp_req_send: cmd=%d (%s), req=%p\n",
 			req->pdu->cmd, _gdp_proto_cmd_name(req->pdu->cmd), req);
-	EP_ASSERT(gcl != NULL);
 
-	// link the request to the GCL
-	ep_thr_mutex_lock(&gcl->mutex);
-	EP_ASSERT(!req->ongcllist);
-	LIST_INSERT_HEAD(&gcl->reqs, req, gcllist);
-	req->ongcllist = true;
-	ep_thr_mutex_unlock(&gcl->mutex);
+	if (gcl != NULL)
+	{
+		// link the request to the GCL
+		ep_thr_mutex_lock(&gcl->mutex);
+		EP_ASSERT(!req->ongcllist);
+		LIST_INSERT_HEAD(&gcl->reqs, req, gcllist);
+		req->ongcllist = true;
+		ep_thr_mutex_unlock(&gcl->mutex);
 
-	// register this handle so we can process the results
-	//		(it's likely that it's already in the cache)
-	_gdp_gcl_cache_add(gcl, 0);
+		// register this handle so we can process the results
+		//		(it's likely that it's already in the cache)
+		_gdp_gcl_cache_add(gcl, 0);
+	}
 
 	// write the message out
 	estat = _gdp_pdu_out(req->pdu, req->chan);
@@ -225,8 +226,8 @@ typedef struct
 
 static dispatch_ent_t	DispatchTable[256] =
 {
-	{ NULL,				"CMD_KEEPALIVE" },			// 0
-	NOENT,				// 1
+	{ NULL,				"CMD_KEEPALIVE"			},			// 0
+	{ NULL,				"CMD_ADVERTISE"			},			// 1
 	NOENT,				// 2
 	NOENT,				// 3
 	NOENT,				// 4
@@ -1067,14 +1068,14 @@ _gdp_do_init_1(void)
 		myname = ep_adm_getstrparam(argname, NULL);
 		if (myname != NULL)
 		{
-			estat = gdp_parse_name(myname, _GdpRoutingName);
+			estat = gdp_parse_name(myname, _GdpMyRoutingName);
 			EP_STAT_CHECK(estat, myname = NULL);
 		}
 	}
 	if (myname == NULL)
 	{
 		// no name found in configuration
-		_gdp_newname(_GdpRoutingName);
+		_gdp_newname(_GdpMyRoutingName);
 	}
 
 	if (ep_dbg_test(Dbg, 1))
@@ -1082,7 +1083,7 @@ _gdp_do_init_1(void)
 		gdp_pname_t pname;
 
 		ep_dbg_printf("My GDP routing name = %s\n",
-				gdp_printable_name(_GdpRoutingName, pname));
+				gdp_printable_name(_GdpMyRoutingName, pname));
 	}
 
 	// tell the event library that we're using pthreads

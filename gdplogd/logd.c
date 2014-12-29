@@ -15,8 +15,6 @@
 #include <arpa/inet.h>
 
 
-/************************  PRIVATE	************************/
-
 static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.main", "GDP Log Daemon");
 
 
@@ -426,6 +424,9 @@ main(int argc, char **argv)
 
 	// add a debugging signal to print out some internal data structures
 	event_add(evsignal_new(GdpListenerEventBase, SIGINFO, siginfo, NULL), NULL);
+
+	// advertise all of our GCLs
+	logd_advertise_all();
 
 	// arrange to clean up resources periodically
 	{

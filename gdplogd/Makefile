@@ -28,6 +28,7 @@ CFLAGS=		${COPTS} ${INCS}
 
 OBJS=	\
 		logd.o \
+		logd_adv.o \
 		logd_gcl.o \
 		logd_physlog.o \
 		logd_proto.o \
@@ -39,11 +40,11 @@ HDEPS=	\
 		logd_physlog.h \
 		logd_pubsub.h \
 		logd_circular_buffer.h \
-		../gdp/gdp.h \
-		../gdp/gdp_pdu.h \
+		${INCROOT}/gdp/gdp.h \
+		${INCROOT}/gdp/gdp_pdu.h \
 
 LIBDEPS= \
-	 	../gdp/libgdp.a \
+	 	${LIBROOT}/gdp/libgdp.a \
 
 all: ${ALL}
 

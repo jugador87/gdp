@@ -18,7 +18,7 @@ typedef struct gcl_class	gcl_class_t;
 
 extern pthread_t	_GdpIoEventLoopThread;
 gdp_chan_t			*_GdpChannel;		// our primary app-level protocol port
-gdp_name_t			_GdpRoutingName;	// source name for PDUs
+gdp_name_t			_GdpMyRoutingName;	// source name for PDUs
 
 #include "gdp_pdu.h"
 
@@ -144,6 +144,7 @@ typedef struct gdp_req
 
 extern gdp_req_t	*_gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid);
 extern gdp_rid_t	_gdp_rid_new(gdp_gcl_t *gcl, gdp_chan_t *chan);
+extern EP_STAT		_gdp_req_send(gdp_req_t *req);
 
 
 /*

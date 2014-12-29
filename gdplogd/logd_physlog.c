@@ -15,6 +15,7 @@
 //#include <linux/limits.h>		XXX NOT PORTABLE!!!
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -820,4 +821,57 @@ fail_stdio:
 
 	ep_thr_rwlock_unlock(&entry->lock);
 	return estat;
+}
+
+
+/*
+**  GCL_PHYSFOREACH --- call function for each GCL in directory
+*/
+
+void
+gcl_physforeach(void (*func)(gdp_name_t, void *), void *ctx)
+{
+	DIR *dir;
+
+	dir = opendir(GCLDir);
+	if (dir == NULL)
+	{
+		ep_log(ep_stat_from_errno(errno),
+				"gcl_physforeach: cannot open %s", GCLDir);
+		return;
+	}
+
+	for (;;)
+	{
+		struct dirent dentbuf;
+		struct dirent *dent;
+
+		// read the next directory entry
+		int i = readdir_r(dir, &dentbuf, &dent);
+		if (i != 0)
+		{
+			ep_log(ep_stat_from_errno(i),
+					"gcl_physforeach: readdir_r failed");
+			break;
+		}
+		if (dent == NULL)
+			break;
+
+		// we're only interested in .data files
+		char *p = strrchr(dent->d_name, '.');
+		if (p == NULL || strcmp(p, GCL_DATA_SUFFIX) != 0)
+			continue;
+
+		// strip off the ".data"
+		*p = '\0';
+
+		// convert the base64-encoded name to internal form
+		gdp_name_t gname;
+		EP_STAT estat = gdp_internal_name(dent->d_name, gname);
+		EP_STAT_CHECK(estat, continue);
+
+		// now call the function
+		(*func)((uint8_t *) gname, ctx);
+	}
+	closedir(dir);
 }

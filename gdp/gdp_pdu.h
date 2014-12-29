@@ -126,6 +126,7 @@ typedef struct gdp_pdu
 
 //		0-63			Blind commands
 #define GDP_CMD_KEEPALIVE		0		// used for keepalives
+#define GDP_CMD_ADVERTISE		1		// advertise known GCLs
 //		64-127			Acknowledged commands
 #define GDP_CMD_PING			64		// test connection
 #define GDP_CMD_HELLO			65		// initial startup/handshake
@@ -195,6 +196,13 @@ EP_STAT		_gdp_pdu_out(				// send a PDU to a network buffer
 void		_gdp_pdu_out_hard(			// send a PDU to a network buffer
 				gdp_pdu_t *,			// the PDU information
 				gdp_chan_t *);			// the network channel
+
+EP_STAT		_gdp_pdu_hdr_in(			// read a PDU from a network buffer
+				gdp_pdu_t *,			// the buffer to store the result
+				gdp_chan_t *,			// the network channel
+				size_t *pdu_sz_p,		// store the size of the pdu
+				uint64_t *dlen_p);		// store the size of the data
+
 
 EP_STAT		_gdp_pdu_in(				// read a PDU from a network buffer
 				gdp_pdu_t *,			// the buffer to store the result

@@ -1,11 +1,11 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
 /*
-**	Headers for the GDP Daemon
+**	Headers for the GDP Log Daemon
 */
 
-#ifndef _GDPD_H_
-#define _GDPD_H_		1
+#ifndef _GDPLOGD_H_
+#define _GDPLOGD_H_		1
 
 #include <ep/ep.h>
 #include <ep/ep_app.h>
@@ -88,4 +88,11 @@ extern void		gdpd_proto_init(void);	// initialize protocol module
 extern EP_STAT	dispatch_cmd(			// dispatch a request
 					gdp_req_t *req);
 
-#endif //_GDPD_H_
+
+/*
+**  Internal GDP operations
+*/
+
+extern void		logd_advertise_all(void);
+
+#endif //_GDPLOGD_H_
