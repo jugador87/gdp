@@ -33,6 +33,14 @@
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.proto", "GDP protocol processing");
 
+static uint8_t	RoutingLayerAddr[32] =
+	{
+		0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+		0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+		0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+		0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+	};
+
 
 /*
 **   GDP_REQ_SEND --- send a request to the GDP daemon
@@ -1026,6 +1034,51 @@ fail0:
 
 
 /*
+**  Advertise our existance (and possibly more!)
+*/
+
+EP_STAT
+_gdp_advertise(EP_STAT (*func)(gdp_buf_t *, void *), void *ctx)
+{
+	EP_STAT estat = EP_STAT_OK;
+	gdp_datum_t *d;
+	gdp_req_t *req;
+	gdp_chan_t *chan = _GdpChannel;
+	uint32_t reqflags = 0;
+
+	ep_dbg_cprintf(Dbg, 39, "_gdp_advertise:\n");
+
+	d = gdp_datum_new();
+
+	// add any additional information to advertisement
+	if (func != NULL)
+		estat = func(d->dbuf, ctx);
+
+	// create a new request and point it at the routing layer
+	estat = _gdp_req_new(GDP_CMD_ADVERTISE, NULL, chan, reqflags, &req);
+	EP_STAT_CHECK(estat, goto fail0);
+	memcpy(req->pdu->dst, RoutingLayerAddr, sizeof req->pdu->dst);
+
+	// send the request
+	estat = _gdp_req_send(req);
+
+	// there is no reply
+	_gdp_req_free(req);
+
+fail0:
+	if (ep_dbg_test(Dbg, 10))
+	{
+		char ebuf[100];
+
+		ep_dbg_printf("_gdp_advertise => %s\n",
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
+
+	return estat;
+}
+
+
+/*
 **  Initialization, Part 1:
 **		Initialize the various external libraries.
 **		Set up the I/O event loop base.
@@ -1144,6 +1197,9 @@ _gdp_do_init_2(const char *gdpd_addr)
 	estat = _gdp_start_event_loop_thread(&_GdpIoEventLoopThread,
 										GdpIoEventBase, "I/O");
 	EP_STAT_CHECK(estat, goto fail1);
+
+	// advertise ourselves
+	_gdp_advertise(NULL, NULL);
 
 	ep_dbg_cprintf(Dbg, 4, "gdp_init: success\n");
 	return estat;

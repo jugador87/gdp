@@ -99,6 +99,9 @@ cmd_create(gdp_req_t *req)
 	gdp_gclmd_free(gmd);
 	EP_STAT_CHECK(estat, goto fail1);
 
+	// advertise this new GCL
+	logd_advertise_one(gcl->name);
+
 	// cache the open GCL Handle for possible future use
 	EP_ASSERT_INSIST(gdp_name_is_valid(gcl->name));
 	_gdp_gcl_cache_add(gcl, GDP_MODE_AO);

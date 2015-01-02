@@ -300,6 +300,10 @@ void			_gdp_req_dump(				// print (debug) request
 void			_gdp_chan_drain_input(		// drain all input from channel
 						gdp_chan_t *chan);
 
+EP_STAT			_gdp_advertise(				// advertise resources
+						EP_STAT (*func)(gdp_buf_t *, void *),
+						void *ctx);
+
 /*
 **  Gdpd communication
 */

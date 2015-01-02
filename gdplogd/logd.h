@@ -95,4 +95,6 @@ extern EP_STAT	dispatch_cmd(			// dispatch a request
 
 extern void		logd_advertise_all(void);
 
+extern void		logd_advertise_one(gdp_name_t name);
+
 #endif //_GDPLOGD_H_
