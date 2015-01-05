@@ -98,20 +98,6 @@ cmdsock_read_cb(struct bufferevent *bev, void *ctx)
 
 
 /*
-**  CMDSOCK_CLOSE_CB --- called when a socket closes
-*/
-
-void
-cmdsock_close_cb(struct event_base *eb,
-		struct gdp_event_info *gei)
-{
-	ep_dbg_cprintf(Dbg, 10, "cmdsock_close_cb:\n");
-
-	// do cleanup, release resources, etc.
-}
-
-
-/*
 **	CMDSOCK_EVENT_CB --- handle special events on listener socket
 */
 
@@ -217,10 +203,6 @@ lev_accept_cb(struct evconnlistener *lev,
 	}
 
 	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
-	gei->exit_cb = &cmdsock_close_cb;
-	gei->chan = chan;
-	bufferevent_setcb(chan->bev, cmdsock_read_cb, NULL, cmdsock_event_cb, gei);
-	bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
 }
 
 
@@ -243,80 +225,54 @@ lev_error_cb(struct evconnlistener *lev, void *ctx)
 
 
 /*
-**	GDP_INIT --- initialize this library
+**	GDPLOGD_INIT --- initialize this service
 */
 
-static EP_STAT
-init_error(const char *msg)
-{
-	EP_STAT estat = ep_stat_from_errno(errno);
-	char nbuf[40];
-
-	strerror_r(errno, nbuf, sizeof nbuf);
-	ep_log(estat, "gdpd_init: %s", msg);
-	ep_app_error("gdpd_init: %s: %s", msg, nbuf);
-	return estat;
-}
-
-struct event_base	*GdpListenerEventBase;
-pthread_t			ListenerEventLoopThread;
-
 EP_STAT
-gdpd_init(int listenport)
+gdplogd_init(const char *router_addr)
 {
 	EP_STAT estat;
-	struct evconnlistener *lev;
+	gdp_chan_t *chan;
 	extern EP_STAT _gdp_do_init_1(void);
+	extern EP_STAT _gdp_do_init_3(gdp_chan_t *);
 
+	// initialize the GDP library
+	// step 1: set up global state
 	estat = _gdp_do_init_1();
 	EP_STAT_CHECK(estat, goto fail0);
 
-	// initialize the protocol module
+	// step 2: initialize connection
+	estat = _gdp_open_connection(router_addr, &chan);
+	EP_STAT_CHECK(estat, goto fail0);
+	_GdpChannel = chan;
+
+	// step 3: start event loop
+	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
+	gei->chan = chan;
+	bufferevent_setcb(chan->bev, cmdsock_read_cb, NULL, cmdsock_event_cb, gei);
+	bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
+	estat = _gdp_start_event_loop_thread(&_GdpIoEventLoopThread,
+										GdpIoEventBase, "I/O");
+	EP_STAT_CHECK(estat, goto fail1);
+
+	// step 4a: initialize the protocol module
 	gdpd_proto_init();
 
-	if (GdpListenerEventBase == NULL)
-	{
-		GdpListenerEventBase = event_base_new();
-		if (GdpListenerEventBase == NULL)
-		{
-			estat = ep_stat_from_errno(errno);
-			ep_app_error("gdpd_init: could not create GdpListenerEventBase");
-		}
-	}
+	// step 4b: we will advertise ourselves later
 
-	// set up the incoming evconnlistener
-	if (listenport <= 0)
-		listenport = ep_adm_getintparam("swarm.gdplogd.controlport",
-										GDP_PORT_DEFAULT);
-	{
-		union sockaddr_xx saddr;
+	goto finis;
 
-		saddr.sin.sin_family = AF_INET;
-		saddr.sin.sin_addr.s_addr = INADDR_ANY;
-		saddr.sin.sin_port = htons(listenport);
-		lev = evconnlistener_new_bind(GdpListenerEventBase,
-				lev_accept_cb,
-				NULL,		// context
-				LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_THREADSAFE,
-				-1,			// backlog
-				&saddr.sa,
-				sizeof saddr.sin);
-	}
-	if (lev == NULL)
-		estat = init_error("could not create evconnlistener");
-	else
-		evconnlistener_set_error_cb(lev, lev_error_cb);
-	EP_STAT_CHECK(estat, goto fail0);
-
-	// success!
-	ep_dbg_cprintf(Dbg, 1, "gdpd_init: listening on port %d\n", listenport);
-	return estat;
+fail1:
+	bufferevent_free(chan->bev);
+	chan->bev = NULL;
+	ep_mem_free(chan);
 
 fail0:
+finis:
 	{
 		char ebuf[200];
 
-		ep_dbg_cprintf(Dbg, 1, "gdpd_init: failed with stat %s\n",
+		ep_dbg_cprintf(Dbg, 1, "gdplogd_init: %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	return estat;
@@ -370,12 +326,12 @@ int
 main(int argc, char **argv)
 {
 	int opt;
-	int listenport = -1;
 	bool run_in_foreground = false;
 	EP_STAT estat;
 	int nworkers = -1;
+	char *router_addr = NULL;
 
-	while ((opt = getopt(argc, argv, "D:Fn:P:")) > 0)
+	while ((opt = getopt(argc, argv, "D:FG:n:")) > 0)
 	{
 		switch (opt)
 		{
@@ -388,12 +344,12 @@ main(int argc, char **argv)
 			run_in_foreground = true;
 			break;
 
-		case 'n':
-			nworkers = atoi(optarg);
+		case 'G':
+			router_addr = optarg;
 			break;
 
-		case 'P':
-			listenport = atoi(optarg);
+		case 'n':
+			nworkers = atoi(optarg);
 			break;
 		}
 	}
@@ -401,7 +357,7 @@ main(int argc, char **argv)
 	argv += optind;
 
 	// initialize GDP and the EVENT library
-	estat = gdpd_init(listenport);
+	estat = gdplogd_init(router_addr);
 	if (!EP_STAT_ISOK(estat))
 	{
 		char ebuf[100]; 
@@ -423,7 +379,7 @@ main(int argc, char **argv)
 	ep_thr_pool_init(nworkers, nworkers, 0);
 
 	// add a debugging signal to print out some internal data structures
-	event_add(evsignal_new(GdpListenerEventBase, SIGINFO, siginfo, NULL), NULL);
+	event_add(evsignal_new(GdpIoEventBase, SIGINFO, siginfo, NULL), NULL);
 
 	// advertise all of our GCLs
 	logd_advertise_all();
@@ -433,18 +389,12 @@ main(int argc, char **argv)
 		long gc_intvl = ep_adm_getlongparam("swarm.gdplogd.reclaim.interval",
 								15L);
 		struct timeval tv = { gc_intvl, 0 };
-		struct event *evtimer = event_new(GdpListenerEventBase, -1,
+		struct event *evtimer = event_new(GdpIoEventBase, -1,
 									EV_PERSIST, &gdpd_reclaim_resources, NULL);
 		event_add(evtimer, &tv);
 	}
 
-	// start the event threads
-	_gdp_start_event_loop_thread(&ListenerEventLoopThread, GdpListenerEventBase,
-								"listener");
-	_gdp_start_event_loop_thread(&_GdpIoEventLoopThread, GdpIoEventBase,
-								"I/O");
-
 	// should never get here
-	pthread_join(ListenerEventLoopThread, NULL);
-	ep_app_abort("Fell out of ListenerEventLoopThread");
+	pthread_join(_GdpIoEventLoopThread, NULL);
+	ep_app_abort("Fell out of GdpIoEventLoopThread");
 }

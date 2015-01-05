@@ -591,6 +591,7 @@ _gdp_pdu_new(void)
 	EP_ASSERT(!pdu->inuse);
 	memset(pdu, 0, sizeof *pdu);
 	pdu->ver = GDP_PROTO_CUR_VERSION;
+	pdu->ttl = GDP_TTL_DEFAULT;
 	pdu->datum = gdp_datum_new();
 	pdu->inuse = true;
 

@@ -692,6 +692,8 @@ process_message(gdp_pdu_t *pdu, gdp_chan_t *chan)
 			ep_dbg_printf("process_message: on return, ");
 			_gdp_req_dump(req, ep_dbg_getfile());
 		}
+
+		// wake up invoker, which will return the status
 		ep_thr_cond_signal(&req->cond);
 	}
 fail1:
@@ -867,8 +869,8 @@ run_event_loop(void *ctx)
 			ep_time_nanosleep(evdelay * 1000LL);		// avoid CPU hogging
 	}
 
-	ep_log(GDP_STAT_DEAD_DAEMON, "lost connection to gdp daemon");
-	ep_app_abort("lost connection to gdp daemon");
+	ep_log(GDP_STAT_DEAD_DAEMON, "lost connection to gdp");
+	ep_app_abort("lost connection to gdp");
 }
 
 EP_STAT
@@ -908,7 +910,7 @@ evlib_log_cb(int severity, const char *msg)
 
 
 /*
-**  _GDP_OPEN_CONNECTION --- open connection to a gdp daemon
+**  _GDP_OPEN_CONNECTION --- open connection to the routing layer
 */
 
 EP_STAT
@@ -932,12 +934,6 @@ _gdp_open_connection(const char *gdpd_addr, gdp_chan_t **pchan)
 		goto fail0;
 	}
 
-	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
-	gei->chan = chan;
-
-	bufferevent_setcb(chan->bev, gdp_read_cb, NULL, _gdp_event_cb, gei);
-	bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
-
 	// attach it to a socket
 	char abuf[100];
 	char pbuf[10];
@@ -949,7 +945,7 @@ _gdp_open_connection(const char *gdpd_addr, gdp_chan_t **pchan)
 
 	// get the host:port info into abuf
 	if (gdpd_addr == NULL)
-		gdpd_addr = ep_adm_getstrparam("swarm.gdp.gdpd.addr", NULL);
+		gdpd_addr = ep_adm_getstrparam("swarm.gdp.ip_addr", NULL);
 	if (gdpd_addr == NULL)
 		gdpd_addr = "127.0.0.1";
 	strlcpy(abuf, gdpd_addr, sizeof abuf);
@@ -1017,7 +1013,6 @@ _gdp_open_connection(const char *gdpd_addr, gdp_chan_t **pchan)
 	if (false)
 	{
 fail1:
-		ep_mem_free(gei);
 		bufferevent_free(chan->bev);
 		chan->bev = NULL;
 fail0:
@@ -1058,6 +1053,7 @@ _gdp_advertise(EP_STAT (*func)(gdp_buf_t *, void *), void *ctx)
 	estat = _gdp_req_new(GDP_CMD_ADVERTISE, NULL, chan, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 	memcpy(req->pdu->dst, RoutingLayerAddr, sizeof req->pdu->dst);
+	req->pdu->datum = d;
 
 	// send the request
 	estat = _gdp_req_send(req);
@@ -1173,22 +1169,22 @@ fail0:
 }
 
 /*
-**	Initialization, Part 2:
-**		Open the connection to gdpd.
+**	Initialization, Part 3:
 **		Start the event loop to service that connection.
 **
 **	This code is not called by gdpd.
 */
 
 EP_STAT
-_gdp_do_init_2(const char *gdpd_addr)
+_gdp_do_init_3(gdp_chan_t *chan)
 {
-	gdp_chan_t *chan;
 	EP_STAT estat;
 
-	estat = _gdp_open_connection(gdpd_addr, &chan);
-	EP_STAT_CHECK(estat, goto fail0);
+	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
+	gei->chan = chan;
 
+	bufferevent_setcb(chan->bev, gdp_read_cb, NULL, _gdp_event_cb, gei);
+	bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
 	_GdpChannel = chan;
 	ep_dbg_cprintf(Dbg, 10, "gdp_init: talking on fd %d\n",
 			bufferevent_getfd(chan->bev));
@@ -1196,24 +1192,18 @@ _gdp_do_init_2(const char *gdpd_addr)
 	// create a thread to run the event loop
 	estat = _gdp_start_event_loop_thread(&_GdpIoEventLoopThread,
 										GdpIoEventBase, "I/O");
-	EP_STAT_CHECK(estat, goto fail1);
 
-	// advertise ourselves
-	_gdp_advertise(NULL, NULL);
+	if (!EP_STAT_ISOK(estat))
+	{
+		bufferevent_free(chan->bev);
+		chan->bev = NULL;
+		ep_mem_free(chan);
+	}
 
-	ep_dbg_cprintf(Dbg, 4, "gdp_init: success\n");
-	return estat;
-
-fail1:
-	bufferevent_free(chan->bev);
-	chan->bev = NULL;
-	ep_mem_free(chan);
-
-fail0:
 	{
 		char ebuf[200];
 
-		ep_dbg_cprintf(Dbg, 4, "gdp_init: failure: %s\n",
+		ep_dbg_cprintf(Dbg, 4, "gdp_init: %s\n",
 					ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	return estat;

@@ -38,9 +38,10 @@ Directory Structure:
 		this version up and releasing it again.
 	gdp --- A library for GDP manipulation.  This is the library
 		that applications must link to access the GDP.
-	gdpd --- The GDP daemon.  This implements the core of the GDP.
-		This implementation is simplistic, working only on
-		a single host.
+	gdplogd --- The GDP log daemon.  This implements physical
+		(on disk) logs for the GDP.  The implementation is
+		still fairly simplistic.  It depends on a routing
+		layer (currently routia, in a separate repository).
 	scgilib --- An updated version of the SCGI code from
 		http://www.xamuel.com/scgilib/.  SCGI permits a
 		web server to access outside programs by opening
@@ -80,26 +81,32 @@ Compiling:
             make clean_JavaScript
 
 Running a GDP-based program:
-	For anything interesting to happen, an instance of the GDP
-	Daemon must be running.  If it is not running, some programs
-	will loop trying to connect with it; others will just die
-	immediately.
+	For anything interesting to happen, two daemons must be
+	running.  The first is the routing layer, currently a
+	Python application named Routia.  It currently uses a
+	BGP-style approach with globally known state.  Everything
+	else connects into the routing layer.
 
-	Located in gdpd/gdpd, it takes these parameters:
+	The second is gdplogd, which implements physical on-disk
+	logs.  It must be started after the routing layer.
+	Located in gdplogd/gdplogd, it takes these parameters:
 	   -D<debug-spec>
 		Turn on debugging.  See "Setting Debug Flags" below
 		for more information.  Implies -F.
 	   -F	Run in foreground.  At the moment, gdpd always runs
 		in foreground, but the intent is that it will default
 		to background mode without this flag.
-	   -P<port>
-		Use <port> as the rendezvous port.  Defaults to 2468.
-		Can also be set with the "swarm.gdp.controlport"
-		parameter.  See "Changing Parameters" below for more
-		information.
+	   -G<gdp-addr>
+		Use <gdp-addr> as the address of the routing layer
+		daemon.  Defaults to localhost:8007.  Can also be set
+		with the "swarm.gdp.ip_addr" administrative parameter.
+		See "Changing Parameters" below for more information.
 	   -n<workers>
-		Start up <workers> worker threads.  Defaults to the
-		number of cores available.
+		Start up <workers> worker threads.  Defaults to a
+		minimum of one thread which can expand up to twice
+		the number of cores available.  Can also be set (with
+		finer control) using the libep.thr.pool.min_workers
+		and libep.thr.pool.max_workers parameters.
 
 	You also have to create the directory "/var/tmp/gcl" to store
 	the data repository.
@@ -118,18 +125,19 @@ Getting Started:
 	files are kept.  It should be owned by whatever user will be
 	running gdpd.  For security reasons, this should NOT be root!!
 
-   4.	Start the GDP daemon (see above).  At this time some callers
-	will loop waiting for the daemon to start, but it's always
-	best to have it running before trying anything else (not just
-	the REST interface).
+   4.	Adjust any administrative parameters (see below).
 
-   5.	Create your first GCL using apps/writer-test.  You can run
+   5.	Start the GDP routing daemon (routia).
+
+   6.	Start the GDP log daemon (see above).
+
+   7.	Create your first GCL using apps/writer-test.  You can run
 	this without arguments and it will create a (random) 256-bit
 	name, or with an argument which will be sha-256'd to create
 	the internal name.  It will accept text from the input and
 	write that text to the GCL.
 
-   6.	Check success by running apps/reader-test giving it the
+   8.	Check success by running apps/reader-test giving it the
 	internal (256-bit) name printed by writer-test.  If you
 	gave writer-test an argument you can use that instead.
 
@@ -226,18 +234,15 @@ Changing Parameters:
 
 	Parameters you can change in those files include:
 
-	swarm.gdp.gdpd.addr --- the address of the gdp daemon (used
+	swarm.gdp.ip_addr --- the address of the gdp routing layer (used
 		by clients).  This should eventually be replaced by
-		service discovery.  Defaults to 127.0.0.1:2468.
+		service discovery.  Defaults to 127.0.0.1:8007.
 	swarm.gdp.event.loopdelay --- if the event loop exits for some
 		reason, this is the number of microseconds to delay
 		before restarting the loop.  Defaults to 100000 (100msec).
 	swarm.gdp.event.looptimeout --- the timeout for the event loop;
 		this is mostly just to make sure things don't "hang up"
 		forever.  Defaults to 30 (seconds).
-	swarm.gdpd.controlport --- the rendezvous port used by the GDP
-		daemon.  Must match the port in swarm.gdp.gdpd.addr.
-		Defaults to 2468.
 	swarm.gdpd.gcl.dir --- the data directory (e.g., /var/tmp/gcl).
 		Defaults to "/var/tmp/gcl".
 	swarm.gdpd.reclaim.interval --- how often to wake up to

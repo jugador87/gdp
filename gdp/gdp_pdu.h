@@ -9,10 +9,12 @@
 #include <event2/buffer.h>
 #include "gdp_priv.h"
 
-#define GDP_PORT_DEFAULT		2468	// default IP port
+#define GDP_PORT_DEFAULT		8007	// default IP port
 
-#define GDP_PROTO_CUR_VERSION	1		// current protocol version
-#define GDP_PROTO_MIN_VERSION	1		// min version we can accept
+#define GDP_PROTO_CUR_VERSION	2		// current protocol version
+#define GDP_PROTO_MIN_VERSION	2		// min version we can accept
+
+#define GDP_TTL_DEFAULT			15		// hops left
 
 
 

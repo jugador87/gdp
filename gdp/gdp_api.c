@@ -230,17 +230,46 @@ gdp_init(const char *gdpd_addr)
 {
 	static bool inited = false;
 	EP_STAT estat;
+	gdp_chan_t *chan;
 	extern EP_STAT _gdp_do_init_1(void);
-	extern EP_STAT _gdp_do_init_2(const char *);
+	extern EP_STAT _gdp_do_init_3(gdp_chan_t *);
 
 	if (inited)
 		return EP_STAT_OK;
 	inited = true;
 
 	// pass it on to the internal module
+	// step 1: set up global state
 	estat = _gdp_do_init_1();
-	EP_STAT_CHECK(estat, return estat);
-	return _gdp_do_init_2(gdpd_addr);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	// step 2: initialize connection
+	estat = _gdp_open_connection(gdpd_addr, &chan);
+	EP_STAT_CHECK(estat, goto fail0);
+	_GdpChannel = chan;
+
+	// step 3: start event loop
+	estat = _gdp_do_init_3(chan);
+	EP_STAT_CHECK(estat, goto fail1);
+
+	// step 4: advertise ourselves
+	estat = _gdp_advertise(NULL, NULL);
+	if (!EP_STAT_ISOK(estat))
+	{
+fail1:
+		if (chan->bev != NULL)
+			bufferevent_free(chan->bev);
+		ep_mem_free(chan);
+	}
+
+fail0:
+	{
+		char ebuf[200];
+
+		ep_dbg_cprintf(Dbg, 4, "gdp_init: %s\n",
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
+	return estat;
 }
 
 
