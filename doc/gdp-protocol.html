@@ -1,0 +1,1203 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>GDP Protocol</title>
+  </head>
+  <body>
+    <h1> GDP Protocol Version 1<br>
+    </h1>
+    <h4>Eric Allman, Ubiquitous Swarm Lab, U.C. Berkeley<br>
+      January 2015<br>
+    </h4>
+    <h1 align="center">DRAFT</h1>
+    <p>Note: this document uses the term "Protocol Data Unit" (PDU)
+      instead of "packet" to avoid confusion with a possible
+      implementation on top of a packet-based protocol such as UDP.<br>
+    </p>
+    <p>This describes the redesign of the GDP protocol designed to fit
+      better into a datagram routing model.&nbsp; The previous design
+      was for version 0.1 of the GDP, which was connection based and did
+      not allow for the extended PDU format.<br>
+    </p>
+    <p><em><strong>NOTE WELL</strong>: There are two proposals for the
+        "Standard Format" PDU.&nbsp; If you have any suggestions as to
+        which one is better, please contact me.</em><br>
+    </p>
+    <h2>Model</h2>
+    <ul>
+      <li>Variable length protocol data units (previously but
+        incorrectly called "packets").</li>
+      <li>Assumption of arbitrary length PDUs (so layering on top of
+        fixed length protocols such as UDP will require packet
+        fragmentation and reassembly.</li>
+      <li>This layer will provide reliable, ordered delivery (so layers
+        may need to be added to address retransmission, out-of-order
+        receipt, and duplication receipt if using datagram-based
+        protocols).<br>
+      </li>
+    </ul>
+    <h2> PDU Specification</h2>
+    <p>All numeric fields in Protocol Data Units are represented in
+      network byte order ("Big Endian").<br>
+    </p>
+    <p>Protocol Data Units begin as follows:<br>
+    </p>
+    <table border="1" cellpadding="2" cellspacing="2" width="100%">
+      <tbody>
+        <tr>
+          <td align="center" valign="top" width="25%">PDU Version/Format<br>
+            (1 octet)<br>
+          </td>
+          <td align="center" valign="top" width="75%">Defined by Format<br>
+            (variable length)<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>The PDU Version/Format define the interpretation of the rest of
+      the packet.&nbsp; This documents defines two formats as described
+      below.&nbsp; Programs must verify that they understand the version
+      before attempting further interpretation of the PDU.&nbsp; Defined
+      Version/Formats are:<br>
+    </p>
+    <table align="center" border="1" cellpadding="2" cellspacing="2"
+      width="30%">
+      <tbody>
+        <tr>
+          <td align="center" valign="top">Value<br>
+          </td>
+          <td valign="top">Description<br>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" valign="top">0x02<br>
+          </td>
+          <td valign="top">Standard format<br>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" valign="top">0x0f<br>
+          </td>
+          <td valign="top">Extended format<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Other formats are reserved.<br>
+    </p>
+    <h3>Standard Format (0x02)<br>
+    </h3>
+    <table height="310" border="1" cellpadding="2" cellspacing="2"
+      width="100%">
+      <tbody>
+        <tr>
+          <td align="center" valign="top" width="25%">0x02<br>
+            (1 octet)<br>
+          </td>
+          <td align="center" valign="top" width="25%">Time to Live<br>
+            (1 octet) </td>
+          <td align="center" valign="top" width="25%">Reserved<br>
+            (1 octet) </td>
+          <td align="center" valign="top" width="25%">Cmd/Ack<br>
+            (1 octet)<br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" align="center" valign="top"><br>
+            Destination (32 octets)<br>
+            <br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" align="center" valign="top"><br>
+            Source (32 octets)<br>
+            <br>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1" align="center" valign="top">Signature
+
+
+            Alg<br>
+            (1 octet)<br>
+          </td>
+          <td align="center" valign="top">Signature Len<br>
+            (1 octet)<br>
+          </td>
+          <td colspan="1" rowspan="1" align="center" valign="top">Optionals
+
+
+            Length<br>
+            (1 octet)<br>
+          </td>
+          <td align="center" valign="top">Flags<br>
+            (1 octet)<br>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="4" rowspan="1" align="center" valign="top">Data
+            Length<br>
+            (4 octets)<br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" align="center" valign="top">Request
+
+
+
+            Id (4 octets, optional)<br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" align="center" valign="top">Record
+            Number (8 octets, optional)<br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" align="center" valign="top">Sequence
+
+
+
+            Number (8 octets, optional)<br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" align="center" valign="top"><br>
+            Commit Timestamp (16 octets, optional)<br>
+            <br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" align="center" valign="top">Additional
+
+
+
+            optional header fields (variable length)<br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" align="center" valign="top">Data
+            (variable length)<br>
+          </td>
+        </tr>
+        <tr>
+          <td rowspan="1" colspan="4" align="center" valign="top">Signature
+
+
+
+
+            (variable length)<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <br>
+    Note that the data length is six bytes, so fields after that are not
+    properly lined up in the table.<br>
+    <p>Time to Live (1 octet).&nbsp; The originator of the packet sets a
+      number of hops that this packet is allowed to take.&nbsp; At each
+      hop the routing layer must decrement this field; if it reaches
+      zero it is assumed that the packet is looping.<br>
+    </p>
+    <p>Reserved (1 octet).&nbsp; Must be zero when the PDU is created
+      and ignored when the PDU is read.&nbsp; Forwarders must transmit
+      this field unchanged.<br>
+    </p>
+    <p>Cmd/Ack (1 octet).&nbsp; This is the client-to-server command or
+      server-to-client ack or nack.&nbsp; In some cases it can be a
+      command to the routing layer (see below).</p>
+    <p>Destination (32 octets).&nbsp; The destination for this
+      PDU.&nbsp; The special value consisting of alternating 255 bytes
+      and zero bytes ("<tt>ff00ff00</tt>...") indicates messages to be
+      interpreted by the routing layer.</p>
+    <p> </p>
+    <p>Source (32 octets).&nbsp; The source of this PDU.<br>
+    </p>
+    <p>Signature Alg (1 octet).&nbsp; The general class of signature
+      algorithm.&nbsp; If this is zero there is no signature.&nbsp;
+      [[TODO: specify values]]</p>
+    <p> </p>
+    <p>Signature Len (1 octet).&nbsp; The length of this signature in
+      units of four octets (32 bits).&nbsp; For example, a signature
+      size of 7 translates to a 28 byte (224 bit) signature.<br>
+    </p>
+    <p> </p>
+    <p>Optionals Length (1 octet).&nbsp; The number of octets of
+      optional header data in units of four octets (for example, a value
+      of 2 means that there are 8 bytes of optional data).&nbsp; This is
+      the number of octets from the end of the Data Length field to the
+      beginning of the Data field.<br>
+    </p>
+    <p>Flags (1 octet).&nbsp; Used to interpret the optional area of the
+      PDU.&nbsp; Flags exist for:<br>
+    </p>
+    <table align="center" border="1" cellpadding="2" cellspacing="2"
+      width="90%">
+      <tbody>
+        <tr>
+          <td valign="top">Name<br>
+          </td>
+          <td valign="top">Numeric Value<br>
+          </td>
+          <td valign="top">Interpretation<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">HAS_RID<br>
+          </td>
+          <td valign="top">0x01<br>
+          </td>
+          <td valign="top">The Request Id field is included in this
+            PDU.&nbsp; If this bit is not set, the Request Id is
+            interpreted as though it were zero.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">HAS_RECNO<br>
+          </td>
+          <td valign="top">0x02<br>
+          </td>
+          <td valign="top">The Record Number field is included in this
+            PDU.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">HAS_SEQNO<br>
+          </td>
+          <td valign="top">0x04<br>
+          </td>
+          <td valign="top">The Sequence Number field is included in this
+            PDU.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">HAS_TS<br>
+          </td>
+          <td valign="top">0x08<br>
+          </td>
+          <td valign="top">The Commit Timestamp field is included in
+            this PDU.<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p> </p>
+    <p>Request Id (4 octets).&nbsp; A value to disambiguate calls in
+      progress.&nbsp; Requests (commands) are correlated with responses
+      on the basis of the concatenation of Destination, Source, and
+      Request Id; if Destination and Source are unambiguous (i.e., there
+      will never be more than one command active between the Source and
+      the Destination at any one time) the Request Id can be omitted
+      (that is, defaulted to zero).&nbsp; Use of the Request Id is
+      common for subscriptions.<br>
+    </p>
+    <p>Record Number (8 octets; optional).&nbsp; Contains the record
+      number to read, or the first record number for a subscribe or
+      multiread.<br>
+    </p>
+    <p>Sequence Number (8 octets; optional).&nbsp; When the PDU is
+      signed, this field is included with the signature to avoid replay
+      attacks.&nbsp; It must be monotonically increasing.&nbsp; [[Across
+      all time?&nbsp; How is this stored in the GCL?]]<br>
+    </p>
+    <p>Commit Timestamp (16 octets; optional).&nbsp; Contains the commit
+      timestamp on received data.&nbsp; [[Merge with Sequence Number??]]</p>
+    <p> </p>
+    <p> </p>
+    <p> </p>
+    <p>Data Length (4 octets).&nbsp; This gives the length of the Data
+      field in octets.&nbsp; It does <i>not</i> include the signature.<br>
+    </p>
+    <p>Data (variable length).&nbsp; From the perspective of the GDP,
+      this is an opaque field, preferably encrypted.<br>
+    </p>
+    <p>Signature (length as described above; optional).&nbsp; The length
+      of the signature is implied by the class of the algorithm and the
+      key size.<br>
+    </p>
+    <h3>Discussion</h3>
+    <ul>
+      <li>The point of specifying the signature algorithm and size
+        explicitly in the header rather than in the PDU Extended Format
+        is three-fold: (1) we expect these algorithms to change fairly
+        quickly, so we should plan for change; (2) using an PDU Extended
+        Format field is expected to be fairly heavy weight, both in
+        terms of PDU overhead and in processing; and (3) the PDU
+        Extended Format will ideally only apply to the data itself so
+        that low level code can remain lean and mean.</li>
+      <li>The signature itself is at the end of the PDU so it can be
+        computed while the data is being written.<br>
+      </li>
+      <li>Should the signature algorithm and signature size fields be
+        expanded?</li>
+    </ul>
+    <h3>Alternative Standard Format (0x02)</h3>
+    <p>An alternative to the prior version uses a more flexible way of
+      encoding options.&nbsp; We have to pick one or the other.<br>
+    </p>
+    <table height="310" border="1" cellpadding="2" cellspacing="2"
+      width="100%">
+      <tbody>
+        <tr>
+          <td colspan="1" rowspan="1" align="center" valign="top"
+            width="25%">0x02<br>
+          </td>
+          <td align="center" valign="top" width="25%">Time to Live<br>
+            (1 octet) </td>
+          <td colspan="1" rowspan="1" align="center" valign="top"
+            width="25%">Reserved<br>
+            (1 octet)<br>
+          </td>
+          <td align="center" valign="top" width="25%">Cmd/Ack<br>
+            (1 octet)</td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" valign="top"><br>
+            Destination (32 octets)<br>
+            <br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" valign="top"><br>
+            Source (32 octets)<br>
+            <br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="1" rowspan="1" valign="top" width="12%">Signature
+            Alg<br>
+            (1 octet)<br>
+          </td>
+          <td colspan="1" valign="top">Signature Len<br>
+            (1 octet)<br>
+          </td>
+          <td rowspan="1" colspan="1" valign="top">#Options<br>
+            (1 octet)<br>
+          </td>
+          <td valign="top">Reserved<br>
+            (1 octet)<br>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="4" rowspan="1" align="center" valign="top">Data
+            Length<br>
+            (4 octets)<br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" valign="top">Optional field names
+            and sizes (variable length)<br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" valign="top">Optional fields
+            (variable length)<br>
+          </td>
+        </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" valign="top">Data (variable
+            length)<br>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="4" align="center" valign="top">Signature
+            (variable length)<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <ul>
+    </ul>
+    <p>There are #Options octets in the List of Optional field name and
+      sizes.&nbsp; Each octet describes both the option and the length
+      of that option.&nbsp; The bottom four bits encode the length:<br>
+    </p>
+    <table align="center" border="1" cellpadding="2" cellspacing="2"
+      width="30%">
+      <tbody>
+        <tr>
+          <td valign="top">0<br>
+          </td>
+          <td valign="top">0<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">1<br>
+          </td>
+          <td valign="top">1<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">2<br>
+          </td>
+          <td valign="top">2<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">3<br>
+          </td>
+          <td valign="top">4<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">4<br>
+          </td>
+          <td valign="top">6<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">5<br>
+          </td>
+          <td valign="top">8<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">6<br>
+          </td>
+          <td valign="top">12<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">7<br>
+          </td>
+          <td valign="top">16<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">8<br>
+          </td>
+          <td valign="top">24<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">9<br>
+          </td>
+          <td valign="top">32<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">10–14<br>
+          </td>
+          <td valign="top">reserved<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">15<br>
+          </td>
+          <td valign="top">variable<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>If the bottom four bits of the name are "15" then the following
+      octet is used as the number of octets.<br>
+    </p>
+    <p>Defined options are:<br>
+    </p>
+    <table align="center" border="1" cellpadding="2" cellspacing="2"
+      width="50%">
+      <tbody>
+        <tr>
+          <td valign="top">0x03<br>
+          </td>
+          <td valign="top">Request ID (4 octets)<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">0x05<br>
+          </td>
+          <td valign="top">Record Number (8 octets)<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">0x15<br>
+          </td>
+          <td valign="top">Sequence Number (8 octets)<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">0x07<br>
+          </td>
+          <td valign="top">Commit Timestamp (16 octets)<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Option values are encoded after all the option identifiers.&nbsp;
+      Option values are padded out to the lesser of their length or
+      four.&nbsp; For this purpose, variable length options are not
+      padded.&nbsp; That is, one octet and variable length options have
+      no additional padding, two octet options are padded to two octet
+      alignment, and all others are padded to four octet
+      alignments.&nbsp; [[Question: should this go up to eight octet
+      alignment for x86_64 architectures?]]<br>
+    </p>
+    <p><br>
+    </p>
+    <h3>Extended Format (0x0F)<br>
+    </h3>
+    <table border="1" cellpadding="2" cellspacing="2" width="100%">
+      <tbody>
+        <tr>
+          <td align="center" valign="top" width="25%">0x0f<br>
+            (1 octet)<br>
+          </td>
+          <td colspan="1" rowspan="1" align="center" valign="top"
+            width="75%">Defined by Extended PDU Format<br>
+            (3 octets)<br>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="4" rowspan="1" valign="top"><br>
+            <div align="center"> Extended PDU Format (32 octets)<br>
+            </div>
+            <br>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="4" rowspan="1" align="center" valign="top">Additional
+
+
+
+
+
+
+
+
+
+
+            data as defined by the Extended PDU Format<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Extended PDU Format (32 octets).&nbsp; The format is
+      (conceptually) a pointer to a program that interprets the
+      packet.&nbsp; If this is set, all fields following this field are
+      potentially open to reinterpretation by a PDU description language
+      program referenced by this field.&nbsp; The semantics of such a
+      program are [[for future study]]. </p>
+    <p> </p>
+    <h2>Command/Acknowledgement Set</h2>
+    <h3>Overview<br>
+    </h3>
+    <p>Commands and Acknowledgements (both positive and negative) are
+      encoded into one byte, and are inspired by CoAP (which is itself
+      inspired by HTTP).&nbsp; They are broken up into semantic sections
+      based on the top few bits:<br>
+    </p>
+    <table align="center" border="1" cellpadding="2" cellspacing="2"
+      width="80%">
+      <tbody>
+        <tr>
+          <td valign="top">Bits<br>
+          </td>
+          <td valign="top">Meaning<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">00x<br>
+          </td>
+          <td valign="top">Unacknowledged ("blind") commands.&nbsp;
+            These correspond to CoAP "non-confirmable" (type 1)
+            messages.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">01x<br>
+          </td>
+          <td valign="top">Acknowledged commands.&nbsp; These correspond
+            to CoAP "confirmable" (type 0) messages.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">10x<br>
+          </td>
+          <td valign="top">Positive acknowledgement.&nbsp; These (and
+            the following negative acknowlegement) correspond to CoAP
+            "acknowledgement" (type 2) messages.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">110<br>
+          </td>
+          <td valign="top">Negative acknowledgement, client side
+            problem.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">111<br>
+          </td>
+          <td valign="top">Negative acknowledgement, server side
+            problem.<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <h3>Commands<br>
+    </h3>
+    <p>Blind commands are not acknowledged.&nbsp; They have values 0
+      through 63.&nbsp; Defined values are:<br>
+    </p>
+    <table align="center" border="1" cellpadding="2" cellspacing="2"
+      width="80%">
+      <tbody>
+        <tr>
+          <td valign="top">Name<br>
+          </td>
+          <td valign="top">Value<br>
+          </td>
+          <td valign="top">Meaning<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_KEEPALIVE<br>
+          </td>
+          <td valign="top">0<br>
+          </td>
+          <td valign="top">Sent to keep a connection alive (essentially
+            No-Operation).<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_ADVERTISE<br>
+          </td>
+          <td valign="top">1<br>
+          </td>
+          <td valign="top">Advertise willingness to respond for a given
+            Destination Address.&nbsp; Advertising is described below.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_WITHDRAW<br>
+          </td>
+          <td valign="top">2<br>
+          </td>
+          <td valign="top">Withdraw advertisement.<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>All Acknowledged commands (values 64 through 127) are answered
+      with an Acknowledgement, which may be positive (success) or
+      negative (failure).&nbsp; Acknowledged commands are:<br>
+    </p>
+    <table align="center" border="1" cellpadding="2" cellspacing="2"
+      width="80%">
+      <tbody>
+        <tr>
+          <td valign="top">Name<br>
+          </td>
+          <td valign="top">Value<br>
+          </td>
+          <td valign="top">Meaning<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_PING<br>
+          </td>
+          <td valign="top">64<br>
+          </td>
+          <td valign="top">Test connection.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_HELLO<br>
+          </td>
+          <td valign="top">65<br>
+          </td>
+          <td valign="top">Negotiate extensions.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_CREATE<br>
+          </td>
+          <td valign="top">66<br>
+          </td>
+          <td valign="top">Create a GCL.&nbsp; The payload contains
+            metadata for the GCL.&nbsp; It is an error if the GCL
+            already exists.&nbsp; [[Need to have creations moderated by
+            a creation service.]]<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_OPEN_AO<br>
+          </td>
+          <td valign="top">67<br>
+          </td>
+          <td valign="top">Open a GCL for append only.&nbsp; The GCL
+            must already exist.&nbsp; This command is not required, but
+            it can be used to test for the existence of a GCL and
+            pre-allocate resources.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_OPEN_RO<br>
+          </td>
+          <td valign="top">68<br>
+          </td>
+          <td valign="top">Open a GCL for read only.&nbsp; This is not
+            required, but can be used to test for the existence of a
+            GCL.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_CLOSE<br>
+          </td>
+          <td valign="top">69<br>
+          </td>
+          <td valign="top">Close a GCL.&nbsp; This is not
+            required.&nbsp; It is just a hint to the server that
+            resources will not be needed soon.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_READ<br>
+          </td>
+          <td valign="top">70<br>
+          </td>
+          <td valign="top">Read a given record number.&nbsp; The payload
+            contains a record number.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_PUBLISH<br>
+          </td>
+          <td valign="top">71<br>
+          </td>
+          <td valign="top">Publish a record to a GCL.&nbsp; The payload
+            contains the data to write.&nbsp; In the future, this must
+            be signed.&nbsp; The returned ACK payload contains the
+            record number and the commit timestamp.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_SUBSCRIBE<br>
+          </td>
+          <td valign="top">72<br>
+          </td>
+          <td valign="top">Subscribe to a GCL.&nbsp; The payload
+            contains the first record number to return and the number of
+            records to return.&nbsp; In the future, a timeout may be
+            included.&nbsp; This will cause ACK_CONTENT commands to be
+            returned as data becomes ready.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_MULTIREAD<br>
+          </td>
+          <td valign="top">73<br>
+          </td>
+          <td valign="top">Return multiple records.&nbsp; This works
+            similarly to SUBSCRIBE except that it terminates immediately
+            when all existing records are returned.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">CMD_GETMETADATA<br>
+          </td>
+          <td valign="top">74<br>
+          </td>
+          <td valign="top">Return GCL metadata.<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>[[TODO: fill in details of payloads.]]<br>
+    </p>
+    <h3>Acknowledgements<br>
+    </h3>
+    <p>Acknowledgement codes are chosen to correspond to CoAP/HTTP reply
+      codes where possible, with preference given to CoAP.&nbsp; Values
+      128–191 are Positive Acknowledgements, 192–223 are Client-Side
+      Negative Acknowledgements, and 224–225 are Server-Side Negative
+      Acknowledgements.<br>
+    </p>
+    <table align="center" border="1" cellpadding="2" cellspacing="2"
+      width="80%">
+      <tbody>
+        <tr>
+          <td valign="top">Name<br>
+          </td>
+          <td valign="top">Value<br>
+          </td>
+          <td valign="top">CoAP/HTTP<br>
+            Equivalent<br>
+          </td>
+          <td valign="top">Meaning<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">ACK_SUCCESS<br>
+          </td>
+          <td valign="top">128<br>
+          </td>
+          <td valign="top">–/–<br>
+          </td>
+          <td valign="top">Generic operation succeeded.&nbsp; The
+            payload is empty.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">ACK_CREATED<br>
+          </td>
+          <td valign="top">129<br>
+          </td>
+          <td valign="top">2.01/201<br>
+          </td>
+          <td valign="top">New resource created.&nbsp; If the resource
+            is a log record (e.g., in response to CMD_PUBLISH) a record
+            number and timestamp will be included in the header.&nbsp;
+            The payload is empty.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">ACK_DELETED<br>
+          </td>
+          <td valign="top">130<br>
+          </td>
+          <td valign="top">2.02/204<br>
+          </td>
+          <td valign="top">Resource deleted.&nbsp; The payload is empty.
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">ACK_VALID<br>
+          </td>
+          <td valign="top">131<br>
+          </td>
+          <td valign="top">2.03/304<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i><br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">ACK_CHANGED<br>
+          </td>
+          <td valign="top">132<br>
+          </td>
+          <td valign="top">2.04/204<br>
+          </td>
+          <td valign="top">Resource changed.&nbsp; The payload is empty.
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">ACK_CONTENT<br>
+          </td>
+          <td valign="top">133<br>
+          </td>
+          <td valign="top">2.05/200<br>
+          </td>
+          <td valign="top">Content returned.&nbsp; A record number and
+            timestamp may be included depending on the data (for
+            example, it is included for log records but omitted for log
+            metadata).&nbsp; The payload contains the content.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_C_BADREQ<br>
+          </td>
+          <td valign="top">192<br>
+          </td>
+          <td valign="top">4.00/400<br>
+          </td>
+          <td valign="top">Invalid request.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_C_UNAUTH<br>
+          </td>
+          <td valign="top">193<br>
+          </td>
+          <td valign="top">4.01/–<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i><br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_C_BADOPT<br>
+          </td>
+          <td valign="top">194<br>
+          </td>
+          <td valign="top">4.02/–<br>
+          </td>
+          <td valign="top"><br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_C_FORBIDDEN<br>
+          </td>
+          <td valign="top">195<br>
+          </td>
+          <td valign="top">4.03/403<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i> </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_C_NOTFOUND<br>
+          </td>
+          <td valign="top">196<br>
+          </td>
+          <td valign="top">4.04/404<br>
+          </td>
+          <td valign="top"><br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_C_METHNOTALLOWED<br>
+          </td>
+          <td valign="top">197<br>
+          </td>
+          <td valign="top">4.05/405<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i> </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_C_NOTACCEPTABLE<br>
+          </td>
+          <td valign="top">198<br>
+          </td>
+          <td valign="top">4.06/406<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i> </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_C_CONFLICT<br>
+          </td>
+          <td valign="top">201<br>
+          </td>
+          <td valign="top">–/409<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i> </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_C_PRECONFAILED<br>
+          </td>
+          <td valign="top">204<br>
+          </td>
+          <td valign="top">4.12/412<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i> </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_C_TOOLARGE<br>
+          </td>
+          <td valign="top">205<br>
+          </td>
+          <td valign="top">4.13/413<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i> </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_C_UNSUPMEDIA<br>
+          </td>
+          <td valign="top">207<br>
+          </td>
+          <td valign="top">4.15/415<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i> </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_S_INTERNAL<br>
+          </td>
+          <td valign="top">224<br>
+          </td>
+          <td valign="top">5.00/500<br>
+          </td>
+          <td valign="top">Internal server error.<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_S_NOTIMPL<br>
+          </td>
+          <td valign="top">225<br>
+          </td>
+          <td valign="top">5.01/501<br>
+          </td>
+          <td valign="top"><br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_S_BADGATEWAY<br>
+          </td>
+          <td valign="top">226<br>
+          </td>
+          <td valign="top">5.02/502<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i> </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_S_SVCUNAVAIL<br>
+          </td>
+          <td valign="top">227<br>
+          </td>
+          <td valign="top">5.03/503<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i> </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_S_GWTIMEOUT<br>
+          </td>
+          <td valign="top">228<br>
+          </td>
+          <td valign="top">5.04/504<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i> </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_S_PROXYNOTSUP<br>
+          </td>
+          <td valign="top">229<br>
+          </td>
+          <td valign="top">5.05/–<br>
+          </td>
+          <td valign="top"><i>Not currently used.</i> </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>[[TODO: Show which ack/naks can correspond to each command.]]<br>
+    </p>
+    <h2>Details of Commands<br>
+    </h2>
+    <h3>Advertisements (CMD_ADVERTISE, CMD_WITHDRAW)<br>
+    </h3>
+    <p>A node advertises its willingness to respond on behalf of one or
+      more 256-bit names using advertisements.&nbsp; All connected nodes
+      <strong>must</strong> offer at least one advertisement in the form
+      of their own name, which may not be withdrawn unless they are
+      shutting down.&nbsp; Advertisements (and withdrawals) <strong>must</strong>
+      be addressed to the routing layer (that is, the Destination field
+      must be the distinguished name of the routing layer).&nbsp; The
+      Source field <strong>must</strong> be the name of the advertising
+      or withdrawing entity; for advertisements (not withdrawals) the
+      Source will be implicitly advertised.&nbsp; The data payload <strong>may</strong>
+      contain additional names to advertise or withdraw.<br>
+    </p>
+    <p>[[Should advertisements include some notation of capability,
+      e.g., "this is a log server", "this is a client", etc.?]]<br>
+    </p>
+    <p>[[TODO: Finish this section.]]<br>
+    </p>
+    <h3>Option Negotiation (CMD_HELLO)<br>
+    </h3>
+    <p>[[For future use.]]<br>
+    </p>
+    <h3>GCL Creation (CMD_CREATE)</h3>
+    <p>[[Need separate service to do location placement, resource
+      balancing, etc.&nbsp; A bit issue will be key management; you
+      don't want to have every log server respond to the same private
+      key (that wouldn't be very private!), but there has to be some way
+      to do things cross-ADMD.]]<br>
+    </p>
+    <p>[[Talk about metadata creation.]]<br>
+    </p>
+    <h3>GCL Open and Close (CMD_OPEN_AO, CMD_OPEN_RO, CMD_CLOSE)</h3>
+    <p>[[All optional.]]<br>
+    </p>
+    <h3> </h3>
+    <h3>On-Wire Metadata Format (CMD_CREATE, CMD_GETMETADATA)<br>
+    </h3>
+    <p>The format of on-wire metadata is defined in the document <a
+        href="gdp-gcl-metadata.html">GDP GCL Metadata</a>.<br>
+    </p>
+    <h3>Reading Data (CMD_READ, CMD_MULTIREAD, CMD_SUBSCRIBE)</h3>
+    <p>[[TODO: write me.]]<br>
+    </p>
+    <h3>Writing/Publishing Data (CMD_PUBLISH)</h3>
+    <p>[[Talk about signing, interaction with metadata.]]<br>
+    </p>
+    <h2>Details of Acknowledgements</h2>
+    <p>Client errors are due to a problem in the client-supplied
+      request, such as "not found".&nbsp; These are expected to be
+      common.&nbsp; Server errors are due to a problem in the server
+      implementation or configuration; these are expected to be
+      rare.&nbsp; There may be some overlap.&nbsp; For example,
+      NAK_S_NOTIMPL is a server error, but may occur because a client
+      issued an unknown command.&nbsp; [[Should this be changed?]]<br>
+    </p>
+    <p>[[TODO: write me.&nbsp; Need to define semantics and show
+      payloads.]]<br>
+    </p>
+    <p> </p>
+    <h2>Protocol Operation</h2>
+    <p>Note that there are two models for different actors in the
+      GDP.&nbsp; One is the logical model where there are clients that
+      initiate requests (e.g., sensor clients posting data to a GCL) and
+      servers that process requests (e.g., GDP Log daemons that collect
+      that data and store it).&nbsp; This is similar to standard
+      Internet services such as email.&nbsp; The second is a routing
+      model, where both clients and servers initiate communication with
+      the routing layer; in the classic Internet view both these actors
+      are "clients" and only the routing layer has "servers".&nbsp; In
+      this description we use "initiators" to indicate actors that
+      initiate communications with the routing layer, both clients and
+      servers.&nbsp; Note that the "client" and "server" roles are not
+      necessarily mutually exclusive; a single actor might provide both
+      functions.<br>
+    </p>
+    <p>[[TODO: Flesh out this section]]<br>
+    </p>
+    <ol>
+      <li>Initiator does discovery to find an available GDP Router
+        node.&nbsp; [[TODO: how? — in the short run this is probably
+        just a run-time configuration parameter.]]</li>
+      <li>Initiator connects to GDP Router node (connection-based
+        protocol only; datagram-based protocols skip this step).</li>
+      <li>Initiator sends an advertisement to the routing layer
+        specifying its 256-bit name.&nbsp; The routing layer notes this
+        so that other nodes can address the initiator.</li>
+      <li>(Optional)&nbsp; Initiator advertises the 256-bit names of any
+        resources it cares to make available.&nbsp; For example, a GDP
+        Log node would advertise the names of the GCLs it had available.</li>
+      <li>Initiator starts listening for incoming requests, possibly in
+        a separate thread.&nbsp; For example, even sensor nodes must
+        respond to heartbeats from the routing layer.<br>
+      </li>
+      <li>(Optional) Initiator interacts with the world and issues
+        requests to the GDP via the routing layer.</li>
+      <li>(Optional) If an initiator knows that it is shutting down, it
+        will preferably inform the routing layer of that fact beforehand
+        so resources can be released promptly.&nbsp; If this is not done
+        the routing layer will discover that based on timeouts.</li>
+      <li>(Optional) If a router node knows it must shut down, it will
+        preferably inform all of its initiators of that fact so they can
+        find another router node (i.e., goto step 1).&nbsp; This can
+        also be discovered based on timeouts.<br>
+      </li>
+    </ol>
+    <h2>Signatures</h2>
+    <p>[[TODO: write me; in particular, need to understand how to avoid
+      replay attacks.]]<br>
+    </p>
+    <p>[[Question: what needs to be signed?&nbsp; Certainly publish and
+      create requests.&nbsp; Probably not read or subscribe.&nbsp;
+      Acks/Nacks?]]<br>
+    </p>
+    <p>[[What gets signed?&nbsp; Just the data, the entire PDU, or some
+      portion of the PDU?&nbsp; If just the data then the header
+      (including the address and signature metadata) must be protected
+      by some other mechanism.&nbsp; If more than just the data, then
+      storing the signature with the data doesn't make sense — unless
+      what is stored is the entire PDU.]]<br>
+    </p>
+    <h2>Security Considerations</h2>
+    <p>The data content is completely opaque to the GDP and is expected
+      to be encrypted (there are some exceptions, e.g., GCL
+      metadata).&nbsp; However, the header metadata is always
+      plaintext.&nbsp; This suggests certain possible attacks.<br>
+    </p>
+    <ul>
+      <li>An eavesdropper can do traffic analysis to determine who is
+        communicating with whom and on what schedule.</li>
+      <li>A man-in-the-middle (MitM) can prevent traffic in both
+        directions, thereby <br>
+      </li>
+    </ul>
+    <p>[[TODO: fill this in.&nbsp; It needs to talk about denial of
+      service, forgery, etc.&nbsp; Signatures should probably be a
+      subsection.]]<br>
+    </p>
+    <h2> </h2>
+  </body>
+</html>
