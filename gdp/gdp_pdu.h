@@ -106,7 +106,7 @@ typedef struct gdp_pdu
 
 // size of fixed size part of header
 // (ver, ttl, rsvd, cmd, dst, src, sigalg, siglen, olen, flags, dlen)
-#define _GDP_PDU_FIXEDHDRSZ		(1 + 1 + 1 + 1 + 32 + 32+ 1 + 1 + 1 + 1 + 6)
+#define _GDP_PDU_FIXEDHDRSZ		(1 + 1 + 1 + 1 + 32 + 32+ 1 + 1 + 1 + 1 + 4)
 
 // maximum size of options portion
 #define _GDP_PDU_MAXOPTSZ		(255 * 4)
