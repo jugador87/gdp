@@ -64,7 +64,7 @@
 **			1	signature length (in 32 bit words)
 **			1	optionals length (in 32 bit words)
 **			1	flags (indicate presence/lack of optional fields)
-**			6	length of data portion
+**			4	length of data portion
 **			[4	request id (optional)]
 **			[8	record number (optional)]
 **			[8	sequence number (optional)]

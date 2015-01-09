@@ -180,7 +180,7 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		dlen = evbuffer_get_length(pdu->datum->dbuf);
 	else
 		dlen = 0;
-	PUT48(dlen);
+	PUT32(dlen);
 
 	// end of fixed part of header
 	EP_ASSERT((pbp - pbuf) == _GDP_PDU_FIXEDHDRSZ);
@@ -374,7 +374,7 @@ _gdp_pdu_hdr_in(gdp_pdu_t *pdu,
 	pdu->siglen = *pbp++ * 4;
 	pdu->olen = *pbp++ * 4;
 	pdu->flags = *pbp++;
-	GET48(dlen);
+	GET32(dlen);
 
 	// do some error checking
 	int olen = 0;
