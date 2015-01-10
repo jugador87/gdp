@@ -236,7 +236,6 @@ gdplogd_init(const char *router_addr)
 	extern EP_STAT _gdp_do_init_1(void);
 	extern EP_STAT _gdp_do_init_3(gdp_chan_t *);
 
-	// initialize the GDP library
 	// step 1: set up global state
 	estat = _gdp_do_init_1();
 	EP_STAT_CHECK(estat, goto fail0);

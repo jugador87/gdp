@@ -24,7 +24,9 @@ static EP_THR_MUTEX		ReqFreeListMutex	EP_THR_MUTEX_INITIALIZER;
 **
 **	Parameters:
 **		cmd --- the command to be issued
-**		gcl --- the associated GCL handle
+**		gcl --- the associated GCL handle, if any
+**		chan --- the channel associated with the request
+**		flags --- modifier flags
 **		reqp --- a pointer to the output area
 **
 **	Returns:

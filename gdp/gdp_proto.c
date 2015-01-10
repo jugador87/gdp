@@ -571,7 +571,7 @@ process_message(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	{
 		gdp_pname_t pbuf;
 
-		gdp_printable_name(pdu->dst, pbuf);
+		gdp_printable_name(pdu->src, pbuf);
 		ep_dbg_printf("process_message: GCL %s has no handle\n", pbuf);
 	}
 
@@ -1113,7 +1113,7 @@ _gdp_do_init_1(void)
 	{
 		char argname[100];
 
-		snprintf(argname, sizeof argname, "swarm.%s.gname", progname);
+		snprintf(argname, sizeof argname, "swarm.%s.gdpname", progname);
 		myname = ep_adm_getstrparam(argname, NULL);
 		if (myname != NULL)
 		{

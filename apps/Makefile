@@ -1,4 +1,5 @@
-ALL=	writer-test reader-test gdp-rest rw-bench log-view
+#ALL=	gcl-create writer-test reader-test gdp-rest rw-bench log-view
+ALL=	gcl-create writer-test reader-test gdp-rest log-view
 
 LOCAL1=		/usr/local
 LOCAL2=		/opt/local
@@ -26,6 +27,9 @@ COPTS=		${PG} -g ${WALL} $O ${STD}
 CFLAGS=		${COPTS} ${INCS}
 
 all:	${ALL}
+
+gcl-create:	gcl-create.o
+	${CC} -o $@ gcl-create.o ${LDFLAGS}
 
 writer-test:	writer-test.o
 	${CC} -o $@ writer-test.o ${LDFLAGS}

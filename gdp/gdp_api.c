@@ -278,37 +278,18 @@ fail0:
 */
 
 EP_STAT
-gdp_gcl_create(gdp_name_t name,
-				gdp_gclmd_t *gmd,
-				gdp_gcl_t **pgcl)
+gdp_gcl_create(gdp_name_t gclname,
+				gdp_name_t logdname,
+				gdp_gclmd_t *gmd)
 {
-	gdp_gcl_t *gcl = NULL;
 	EP_STAT estat = EP_STAT_OK;
+	char ebuf[100];
 
-	// allocate the memory to hold the gcl_handle
-	//		Note that ep_mem_* always returns, hence no test here
-	estat = _gdp_gcl_newhandle(name, &gcl);
-	EP_STAT_CHECK(estat, goto fail0);
+	estat = _gdp_gcl_create(gclname, logdname, gmd, _GdpChannel,
+					GDP_REQ_ALLOC_RID);
 
-	estat = _gdp_gcl_create(gcl, gmd, _GdpChannel, GDP_REQ_ALLOC_RID);
-	EP_STAT_CHECK(estat, goto fail1);
-
-	*pgcl = gcl;
-	return estat;
-
-fail1:
-	if (gcl != NULL)
-		_gdp_gcl_freehandle(gcl);
-
-fail0:
-	if (ep_dbg_test(Dbg, 8))
-	{
-		char ebuf[100];
-
-		ep_dbg_printf("Could not create GCL: %s\n",
+	ep_dbg_cprintf(Dbg, 8, "gdp_gcl_create: %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
-	}
-	*pgcl = NULL;
 	return estat;
 }
 

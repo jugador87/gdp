@@ -68,6 +68,12 @@ _gdp_gcl_newhandle(gdp_name_t gcl_name, gdp_gcl_t **pgcl)
 
 fail1:
 	estat = ep_stat_from_errno(errno);
+	{
+		char ebuf[100];
+
+		ep_dbg_cprintf(Dbg, 4, "_gdp_gcl_newhandle failed: %s\n",
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
 	return estat;
 }
 
@@ -113,25 +119,48 @@ _gdp_gcl_freehandle(gdp_gcl_t *gcl)
 
 /*
 **	_GDP_GCL_CREATE --- create a new GCL
+**
+**		Creation is a bit tricky, since we don't start with an existing
+**		GCL, and we address the message to the desired daemon instead
+**		of to the GCL itself.  Some magic needs to occur.
 */
 
 EP_STAT
-_gdp_gcl_create(gdp_gcl_t *gcl,
+_gdp_gcl_create(gdp_name_t gclname,
+				gdp_name_t logdname,
 				gdp_gclmd_t *gmd,
 				gdp_chan_t *chan,
 				uint32_t reqflags)
 {
 	gdp_req_t *req = NULL;
+	gdp_gcl_t *gcl = NULL;
 	EP_STAT estat = EP_STAT_OK;
 
-	if (!gdp_name_is_valid(gcl->name))
-		_gdp_gcl_newname(gcl);
+	{
+		gdp_pname_t gxname, dxname;
 
-	estat = _gdp_req_new(GDP_CMD_CREATE, gcl, chan, reqflags, &req);
+		ep_dbg_cprintf(Dbg, 17,
+				"_gdp_gcl_create: gcl=%s\n\tlogd=%s\n",
+				gdp_printable_name(gclname, gxname),
+				gdp_printable_name(logdname, dxname));
+	}
+
+	estat = _gdp_req_new(GDP_CMD_CREATE, NULL, chan, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
+
+	// set the target address to be the log daemon
+	memcpy(req->pdu->dst, logdname, sizeof req->pdu->dst);
+
+	// send the name of the log to be created in the payload
+	gdp_buf_write(req->pdu->datum->dbuf, gclname, sizeof (gdp_name_t));
 
 	// add the metadata to the output stream
 	_gdp_gclmd_serialize(gmd, req->pdu->datum->dbuf);
+
+	// create a new GCL so we can correlate the results
+	estat = _gdp_gcl_newhandle(gclname, &gcl);
+	EP_STAT_CHECK(estat, goto fail1);
+	req->gcl = gcl;
 
 	estat = _gdp_invoke(req);
 	EP_STAT_CHECK(estat, goto fail1);
@@ -141,6 +170,8 @@ _gdp_gcl_create(gdp_gcl_t *gcl,
 	return estat;
 
 fail1:
+	if (gcl != NULL)
+		_gdp_gcl_freehandle(gcl);
 	if (req != NULL)
 		_gdp_req_free(req);
 

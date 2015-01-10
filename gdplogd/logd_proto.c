@@ -70,8 +70,29 @@ implement_me(char *s)
 **
 ***********************************************************************/
 
+
+/*
+**  CMD_PING --- just return an OK response to indicate that we are alive.
+*/
+
+EP_STAT
+cmd_ping(gdp_req_t *req)
+{
+	req->pdu->cmd = GDP_ACK_SUCCESS;
+
+	flush_input_data(req, "cmd_ping");
+
+	return EP_STAT_OK;
+}
+
+
 /*
 **  CMD_CREATE --- create new GCL.
+**
+**		A bit unusual in that the packet is addressed to the daemon,
+**		not the log; the log name is in the payload.  However, we
+**		respond using the name of the new log rather than the
+**		daemon.
 */
 
 EP_STAT
@@ -80,11 +101,31 @@ cmd_create(gdp_req_t *req)
 	EP_STAT estat;
 	gdp_gcl_t *gcl;
 	gdp_gclmd_t *gmd;
+	gdp_name_t gclname;
+	int i;
 
 	req->pdu->cmd = GDP_ACK_CREATED;
 
-	// get the memory space
-	estat = gcl_alloc(req->pdu->dst, GDP_MODE_AO, &gcl);
+	// get the name of the new GCL
+	i = gdp_buf_read(req->pdu->datum->dbuf, gclname, sizeof gclname);
+	if (i < sizeof gclname)
+	{
+		ep_dbg_cprintf(Dbg, 2, "cmd_create: gclname required\n");
+		return GDP_STAT_GCL_NAME_INVALID;
+	}
+
+	{
+		gdp_pname_t pbuf;
+
+		ep_dbg_cprintf(Dbg, 14, "cmd_create: creating GCL %s\n",
+				gdp_printable_name(gclname, pbuf));
+	}
+
+	// change the request to seem to come from this GCL
+	memcpy(req->pdu->dst, gclname, sizeof req->pdu->dst);
+
+	// get the memory space for the GCL itself
+	estat = gcl_alloc(gclname, GDP_MODE_AO, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
 	req->gcl = gcl;			// for debugging
 
@@ -708,6 +749,7 @@ dispatch_cmd(gdp_req_t *req)
 
 static struct cmdfuncs	CmdFuncs[] =
 {
+	{ GDP_CMD_PING,			cmd_ping		},
 	{ GDP_CMD_CREATE,		cmd_create		},
 	{ GDP_CMD_OPEN_AO,		cmd_open_ao		},
 	{ GDP_CMD_OPEN_RO,		cmd_open_ro		},

@@ -212,7 +212,8 @@ void			_gdp_gcl_newname(			// create a new name
 						gdp_gcl_t *gcl);
 
 EP_STAT			_gdp_gcl_create(			// create a new GCL
-						gdp_gcl_t *gcl,
+						gdp_name_t gclname,
+						gdp_name_t logdname,
 						gdp_gclmd_t *gmd,
 						gdp_chan_t *chan,
 						uint32_t reqflags);
