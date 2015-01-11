@@ -1,5 +1,6 @@
-apps/log-view
+apps/gcl-create
 apps/gdp-rest
+apps/log-view
 apps/reader-test
 apps/rw-bench
 apps/writer-test
