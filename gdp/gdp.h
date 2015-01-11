@@ -139,7 +139,8 @@ extern void		*gdp_run_accept_event_loop(
 extern EP_STAT	gdp_gcl_create(
 					gdp_name_t gclname,
 					gdp_name_t logdname,
-					gdp_gclmd_t *);			// pointer to metadata object
+					gdp_gclmd_t *,			// pointer to metadata object
+					gdp_gcl_t **pgcl);
 
 // open an existing GCL
 extern EP_STAT	gdp_gcl_open(

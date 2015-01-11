@@ -280,13 +280,14 @@ fail0:
 EP_STAT
 gdp_gcl_create(gdp_name_t gclname,
 				gdp_name_t logdname,
-				gdp_gclmd_t *gmd)
+				gdp_gclmd_t *gmd,
+				gdp_gcl_t **pgcl)
 {
 	EP_STAT estat = EP_STAT_OK;
 	char ebuf[100];
 
 	estat = _gdp_gcl_create(gclname, logdname, gmd, _GdpChannel,
-					GDP_REQ_ALLOC_RID);
+					GDP_REQ_ALLOC_RID, pgcl);
 
 	ep_dbg_cprintf(Dbg, 8, "gdp_gcl_create: %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));

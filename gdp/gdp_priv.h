@@ -216,7 +216,8 @@ EP_STAT			_gdp_gcl_create(			// create a new GCL
 						gdp_name_t logdname,
 						gdp_gclmd_t *gmd,
 						gdp_chan_t *chan,
-						uint32_t reqflags);
+						uint32_t reqflags,
+						gdp_gcl_t **pgcl);
 
 EP_STAT			_gdp_gcl_open(				// open a GCL
 						gdp_gcl_t *gcl,

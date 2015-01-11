@@ -53,12 +53,14 @@ _gdp_gcl_newhandle(gdp_name_t gcl_name, gdp_gcl_t **pgcl)
 
 	ep_thr_mutex_init(&gcl->mutex, EP_THR_MUTEX_DEFAULT);
 	LIST_INIT(&gcl->reqs);
-	if (gcl_name != NULL)
-	{
-		memcpy(gcl->name, gcl_name, sizeof gcl->name);
-		gdp_printable_name(gcl_name, gcl->pname);
-	}
 	gcl->refcnt = 1;
+
+	// create a name if we don't have one passed in
+	if (gcl_name == NULL || !gdp_name_is_valid(gcl_name))
+		_gdp_newname(gcl->name);
+	else
+		memcpy(gcl->name, gcl_name, sizeof gcl->name);
+	gdp_printable_name(gcl->name, gcl->pname);
 
 	// success
 	*pgcl = gcl;
@@ -130,7 +132,8 @@ _gdp_gcl_create(gdp_name_t gclname,
 				gdp_name_t logdname,
 				gdp_gclmd_t *gmd,
 				gdp_chan_t *chan,
-				uint32_t reqflags)
+				uint32_t reqflags,
+				gdp_gcl_t **pgcl)
 {
 	gdp_req_t *req = NULL;
 	gdp_gcl_t *gcl = NULL;
@@ -141,46 +144,45 @@ _gdp_gcl_create(gdp_name_t gclname,
 
 		ep_dbg_cprintf(Dbg, 17,
 				"_gdp_gcl_create: gcl=%s\n\tlogd=%s\n",
-				gdp_printable_name(gclname, gxname),
+				gclname == NULL ? "none" : gdp_printable_name(gclname, gxname),
 				gdp_printable_name(logdname, dxname));
 	}
 
-	estat = _gdp_req_new(GDP_CMD_CREATE, NULL, chan, reqflags, &req);
+	// create a new GCL so we can correlate the results
+	estat = _gdp_gcl_newhandle(gclname, &gcl);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	// create the request
+	estat = _gdp_req_new(GDP_CMD_CREATE, gcl, chan, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// set the target address to be the log daemon
 	memcpy(req->pdu->dst, logdname, sizeof req->pdu->dst);
 
 	// send the name of the log to be created in the payload
-	gdp_buf_write(req->pdu->datum->dbuf, gclname, sizeof (gdp_name_t));
+	gdp_buf_write(req->pdu->datum->dbuf, gcl->name, sizeof (gdp_name_t));
 
 	// add the metadata to the output stream
 	_gdp_gclmd_serialize(gmd, req->pdu->datum->dbuf);
 
-	// create a new GCL so we can correlate the results
-	estat = _gdp_gcl_newhandle(gclname, &gcl);
-	EP_STAT_CHECK(estat, goto fail1);
-	req->gcl = gcl;
-
 	estat = _gdp_invoke(req);
-	EP_STAT_CHECK(estat, goto fail1);
+	EP_STAT_CHECK(estat, goto fail0);
 
 	// success
 	_gdp_req_free(req);
+	*pgcl = gcl;
 	return estat;
 
-fail1:
+fail0:
 	if (gcl != NULL)
 		_gdp_gcl_freehandle(gcl);
 	if (req != NULL)
 		_gdp_req_free(req);
 
-fail0:
-	if (ep_dbg_test(Dbg, 8))
 	{
 		char ebuf[100];
 
-		ep_dbg_printf("Could not create GCL: %s\n",
+		ep_dbg_cprintf(Dbg, 8, "Could not create GCL: %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	return estat;

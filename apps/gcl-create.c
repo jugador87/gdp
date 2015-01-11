@@ -46,6 +46,7 @@ main(int argc, char **argv)
 	char *gclxname = NULL;			// external name of GCL
 	gdp_name_t logdiname;			// internal name of log daemon
 	char *logdxname;				// external name of log daemon
+	gdp_gcl_t *gcl = NULL;
 	gdp_gclmd_t *gmd = NULL;
 	int opt;
 	EP_STAT estat;
@@ -214,10 +215,13 @@ main(int argc, char **argv)
 
 	gdp_parse_name(logdxname, logdiname);
 
+	/**************************************************************
+	**  Hello sailor, this is where the actual creation happens  **
+	**************************************************************/
 	if (gclxname == NULL)
 	{
 		// create a new GCL handle with a new name
-		estat = gdp_gcl_create(NULL, logdiname, gmd);
+		estat = gdp_gcl_create(NULL, logdiname, gmd, &gcl);
 	}
 	else
 	{
@@ -228,9 +232,17 @@ main(int argc, char **argv)
 		if (gmd == NULL)
 			gmd = gdp_gclmd_new();
 		gdp_gclmd_add(gmd, GDP_GCLMD_XID, strlen(gclxname), gclxname);
-		estat = gdp_gcl_create(gcliname, logdiname, gmd);
+		estat = gdp_gcl_create(gcliname, logdiname, gmd, &gcl);
 	}
 	EP_STAT_CHECK(estat, goto fail1);
+
+	// just for a lark, let the user know the (internal) name
+	{
+		gdp_pname_t pname;
+
+		printf("Created new GCL %s\n\ton log server %s\n",
+				gdp_printable_name(*gdp_gcl_getname(gcl), pname), logdxname);
+	}
 
 	// now would be a good time to write the private key to disk
 	if (make_new_key)

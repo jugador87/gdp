@@ -1,5 +1,5 @@
 #ALL=	gcl-create writer-test reader-test gdp-rest rw-bench log-view
-ALL=	gcl-create writer-test reader-test gdp-rest log-view
+ALL=	gcl-create writer-test reader-test log-view
 
 LOCAL1=		/usr/local
 LOCAL2=		/opt/local
