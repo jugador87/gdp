@@ -62,7 +62,7 @@ together.  You will have to know the IP addresses of both Pis, so
 you'll probably have to move the keyboard and monitor between them
 to figure this out.
 
-There should be a GDP routing node ("routia"), a GDP log daemon
+There should be a GDP routing daemon ("routia"), a GDP log daemon
 ("gdplogd") and a REST daemon (gdp-rest) running on the host
 gdp-01.eecs.berkeley.edu.  There is a special user "gdpd" to
 run those daemons; if they aren't running, start them using:
@@ -80,7 +80,10 @@ If this gives a "not found" error, use:
 
     apps/gcl-create edu.berkeley.eecs.gdp-01.gdplogd demo/201501/pi
 
-to create it.
+to create it (the two human-readable names will be converted into
+machine-readable 256-bit names --- this is NOT intended to be a
+long-term feature of the GDP; in the future it will be done using
+a directory service).
 
 It will also be useful to have Chrome running on your laptop with
 an extension called "Postman", available from http://getpostman.com.

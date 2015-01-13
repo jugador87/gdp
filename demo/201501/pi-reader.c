@@ -26,6 +26,15 @@
 FILE	*LogFile;
 int	LedPin = LEDPIN;
 
+void
+usage(void)
+{
+	fprintf(stderr,
+		"Usage: %s [-D dbgspec] [-g gclname] [-p ledpin]\n",
+		ep_app_getprogname());
+	exit(EX_USAGE);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -66,12 +75,7 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (show_usage || argc > 0)
-	{
-		fprintf(stderr,
-			"Usage: %s [-D dbgspec] [-g gclname] [-p ledpin]\n",
-			ep_app_getprogname());
-		exit(EX_USAGE);
-	}
+		usage();
 
 	// initialize wiringPi library (must be root!)
 	printf("Initializing wiringPi library:\n");
