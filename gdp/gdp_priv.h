@@ -329,7 +329,7 @@ struct event_loop_info
 struct gdp_event_info
 {
 	void				(*exit_cb)(		// called on event loop exit
-							struct event_base *evb,
+							struct bufferevent *bev,
 							struct gdp_event_info *gei);
 	gdp_chan_t			*chan;			// I/O channel
 };

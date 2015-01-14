@@ -780,9 +780,8 @@ _gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 	if (exitloop)
 	{
 		if (gei->exit_cb != NULL)
-			(*gei->exit_cb)(bufferevent_get_base(bev), gei);
-		else
-			event_base_loopexit(bufferevent_get_base(bev), NULL);
+			(*gei->exit_cb)(bev, gei);
+		event_base_loopexit(bufferevent_get_base(bev), NULL);
 	}
 }
 
@@ -935,76 +934,94 @@ _gdp_open_connection(const char *gdpd_addr, gdp_chan_t **pchan)
 	}
 
 	// attach it to a socket
-	char abuf[100];
-	char pbuf[10];
-	struct addrinfo *res;
-	struct addrinfo hints;
-	int r;
+	char abuf[500];
 	char *port;
 	char *host;
 
 	// get the host:port info into abuf
 	if (gdpd_addr == NULL)
-		gdpd_addr = ep_adm_getstrparam("swarm.gdp.ip_addr", NULL);
-	if (gdpd_addr == NULL)
-		gdpd_addr = "127.0.0.1";
+		gdpd_addr = ep_adm_getstrparam("swarm.gdp.routers", "127.0.0.1");
 	strlcpy(abuf, gdpd_addr, sizeof abuf);
 
-	// have to handle IPv6 literals, which have [...] before the port
-	// ... note that square brackets are stripped off to satisfy getaddrinfo
-	port = host = abuf;
-	if (*host == '[')
+	// strip off addresses and try them
+	char *delim = abuf;
+	do
 	{
-		host++;
-		port = strchr(host, ']');
-		if (port != NULL)
-			*port++ = '\0';
-	}
+		char pbuf[10];
 
-	// see if we have a port number
-	if (port != NULL)
-	{
-		port = strchr(port, ':');
-		if (port != NULL)
-			*port++ = '\0';
-	}
-	if (port == NULL || *port == '\0')
-	{
-		port = pbuf;
-		snprintf(pbuf, sizeof pbuf, "%d", GDP_PORT_DEFAULT);
-	}
-	ep_dbg_cprintf(Dbg, 20, "gdp_init: contacting host %s port %s\n",
-			host, port);
+		host = delim;						// beginning of address spec
+		delim = strchr(delim, ';');			// end of address spec
+		if (delim != NULL)
+			*delim++ = '\0';
 
-	// parsing done....  let's try the lookup
-	memset(&hints, '\0', sizeof hints);
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
-	r = getaddrinfo(host, port, &hints, &res);
-	if (r == 0)
-	{
-		struct addrinfo *a = res;
-		while (a != NULL)
+		host = &host[strspn(host, " \t")];	// strip early spaces
+		if (*host == '\0')
+			continue;						// empty spec
+		port = host;
+
+		if (*host == '[')
 		{
-			if (bufferevent_socket_connect(chan->bev, a->ai_addr,
-						a->ai_addrlen) >= 0)
-				break;
-			a = a->ai_next;
+			// IPv6 literal
+			host++;						// strip [] to satisfy getaddrinfo
+			port = strchr(host, ']');
+			if (port != NULL)
+				*port++ = '\0';
 		}
-		if (a == NULL)
+
+		// see if we have a port number
+		if (port != NULL)
 		{
-			estat = init_error("could not connect to GDP socket",
-						"gdp_init");
+			port = strchr(port, ':');
+			if (port != NULL)
+				*port++ = '\0';
+		}
+		if (port == NULL || *port == '\0')
+		{
+			port = pbuf;
+			snprintf(pbuf, sizeof pbuf, "%d", GDP_PORT_DEFAULT);
+		}
+
+		ep_dbg_cprintf(Dbg, 20, "gdp_init: trying host %s port %s\n",
+				host, port);
+
+		// parsing done....  let's try the lookup
+		struct addrinfo *res;
+		struct addrinfo hints;
+		int r;
+
+		memset(&hints, '\0', sizeof hints);
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_protocol = IPPROTO_TCP;
+		r = getaddrinfo(host, port, &hints, &res);
+		if (r == 0)
+		{
+			struct addrinfo *a = res;
+			while (a != NULL)
+			{
+				if (bufferevent_socket_connect(chan->bev, a->ai_addr,
+							a->ai_addrlen) >= 0)
+					break;
+				a = a->ai_next;
+			}
+
+			//XXX need to (somehow) wait for a success or failure
+
+			if (a == NULL)
+			{
+				estat = init_error("could not connect to GDP socket",
+							"gdp_init");
+				goto fail1;
+			}
+			freeaddrinfo(res);
+		}
+		else
+		{
+			fprintf(stderr, "gdp_init: %s\n", gai_strerror(r));
+			estat = init_error("could not find GDP socket", "gdp_init");
 			goto fail1;
 		}
-		freeaddrinfo(res);
-	}
-	else
-	{
-		fprintf(stderr, "gdp_init: %s\n", gai_strerror(r));
-		estat = init_error("could not find GDP socket", "gdp_init");
-		goto fail1;
-	}
+	} while (delim != NULL);
+
 
 	// success
 	*pchan = chan;

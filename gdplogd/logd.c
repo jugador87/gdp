@@ -98,46 +98,31 @@ cmdsock_read_cb(struct bufferevent *bev, void *ctx)
 
 
 /*
-**	CMDSOCK_EVENT_CB --- handle special events on listener socket
+**	CMDSOCK_EXIT_CB --- free resources when we lose a connection
 */
 
 void
-cmdsock_event_cb(struct bufferevent *bev, short events, void *ctx)
+cmdsock_exit_cb(struct bufferevent *bev, struct gdp_event_info *gei)
 {
-	struct gdp_event_info *gei = ctx;
+	// free any requests tied to this channel
+	gdp_chan_t *chan = gei->chan;
+	gdp_req_t *req = LIST_FIRST(&chan->reqs);
 
-	_gdp_event_cb(bev, events, ctx);
-	if (EP_UT_BITSET(BEV_EVENT_ERROR, events))
+	while (req != NULL)
 	{
-		EP_STAT estat = ep_stat_from_errno(errno);
-		int err = EVUTIL_SOCKET_ERROR();
-
-		ep_log(estat, "error on command socket: %d (%s)",
-				err, evutil_socket_error_to_string(err));
+		gdp_req_t *req2 = LIST_NEXT(req, chanlist);
+		_gdp_req_free(req);
+		req = req2;
 	}
 
-	if (EP_UT_BITSET(BEV_EVENT_ERROR | BEV_EVENT_EOF, events))
-	{
-		// free any requests tied to this channel
-		gdp_chan_t *chan = gei->chan;
-		gdp_req_t *req = LIST_FIRST(&chan->reqs);
+	// free up the bufferevent
+	EP_ASSERT(bev == gei->chan->bev);
+	bufferevent_free(bev);
+	gei->chan->bev = NULL;
 
-		while (req != NULL)
-		{
-			gdp_req_t *req2 = LIST_NEXT(req, chanlist);
-			_gdp_req_free(req);
-			req = req2;
-		}
-
-		// free up the bufferevent
-		EP_ASSERT(bev == gei->chan->bev);
-		bufferevent_free(bev);
-		gei->chan->bev = NULL;
-
-		// free up the channel memory
-		ep_mem_free(gei->chan);
-		gei->chan = NULL;
-	}
+	// free up the channel memory
+	ep_mem_free(gei->chan);
+	gei->chan = NULL;
 }
 
 
@@ -248,7 +233,8 @@ gdplogd_init(const char *router_addr)
 	// step 3: start event loop
 	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
 	gei->chan = chan;
-	bufferevent_setcb(chan->bev, cmdsock_read_cb, NULL, cmdsock_event_cb, gei);
+	gei->exit_cb = &cmdsock_exit_cb;
+	bufferevent_setcb(chan->bev, cmdsock_read_cb, NULL, _gdp_event_cb, gei);
 	bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
 	estat = _gdp_start_event_loop_thread(&_GdpIoEventLoopThread,
 										GdpIoEventBase, "I/O");
