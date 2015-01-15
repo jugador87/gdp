@@ -1,3 +1,9 @@
+**********************************************************************
+NOTA BENE:  I know these instructions are not completely converted
+to the new architecture that separates out the routing layer from
+the log daemons.  Use discretion when following them.
+**********************************************************************
+
 This directory contains the software needed for the demo for
 the Swarm Lab retreat in January 2015.  It only runs on the
 Raspberry Pi at the moment, since it needs GPIO pins.  It differs
@@ -52,15 +58,37 @@ GPIO pin you are using and ground.  The pull-up is done internally.
 The LED is similar, but with the addition of a 220 ohm resistor
 in series.  You may need to tweak the resistor depending on the
 LED, but this value seems to be a reasonable compromise.
+*** Note: we are using a driver circuit to be able to drive a
+larger load.  That circuit contains all you need. ***
+
+There also needs to be a machine to run the Routia routing code
+(see Nitesh Mor for details) and one to run gdplogd (which can
+be the same machine).  Before you can use Routia you need to have
+Python 2.7 and the p27-twisted package installed.
+
+We also have an Intel NUC that can run a gdplogd and/or Routia.
+This is configured as a Xen box and has a domU running.  That
+VM is named nuc00a.  Lastly, there is a Beaglebone black.
+Unfortunately neither of those machines have a desktop environment
+set up.
 
 I'm assuming that there will be one USB keyboard/mouse and monitor
-with HDMI support plugged into one of the Pis, plus another machine
-(personal laptop will be fine) available.  At the moment I only
-have the Pis working for wired networking, so there will have to
-be a hub with an uplink and enough cables to connect everything
+with HDMI support plugged into one of the machines that has GUI
+support (for displaying multiple windows).  It will be "nice" to
+have another machine (personal laptop will be fine) available,
+but that is not required.
+
+At the moment I have a Soekris box running m0n0wall acting as a
+NAT gateway for the various machines (so we don't have to
+reconfigure more than the Soekris when we move to a new network),
+and a hub with an uplink and enough cables to connect everything
 together.  You will have to know the IP addresses of both Pis, so
 you'll probably have to move the keyboard and monitor between them
 to figure this out.
+
+(HINT: Currently the assigned addresses are all in the 10.0.4.*
+network, with host numbers as follows: gdp-pi-01 = 133, gdp-pi-02
+= 129, nuc00a = 131, beaglebone = 132).
 
 There should be a GDP routing daemon ("routia"), a GDP log daemon
 ("gdplogd") and a REST daemon (gdp-rest) running on the host
@@ -99,17 +127,22 @@ SUMMARY OF REQUIREMENTS
 
 * Two Raspberry Pis with the GDP and demo software pre-installed.
 
+* One other system to run a gdplogd instance and Routia.
+
 * At least one keyboard/mouse/monitor.  A monitor with HDMI
 input is prefered.  The keyboard and mouse must be USB.  A KVM
 switch would be useful but not required.
 
-* Hard wired ethernet with at least two ports available and
+* Hard wired ethernet with at least four ports available and
 necessary cables.  Sorry, I haven't been able to get wireless
 working.
 
-* Enough power to run both Pis, the monitor, and the ethernet
-switch (if needed): four outlets total, preferably five "just in
-case".
+* A preconfigured Soekris box running m0n0wall.
+
+* Enough power to run the computers, the monitor, and the ethernet
+switch (if needed): six outlets total, preferably seven "just in
+case".  Some of the wall warts are big and will cover more than
+one outlet.
 
 * A button input that can be wired to the GPIO pins on one of the
 Pis.  The default pin is GPIO-18, pin P1-12.
@@ -132,20 +165,27 @@ required to access the GPIO pins).
 
 * Log into one of the Pis.  Use "/sbin/ifconfig eth0" to print the
 information about the eth0 interface, which should include the IP
-address (which should begin "128.32." --- if it does not then the
-network is probably broken).  Note this number.
+address.  Note this number.
 
 * Without turning off that Pi, unplug the USB and HDMI cables and
 re-connect them to the other Pi.  If you power cycle you might get
 a different IP address, so try to avoid this.
 
-* Open at least two windows.  In Window A, log into the machine
-connected to the button, and in Window B, log into the machine
-connected to the light.  You're obviously logged into one of those
-machines, so you won't have to do anything there, but for the other
-use "ssh 128.32.xx.yy", using the IP address you found above.
+* Optionally, reconnect the USB and HDMI to a third machine to use
+for monitoring (or use a laptop).
 
-* In both windows, enter:
+* Open at least four windows.  In Window A, log into the machine
+connected to the button, in Window B, log into the machine
+connected to the light, in Window C, log into your routing node,
+and in Window D, log into the gdplogd node.  You're probably logged
+into one of those machines, so you won't have to do anything there,
+but for the other use "ssh", using the IP address you found above.
+
+* In Window D, start up routia.  The location of routia is TBD.
+
+* In Window C, start up gdplogd.
+
+* In Windows A and B, type:
 
     cd ~eric/SwarmLab/src/gdp/demo/201501
 
@@ -255,10 +295,10 @@ as compiled in to the code are:
 
 Ground is on pins P1-06 and P1-09.
 
-The address of the GDP daemon should be set in
+The address of the routing daemon should be set in
 /usr/local/etc/ep_adm_params/gdp on the Pis.  The default is:
 
-    swarm.gdp.gdpd.addr=gdp-01.eecs.berkeley.edu:2468
+    swarm.gdp.routers=gdp-01.eecs.berkeley.edu:2468
     
 
 NOW HOW MUCH WOULD YOU PAY?
