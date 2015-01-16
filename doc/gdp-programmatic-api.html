@@ -10,7 +10,7 @@
     </h1>
     <h4>Editor: Eric Allman, U.C. Berkeley Swarm Lab,
       eric@cs.berkeley.edu</h4>
-    <h5>Version 0.7, 2014-11-25</h5>
+    <h5>Version 0.71, 2015-01-16</h5>
     <br>
     <p>This document describes the procedural programmatic interface to
       the Global Data Plane.&nbsp; The native code is written in C for
@@ -40,9 +40,10 @@
     </p>
     <h2> 1&nbsp; Theory of Operation and Initialization<br>
     </h2>
-    <p> GDP-based applications rely on two pieces: an in-process GDP
-      library and a GDP Daemon. The GDP Daemon does most of the heavy
-      lifting; it will be described in a different document.</p>
+    <p> GDP-based applications rely on three pieces: an in-process GDP
+      library, a GDP Log Daemon, and the Routing Layer.&nbsp;&nbsp; This
+      document describes the GDP library API.<br>
+    </p>
     <p> The primary point of the GDP library is to speak the network
       protocol between the application and the GDP Daemon. The library
       is threaded, with (at the moment) two threads: one to process
@@ -92,8 +93,8 @@
       <li> Initializes the GDP library.&nbsp; <em><strong>Must</strong></em>
         be called before any other GDP functions are invoked.</li>
       <li>The <code>gdpd_addr</code> parameter is the address to use to
-        contact the GDP daemon in the format "host:port".&nbsp; If <code>NULL</code>
-        a system default is used.<br>
+        contact the GDP routing layer in the format "host:port".&nbsp;
+        If <code>NULL</code> a system default is used.<br>
       </li>
       <li>If the status is not <code>EP_STAT_OK</code> then the library
         failed to initialize (for example, by being unable to acquire
@@ -112,18 +113,17 @@
     <h4> Name</h4>
     gdp_gcl_create — Create an append-only GCL<br>
     <h4> Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_create(gcl_name_t gcl_name,
-		gdp_gcl_t **gclp)
+    <pre>EP_STAT gdp_gcl_create(gdp_name_t gcl_name,
+		gdp_name_t logdname,<br>                gdp_gclmd_t *gmd,<br>                gdp_gcl_t **gclp)
 </pre>
     <h4> Notes</h4>
     <ul>
-      <li> Creates a GCL with the given name, which must be a 256-bit
-        value (e.g., the hash of a human-meaningful string).</li>
-      <li>If no name is supplied, a name is created and returned in the
-        new GCL handle.<br>
-      </li>
+      <li> Creates a GCL with the given name on the indicated log
+        server, both of which must be 256-bit values (e.g., the hash of
+        a human-meaningful string).</li>
       <li> Returns a GCL handle (indirectly through <code>*gclp</code>).</li>
       <li> The returned GCL handle is an append-only object.&nbsp; <i>(Actually,
+
 
 
 
@@ -141,7 +141,7 @@
     <h4> Name</h4>
     gdp_gcl_open — Open an existing GCL<br>
     <h4> Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_open(gcl_name_t name,
+    <pre>EP_STAT gdp_gcl_open(gdp_name_t name,
 		gcl_iomode_t rw,
 		gdp_gcl_t **gclp)
 </pre>
@@ -192,7 +192,7 @@
         IMPLEMENTED]</em></strong><br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_getname(gdp_gcl_t *gcl,
-		gcl_name_t namebuf)
+		gdp_name_t namebuf)
 </pre>
     <h4> Notes</h4>
     <ul>
@@ -272,7 +272,7 @@
     <h4>Name</h4>
     gdp_gcl_parse_name — parse an external representation to internal<br>
     <h4>Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_parse_name(const char *ext, gcl_name_t gcl_name)</pre>
+    <pre>EP_STAT gdp_gcl_parse_name(const char *ext, gdp_name_t gcl_name)</pre>
     <h4>Notes</h4>
     <ul>
       <li>Converts an external string representation of a GCL name to an
@@ -303,6 +303,7 @@
     <hr size="2" width="100%">
     <h4> Name</h4>
     gdp_gcl_subscribe — Subscribe to a readable GCL&nbsp; <strong><em>[PARTIALLY
+
 
 
 
@@ -355,8 +356,8 @@ void (*cbfunc)(gdp_event_t *gev)
       <li>Example:&nbsp; suppose there are 20 records already in a
         GCL.&nbsp; Then:</li>
     </ul>
-    <table align="center" border="1" cellpadding="2" cellspacing="2"
-      width="80%">
+    <table width="80%" align="center" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">start<br>
@@ -451,6 +452,7 @@ void (*cbfunc)(gdp_event_t *gev)
 
 
 
+
         IMPLEMENTED]</em></strong><br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_multiread(gdp_gcl_t *gcl,
@@ -464,6 +466,7 @@ void (*cbfunc)(gdp_event_t *gev)
         read (i.e., this is only for reading historic data).</li>
       <li>If a <code>cbfunc</code> is specified, arranges to call
         callback when a message is generated on the <code>gcl</code>.&nbsp;
+
         See below for the definition of gdp_event_t.<br>
       </li>
       <li> The callback is not necessarily invoked instantly, and may or
@@ -500,8 +503,8 @@ void (*cbfunc)(gdp_event_t *gev)
       <li>Example:&nbsp; suppose there are 20 records already in a
         GCL.&nbsp; Then:</li>
     </ul>
-    <table align="center" border="1" cellpadding="2" cellspacing="2"
-      width="80%">
+    <table width="80%" align="center" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">start<br>
@@ -621,8 +624,8 @@ void (*cbfunc)(gdp_event_t *gev)
     <ul>
       <li>The event types are as follows:</li>
     </ul>
-    <table align="center" border="1" cellpadding="2" cellspacing="2"
-      width="80%">
+    <table width="80%" align="center" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">Event Name<br>
@@ -691,6 +694,7 @@ void (*cbfunc)(gdp_event_t *gev)
     </p>
     <h2>4&nbsp; Datums (Records)</h2>
     <p>GCLs are represented as a series of records of type <code>gdp_datum_t</code>.&nbsp;
+
 
 
 
@@ -857,12 +861,12 @@ typedef struct
     <h2>6&nbsp; Examples</h2>
     <p>The following pseudo-code example excerpts from <tt>apps/writer-test.c</tt>.<br>
     </p>
-    <pre>#include &lt;gdp/gdp.h&gt;<br>#include &lt;stdio.h&gt;<br>#include &lt;string.h&gt;<br><br>int main(int argc, char **argv)<br>{<br>	gdp_tcl_t *gcl;<br>	EP_STAT estat;<br>	gcl_name_t gcliname;	// internal name of GCL<br>	gdp_datum_t *d;<br><br>	// general startup and initialization<br>	if (argc &lt; 2)<br>		usage_error();<br>	estat = gdp_init();<br>	if (!EP_STAT_ISOK(estat))<br>		initialization_error(estat);<br>	d = gdp_datum_new();
+    <pre>#include &lt;gdp/gdp.h&gt;<br>#include &lt;stdio.h&gt;<br>#include &lt;string.h&gt;<br><br>int main(int argc, char **argv)<br>{<br>	gdp_tcl_t *gcl;<br>	EP_STAT estat;<br>	gdp_name_t gcliname;	// internal name of GCL<br>	gdp_datum_t *d;<br><br>	// general startup and initialization<br>	if (argc &lt; 2)<br>		usage_error();<br>	estat = gdp_init();<br>	if (!EP_STAT_ISOK(estat))<br>		initialization_error(estat);<br>	d = gdp_datum_new();
 <br><br>	// parse command line name to internal format<br>	estat = gdp_gcl_parse_name(argv[1], gcliname);<br>	if (!EP_STAT_ISOK(estat))<br>		name_syntax_error();<br><br>	// attempt to create that name<br>	estat = gdp_gcl_create(gcliname, &amp;gcl);<br>	if (!EP_STAT_ISOK(estat))<br>		creation_error(estat);<br><br>	// read lines from standard input<br>	while (fgets(buf, sizeof buf, stdin) != NULL)<br>	{<br>		char *p = strchr(buf, '\n');<br>		if (p != NULL)<br>			*p = '\0';<br><br>		// write them to the dataplane<br>		estat = gdp_buf_write(gdp_datum_getbuf(datum), buf, strlen(buf));<br>		EP_STAT_CHECK(estat, break);<br>	}<br><br>	// cleanup and exit<br>	gdp_gcl_close(gcl);<br>	exit(!EP_STAT_ISOK(estat));<br>}<br></pre>
     <hr size="2" width="100%">
     <p>This example is a similar excerpt from apps/reader-test.c
       (without using subscriptions):</p>
-    <pre>#include &lt;gdp/gdp.h&gt;<br><br>int main(int argc, char **argv)<br>{<br>	gdp_tcl_t *gcl;<br>	EP_STAT estat;<br>	gcl_name_t gcliname;	// internal name of GCL<br>	gdp_datum_t *d;<br>	gdp_recno_t recno;<br><br>	// general startup and initialization<br>	if (argc &lt; 2)<br>		usage_error();<br>	estat = gdp_init();<br>	if (!EP_STAT_ISOK(estat))<br>		initialization_error(estat);<br>	d = gdp_datum_new();
+    <pre>#include &lt;gdp/gdp.h&gt;<br><br>int main(int argc, char **argv)<br>{<br>	gdp_tcl_t *gcl;<br>	EP_STAT estat;<br>	gdp_name_t gcliname;	// internal name of GCL<br>	gdp_datum_t *d;<br>	gdp_recno_t recno;<br><br>	// general startup and initialization<br>	if (argc &lt; 2)<br>		usage_error();<br>	estat = gdp_init();<br>	if (!EP_STAT_ISOK(estat))<br>		initialization_error(estat);<br>	d = gdp_datum_new();
 <br><br>	// parse command line name to internal format<br>	estat = gdp_gcl_parse_name(argv[1], gcliname);<br>	if (!EP_STAT_ISOK(estat))<br>		name_syntax_error();
 <br>	// attempt to open the GCL<br>	estat = gdp_gcl_open(gcliname, GDP_MODE_RO, &amp;gcl);<br>	if (!EP_STAT_ISOK(estat))<br>		open_error(estat, argv[1]);<br>
 &nbsp;	recno = 1;<br>	for (;;)<br>	{<br>		estat = gdp_gcl_read(gcl, recno, d);<br>		EP_STAT_CHECK(estat, break);<br>		gdp_datum_print(d, stdout);<br>	}<br>	exit(0);<br>}<br></pre>
@@ -987,7 +991,7 @@ href="http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtim
     <p> </p>
     <h2> Appendix B: References</h2>
     <br>
-    <table border="1" cellpadding="2" cellspacing="2" width="100%">
+    <table width="100%" border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">[Dab13a]<br>

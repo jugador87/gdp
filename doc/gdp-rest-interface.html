@@ -8,8 +8,8 @@
   <body>
     <h1>RESTful Interface for the Global Data Plane</h1>
     Eric Allman<br>
-    U.C. Berkeley Swarm Lab 2014-09-20<br>
-    Draft 5<br>
+    U.C. Berkeley Swarm Lab 2015-01-16<br>
+    Draft 6<br>
     <p>This document describes the RESTful interface to the Global Data
       Plane (GDP). Note that this is not part of the GDP itself, since
       that layer treats all records as opaque. This level adds simple
@@ -63,6 +63,7 @@
       of a GCL.<br>
     </p>
     <p>In all cases, timestamps are in ISO 8601 format (<i>YYYY</i>-<i>MM</i>-<i>DD</i>T<i>HH</i>:<i>MM</i>:<i>SS</i>.<i>SSSSSSSSS</i>Z,
+
 
       including nanoseconds, and in UTC) possibly followed by a slash
       ("/") and a time accuracy in seconds; for example
@@ -122,7 +123,8 @@
     <p> </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    POST /gdp/v1/gcl — Create a new GCL<br>
+    POST /gdp/v1/gcl — Create a new GCL&nbsp; <i>[NOT IMPLEMENTED;
+      create using the gcl_create application]</i><br>
     <h4>Request Data</h4>
     <p> <i>[[Should include metadata, once that is supported.]]</i></p>
     <p> </p>
@@ -142,7 +144,8 @@
     </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    PUT /gdp/v1/gcl/&lt;symbolic_name&gt; — Create a new named GCL<br>
+    PUT /gdp/v1/gcl/&lt;symbolic_name&gt; — Create a new named GCL&nbsp;
+    <i>[NOT IMPLEMENTED; create using the gcl_create application]</i>
     <h4>Request Data</h4>
     <p> <i>[[Should include metadata, once that is supported.]]</i></p>
     <h4>Response Data</h4>
@@ -216,11 +219,13 @@
     <h4>Description</h4>
     <p>Returns the contents of the record indicated by <i>recno</i>.&nbsp;
 
+
       As a special case, if recno is the text "last" it returns the last
       (most recently written) record.<br>
     </p>
     <p>Note that the metadata is included in the response header, not in
       the data itself, in order to maintain the opacity of that data. <i>Question:
+
 
 
 
@@ -251,6 +256,7 @@
     <h4>Name</h4>
     GET
     /gdp/v1/gcl/gcl_id?recno=&lt;#&gt;&amp;nrecs=&lt;#&gt;&amp;timeout=&lt;seconds&gt;
+
 
 
 
@@ -317,7 +323,7 @@
     <p>This is just a quick recap of the material presented above.&nbsp;
       All URLs begin with "/gdp/v1/".<br>
     </p>
-    <table border="1" cellpadding="2" cellspacing="2" width="100%">
+    <table width="100%" border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">Method<br>

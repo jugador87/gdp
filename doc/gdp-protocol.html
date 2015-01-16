@@ -22,7 +22,8 @@
     </p>
     <p><em><strong>NOTE WELL</strong>: There are two proposals for the
         "Standard Format" PDU.&nbsp; If you have any suggestions as to
-        which one is better, please contact me.</em><br>
+        which one is better, please contact me.&nbsp; The first is the
+        one currently implemented.</em><br>
     </p>
     <h2>Model</h2>
     <ul>
@@ -43,13 +44,13 @@
     </p>
     <p>Protocol Data Units begin as follows:<br>
     </p>
-    <table border="1" cellpadding="2" cellspacing="2" width="100%">
+    <table width="100%" border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
-          <td align="center" valign="top" width="25%">PDU Version/Format<br>
+          <td valign="top" width="25%" align="center">PDU Version/Format<br>
             (1 octet)<br>
           </td>
-          <td align="center" valign="top" width="75%">Defined by Format<br>
+          <td valign="top" width="75%" align="center">Defined by Format<br>
             (variable length)<br>
           </td>
         </tr>
@@ -61,23 +62,23 @@
       before attempting further interpretation of the PDU.&nbsp; Defined
       Version/Formats are:<br>
     </p>
-    <table align="center" border="1" cellpadding="2" cellspacing="2"
-      width="30%">
+    <table width="30%" align="center" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
-          <td align="center" valign="top">Value<br>
+          <td valign="top" align="center">Value<br>
           </td>
           <td valign="top">Description<br>
           </td>
         </tr>
         <tr>
-          <td align="center" valign="top">0x02<br>
+          <td valign="top" align="center">0x02<br>
           </td>
           <td valign="top">Standard format<br>
           </td>
         </tr>
         <tr>
-          <td align="center" valign="top">0x0f<br>
+          <td valign="top" align="center">0x0f<br>
           </td>
           <td valign="top">Extended format<br>
           </td>
@@ -88,61 +89,64 @@
     </p>
     <h3>Standard Format (0x02)<br>
     </h3>
-    <table height="310" border="1" cellpadding="2" cellspacing="2"
-      width="100%">
+    <table width="100%" height="310" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
-          <td align="center" valign="top" width="25%">0x02<br>
+          <td valign="top" width="25%" align="center">0x02<br>
             (1 octet)<br>
           </td>
-          <td align="center" valign="top" width="25%">Time to Live<br>
+          <td valign="top" width="25%" align="center">Time to Live<br>
             (1 octet) </td>
-          <td align="center" valign="top" width="25%">Reserved<br>
+          <td valign="top" width="25%" align="center">Reserved<br>
             (1 octet) </td>
-          <td align="center" valign="top" width="25%">Cmd/Ack<br>
+          <td valign="top" width="25%" align="center">Cmd/Ack<br>
             (1 octet)<br>
           </td>
         </tr>
         <tr align="center">
-          <td colspan="4" rowspan="1" align="center" valign="top"><br>
+          <td colspan="4" rowspan="1" valign="top" align="center"><br>
             Destination (32 octets)<br>
             <br>
           </td>
         </tr>
         <tr align="center">
-          <td colspan="4" rowspan="1" align="center" valign="top"><br>
+          <td colspan="4" rowspan="1" valign="top" align="center"><br>
             Source (32 octets)<br>
             <br>
           </td>
         </tr>
         <tr>
-          <td colspan="1" rowspan="1" align="center" valign="top">Signature
+          <td colspan="1" rowspan="1" valign="top" align="center">Signature
+
 
 
             Alg<br>
             (1 octet)<br>
           </td>
-          <td align="center" valign="top">Signature Len<br>
+          <td valign="top" align="center">Signature Len<br>
             (1 octet)<br>
           </td>
-          <td colspan="1" rowspan="1" align="center" valign="top">Optionals
+          <td colspan="1" rowspan="1" valign="top" align="center">Optionals
+
 
 
             Length<br>
             (1 octet)<br>
           </td>
-          <td align="center" valign="top">Flags<br>
+          <td valign="top" align="center">Flags<br>
             (1 octet)<br>
           </td>
         </tr>
         <tr>
-          <td colspan="4" rowspan="1" align="center" valign="top">Data
+          <td colspan="4" rowspan="1" valign="top" align="center">Data
             Length<br>
             (4 octets)<br>
           </td>
         </tr>
         <tr align="center">
-          <td colspan="4" rowspan="1" align="center" valign="top">Request
+          <td colspan="4" rowspan="1" valign="top" align="center">Request
+
 
 
 
@@ -150,12 +154,13 @@
           </td>
         </tr>
         <tr align="center">
-          <td colspan="4" rowspan="1" align="center" valign="top">Record
+          <td colspan="4" rowspan="1" valign="top" align="center">Record
             Number (8 octets, optional)<br>
           </td>
         </tr>
         <tr align="center">
-          <td colspan="4" rowspan="1" align="center" valign="top">Sequence
+          <td colspan="4" rowspan="1" valign="top" align="center">Sequence
+
 
 
 
@@ -163,13 +168,14 @@
           </td>
         </tr>
         <tr align="center">
-          <td colspan="4" rowspan="1" align="center" valign="top"><br>
+          <td colspan="4" rowspan="1" valign="top" align="center"><br>
             Commit Timestamp (16 octets, optional)<br>
             <br>
           </td>
         </tr>
         <tr align="center">
-          <td colspan="4" rowspan="1" align="center" valign="top">Additional
+          <td colspan="4" rowspan="1" valign="top" align="center">Additional
+
 
 
 
@@ -177,12 +183,13 @@
           </td>
         </tr>
         <tr align="center">
-          <td colspan="4" rowspan="1" align="center" valign="top">Data
+          <td colspan="4" rowspan="1" valign="top" align="center">Data
             (variable length)<br>
           </td>
         </tr>
         <tr>
-          <td rowspan="1" colspan="4" align="center" valign="top">Signature
+          <td rowspan="1" colspan="4" valign="top" align="center">Signature
+
 
 
 
@@ -232,8 +239,8 @@
     <p>Flags (1 octet).&nbsp; Used to interpret the optional area of the
       PDU.&nbsp; Flags exist for:<br>
     </p>
-    <table align="center" border="1" cellpadding="2" cellspacing="2"
-      width="90%">
+    <table width="90%" align="center" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">Name<br>
@@ -332,24 +339,25 @@
       <li>Should the signature algorithm and signature size fields be
         expanded?</li>
     </ul>
-    <h3>Alternative Standard Format (0x02)</h3>
+    <h3>Alternative Standard Format (0x02) <i>[NOT IMPLEMENTED]</i><br>
+    </h3>
     <p>An alternative to the prior version uses a more flexible way of
       encoding options.&nbsp; We have to pick one or the other.<br>
     </p>
-    <table height="310" border="1" cellpadding="2" cellspacing="2"
-      width="100%">
+    <table width="100%" height="310" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
-          <td colspan="1" rowspan="1" align="center" valign="top"
-            width="25%">0x02<br>
+          <td colspan="1" rowspan="1" valign="top" width="25%"
+            align="center">0x02<br>
           </td>
-          <td align="center" valign="top" width="25%">Time to Live<br>
+          <td valign="top" width="25%" align="center">Time to Live<br>
             (1 octet) </td>
-          <td colspan="1" rowspan="1" align="center" valign="top"
-            width="25%">Reserved<br>
+          <td colspan="1" rowspan="1" valign="top" width="25%"
+            align="center">Reserved<br>
             (1 octet)<br>
           </td>
-          <td align="center" valign="top" width="25%">Cmd/Ack<br>
+          <td valign="top" width="25%" align="center">Cmd/Ack<br>
             (1 octet)</td>
         </tr>
         <tr align="center">
@@ -380,7 +388,7 @@
           </td>
         </tr>
         <tr>
-          <td colspan="4" rowspan="1" align="center" valign="top">Data
+          <td colspan="4" rowspan="1" valign="top" align="center">Data
             Length<br>
             (4 octets)<br>
           </td>
@@ -401,7 +409,7 @@
           </td>
         </tr>
         <tr>
-          <td colspan="4" align="center" valign="top">Signature
+          <td colspan="4" valign="top" align="center">Signature
             (variable length)<br>
           </td>
         </tr>
@@ -413,8 +421,8 @@
       sizes.&nbsp; Each octet describes both the option and the length
       of that option.&nbsp; The bottom four bits encode the length:<br>
     </p>
-    <table align="center" border="1" cellpadding="2" cellspacing="2"
-      width="30%">
+    <table width="30%" align="center" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">0<br>
@@ -495,8 +503,8 @@
     </p>
     <p>Defined options are:<br>
     </p>
-    <table align="center" border="1" cellpadding="2" cellspacing="2"
-      width="50%">
+    <table width="50%" align="center" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">0x03<br>
@@ -535,16 +543,16 @@
     </p>
     <p><br>
     </p>
-    <h3>Extended Format (0x0F)<br>
+    <h3>Extended Format (0x0F)&nbsp; <i>[NOT YET IMPLEMENTED]</i><br>
     </h3>
-    <table border="1" cellpadding="2" cellspacing="2" width="100%">
+    <table width="100%" border="1" cellpadding="2" cellspacing="2">
       <tbody>
         <tr>
-          <td align="center" valign="top" width="25%">0x0f<br>
+          <td valign="top" width="25%" align="center">0x0f<br>
             (1 octet)<br>
           </td>
-          <td colspan="1" rowspan="1" align="center" valign="top"
-            width="75%">Defined by Extended PDU Format<br>
+          <td colspan="1" rowspan="1" valign="top" width="75%"
+            align="center">Defined by Extended PDU Format<br>
             (3 octets)<br>
           </td>
         </tr>
@@ -556,7 +564,8 @@
           </td>
         </tr>
         <tr>
-          <td colspan="4" rowspan="1" align="center" valign="top">Additional
+          <td colspan="4" rowspan="1" valign="top" align="center">Additional
+
 
 
 
@@ -580,6 +589,9 @@
       program are [[for future study]]. </p>
     <p> </p>
     <h2>Command/Acknowledgement Set</h2>
+    <p><i>NOTE: this section still needs more details about the payload
+        formats for the various commands.</i><br>
+    </p>
     <h3>Overview<br>
     </h3>
     <p>Commands and Acknowledgements (both positive and negative) are
@@ -587,8 +599,8 @@
       inspired by HTTP).&nbsp; They are broken up into semantic sections
       based on the top few bits:<br>
     </p>
-    <table align="center" border="1" cellpadding="2" cellspacing="2"
-      width="80%">
+    <table width="80%" align="center" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">Bits<br>
@@ -640,8 +652,8 @@
     <p>Blind commands are not acknowledged.&nbsp; They have values 0
       through 63.&nbsp; Defined values are:<br>
     </p>
-    <table align="center" border="1" cellpadding="2" cellspacing="2"
-      width="80%">
+    <table width="80%" align="center" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">Name<br>
@@ -683,8 +695,8 @@
       with an Acknowledgement, which may be positive (success) or
       negative (failure).&nbsp; Acknowledged commands are:<br>
     </p>
-    <table align="center" border="1" cellpadding="2" cellspacing="2"
-      width="80%">
+    <table width="80%" align="center" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">Name<br>
@@ -814,8 +826,8 @@
       Negative Acknowledgements, and 224–225 are Server-Side Negative
       Acknowledgements.<br>
     </p>
-    <table align="center" border="1" cellpadding="2" cellspacing="2"
-      width="80%">
+    <table width="80%" align="center" border="1" cellpadding="2"
+      cellspacing="2">
       <tbody>
         <tr>
           <td valign="top">Name<br>
