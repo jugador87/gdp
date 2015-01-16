@@ -26,7 +26,7 @@ ep_app_getprogname(void)
 {
 #if EP_OSCF_HAS_GETPROGNAME
 	return getprogname();
-#elif _GNU_SOURCE
+#elif __linux__
 	extern char *program_invocation_short_name;
 	return program_invocation_short_name;
 #else
