@@ -234,7 +234,7 @@ Changing Parameters:
 
 	Parameters you can change in those files include:
 
-	swarm.gdp.ip_addr --- the address of the gdp routing layer (used
+	swarm.gdp.routers --- the address of the gdp routing layer (used
 		by clients).  This should eventually be replaced by
 		service discovery.  Defaults to 127.0.0.1:8007.
 	swarm.gdp.event.loopdelay --- if the event loop exits for some
@@ -243,17 +243,28 @@ Changing Parameters:
 	swarm.gdp.event.looptimeout --- the timeout for the event loop;
 		this is mostly just to make sure things don't "hang up"
 		forever.  Defaults to 30 (seconds).
-	swarm.gdpd.gcl.dir --- the data directory (e.g., /var/tmp/gcl).
+	swarm.gdplogd.gcl.dir --- the data directory (e.g., /var/tmp/gcl).
 		Defaults to "/var/tmp/gcl".
-	swarm.gdpd.reclaim.interval --- how often to wake up to
+	swarm.gdplogd.reclaim.interval --- how often to wake up to
 		reclaim unused resources.  Defaults to 15 (seconds).
-	swarm.gdpd.gcl.reclaim-age --- how long a GCL is permitted to
+	swarm.gdplogd.gcl.reclaim-age --- how long a GCL is permitted to
 		sit idle before its resources are reclaimed.  Defaults
 		to 300 (seconds, i.e., five minutes).
+	swarm.gdplogd.gdpname --- the name to use as the source address
+		for protocol initiating from this program.  If not set,
+		a random name is made up when the program is started.
+		Generally speaking, you will want to set this parameter;
+		I recommend reverse-dns addresses, e.g.,
+		swarm.gdplogd.gdpname=edu.berkeley.eecs.gdp-01.gdplogd.
 	swarm.rest.prefix --- the REST prefix (e.g., /gdp/v1/).
-	swarm.rest.scgiport --- the port number for the SCGI server to
+	swarm.rest.scgi.port --- the port number for the SCGI server to
 		listen on.  If you change this you'll also have to
 		change the lighttpd configuration.  Defaults to 8001.
+	swarm.rest.scgi.pollinterval --- how often to poll for SCGI
+		connections (in microseconds).  Defaults to 100000
+		(100 msec).
+	swarm.rest.kv.gclname --- the name of the GCL to use for the
+		key-value store.  Defaults to "sys/kv/KeyValStore".
 	libep.time.accuracy --- the value filled in for the "accuracy"
 		field in time structures (defaults to zero).
 	libep.thr.pool.min_workers --- the default minimum number of

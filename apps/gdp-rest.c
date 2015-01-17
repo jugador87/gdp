@@ -1044,7 +1044,7 @@ main(int argc, char **argv, char **env)
 	}
 
 	if (listenport < 0)
-		listenport = ep_adm_getintparam("swarm.rest.scgiport", 8001);
+		listenport = ep_adm_getintparam("swarm.rest.scgi.port", 8001);
 
 	// Initialize the GDP library
 	//		Also initializes the EVENT library and starts the I/O thread
@@ -1084,7 +1084,7 @@ main(int argc, char **argv, char **env)
 	//		scgi_update_connections_port to wait.  It's OK if this
 	//		thread hangs since the other work happens in a different
 	//		thread.
-	poll_delay = ep_adm_getlongparam("swarm.gdp.rest.scgi.pollinterval", 100000);
+	poll_delay = ep_adm_getlongparam("swarm.rest.scgi.pollinterval", 100000);
 	for (;;)
 	{
 		gdp_event_t *gev;
