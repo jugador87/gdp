@@ -153,7 +153,7 @@ _gdp_gcl_create(gdp_name_t gclname,
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// create the request
-	estat = _gdp_req_new(GDP_CMD_CREATE, gcl, chan, reqflags, &req);
+	estat = _gdp_req_new(GDP_CMD_CREATE, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// set the target address to be the log daemon
@@ -202,7 +202,7 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 	EP_STAT estat = EP_STAT_OK;
 	gdp_req_t *req = NULL;
 
-	estat = _gdp_req_new(cmd, gcl, chan, reqflags, &req);
+	estat = _gdp_req_new(cmd, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	estat = _gdp_invoke(req);
@@ -243,7 +243,7 @@ _gdp_gcl_close(gdp_gcl_t *gcl,
 
 	EP_ASSERT_POINTER_VALID(gcl);
 
-	estat = _gdp_req_new(GDP_CMD_CLOSE, gcl, chan, reqflags, &req);
+	estat = _gdp_req_new(GDP_CMD_CLOSE, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// tell the daemon to close it
@@ -276,7 +276,7 @@ _gdp_gcl_publish(gdp_gcl_t *gcl,
 	EP_ASSERT_POINTER_VALID(gcl);
 	EP_ASSERT_POINTER_VALID(datum);
 
-	estat = _gdp_req_new(GDP_CMD_PUBLISH, gcl, chan, reqflags, &req);
+	estat = _gdp_req_new(GDP_CMD_PUBLISH, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 	gdp_datum_free(req->pdu->datum);
 	(void) ep_time_now(&datum->ts);
@@ -315,7 +315,7 @@ _gdp_gcl_read(gdp_gcl_t *gcl,
 
 	EP_ASSERT_POINTER_VALID(gcl);
 	EP_ASSERT_POINTER_VALID(datum);
-	estat = _gdp_req_new(GDP_CMD_READ, gcl, chan, reqflags, &req);
+	estat = _gdp_req_new(GDP_CMD_READ, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	EP_TIME_INVALIDATE(&datum->ts);
@@ -356,7 +356,7 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 
 	EP_ASSERT_POINTER_VALID(gcl);
 
-	estat = _gdp_req_new(cmd, gcl, chan, reqflags | GDP_REQ_PERSIST, &req);
+	estat = _gdp_req_new(cmd, gcl, chan, NULL, reqflags | GDP_REQ_PERSIST, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// add start and stop parameters to packet
@@ -391,7 +391,7 @@ _gdp_gcl_getmetadata(gdp_gcl_t *gcl,
 	EP_STAT estat;
 	gdp_req_t *req;
 
-	estat = _gdp_req_new(GDP_CMD_GETMETADATA, gcl, chan, reqflags, &req);
+	estat = _gdp_req_new(GDP_CMD_GETMETADATA, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	estat = _gdp_invoke(req);

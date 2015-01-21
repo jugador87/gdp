@@ -762,9 +762,10 @@ static struct cmdfuncs	CmdFuncs[] =
 	{ 0,					NULL			}
 };
 
-void
+EP_STAT
 gdpd_proto_init(void)
 {
 	// register the commands we implement
 	_gdp_register_cmdfuncs(CmdFuncs);
+	return EP_STAT_OK;
 }

@@ -28,10 +28,25 @@ LIST_HEAD(req_head, gdp_req);
 
 struct gdp_chan
 {
+	EP_THR_MUTEX		mutex;			// lock before changes
+	EP_THR_COND			cond;			// wake up after state change
+	int16_t				state;			// current state of channel
 	struct bufferevent	*bev;			// associated bufferevent (socket)
 	struct req_head		reqs;			// reqs associated with this channel
 	gdp_name_t			serverid;		// the name of the server (random nonce)
+	void				(*close_cb)(	// called on channel close
+							gdp_chan_t *chan);
+	void				(*process)(		// called to process a packet
+							gdp_pdu_t *pdu,
+							gdp_chan_t *chan);
 };
+
+/* Channel states */
+#define GDP_CHAN_UNCONNECTED	0		// channel is not connected yet
+#define GDP_CHAN_CONNECTING		1		// connection being initiated
+#define GDP_CHAN_CONNECTED		2		// channel is connected and active
+#define GDP_CHAN_ERROR			3		// channel has had error
+#define GDP_CHAN_CLOSING		4		// channel is closing
 
 
 /*
@@ -268,9 +283,9 @@ EP_STAT			_gdp_start_event_loop_thread(
 						struct event_base *evb,
 						const char *where);
 
-EP_STAT			_gdp_do_init(bool run_event_loop);
-
 void			_gdp_newname(gdp_name_t gname);
+
+EP_STAT			_gdp_lib_init(void);
 
 /*
 **  Request handling.
@@ -280,6 +295,7 @@ EP_STAT			_gdp_req_new(				// create new request
 						int cmd,
 						gdp_gcl_t *gcl,
 						gdp_chan_t *chan,
+						gdp_pdu_t *pdu,
 						uint32_t flags,
 						gdp_req_t **reqp);
 
@@ -310,8 +326,11 @@ EP_STAT			_gdp_advertise(				// advertise resources
 **  Gdpd communication
 */
 
-EP_STAT			_gdp_open_connection(		// open connection to gdpd
+EP_STAT			_gdp_chan_open(				// open channel to gdpd
 						const char *gdpd_addr,
+						void (*process)(gdp_pdu_t *, gdp_chan_t *),
+						gdp_chan_t **pchan);
+void			_gdp_chan_close(			// close channel
 						gdp_chan_t **pchan);
 
 /*
@@ -325,18 +344,6 @@ struct event_loop_info
 	const char			*where;		// a name to convey in errors
 };
 
-// callback info passed into individual events
-struct gdp_event_info
-{
-	void				(*exit_cb)(		// called on event loop exit
-							struct bufferevent *bev,
-							struct gdp_event_info *gei);
-	gdp_chan_t			*chan;			// I/O channel
-};
-
-void			_gdp_event_cb(				// handle unusual events
-						struct bufferevent *bev,
-						short events,
-						void *ctx);
+EP_STAT			_gdp_evloop_init(void);		// start event loop
 
 #endif // _GDP_PRIV_H_

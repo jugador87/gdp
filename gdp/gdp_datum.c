@@ -115,7 +115,7 @@ gdp_datum_getbuf(const gdp_datum_t *datum)
 }
 
 /*
-**	GDP_MSG_PRINT --- print a message (for debugging)
+**	GDP_DATUM_PRINT --- print a datum (for debugging)
 */
 
 void
@@ -125,12 +125,15 @@ gdp_datum_print(const gdp_datum_t *datum,
 	unsigned char *d;
 	int l;
 
+	fprintf(fp, "datum @ %p: ", datum);
 	if (datum == NULL)
 	{
 		fprintf(fp, "null datum\n");
 		return;
 	}
+
 	fprintf(fp, "GDP record %" PRIgdp_recno ", ", datum->recno);
+
 	if (datum->dbuf == NULL)
 	{
 		fprintf(fp, "no data");
@@ -154,7 +157,8 @@ gdp_datum_print(const gdp_datum_t *datum,
 		fprintf(fp, ", no timestamp");
 	}
 
-	fprintf(fp, "\n");
+	fprintf(fp, ", %sinuse\n", datum->inuse ? "" : "!");
+
 	if (l > 0)
 		ep_hexdump(d, l, fp, EP_HEXDUMP_ASCII, 0);
 }

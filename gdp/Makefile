@@ -2,11 +2,13 @@
 OBJS=	\
 	gdp_api.o \
 	gdp_buf.o \
+	gdp_chan.o \
 	gdp_event.o \
 	gdp_gcl_cache.o \
 	gdp_gcl_ops.o \
 	gdp_gclmd.o \
 	gdp_datum.o \
+	gdp_main.o \
 	gdp_pdu.o \
 	gdp_proto.o \
 	gdp_req.o \

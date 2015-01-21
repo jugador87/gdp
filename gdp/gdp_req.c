@@ -26,6 +26,7 @@ static EP_THR_MUTEX		ReqFreeListMutex	EP_THR_MUTEX_INITIALIZER;
 **		cmd --- the command to be issued
 **		gcl --- the associated GCL handle, if any
 **		chan --- the channel associated with the request
+**		pdu --- the existing PDU; if none, one will be allocated
 **		flags --- modifier flags
 **		reqp --- a pointer to the output area
 **
@@ -40,11 +41,13 @@ EP_STAT
 _gdp_req_new(int cmd,
 		gdp_gcl_t *gcl,
 		gdp_chan_t *chan,
+		gdp_pdu_t *pdu,
 		uint32_t flags,
 		gdp_req_t **reqp)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gdp_req_t *req;
+	bool newpdu = pdu == NULL;
 
 	// get memory, off free list if possible
 	ep_thr_mutex_lock(&ReqFreeListMutex);
@@ -63,7 +66,10 @@ _gdp_req_new(int cmd,
 	EP_ASSERT(!req->inuse);
 	EP_ASSERT(!req->ongcllist);
 	EP_ASSERT(!req->onchanlist);
-	req->pdu = _gdp_pdu_new();
+	if (pdu != NULL)
+		req->pdu = pdu;
+	else
+		req->pdu = pdu = _gdp_pdu_new();
 	req->gcl = gcl;
 	req->stat = EP_STAT_OK;
 	req->flags = flags;
@@ -73,19 +79,22 @@ _gdp_req_new(int cmd,
 		LIST_INSERT_HEAD(&chan->reqs, req, chanlist);
 		req->onchanlist = true;
 	}
-	req->pdu->cmd = cmd;
-	if (gcl != NULL)
-		memcpy(req->pdu->dst, gcl->name, sizeof req->pdu->dst);
-	if ((gcl == NULL || !EP_UT_BITSET(GDP_REQ_PERSIST, flags)) &&
-			!EP_UT_BITSET(GDP_REQ_ALLOC_RID, flags))
+	if (newpdu)
 	{
-		// just use constant zero; any value would be fine
-		req->pdu->rid = GDP_PDU_NO_RID;
-	}
-	else
-	{
-		// allocate a new unique request id
-		req->pdu->rid = _gdp_rid_new(gcl, chan);
+		req->pdu->cmd = cmd;
+		if (gcl != NULL)
+			memcpy(req->pdu->dst, gcl->name, sizeof req->pdu->dst);
+		if ((gcl == NULL || !EP_UT_BITSET(GDP_REQ_PERSIST, flags)) &&
+				!EP_UT_BITSET(GDP_REQ_ALLOC_RID, flags))
+		{
+			// just use constant zero; any value would be fine
+			req->pdu->rid = GDP_PDU_NO_RID;
+		}
+		else
+		{
+			// allocate a new unique request id
+			req->pdu->rid = _gdp_rid_new(gcl, chan);
+		}
 	}
 
 	// success
@@ -150,6 +159,49 @@ _gdp_req_freeall(struct req_head *reqlist)
 	ep_dbg_cprintf(Dbg, 49, "<<< _gdp_req_freeall(%p)\n", reqlist);
 }
 
+
+/*
+**   _GDP_REQ_SEND --- send a request to the GDP daemon
+**
+**		This makes no attempt to read results.
+*/
+
+EP_STAT
+_gdp_req_send(gdp_req_t *req)
+{
+	EP_STAT estat;
+	gdp_gcl_t *gcl = req->gcl;
+
+	ep_dbg_cprintf(Dbg, 45,
+			"_gdp_req_send: %s (%d), req=%p, rid=%d, gcl=%p\n",
+			_gdp_proto_cmd_name(req->pdu->cmd), req->pdu->cmd,
+			req, req->pdu->rid, gcl);
+
+	if (gcl != NULL)
+	{
+		// link the request to the GCL
+		ep_thr_mutex_lock(&gcl->mutex);
+		EP_ASSERT(!req->ongcllist);
+		LIST_INSERT_HEAD(&gcl->reqs, req, gcllist);
+		req->ongcllist = true;
+		ep_thr_mutex_unlock(&gcl->mutex);
+
+		// register this handle so we can process the results
+		//		(it's likely that it's already in the cache)
+		_gdp_gcl_cache_add(gcl, 0);
+	}
+
+	// write the message out
+	estat = _gdp_pdu_out(req->pdu, req->chan);
+
+	// done
+	return estat;
+}
+
+
+/*
+**  _GDP_REQ_FIND --- find a request in a GCL
+*/
 
 gdp_req_t *
 _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)

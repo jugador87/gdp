@@ -62,50 +62,45 @@ gdpd_req_thread(void *req_)
 
 
 /*
-**  CMDSOCK_READ_CB --- handle reads on command sockets
+**  PROCESS_PDU --- process a PDU
+**
+**		Called from the channel processing after an entire PDU
+**		is in memory (but essentially no further processing).
 */
 
 void
-cmdsock_read_cb(struct bufferevent *bev, void *ctx)
+process_pdu(gdp_pdu_t *pdu, gdp_chan_t *chan)
 {
 	EP_STAT estat;
 	gdp_req_t *req;
-	struct gdp_event_info *gei = ctx;
 
-	// allocate a request buffer
-	estat = _gdp_req_new(0, NULL, gei->chan, 0, &req);
-	if (!EP_STAT_ISOK(estat))
-	{
-		ep_log(estat, "cmdsock_read_cb: cannot allocate request");
-		return;
-	}
-	req->pdu->datum = gdp_datum_new();
+	// package PDU up as a request
+	estat = _gdp_req_new(pdu->cmd, NULL, chan, pdu, 0, &req);
+	EP_STAT_CHECK(estat, goto fail0);
 
-	estat = _gdp_pdu_in(req->pdu, gei->chan);
-	if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
+	if (ep_dbg_test(Dbg, 66))
 	{
-		// we don't yet have the entire packet in memory
-		_gdp_req_free(req);
-		return;
+		ep_dbg_printf("process_pdu: ");
+		_gdp_req_dump(req, stderr);
 	}
 
-	ep_dbg_cprintf(Dbg, 10, "\n*** Processing command %d=%s from socket %d\n",
-			req->pdu->cmd, _gdp_proto_cmd_name(req->pdu->cmd),
-			bufferevent_getfd(bev));
-
+	// send it off to the thread pool for the rest
 	ep_thr_pool_run(&gdpd_req_thread, req);
+	return;
+
+fail0:
+	ep_log(estat, "process_pdu: cannot allocate request");
 }
 
 
 /*
-**	CMDSOCK_EXIT_CB --- free resources when we lose a connection
+**	LOGD_SOCK_CLOSE_CB --- free resources when we lose a connection
 */
 
 void
-cmdsock_exit_cb(struct bufferevent *bev, struct gdp_event_info *gei)
+logd_sock_close_cb(gdp_chan_t *chan)
 {
 	// free any requests tied to this channel
-	gdp_chan_t *chan = gei->chan;
 	gdp_req_t *req = LIST_FIRST(&chan->reqs);
 
 	while (req != NULL)
@@ -114,153 +109,6 @@ cmdsock_exit_cb(struct bufferevent *bev, struct gdp_event_info *gei)
 		_gdp_req_free(req);
 		req = req2;
 	}
-
-	// free up the bufferevent
-	EP_ASSERT(bev == gei->chan->bev);
-	bufferevent_free(bev);
-	gei->chan->bev = NULL;
-
-	// free up the channel memory
-	ep_mem_free(gei->chan);
-	gei->chan = NULL;
-}
-
-
-/*
-**	LEV_ACCEPT_CB --- called when a new connection is accepted
-**
-**		Called from evconnlistener with the new socket (which
-**		turns into a control socket).  This is a bit weird
-**		because the listener side has a different event base
-**		than the control side.
-*/
-
-void
-lev_accept_cb(struct evconnlistener *lev,
-		evutil_socket_t sockfd,
-		struct sockaddr *sa,
-		int salen,
-		void *ctx)
-{
-	struct event_base *evbase = GdpIoEventBase;
-	gdp_chan_t *chan;
-	union sockaddr_xx saddr;
-	socklen_t slen = sizeof saddr;
-
-	chan = ep_mem_zalloc(sizeof *chan);
-	LIST_INIT(&chan->reqs);
-
-	evutil_make_socket_nonblocking(sockfd);
-	chan->bev = bufferevent_socket_new(evbase, sockfd,
-					BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
-
-	if (chan->bev == NULL)
-	{
-		ep_log(ep_stat_from_errno(errno),
-				"lev_accept_cb: could not allocate bufferevent");
-		return;
-	}
-
-	if (getpeername(sockfd, &saddr.sa, &slen) < 0)
-	{
-		ep_log(ep_stat_from_errno(errno),
-				"lev_accept_cb: connection from unknown peer");
-	}
-	else if (ep_dbg_test(Dbg, 20))
-	{
-		char abuf[INET6_ADDRSTRLEN];
-
-		switch (saddr.sa.sa_family)
-		{
-		case AF_INET:
-			inet_ntop(saddr.sa.sa_family, &saddr.sin.sin_addr,
-					abuf, sizeof abuf);
-			break;
-		case AF_INET6:
-			inet_ntop(saddr.sa.sa_family, &saddr.sin6.sin6_addr,
-					abuf, sizeof abuf);
-			break;
-		default:
-			strcpy("<unknown>", abuf);
-			break;
-		}
-		ep_dbg_printf("lev_accept_cb: connection from %s\n", abuf);
-	}
-
-	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
-}
-
-
-/*
-**	LEV_ERROR_CB --- called if there is an error when listening
-*/
-
-void
-lev_error_cb(struct evconnlistener *lev, void *ctx)
-{
-	struct event_base *evbase = evconnlistener_get_base(lev);
-	int err = EVUTIL_SOCKET_ERROR();
-	EP_STAT estat;
-
-	estat = ep_stat_from_errno(errno);
-	ep_log(estat, "listener error %d (%s)",
-			err, evutil_socket_error_to_string(err));
-	event_base_loopexit(evbase, NULL);
-}
-
-
-/*
-**	GDPLOGD_INIT --- initialize this service
-*/
-
-EP_STAT
-gdplogd_init(const char *router_addr)
-{
-	EP_STAT estat;
-	gdp_chan_t *chan;
-	extern EP_STAT _gdp_do_init_1(void);
-	extern EP_STAT _gdp_do_init_3(gdp_chan_t *);
-
-	// step 1: set up global state
-	estat = _gdp_do_init_1();
-	EP_STAT_CHECK(estat, goto fail0);
-
-	// step 2: initialize connection
-	estat = _gdp_open_connection(router_addr, &chan);
-	EP_STAT_CHECK(estat, goto fail0);
-	_GdpChannel = chan;
-
-	// step 3: start event loop
-	struct gdp_event_info *gei = ep_mem_zalloc(sizeof *gei);
-	gei->chan = chan;
-	gei->exit_cb = &cmdsock_exit_cb;
-	bufferevent_setcb(chan->bev, cmdsock_read_cb, NULL, _gdp_event_cb, gei);
-	bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
-	estat = _gdp_start_event_loop_thread(&_GdpIoEventLoopThread,
-										GdpIoEventBase, "I/O");
-	EP_STAT_CHECK(estat, goto fail1);
-
-	// step 4a: initialize the protocol module
-	gdpd_proto_init();
-
-	// step 4b: we will advertise ourselves later
-
-	goto finis;
-
-fail1:
-	bufferevent_free(chan->bev);
-	chan->bev = NULL;
-	ep_mem_free(chan);
-
-fail0:
-finis:
-	{
-		char ebuf[200];
-
-		ep_dbg_cprintf(Dbg, 1, "gdplogd_init: %s\n",
-				ep_stat_tostr(estat, ebuf, sizeof ebuf));
-	}
-	return estat;
 }
 
 
@@ -315,6 +163,7 @@ main(int argc, char **argv)
 	EP_STAT estat;
 	int nworkers = -1;
 	char *router_addr = NULL;
+	char *phase;
 
 	while ((opt = getopt(argc, argv, "D:FG:n:")) > 0)
 	{
@@ -341,24 +190,24 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	/*
+	**  Do initialization.  This is very order-sensitive
+	*/
+
 	// initialize GDP and the EVENT library
-	estat = gdplogd_init(router_addr);
-	if (!EP_STAT_ISOK(estat))
-	{
-		char ebuf[100]; 
+	phase = "gdp library";
+	estat = _gdp_lib_init();
+	EP_STAT_CHECK(estat, goto fail0);
 
-		ep_app_abort("Cannot initialize gdp library:\n\t%s",
-				ep_stat_tostr(estat, ebuf, sizeof ebuf));
-	}
-
+	// initialize physical logs
+	phase = "gcl physlog";
 	estat = gcl_physlog_init();
-	if (!EP_STAT_ISOK(estat))
-	{
-		char ebuf[100];
+	EP_STAT_CHECK(estat, goto fail0);
 
-		ep_app_abort("Cannot initialize gcl physlog:\n\t%s",
-		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
-	}
+	// initialize the protocol module
+	phase = "gdplogd protocol module";
+	estat = gdpd_proto_init();
+	EP_STAT_CHECK(estat, goto fail0);
 
 	// initialize the thread pool
 	ep_thr_pool_init(nworkers, nworkers, 0);
@@ -366,8 +215,16 @@ main(int argc, char **argv)
 	// add a debugging signal to print out some internal data structures
 	event_add(evsignal_new(GdpIoEventBase, SIGINFO, siginfo, NULL), NULL);
 
-	// advertise all of our GCLs
-	logd_advertise_all();
+	// start the event loop
+	phase = "start event loop";
+	estat = _gdp_evloop_init();
+	EP_STAT_CHECK(estat, goto fail0);
+
+	// initialize connection
+	phase = "open connection";
+	estat = _gdp_chan_open(router_addr, process_pdu,  &_GdpChannel);
+	EP_STAT_CHECK(estat, goto fail0);
+	_GdpChannel->close_cb = &logd_sock_close_cb;
 
 	// arrange to clean up resources periodically
 	{
@@ -379,7 +236,24 @@ main(int argc, char **argv)
 		event_add(evtimer, &tv);
 	}
 
-	// should never get here
+	// advertise all of our GCLs
+	logd_advertise_all();
+
+	/*
+	**  At this point we should be running
+	*/
+
 	pthread_join(_GdpIoEventLoopThread, NULL);
+
+	// should never get here
 	ep_app_abort("Fell out of GdpIoEventLoopThread");
+
+fail0:
+	{
+		char ebuf[100];
+
+		ep_app_abort("Cannot initialize %s:\n\t%s",
+				phase,
+		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
 }

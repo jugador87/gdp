@@ -45,7 +45,8 @@ _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 {
 	int len = _GDP_PDU_FIXEDHDRSZ + pdu->olen;
 
-	fprintf(fp, "pdu @ %p: v=%d, ttl=%d, cmd=%d=%s, olen=%d, rid=%u, sigalg=%x"
+	fprintf(fp, "pdu @ %p: v=%d, ttl=%d, cmd=%d=%s,"
+				"\n\tolen=%d, rid=%u, sigalg=%x"
 				"\n\tflags=",
 				pdu, pdu->ver, pdu->ttl,
 				pdu->cmd, _gdp_proto_cmd_name(pdu->cmd),

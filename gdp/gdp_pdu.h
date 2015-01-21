@@ -19,11 +19,11 @@
 
 
 /*
-**	Header for a GDP Protocol Data Unit.
+**	Header for a GDP Protocol Data Unit (PDU).
 **
-**		This is not the "on the wire" format, which has to be put into
-**		network byte order and packed.	However, this does show the
-**		order in which fields are written.
+**		This struct is not the "on the wire" format, which has to be
+**		put into network byte order and packed.	However, this does
+**		show the order in which fields are written.
 **
 **		Commands are eight bits with the top three bits encoding
 **		additional semantics.  Those bits are:
@@ -102,6 +102,11 @@ typedef struct gdp_pdu
 	// data length, record number, timestamp, and data are in the datum
 	gdp_datum_t			*datum;		// pointer to data record
 } gdp_pdu_t;
+
+
+// functions to determine characteristics of command/ack/nak
+#define GDP_CMD_HAS_ACK(c)	(((c) & 0xc0) == 0x40)	// expect ACK/NAK
+#define GDP_CMD_IS_ACK(c)	(((c) & 0x80) == 0x80)	// is an ACK/NAK
 
 
 // size of fixed size part of header

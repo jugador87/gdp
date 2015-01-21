@@ -147,12 +147,12 @@ gdp_internal_name(const gdp_pname_t external, gdp_name_t internal)
 EP_STAT
 gdp_parse_name(const char *ext, gdp_name_t name)
 {
-	if (strlen(ext) == GDP_GCL_PNAME_LEN &&
-			EP_STAT_ISOK(gdp_internal_name(ext, name)))
-		return EP_STAT_OK;
-
-	// must be human-oriented name
-	SHA256((const uint8_t *) ext, strlen(ext), name);
+	if (strlen(ext) != GDP_GCL_PNAME_LEN ||
+			!EP_STAT_ISOK(gdp_internal_name(ext, name)))
+	{
+		// must be human-oriented name
+		SHA256((const uint8_t *) ext, strlen(ext), name);
+	}
 	return EP_STAT_OK;
 }
 
@@ -223,43 +223,46 @@ gdp_gcl_print(
 
 /*
 **	GDP_INIT --- initialize this library
+**
+**		This is the normal startup for a client process.  Servers
+**		may need to do additional steps early on, and may choose
+**		to advertise more than their own name.
 */
 
 EP_STAT
-gdp_init(const char *gdpd_addr)
+gdp_init(const char *router_addr)
 {
 	static bool inited = false;
 	EP_STAT estat;
-	gdp_chan_t *chan;
-	extern EP_STAT _gdp_do_init_1(void);
-	extern EP_STAT _gdp_do_init_3(gdp_chan_t *);
+	extern EP_STAT _gdp_lib_init(void);
+	extern EP_STAT _gdp_evloop_init(void);
+	extern void _gdp_pdu_process(gdp_pdu_t *, gdp_chan_t *);
 
 	if (inited)
 		return EP_STAT_OK;
 	inited = true;
 
 	// pass it on to the internal module
-	// step 1: set up global state
-	estat = _gdp_do_init_1();
+	// set up global state, event loop, etc.
+	estat = _gdp_lib_init();
 	EP_STAT_CHECK(estat, goto fail0);
 
-	// step 2: initialize connection
-	estat = _gdp_open_connection(gdpd_addr, &chan);
+	// start the event loop
+	estat = _gdp_evloop_init();
 	EP_STAT_CHECK(estat, goto fail0);
-	_GdpChannel = chan;
 
-	// step 3: start event loop
-	estat = _gdp_do_init_3(chan);
-	EP_STAT_CHECK(estat, goto fail1);
+	// initialize connection
+	estat = _gdp_chan_open(router_addr, &_gdp_pdu_process, &_GdpChannel);
+	EP_STAT_CHECK(estat, goto fail0);
 
-	// step 4: advertise ourselves
+	// advertise ourselves
 	estat = _gdp_advertise(NULL, NULL);
 	if (!EP_STAT_ISOK(estat))
 	{
-fail1:
-		if (chan->bev != NULL)
-			bufferevent_free(chan->bev);
-		ep_mem_free(chan);
+		if (_GdpChannel->bev != NULL)
+			bufferevent_free(_GdpChannel->bev);
+		ep_mem_free(_GdpChannel);
+		_GdpChannel = NULL;
 	}
 
 fail0:

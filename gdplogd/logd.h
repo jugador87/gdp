@@ -83,7 +83,7 @@ extern void		gcl_reclaim_resources(void);	// reclaim old GCLs
 **  Definitions for the protocol module
 */
 
-extern void		gdpd_proto_init(void);	// initialize protocol module
+extern EP_STAT	gdpd_proto_init(void);	// initialize protocol module
 
 extern EP_STAT	dispatch_cmd(			// dispatch a request
 					gdp_req_t *req);

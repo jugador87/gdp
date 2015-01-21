@@ -131,7 +131,7 @@ _gdp_gcl_cache_add(gdp_gcl_t *gcl, gdp_iomode_t mode)
 	(void) ep_hash_insert(OpenGCLCache,
 						sizeof (gdp_name_t), gcl->name, gcl);
 	gcl->flags |= GCLF_INCACHE;
-	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_add: added %s => %p\n",
+	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_add: %s => %p\n",
 			gcl->pname, gcl);
 }
 
