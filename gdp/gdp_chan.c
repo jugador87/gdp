@@ -80,9 +80,10 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 
 	if (ep_dbg_test(Dbg, 25))
 	{
-		ep_dbg_printf("_gdp_event_cb: fd %d: ", bufferevent_getfd(bev));
+		ep_dbg_printf("_gdp_event_cb: ");
 		ep_prflags(events, EventWhatFlags, ep_dbg_getfile());
-		ep_dbg_printf("\n");
+		ep_dbg_printf(", fd=%d , errno=%d\n",
+				bufferevent_getfd(bev), EVUTIL_SOCKET_ERROR());
 	}
 	if (EP_UT_BITSET(BEV_EVENT_CONNECTED, events))
 	{
@@ -99,9 +100,15 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 	}
 	if (EP_UT_BITSET(BEV_EVENT_ERROR, events))
 	{
+		int sockerr = EVUTIL_SOCKET_ERROR();
+
 		ep_dbg_cprintf(Dbg, 1, "_gdp_event_cb: error: %s\n",
-				evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-		exitloop = true;
+				evutil_socket_error_to_string(sockerr));
+		if (chan->state == GDP_CHAN_CONNECTING)
+		{
+			chan->state = GDP_CHAN_ERROR;
+			ep_thr_cond_broadcast(&chan->cond);
+		}
 	}
 	if (exitloop)
 	{
@@ -199,11 +206,11 @@ _gdp_chan_open(const char *gdpd_addr,
 			snprintf(pbuf, sizeof pbuf, "%d", GDP_PORT_DEFAULT);
 		}
 
-		ep_dbg_cprintf(Dbg, 20, "gdp_init: trying host %s port %s\n",
+		ep_dbg_cprintf(Dbg, 20, "_gdp_chan_open: trying host %s port %s\n",
 				host, port);
 
 		// parsing done....  let's try the lookup
-		struct addrinfo *res;
+		struct addrinfo *res, *a;
 		struct addrinfo hints;
 		int r;
 
@@ -217,14 +224,30 @@ _gdp_chan_open(const char *gdpd_addr,
 			continue;
 		}
 
-		// see if we can connect
+		// attempt connects on all available addresses
 		ep_thr_mutex_lock(&chan->mutex);
-		struct addrinfo *a = res;
-		while (a != NULL)
+		for (a = res; a != NULL; a = a->ai_next)
 		{
+			// must use a new socket each time to prevent errors
+			{
+				evutil_socket_t sock = bufferevent_getfd(chan->bev);
+				if (sock >= 0)
+				{
+					close(sock);
+					bufferevent_setfd(chan->bev, -1);
+				}
+			}
+
+			// initiate the connect (will complete asynchronously)
+			chan->state = GDP_CHAN_CONNECTING;
 			if (bufferevent_socket_connect(chan->bev, a->ai_addr,
 						a->ai_addrlen) < 0)
+			{
+				ep_dbg_cprintf(Dbg, 9,
+						"_gdp_chan_open: bufferevent_socket_connect => %d\n",
+						errno);
 				continue;
+			}
 
 			// need to wait until the channel has had a chance
 			while (chan->state == GDP_CHAN_CONNECTING)
@@ -234,19 +257,17 @@ _gdp_chan_open(const char *gdpd_addr,
 			if (chan->state == GDP_CHAN_CONNECTED)
 			{
 				// it was successful
+				ep_dbg_cprintf(Dbg, 39, "successful connect\n");
 				estat = EP_STAT_OK;
 				break;
 			}
 
 			//XXX should do better testing of state here
-
-			// try the next one in the list
-			a = a->ai_next;
 		}
 		ep_thr_mutex_unlock(&chan->mutex);
 		freeaddrinfo(res);
 
-		if (a != NULL)
+		if (EP_STAT_ISOK(estat))
 		{
 			// success
 			break;
