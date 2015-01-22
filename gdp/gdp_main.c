@@ -7,6 +7,7 @@
 #include <ep/ep_app.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_log.h>
+#include <ep/ep_syslog.h>
 
 #include <event2/event.h>
 #include <event2/thread.h>
@@ -349,6 +350,7 @@ _gdp_lib_init(void)
 	if (progname != NULL)
 	{
 		char argname[100];
+		const char *logfac;
 
 		snprintf(argname, sizeof argname, "swarm.%s.gdpname", progname);
 		myname = ep_adm_getstrparam(argname, NULL);
@@ -361,6 +363,12 @@ _gdp_lib_init(void)
 					myname, gdp_printable_name(_GdpMyRoutingName, pname));
 			EP_STAT_CHECK(estat, myname = NULL);
 		}
+
+		snprintf(argname, sizeof argname, "swarm.%s.log.facility", progname);
+		logfac = ep_adm_getstrparam(argname, NULL);
+		if (logfac == NULL)
+			logfac = ep_adm_getstrparam("swarm.gdp.log.facility", "local4");
+		ep_log_init(progname, ep_syslog_fac_from_name(logfac), stderr, NULL);
 	}
 	if (myname == NULL)
 	{
