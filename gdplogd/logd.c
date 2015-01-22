@@ -222,6 +222,7 @@ main(int argc, char **argv)
 
 	// initialize connection
 	phase = "open connection";
+	_GdpChannel = NULL;
 	estat = _gdp_chan_open(router_addr, process_pdu,  &_GdpChannel);
 	EP_STAT_CHECK(estat, goto fail0);
 	_GdpChannel->close_cb = &logd_sock_close_cb;

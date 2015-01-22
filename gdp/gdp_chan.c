@@ -32,7 +32,8 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 	EP_STAT estat;
 	gdp_pdu_t *pdu;
 	gdp_buf_t *ievb = bufferevent_get_input(bev);
-	gdp_chan_t *chan = ctx;
+	gdp_chan_t **pchan = ctx;
+	gdp_chan_t *chan = *pchan;
 
 	ep_dbg_cprintf(Dbg, 50, "gdp_read_cb: fd %d, %zd bytes\n",
 			bufferevent_getfd(bev), evbuffer_get_length(ievb));
@@ -75,8 +76,9 @@ static EP_PRFLAGS_DESC	EventWhatFlags[] =
 static void
 gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 {
-	bool exitloop = false;
-	gdp_chan_t *chan = ctx;
+	bool restart_connection = false;
+	gdp_chan_t **pchan = ctx;
+	gdp_chan_t *chan = *pchan;
 
 	if (ep_dbg_test(Dbg, 25))
 	{
@@ -87,7 +89,12 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 	}
 	if (EP_UT_BITSET(BEV_EVENT_CONNECTED, events))
 	{
-		chan->state = GDP_CHAN_CONNECTED;
+		// sometimes libevent says we're connected when we're not
+		if (EVUTIL_SOCKET_ERROR() == ECONNREFUSED)
+			chan->state = GDP_CHAN_ERROR;
+		else
+			chan->state = GDP_CHAN_CONNECTED;
+		fprintf(stderr, "connected: state = %d\n", chan->state);		//XXX DEBUG
 		ep_thr_cond_broadcast(&chan->cond);
 	}
 	if (EP_UT_BITSET(BEV_EVENT_EOF, events))
@@ -96,7 +103,7 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 		size_t l = gdp_buf_getlength(ievb);
 
 		ep_dbg_cprintf(Dbg, 1, "_gdp_event_cb: got EOF, %zu bytes left\n", l);
-		exitloop = true;
+		restart_connection = true;
 	}
 	if (EP_UT_BITSET(BEV_EVENT_ERROR, events))
 	{
@@ -104,16 +111,19 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 
 		ep_dbg_cprintf(Dbg, 1, "_gdp_event_cb: error: %s\n",
 				evutil_socket_error_to_string(sockerr));
-		if (chan->state == GDP_CHAN_CONNECTING)
-		{
-			chan->state = GDP_CHAN_ERROR;
-			ep_thr_cond_broadcast(&chan->cond);
-		}
+		restart_connection = true;
 	}
-	if (exitloop)
+	if (restart_connection)
 	{
-		_gdp_chan_close(&chan);
-		event_base_loopexit(bufferevent_get_base(bev), NULL);
+		chan->state = GDP_CHAN_ERROR;
+		fprintf(stderr, "restart: state = %d\n", chan->state);		//XXX DEBUG
+		ep_thr_cond_broadcast(&chan->cond);
+
+		//_gdp_chan_close(pchan);
+		long delay = ep_adm_getlongparam("swarm.gdp.reconnect.delay", 100L);
+		if (delay > 0)
+			ep_time_nanosleep(delay * INT64_C(1000000));
+		_gdp_chan_open(NULL, NULL, pchan);
 	}
 }
 
@@ -123,39 +133,43 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 */
 
 EP_STAT
-_gdp_chan_open(const char *gdpd_addr,
+_gdp_chan_open(const char *gdp_addr,
 		void (*process)(gdp_pdu_t *, gdp_chan_t *),
 		gdp_chan_t **pchan)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gdp_chan_t *chan;
+	gdp_chan_t *chan = *pchan;
 
-	// allocate a new channel structure
-	chan = ep_mem_zalloc(sizeof *chan);
-	LIST_INIT(&chan->reqs);
-	ep_thr_mutex_init(&chan->mutex, EP_THR_MUTEX_DEFAULT);
-	ep_thr_cond_init(&chan->cond);
-	chan->state = GDP_CHAN_CONNECTING;
-	chan->process = process;
-
-	// set up the bufferevent
-	chan->bev = bufferevent_socket_new(GdpIoEventBase,
-						-1,
-						BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE |
-						BEV_OPT_DEFER_CALLBACKS);
-	if (chan->bev == NULL)
+	if (chan == NULL)
 	{
-		estat = ep_stat_from_errno(errno);
-		ep_dbg_cprintf(Dbg, 18, "_gdp_chan_open: no bufferevent\n");
-		goto fail0;
+		// allocate a new channel structure
+		chan = ep_mem_zalloc(sizeof *chan);
+		LIST_INIT(&chan->reqs);
+		ep_thr_mutex_init(&chan->mutex, EP_THR_MUTEX_DEFAULT);
+		ep_thr_cond_init(&chan->cond);
+		chan->state = GDP_CHAN_CONNECTING;
+		fprintf(stderr, "open: state = %d\n", chan->state);		//XXX DEBUG
+		chan->process = process;
+
+		// set up the bufferevent
+		chan->bev = bufferevent_socket_new(GdpIoEventBase,
+							-1,
+							BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE |
+							BEV_OPT_DEFER_CALLBACKS);
+		if (chan->bev == NULL)
+		{
+			estat = ep_stat_from_errno(errno);
+			ep_dbg_cprintf(Dbg, 18, "_gdp_chan_open: no bufferevent\n");
+			goto fail0;
+		}
+
+		// have to do this early so event loop can find it
+		*pchan = chan;
+
+		// speak of the devil
+		bufferevent_setcb(chan->bev, gdp_read_cb, NULL, gdp_event_cb, pchan);
+		bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
 	}
-
-	// have to do this early so event loop can find it
-	*pchan = chan;
-
-	// speak of the devil
-	bufferevent_setcb(chan->bev, gdp_read_cb, NULL, gdp_event_cb, chan);
-	bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
 
 	// attach it to a socket
 	char abuf[500];
@@ -163,9 +177,9 @@ _gdp_chan_open(const char *gdpd_addr,
 	char *host;
 
 	// get the host:port info into abuf
-	if (gdpd_addr == NULL)
-		gdpd_addr = ep_adm_getstrparam("swarm.gdp.routers", "127.0.0.1");
-	strlcpy(abuf, gdpd_addr, sizeof abuf);
+	if (gdp_addr == NULL)
+		gdp_addr = ep_adm_getstrparam("swarm.gdp.routers", "127.0.0.1");
+	strlcpy(abuf, gdp_addr, sizeof abuf);
 
 	// strip off addresses and try them
 	estat = GDP_STAT_NOTFOUND;				// anything that is not OK
@@ -173,6 +187,7 @@ _gdp_chan_open(const char *gdpd_addr,
 	do
 	{
 		char pbuf[10];
+		fprintf(stderr, "cracking %s\n", delim);	//XXX DEBUG
 
 		host = delim;						// beginning of address spec
 		delim = strchr(delim, ';');			// end of address spec
@@ -240,6 +255,7 @@ _gdp_chan_open(const char *gdpd_addr,
 
 			// initiate the connect (will complete asynchronously)
 			chan->state = GDP_CHAN_CONNECTING;
+			fprintf(stderr, "open: state = %d\n", chan->state);		//XXX DEBUG
 			if (bufferevent_socket_connect(chan->bev, a->ai_addr,
 						a->ai_addrlen) < 0)
 			{
@@ -250,9 +266,20 @@ _gdp_chan_open(const char *gdpd_addr,
 			}
 
 			// need to wait until the channel has had a chance
-			while (chan->state == GDP_CHAN_CONNECTING)
 			{
-				ep_thr_cond_wait(&chan->cond, &chan->mutex, NULL);
+				EP_TIME_SPEC t;
+				long msec = ep_adm_getlongparam("swarm.gdp.connect.timeout",
+									10000L);
+				ep_time_deltanow(msec * INT64_C(1000000), &t);
+
+				while (chan->state == GDP_CHAN_CONNECTING)
+				{
+					int err = ep_thr_cond_wait(&chan->cond, &chan->mutex, &t);
+					estat = ep_stat_from_errno(err);
+					fprintf(stderr, "state = %d, err = %d\n", chan->state, err);	//XXX DEBUG
+					if (err == ETIMEDOUT)
+						break;
+				}
 			}
 			if (chan->state == GDP_CHAN_CONNECTED)
 			{
@@ -263,6 +290,10 @@ _gdp_chan_open(const char *gdpd_addr,
 			}
 
 			//XXX should do better testing of state here
+
+			ep_dbg_cprintf(Dbg, 22,
+					"_gdp_chan_open: trying next address; state = %d\n",
+					chan->state);
 		}
 		ep_thr_mutex_unlock(&chan->mutex);
 		freeaddrinfo(res);
@@ -315,6 +346,7 @@ _gdp_chan_close(gdp_chan_t **pchan)
 	}
 
 	chan->state = GDP_CHAN_CLOSING;
+	fprintf(stderr, "closing: state = %d\n", chan->state);		//XXX DEBUG
 	*pchan = NULL;
 	if (chan->close_cb != NULL)
 		(*chan->close_cb)(chan);

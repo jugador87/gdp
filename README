@@ -243,6 +243,19 @@ Changing Parameters:
 	swarm.gdp.event.looptimeout --- the timeout for the event loop;
 		this is mostly just to make sure things don't "hang up"
 		forever.  Defaults to 30 (seconds).
+	swarm.gdp.connect.timeout --- how long to wait for a connection
+		to the GDP routing layer before giving up and trying
+		another entry point (in milliseconds).  Defaults to
+		10000 (ten seconds).
+	swarm.gdp.reconnect.delay --- the number of milliseconds to wait
+		before attempting to reconnect if the routing layer is
+		disconnected.  Defaults to 100 milliseconds.
+	swarm.gdp.log.facility --- the name of the log facility to use
+		(see syslog(3) for details).  The "gdp" in the name
+		can be replaced by an individual program name to set a
+		value that applies only to that program, e.g.,
+		"swarm.gdplogd.log.facility".  If both are set, the more
+		specific name wins.  Defaults to "local4".
 	swarm.gdplogd.gcl.dir --- the data directory (e.g., /var/tmp/gcl).
 		Defaults to "/var/tmp/gcl".
 	swarm.gdplogd.reclaim.interval --- how often to wake up to
