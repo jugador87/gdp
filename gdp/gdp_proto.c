@@ -41,6 +41,8 @@ EP_STAT
 _gdp_invoke(gdp_req_t *req)
 {
 	EP_STAT estat;
+	EP_TIME_SPEC timeout;
+	static long delta_timeout = -1;
 
 	EP_ASSERT_POINTER_VALID(req);
 	if (ep_dbg_test(Dbg, 22))
@@ -51,6 +53,12 @@ _gdp_invoke(gdp_req_t *req)
 				req->pdu->cmd,
 				req->gcl);
 		gdp_datum_print(req->pdu->datum, ep_dbg_getfile());
+	}
+
+	if (delta_timeout < 0)
+	{
+		delta_timeout = ep_adm_getlongparam("swarm.gdp.invoke.timeout",
+								10000L);
 	}
 
 	/*
@@ -65,22 +73,32 @@ _gdp_invoke(gdp_req_t *req)
 	*/
 
 	// wait until we receive a result
-	//		XXX need a timeout here
 	ep_dbg_cprintf(Dbg, 37, "gdp_invoke: waiting on %p\n", &req->cond);
+	ep_time_deltanow(delta_timeout * INT64_C(1000000), &timeout);
 	ep_thr_mutex_lock(&req->mutex);
+	estat = EP_STAT_OK;
 	while (!EP_UT_BITSET(GDP_REQ_DONE, req->flags))
 	{
-		ep_thr_cond_wait(&req->cond, &req->mutex, NULL);
+		int e = ep_thr_cond_wait(&req->cond, &req->mutex, &timeout);
+		ep_dbg_cprintf(Dbg, 52, "  ... got %d\n", e);
+		if (e != 0)
+		{
+			estat = ep_stat_from_errno(e);
+			break;
+		}
 	}
-	estat = req->stat;
+	if (EP_STAT_ISOK(estat))
+		estat = req->stat;
 	// mutex is released below
 
+#if 0
 	//XXX what status will/should we return?
 	if (event_base_got_exit(GdpIoEventBase))
 	{
 		ep_dbg_cprintf(Dbg, 1, "gdp_invoke: exiting on loopexit\n");
 		estat = GDP_STAT_INTERNAL_ERROR;
 	}
+#endif
 
 	// ok, done!
 	ep_thr_mutex_unlock(&req->mutex);

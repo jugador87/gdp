@@ -250,6 +250,9 @@ Changing Parameters:
 	swarm.gdp.reconnect.delay --- the number of milliseconds to wait
 		before attempting to reconnect if the routing layer is
 		disconnected.  Defaults to 100 milliseconds.
+	swarm.gdp.invoke.timeout --- the number of milliseconds to wait
+		for a response before timing out a GDP request.  Defaults
+		to 10000 (ten seconds).
 	swarm.gdp.log.facility --- the name of the log facility to use
 		(see syslog(3) for details).  The "gdp" in the name
 		can be replaced by an individual program name to set a
