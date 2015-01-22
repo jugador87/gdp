@@ -247,17 +247,18 @@ gdp_init(const char *router_addr)
 	estat = _gdp_lib_init();
 	EP_STAT_CHECK(estat, goto fail0);
 
-	// start the event loop
-	estat = _gdp_evloop_init();
-	EP_STAT_CHECK(estat, goto fail0);
-
 	// initialize connection
 	_GdpChannel = NULL;
 	estat = _gdp_chan_open(router_addr, &_gdp_pdu_process, &_GdpChannel);
 	EP_STAT_CHECK(estat, goto fail0);
+	_GdpChannel->advertise = &_gdp_advertise_me;
+
+	// start the event loop
+	estat = _gdp_evloop_init();
+	EP_STAT_CHECK(estat, goto fail0);
 
 	// advertise ourselves
-	estat = _gdp_advertise(NULL, NULL);
+	estat = _gdp_advertise_me();
 	if (!EP_STAT_ISOK(estat))
 	{
 		if (_GdpChannel->bev != NULL)

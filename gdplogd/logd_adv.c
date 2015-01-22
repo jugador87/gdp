@@ -49,7 +49,7 @@ advertise_all(gdp_buf_t *dbuf, void *ctx)
 }
 
 
-void
+EP_STAT
 logd_advertise_all(void)
 {
 	EP_STAT estat = _gdp_advertise(advertise_all, NULL);
@@ -60,6 +60,7 @@ logd_advertise_all(void)
 		ep_dbg_printf("logd_advertise_all => %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
+	return estat;
 }
 
 

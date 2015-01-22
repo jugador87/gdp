@@ -215,18 +215,6 @@ main(int argc, char **argv)
 	// add a debugging signal to print out some internal data structures
 	event_add(evsignal_new(GdpIoEventBase, SIGINFO, siginfo, NULL), NULL);
 
-	// start the event loop
-	phase = "start event loop";
-	estat = _gdp_evloop_init();
-	EP_STAT_CHECK(estat, goto fail0);
-
-	// initialize connection
-	phase = "open connection";
-	_GdpChannel = NULL;
-	estat = _gdp_chan_open(router_addr, process_pdu,  &_GdpChannel);
-	EP_STAT_CHECK(estat, goto fail0);
-	_GdpChannel->close_cb = &logd_sock_close_cb;
-
 	// arrange to clean up resources periodically
 	{
 		long gc_intvl = ep_adm_getlongparam("swarm.gdplogd.reclaim.interval",
@@ -237,8 +225,23 @@ main(int argc, char **argv)
 		event_add(evtimer, &tv);
 	}
 
+	// initialize connection
+	phase = "open connection";
+	_GdpChannel = NULL;
+	estat = _gdp_chan_open(router_addr, process_pdu, &_GdpChannel);
+	EP_STAT_CHECK(estat, goto fail0);
+	_GdpChannel->close_cb = &logd_sock_close_cb;
+	_GdpChannel->advertise = &logd_advertise_all;
+
+	// start the event loop
+	phase = "start event loop";
+	estat = _gdp_evloop_init();
+	EP_STAT_CHECK(estat, goto fail0);
+
 	// advertise all of our GCLs
-	logd_advertise_all();
+	phase = "advertise GCLs";
+	estat = logd_advertise_all();
+	EP_STAT_CHECK(estat, goto fail0);
 
 	/*
 	**  At this point we should be running

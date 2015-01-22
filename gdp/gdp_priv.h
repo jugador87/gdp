@@ -36,6 +36,8 @@ struct gdp_chan
 	gdp_name_t			serverid;		// the name of the server (random nonce)
 	void				(*close_cb)(	// called on channel close
 							gdp_chan_t *chan);
+	EP_STAT				(*advertise)(	// called to do our advertisements
+							void);
 	void				(*process)(		// called to process a packet
 							gdp_pdu_t *pdu,
 							gdp_chan_t *chan);
@@ -318,9 +320,12 @@ void			_gdp_req_dump(				// print (debug) request
 void			_gdp_chan_drain_input(		// drain all input from channel
 						gdp_chan_t *chan);
 
-EP_STAT			_gdp_advertise(				// advertise resources
+EP_STAT			_gdp_advertise(				// advertise resources (generic)
 						EP_STAT (*func)(gdp_buf_t *, void *),
 						void *ctx);
+
+EP_STAT			_gdp_advertise_me(			// advertise me only
+						void);
 
 /*
 **  Gdpd communication

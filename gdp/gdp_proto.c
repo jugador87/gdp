@@ -550,3 +550,14 @@ fail0:
 
 	return estat;
 }
+
+
+/*
+**  Advertise me only
+*/
+
+EP_STAT
+_gdp_advertise_me(void)
+{
+	return _gdp_advertise(NULL, NULL);
+}
