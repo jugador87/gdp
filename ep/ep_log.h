@@ -9,6 +9,12 @@
 
 # include <ep/ep.h>
 
+extern void	ep_log_init(
+			const char *tag,	// NULL => use program name
+			int logfac,		// -1   => don't use syslog
+			FILE *logfile,		// NULL => don't log to open file
+			const char *fname);	// NULL => don't log to disk file
+
 extern void EP_TYPE_PRINTFLIKE(2, 3)
 		ep_log(EP_STAT estat, char *fmt, ...);
 

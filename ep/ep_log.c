@@ -28,7 +28,7 @@ static FILE		*LogFile2 = NULL;
 static bool		LogInitialized = false;
 
 void
-ep_log_set(const char *tag,	// NULL => use program name
+ep_log_init(const char *tag,	// NULL => use program name
 	int logfac,		// -1 => don't use syslog
 	FILE *logfile,		// NULL => don't print to open file
 	const char *fname)	// NULL => don't log to disk file
@@ -147,14 +147,16 @@ ep_log(EP_STAT estat, char *fmt, ...)
 	if (!LogInitialized)
 	{
 		const char *facname;
+		int logfac;
 
-		facname = ep_adm_getstrparam("libep.log.facility", "local4");
-		LogFac = ep_syslog_fac_from_name(facname);
-		LogFile1 = stderr;
-		LogInitialized = true;
+		facname = ep_adm_getstrparam("libep.log.facility", NULL);
+		if (facname == NULL)
+			logfac = -1;
+		else
+			logfac = ep_syslog_fac_from_name(facname);
+
+		ep_log_init(ep_app_getprogname(), logfac, stderr, NULL);
 	}
-	if (LogTag == NULL)
-		LogTag = ep_app_getprogname();
 
 	if (LogFac >= 0)
 	{
