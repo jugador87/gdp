@@ -332,6 +332,7 @@ _gdp_chan_close(gdp_chan_t **pchan)
 	}
 
 	chan->state = GDP_CHAN_CLOSING;
+	ep_thr_cond_broadcast(&chan->cond);
 	*pchan = NULL;
 	if (chan->close_cb != NULL)
 		(*chan->close_cb)(chan);
