@@ -340,7 +340,9 @@ ep_stat_abort(EP_STAT stat)
 **
 **  EP_STAT_FROM_ERRNO -- create a status encoding errno
 **
-**	Assumes errnos are positive integers.
+**	Assumes errnos are positive integers < 2^10 (the size of
+**		the detail part of a status code).
+**	Should probably turn some errnos into temporary failures.
 **
 **	Parameters:
 **		uerrno -- the UNIX errno code
@@ -352,6 +354,8 @@ ep_stat_abort(EP_STAT stat)
 EP_STAT
 ep_stat_from_errno(int uerrno)
 {
+	if (uerrno == 0)
+		return EP_STAT_OK;
 	return EP_STAT_NEW(EP_STAT_SEV_ERROR, EP_REGISTRY_EPLIB,
 			EP_STAT_MOD_ERRNO, (unsigned long) uerrno);
 }
