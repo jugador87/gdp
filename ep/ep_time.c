@@ -15,7 +15,9 @@
 **	just take it as an administrative parameter.
 */
 
-static float	ClockAccuracy = -1;	// in seconds
+static float	ClockAccuracy = -1;		// in seconds
+
+#define ONESECOND	INT64_C(1000000000)	// one second in nanoseconds
 
 float
 ep_time_accuracy(void)
@@ -84,7 +86,30 @@ ep_time_now(EP_TIME_SPEC *tv)
 }
 
 
-#define ONESECOND	INT64_C(1000000000)
+/*
+**  EP_TIME_DELTANOW --- return current time of day plus a delta
+**
+**	The delta is in nanoseconds.
+*/
+
+EP_STAT
+ep_time_deltanow(uint64_t delta, EP_TIME_SPEC *tv)
+{
+	EP_STAT estat;
+
+	estat = ep_time_now(tv);
+	EP_STAT_CHECK(estat, return estat);
+
+	tv->tv_sec += delta / ONESECOND;
+	tv->tv_nsec += delta % ONESECOND;
+	if (tv->tv_nsec > ONESECOND)
+	{
+		tv->tv_sec++;
+		tv->tv_nsec -= ONESECOND;
+	}
+	return EP_STAT_OK;
+}
+
 
 EP_STAT
 ep_time_nanosleep(int64_t nsec)

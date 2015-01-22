@@ -21,6 +21,9 @@ typedef struct
 // return current time
 extern EP_STAT	ep_time_now(EP_TIME_SPEC *tv);
 
+// return current time plus an offset
+extern EP_STAT	ep_time_deltanow(uint64_t delta, EP_TIME_SPEC *tv);
+
 // return putative clock accuracy
 extern float	ep_time_accuracy(void);
 
