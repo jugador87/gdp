@@ -32,7 +32,7 @@ adv_addone(gdp_name_t gname, void *ctx)
 	{
 		gdp_pname_t pname;
 
-		ep_dbg_printf("\t%s\n", gdp_printable_name(gname, pname));
+		ep_dbg_printf("\tAdvertise %s\n", gdp_printable_name(gname, pname));
 	}
 
 	i = gdp_buf_write(b, gname, sizeof (gdp_name_t));
