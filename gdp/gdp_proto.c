@@ -43,6 +43,7 @@ _gdp_invoke(gdp_req_t *req)
 	EP_STAT estat;
 	EP_TIME_SPEC timeout;
 	static long delta_timeout = -1;
+	int retries = ep_adm_getintparam("swarm.gdp.invoke.retries", 3);
 
 	EP_ASSERT_POINTER_VALID(req);
 	if (ep_dbg_test(Dbg, 22))
@@ -61,47 +62,49 @@ _gdp_invoke(gdp_req_t *req)
 								10000L);
 	}
 
-	/*
-	**  Top Half: sending the command
-	*/
-
-	estat = _gdp_req_send(req);
-	EP_STAT_CHECK(estat, goto fail0);
-
-	/*
-	**  Bottom Half: read the response
-	*/
-
-	// wait until we receive a result
-	ep_dbg_cprintf(Dbg, 37, "gdp_invoke: waiting on %p\n", &req->cond);
-	ep_time_deltanow(delta_timeout * INT64_C(1000000), &timeout);
-	ep_thr_mutex_lock(&req->mutex);
-	estat = EP_STAT_OK;
-	while (!EP_UT_BITSET(GDP_REQ_DONE, req->flags))
+	// loop to allow for retransmissions
+	do
 	{
-		int e = ep_thr_cond_wait(&req->cond, &req->mutex, &timeout);
-		ep_dbg_cprintf(Dbg, 52, "  ... got %d\n", e);
-		if (e != 0)
+		/*
+		**  Top Half: sending the command
+		*/
+
+		estat = _gdp_req_send(req);
+		EP_STAT_CHECK(estat, goto fail0);
+
+		/*
+		**  Bottom Half: read the response
+		*/
+
+		// wait until we receive a result
+		ep_dbg_cprintf(Dbg, 37, "gdp_invoke: waiting on %p\n", &req->cond);
+		ep_time_deltanow(delta_timeout * INT64_C(1000000), &timeout);
+		ep_thr_mutex_lock(&req->mutex);
+		estat = EP_STAT_OK;
+		while (!EP_UT_BITSET(GDP_REQ_DONE, req->flags))
 		{
-			estat = ep_stat_from_errno(e);
-			break;
+			int e = ep_thr_cond_wait(&req->cond, &req->mutex, &timeout);
+			ep_dbg_cprintf(Dbg, 52, "  ... got %d\n", e);
+			if (e != 0)
+			{
+				estat = ep_stat_from_errno(e);
+				break;
+			}
 		}
-	}
-	if (EP_STAT_ISOK(estat))
-		estat = req->stat;
-	// mutex is released below
+		if (EP_STAT_ISOK(estat))
+			estat = req->stat;
+		ep_thr_mutex_unlock(&req->mutex);
 
 #if 0
-	//XXX what status will/should we return?
-	if (event_base_got_exit(GdpIoEventBase))
-	{
-		ep_dbg_cprintf(Dbg, 1, "gdp_invoke: exiting on loopexit\n");
-		estat = GDP_STAT_INTERNAL_ERROR;
-	}
+		//XXX what status will/should we return?
+		if (event_base_got_exit(GdpIoEventBase))
+		{
+			ep_dbg_cprintf(Dbg, 1, "gdp_invoke: exiting on loopexit\n");
+			estat = GDP_STAT_INTERNAL_ERROR;
+		}
 #endif
-
-	// ok, done!
-	ep_thr_mutex_unlock(&req->mutex);
+		// ok, done!
+	} while (!EP_STAT_ISOK(estat) && retries-- > 0);
 
 fail0:
 	if (ep_dbg_test(Dbg, 22))

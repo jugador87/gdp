@@ -172,16 +172,16 @@ _gdp_req_send(gdp_req_t *req)
 	EP_STAT estat;
 	gdp_gcl_t *gcl = req->gcl;
 
-	ep_dbg_cprintf(Dbg, 45,
-			"_gdp_req_send: %s (%d), req=%p, rid=%d, gcl=%p\n",
-			_gdp_proto_cmd_name(req->pdu->cmd), req->pdu->cmd,
-			req, req->pdu->rid, gcl);
+	if (ep_dbg_test(Dbg, 45))
+	{
+		ep_dbg_printf("_gdp_req_send: gcl=%p, ", gcl);
+		_gdp_req_dump(req, ep_dbg_getfile());
+	}
 
-	if (gcl != NULL)
+	if (gcl != NULL && !req->ongcllist)
 	{
 		// link the request to the GCL
 		ep_thr_mutex_lock(&gcl->mutex);
-		EP_ASSERT(!req->ongcllist);
 		LIST_INSERT_HEAD(&gcl->reqs, req, gcllist);
 		req->ongcllist = true;
 		ep_thr_mutex_unlock(&gcl->mutex);

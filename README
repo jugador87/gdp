@@ -253,6 +253,10 @@ Changing Parameters:
 	swarm.gdp.invoke.timeout --- the number of milliseconds to wait
 		for a response before timing out a GDP request.  Defaults
 		to 10000 (ten seconds).
+	swarm.gdp.invoke.retries --- the number of times to re-send a
+		request when no response is received.  Defaults to 3
+		(meaning that the request may be sent up to 4 times
+		total).
 	swarm.gdp.log.facility --- the name of the log facility to use
 		(see syslog(3) for details).  The "gdp" in the name
 		can be replaced by an individual program name to set a
