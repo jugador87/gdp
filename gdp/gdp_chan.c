@@ -82,7 +82,7 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 
 	if (ep_dbg_test(Dbg, 25))
 	{
-		ep_dbg_printf("_gdp_event_cb: ");
+		ep_dbg_printf("gdp_event_cb: ");
 		ep_prflags(events, EventWhatFlags, ep_dbg_getfile());
 		ep_dbg_printf(", fd=%d , errno=%d\n",
 				bufferevent_getfd(bev), EVUTIL_SOCKET_ERROR());
@@ -115,6 +115,8 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 				evutil_socket_error_to_string(sockerr));
 		restart_connection = true;
 	}
+
+	// if we need to restart, let it run
 	if (restart_connection)
 	{
 		EP_STAT estat;
@@ -145,30 +147,40 @@ _gdp_chan_open(const char *gdp_addr,
 		gdp_chan_t **pchan)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gdp_chan_t *chan;
+	gdp_chan_t *chan = *pchan;
+	bool newchan = false;
 
-	// allocate a new channel structure
-	chan = ep_mem_zalloc(sizeof *chan);
-	LIST_INIT(&chan->reqs);
-	ep_thr_mutex_init(&chan->mutex, EP_THR_MUTEX_DEFAULT);
-	ep_thr_cond_init(&chan->cond);
-	chan->state = GDP_CHAN_CONNECTING;
-	chan->process = process;
+	if (chan == NULL)
+	{
+		// allocate a new channel structure
+		newchan = true;
+		chan = ep_mem_zalloc(sizeof *chan);
+		LIST_INIT(&chan->reqs);
+		ep_thr_mutex_init(&chan->mutex, EP_THR_MUTEX_DEFAULT);
+		ep_thr_cond_init(&chan->cond);
+		chan->state = GDP_CHAN_CONNECTING;
+		chan->process = process;
 
-	// set up the bufferevent
-	chan->bev = bufferevent_socket_new(GdpIoEventBase,
+		// set up the bufferevent
+		chan->bev = bufferevent_socket_new(GdpIoEventBase,
 						-1,
 						BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE |
 						BEV_OPT_DEFER_CALLBACKS);
+		*pchan = chan;
+	}
+	else
+	{
+		ep_dbg_cprintf(Dbg, 12, "Re-using channel @ %p\n"
+				"    process = %p\n"
+				"    advertise = %p\n",
+				chan, chan->process, chan->advertise);
+	}
 	if (chan->bev == NULL)
 	{
 		estat = ep_stat_from_errno(errno);
 		ep_dbg_cprintf(Dbg, 18, "_gdp_chan_open: no bufferevent\n");
 		goto fail0;
 	}
-
-	// have to do this early so event loop can find it
-	*pchan = chan;
 
 	// speak of the devil
 	bufferevent_setcb(chan->bev, gdp_read_cb, NULL, gdp_event_cb, pchan);
@@ -295,15 +307,18 @@ _gdp_chan_open(const char *gdp_addr,
 	{
 		estat = ep_stat_from_errno(errno);
 fail0:
+		ep_dbg_cprintf(Dbg, 12,
+				"_gdp_chan_open: could not create channel: %s\n",
+				strerror(errno));
 		//ep_log(estat, "_gdp_chan_open: could not create channel");
-		if (chan != NULL)
+		if (chan != NULL && newchan)
 		{
 			if (chan->bev != NULL)
 				bufferevent_free(chan->bev);
 			chan->bev = NULL;
 			ep_mem_free(chan);
+			*pchan = NULL;
 		}
-		*pchan = NULL;
 	}
 
 	{
