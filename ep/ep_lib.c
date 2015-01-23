@@ -19,5 +19,6 @@ ep_lib_init(uint32_t flags)
 	if (EP_UT_BITSET(EP_LIB_USEPTHREADS, flags))
 		_ep_thr_init();
 	_ep_stat_init();
+	ep_adm_readparams("defaults");
 	return EP_STAT_OK;
 }
