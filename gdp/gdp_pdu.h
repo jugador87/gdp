@@ -132,31 +132,31 @@ typedef struct gdp_pdu
 #define _GDP_NAK_S_FROM_COAP(c)	(GDP_COAP_##c - 500 + GDP_NAK_S_MIN)
 
 //		0-63			Blind commands
-#define GDP_CMD_KEEPALIVE		0		// used for keepalives
-#define GDP_CMD_ADVERTISE		1		// advertise known GCLs
+#define GDP_CMD_KEEPALIVE		0			// used for keepalives
+#define GDP_CMD_ADVERTISE		1			// advertise known GCLs
 //		64-127			Acknowledged commands
-#define GDP_CMD_PING			64		// test connection
-#define GDP_CMD_HELLO			65		// initial startup/handshake
-#define GDP_CMD_CREATE			66		// create a GCL
-#define GDP_CMD_OPEN_AO			67		// open a GCL for append-only
-#define GDP_CMD_OPEN_RO			68		// open a GCL for read-only
-#define GDP_CMD_CLOSE			69		// close a GCL
-#define GDP_CMD_READ			70		// read a given record by index
-#define GDP_CMD_PUBLISH			71		// append a record
-#define GDP_CMD_SUBSCRIBE		72		// subscribe to a GCL
-#define GDP_CMD_MULTIREAD		73		// read more than one records
-#define GDP_CMD_GETMETADATA		74		// fetch metadata
+#define GDP_CMD_PING			64			// test connection
+#define GDP_CMD_HELLO			65			// initial startup/handshake
+#define GDP_CMD_CREATE			66			// create a GCL
+#define GDP_CMD_OPEN_AO			67			// open a GCL for append-only
+#define GDP_CMD_OPEN_RO			68			// open a GCL for read-only
+#define GDP_CMD_CLOSE			69			// close a GCL
+#define GDP_CMD_READ			70			// read a given record by index
+#define GDP_CMD_PUBLISH			71			// append a record
+#define GDP_CMD_SUBSCRIBE		72			// subscribe to a GCL
+#define GDP_CMD_MULTIREAD		73			// read more than one records
+#define GDP_CMD_GETMETADATA		74			// fetch metadata
 //		128-191			Positive acks
-#define GDP_ACK_MIN			128				// minimum ack code
+#define GDP_ACK_MIN			128			// minimum ack code
 #define GDP_ACK_SUCCESS			_GDP_ACK_FROM_COAP(SUCCESS)				// 128
 #define GDP_ACK_CREATED			_GDP_ACK_FROM_COAP(CREATED)				// 129
 #define GDP_ACK_DELETED			_GDP_ACK_FROM_COAP(DELETED)				// 130
 #define GDP_ACK_VALID			_GDP_ACK_FROM_COAP(VALID)				// 131
 #define GDP_ACK_CHANGED			_GDP_ACK_FROM_COAP(CHANGED)				// 132
 #define GDP_ACK_CONTENT			_GDP_ACK_FROM_COAP(CONTENT)				// 133
-#define GDP_ACK_MAX			191				// maximum ack code
+#define GDP_ACK_MAX			191			// maximum ack code
 //		192-223			Negative acks, client side (CoAP, HTTP)
-#define GDP_NAK_C_MIN		192				// minimum client-side nak code
+#define GDP_NAK_C_MIN		192			// minimum client-side nak code
 #define GDP_NAK_C_BADREQ		_GDP_NAK_C_FROM_COAP(BADREQ)			// 192
 #define GDP_NAK_C_UNAUTH		_GDP_NAK_C_FROM_COAP(UNAUTH)			// 193
 #define GDP_NAK_C_BADOPT		_GDP_NAK_C_FROM_COAP(BADOPT)			// 194
@@ -168,16 +168,20 @@ typedef struct gdp_pdu
 #define GDP_NAK_C_PRECONFAILED	_GDP_NAK_C_FROM_COAP(PRECONFAILED)		// 204
 #define GDP_NAK_C_TOOLARGE		_GDP_NAK_C_FROM_COAP(TOOLARGE)			// 205
 #define GDP_NAK_C_UNSUPMEDIA	_GDP_NAK_C_FROM_COAP(UNSUPMEDIA)		// 207
-#define GDP_NAK_C_MAX		223				// maximum client-side nak code
-//		224-254			Negative acks, server side (CoAP, HTTP)
-#define GDP_NAK_S_MIN		224				// minimum server-side nak code
+#define GDP_NAK_C_MAX		223			// maximum client-side nak code
+//		224-239			Negative acks, server side (CoAP, HTTP)
+#define GDP_NAK_S_MIN		224			// minimum server-side nak code
 #define GDP_NAK_S_INTERNAL		_GDP_NAK_S_FROM_COAP(INTERNAL)			// 224
 #define GDP_NAK_S_NOTIMPL		_GDP_NAK_S_FROM_COAP(NOTIMPL)			// 225
 #define GDP_NAK_S_BADGATEWAY	_GDP_NAK_S_FROM_COAP(BADGATEWAY)		// 226
 #define GDP_NAK_S_SVCUNAVAIL	_GDP_NAK_S_FROM_COAP(SVCUNAVAIL)		// 227
 #define GDP_NAK_S_GWTIMEOUT		_GDP_NAK_S_FROM_COAP(GWTIMEOUT)			// 228
 #define GDP_NAK_S_PROXYNOTSUP	_GDP_NAK_S_FROM_COAP(PROXYNOTSUP)		// 229
-#define GDP_NAK_S_MAX		254				// maximum server-side nak code
+#define GDP_NAK_S_MAX		239			// maximum server-side nak code
+//		240-254			Negative acks, routing layer
+#define GDP_NAK_R_MIN		240			// minimum routing layer nak code
+#define GDP_NAK_R_NOROUTE		240			// no advertisement for name
+#define GDP_NAK_R_MAX		254			// maximum routing layer nak code
 //		255				Reserved
 
 

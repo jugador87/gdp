@@ -188,6 +188,14 @@ nak_server(gdp_req_t *req)
 }
 
 
+static EP_STAT
+nak_router(gdp_req_t *req)
+{
+	ep_dbg_cprintf(Dbg, 2, "nak_router: received %d\n", req->pdu->cmd);
+	return GDP_STAT_FROM_S_NAK(req->pdu->cmd);
+}
+
+
 
 /*
 **	Command/Ack/Nak Dispatch Table
@@ -443,7 +451,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	NOENT,				// 237
 	NOENT,				// 238
 	NOENT,				// 239
-	NOENT,				// 240
+	{ nak_router,		"NAK_R_NOROUTE"			},			// 240
 	NOENT,				// 241
 	NOENT,				// 242
 	NOENT,				// 243
