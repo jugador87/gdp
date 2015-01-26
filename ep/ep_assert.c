@@ -6,8 +6,9 @@
 ***********************************************************************/
 
 #include <ep.h>
-#include <ep_stat.h>
 #include <ep_assert.h>
+#include <ep_stat.h>
+#include <ep_string.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
@@ -52,8 +53,10 @@ ep_assert_failure(
 //			"expr",		expr,
 //			NULL,	NULL);
 
-	fprintf(stderr, "Assertion failed at %s:%d: %s: %s\n",
-			file, line, type, expr);
+	fprintf(stderr, "%s%sAssertion failed at %s:%d: %s: %s%s\n",
+			EpVid->vidfgcyan, EpVid->vidbgred,
+			file, line, type, expr,
+			EpVid->vidnorm);
 	abort();
 	/*NOTREACHED*/
 }
