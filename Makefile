@@ -1,3 +1,5 @@
+CTAGS=		ctags
+
 all:
 	-rm libs/*
 	(cd ep; make clean all)
@@ -20,8 +22,8 @@ CSRCS=		ep/*.[ch] \
 		scgilib/scgilib.[ch] \
 		apps/*.[ch] \
 
-tags:	.FORCE
-	ctags ${CSRCS}
+tags:		.FORCE
+	${CTAGS} ${CSRCS}
 
 .FORCE:
 
