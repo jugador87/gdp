@@ -43,12 +43,18 @@ static EP_PRFLAGS_DESC	PduFlags[] =
 void
 _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 {
-	int len = _GDP_PDU_FIXEDHDRSZ + pdu->olen;
+	fprintf(fp, "PDU@%p: ", pdu);
+	if (pdu == NULL)
+	{
+		fprintf(fp, "NULL\n");
+		return;
+	}
 
-	fprintf(fp, "pdu @ %p: v=%d, ttl=%d, cmd=%d=%s,"
+	int len = _GDP_PDU_FIXEDHDRSZ + pdu->olen;
+	fprintf(fp, "v=%d, ttl=%d, cmd=%d=%s,"
 				"\n\tolen=%d, rid=%u, sigalg=%x"
 				"\n\tflags=",
-				pdu, pdu->ver, pdu->ttl,
+				pdu->ver, pdu->ttl,
 				pdu->cmd, _gdp_proto_cmd_name(pdu->cmd),
 				pdu->olen, pdu->rid, pdu->sigalg);
 	ep_prflags(pdu->flags, PduFlags, fp);

@@ -105,8 +105,8 @@ typedef struct gdp_pdu
 
 
 // functions to determine characteristics of command/ack/nak
-#define GDP_CMD_HAS_ACK(c)	(((c) & 0xc0) == 0x40)	// expect ACK/NAK
-#define GDP_CMD_IS_ACK(c)	(((c) & 0x80) == 0x80)	// is an ACK/NAK
+#define GDP_CMD_NEEDS_ACK(c)	(((c) & 0xc0) == 0x40)	// expect ACK/NAK
+#define GDP_CMD_IS_COMMAND(c)	(((c) & 0x80) != 0x80)	// is a command
 
 
 // size of fixed size part of header

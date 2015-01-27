@@ -405,9 +405,9 @@ post_subscribe(gdp_req_t *req)
 
 		// link this request into the GCL so the subscription can be found
 		ep_thr_mutex_lock(&req->gcl->mutex);
-		EP_ASSERT(!req->ongcllist);
+		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
 		LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
-		req->ongcllist = true;
+		req->flags |= GDP_REQ_ON_GCL_LIST;
 		ep_thr_mutex_unlock(&req->gcl->mutex);
 	}
 }
@@ -490,8 +490,7 @@ cmd_subscribe(gdp_req_t *req)
 	if (req->pdu->datum->recno <= gcl_max_recno(req->gcl))
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: doing post processing\n");
-		req->cb.gdpd = &post_subscribe;
-		req->postproc = true;
+		req->postproc = &post_subscribe;
 	}
 	else
 	{
@@ -501,9 +500,9 @@ cmd_subscribe(gdp_req_t *req)
 
 		// link this request into the GCL so the subscription can be found
 		ep_thr_mutex_lock(&req->gcl->mutex);
-		EP_ASSERT(!req->ongcllist);
+		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
 		LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
-		req->ongcllist = true;
+		req->flags |= GDP_REQ_ON_GCL_LIST;
 		ep_thr_mutex_unlock(&req->gcl->mutex);
 	}
 
@@ -585,8 +584,7 @@ cmd_multiread(gdp_req_t *req)
 	if (req->pdu->datum->recno <= gcl_max_recno(req->gcl))
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_multiread: doing post processing\n");
-		req->cb.gdpd = &post_subscribe;
-		req->postproc = true;
+		req->postproc = &post_subscribe;
 
 		// make this a "snapshot", i.e., don't read additional records
 		int32_t nrec = gcl_max_recno(req->gcl) - req->pdu->datum->recno;
@@ -604,9 +602,9 @@ cmd_multiread(gdp_req_t *req)
 
 		// link this request into the GCL so the subscription can be found
 		ep_thr_mutex_lock(&req->gcl->mutex);
-		EP_ASSERT(!req->ongcllist);
+		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
 		LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
-		req->ongcllist = true;
+		req->flags |= GDP_REQ_ON_GCL_LIST;
 		ep_thr_mutex_unlock(&req->gcl->mutex);
 	}
 

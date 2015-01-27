@@ -8,8 +8,8 @@
 #define _GDP_PRIV_H_
 
 #include <ep/ep_thr.h>
-#include <event2/event.h>
-#include <event2/bufferevent.h>
+
+#include <event2/buffer.h>
 
 #include <stdio.h>
 
@@ -85,6 +85,8 @@ struct gdp_gcl
 {
 	EP_THR_MUTEX		mutex;			// lock on this data structure
 //	EP_THR_COND			cond;			// pthread wakeup signal
+	time_t				utime;			// last time used (seconds only)
+	LIST_ENTRY(gdp_gcl)	ulist;			// list sorted by use time
 	struct req_head		reqs;			// list of outstanding requests
 	gdp_name_t			name;			// the internal name
 	gdp_pname_t			pname;			// printable name (for debugging)
@@ -101,6 +103,7 @@ struct gdp_gcl
 /* flags for GCL handles */
 #define GCLF_DROPPING	0x0001		// handle is being deallocated
 #define GCLF_INCACHE	0x0002		// handle is in cache
+#define GCLF_ISLOCKED	0x0004		// GclCacheMutex already locked
 
 
 /*
@@ -134,30 +137,32 @@ typedef struct gdp_req
 	EP_THR_COND			cond;		// pthread wakeup condition variable
 	LIST_ENTRY(gdp_req)	gcllist;	// linked list for cache management
 	LIST_ENTRY(gdp_req)	chanlist;	// reqs associated with a given channel
-	bool				inuse:1;	// indicates request is allocated
-	bool				postproc:1;	// invoke callback for late cmd processing
-	bool				ongcllist:1;	// this is on a gcl list
-	bool				onchanlist:1;	// this is on a channel list
 	gdp_gcl_t			*gcl;		// the corresponding GCL handle
 	gdp_pdu_t			*pdu;		// packet buffer
 	gdp_chan_t			*chan;		// the network channel for this req
 	EP_STAT				stat;		// status code from last operation
 	int32_t				numrecs;	// remaining number of records to return
 	uint32_t			flags;		// see below
+	void				(*postproc)(struct gdp_req *);
+									// do post processing after ack sent
+	gdp_gcl_sub_cbfunc_t	sub_cb;	// subscription callback
 	union
 	{
-		void					(*gdpd)(struct gdp_req *);
 		gdp_gcl_sub_cbfunc_t	subs;
 		void					(*generic)(void *);
 	}					cb;			// callback (see above)
 	void				*udata;		// user-supplied opaque data to cb
 } gdp_req_t;
 
-#define GDP_REQ_DONE			0x00000001	// operation complete
-#define GDP_REQ_SUBSCRIPTION	0x00000002	// this is a subscription
-#define GDP_REQ_PERSIST			0x00000004	// request persists after response
-#define GDP_REQ_SUBUPGRADE		0x00000008	// can upgrade to subscription
-#define GDP_REQ_ALLOC_RID		0x00000010	// force allocation of new rid
+#define GDP_REQ_INUSE			0x00000001	// request is in use
+#define GDP_REQ_DONE			0x00000002	// operation complete
+#define GDP_REQ_SUBSCRIPTION	0x00000004	// this is a subscription
+#define GDP_REQ_PERSIST			0x00000008	// request persists after response
+#define GDP_REQ_SUBUPGRADE		0x00000010	// can upgrade to subscription
+#define GDP_REQ_ALLOC_RID		0x00000020	// force allocation of new rid
+#define GDP_REQ_ON_GCL_LIST		0x00000040	// this is on a GCL list
+#define GDP_REQ_ON_CHAN_LIST	0x00000080	// this is on a channel list
+#define GDP_REQ_CORE			0x00000100	// internal to the core code
 
 extern gdp_req_t	*_gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid);
 extern gdp_rid_t	_gdp_rid_new(gdp_gcl_t *gcl, gdp_chan_t *chan);
@@ -194,6 +199,9 @@ const char		*_gdp_proto_cmd_name(		// return printable cmd name
 
 EP_STAT			_gdp_gcl_cache_init(void);	// initialize cache
 
+void			_gdp_gcl_cache_dump(		// print cache (for debugging)
+						FILE *fp);
+
 gdp_gcl_t		*_gdp_gcl_cache_get(		// get entry from cache
 						gdp_name_t gcl_name,
 						gdp_iomode_t mode);
@@ -203,6 +211,12 @@ void			_gdp_gcl_cache_add(			// add entry to cache
 						gdp_iomode_t mode);
 
 void			_gdp_gcl_cache_drop(		// drop entry from cache
+						gdp_gcl_t *gcl);
+
+void			_gdp_gcl_cache_reclaim(		// flush old entries
+						time_t maxage);
+
+void			_gdp_gcl_touch(				// move to front of LRU list
 						gdp_gcl_t *gcl);
 
 void			_gdp_gcl_incref(			// increase reference count

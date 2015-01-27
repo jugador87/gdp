@@ -63,9 +63,9 @@ _gdp_req_new(int cmd,
 		ep_thr_cond_init(&req->cond);
 	}
 
-	EP_ASSERT(!req->inuse);
-	EP_ASSERT(!req->ongcllist);
-	EP_ASSERT(!req->onchanlist);
+	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_INUSE, req->flags));
+	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
+	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags));
 	if (pdu != NULL)
 		req->pdu = pdu;
 	else
@@ -77,7 +77,7 @@ _gdp_req_new(int cmd,
 	if (chan != NULL)
 	{
 		LIST_INSERT_HEAD(&chan->reqs, req, chanlist);
-		req->onchanlist = true;
+		req->flags |= GDP_REQ_ON_CHAN_LIST;
 	}
 	if (newpdu)
 	{
@@ -98,7 +98,7 @@ _gdp_req_new(int cmd,
 	}
 
 	// success
-	req->inuse = true;
+	req->flags |= GDP_REQ_INUSE;
 	*reqp = req;
 	ep_dbg_cprintf(Dbg, 48, "gdp_req_new(gcl=%p) => %p\n", gcl, req);
 	return estat;
@@ -111,17 +111,17 @@ _gdp_req_free(gdp_req_t *req)
 	ep_dbg_cprintf(Dbg, 48, "gdp_req_free(%p)  gcl=%p\n", req, req->gcl);
 
 	ep_thr_mutex_lock(&req->mutex);
-	EP_ASSERT(req->inuse);
+	EP_ASSERT(EP_UT_BITSET(GDP_REQ_INUSE, req->flags));
 
 	// remove the request from the channel subscription list
-	if (req->onchanlist)
+	if (EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags))
 		LIST_REMOVE(req, chanlist);
-	req->onchanlist = false;
+	req->flags &= ~GDP_REQ_ON_CHAN_LIST;
 
 	// remove the request from the GCL list
-	if (req->ongcllist)
+	if (EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
 		LIST_REMOVE(req, gcllist);
-	req->ongcllist = false;
+	req->flags &= ~GDP_REQ_ON_GCL_LIST;
 
 	// free the associated packet
 	if (req->pdu != NULL)
@@ -135,7 +135,7 @@ _gdp_req_free(gdp_req_t *req)
 		req->gcl = NULL;
 	}
 
-	req->inuse = false;
+	req->flags &= ~GDP_REQ_INUSE;
 	ep_thr_mutex_unlock(&req->mutex);
 
 	// add the empty request to the free list
@@ -178,12 +178,12 @@ _gdp_req_send(gdp_req_t *req)
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
-	if (gcl != NULL && !req->ongcllist)
+	if (gcl != NULL && !EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
 	{
 		// link the request to the GCL
 		ep_thr_mutex_lock(&gcl->mutex);
 		LIST_INSERT_HEAD(&gcl->reqs, req, gcllist);
-		req->ongcllist = true;
+		req->flags |= GDP_REQ_ON_GCL_LIST;
 		ep_thr_mutex_unlock(&gcl->mutex);
 
 		// register this handle so we can process the results
@@ -216,9 +216,9 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 	}
 	if (req != NULL && !EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
 	{
-		EP_ASSERT(req->ongcllist);
+		EP_ASSERT(EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
 		LIST_REMOVE(req, gcllist);
-		req->ongcllist = false;
+		req->flags &= ~GDP_REQ_ON_GCL_LIST;
 	}
 	ep_thr_mutex_unlock(&gcl->mutex);
 	ep_dbg_cprintf(Dbg, 48, "gdp_req_find(gcl=%p, rid=%" PRIgdp_rid ") => %p\n",
@@ -229,11 +229,15 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 
 static EP_PRFLAGS_DESC	ReqFlags[] =
 {
+	{ GDP_REQ_INUSE,		GDP_REQ_INUSE,			"INUSE"			},
 	{ GDP_REQ_DONE,			GDP_REQ_DONE,			"DONE"			},
 	{ GDP_REQ_PERSIST,		GDP_REQ_PERSIST,		"PERSIST"		},
 	{ GDP_REQ_SUBSCRIPTION,	GDP_REQ_SUBSCRIPTION,	"SUBSCRIPTION"	},
 	{ GDP_REQ_SUBUPGRADE,	GDP_REQ_SUBUPGRADE,		"SUBUPGRADE"	},
 	{ GDP_REQ_ALLOC_RID,	GDP_REQ_ALLOC_RID,		"ALLOC_RID"		},
+	{ GDP_REQ_ON_GCL_LIST,	GDP_REQ_ON_GCL_LIST,	"ON_GCL_LIST"	},
+	{ GDP_REQ_ON_CHAN_LIST,	GDP_REQ_ON_CHAN_LIST,	"ON_CHAN_LIST"	},
+	{ GDP_REQ_CORE,			GDP_REQ_CORE,			"CORE"			},
 	{ 0,					0,						NULL			}
 };
 
@@ -254,11 +258,6 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 	_gdp_pdu_dump(req->pdu, fp);
 	fprintf(fp, "    flags=");
 	ep_prflags(req->flags, ReqFlags, fp);
-	fprintf(fp, "\n    %sinuse, %spostproc, %songcllist, %sonchanlist\n",
-			req->inuse ? "" : "!",
-			req->postproc ? "" : "!",
-			req->ongcllist ? "" : "!",
-			req->onchanlist ? "" : "!");
 	fprintf(fp, "    chan=%p, cb=%p, udata=%p\n    stat=%s\n",
 			req->chan, req->cb.generic, req->udata,
 			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));

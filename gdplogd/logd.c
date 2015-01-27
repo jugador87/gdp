@@ -20,80 +20,6 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.main", "GDP Log Daemon");
 
 
 /*
-**	GDPD_REQ_THREAD --- per-request thread
-**
-**		Reads and processes a command from the network port.  When
-**		it returns it gets put back in the thread pool.
-*/
-
-void
-gdpd_req_thread(void *req_)
-{
-	gdp_req_t *req = req_;
-
-	ep_dbg_cprintf(Dbg, 18, "gdpd_req_thread: starting\n");
-
-	// got the packet, dispatch it based on the command
-	req->stat = dispatch_cmd(req);
-	//XXX anything to do with estat here?
-
-	// see if we have any return data
-	ep_dbg_cprintf(Dbg, 41, "gdpd_req_thread: sending %zd bytes\n",
-			evbuffer_get_length(req->pdu->datum->dbuf));
-
-	// send the response packet header
-	req->stat = _gdp_pdu_out(req->pdu, req->chan);
-	//XXX anything to do with estat here?
-
-	// if there is any post-processing to do, invoke the callback
-	if (req->cb.gdpd != NULL && req->postproc)
-	{
-		(req->cb.gdpd)(req);
-		req->postproc = false;
-		req->cb.gdpd = NULL;
-	}
-
-	// we can now unlock and free resources
-	if (!EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
-		_gdp_req_free(req);
-
-	ep_dbg_cprintf(Dbg, 19, "gdpd_req_thread: returning to pool\n");
-}
-
-
-/*
-**  PROCESS_PDU --- process a PDU
-**
-**		Called from the channel processing after an entire PDU
-**		is in memory (but essentially no further processing).
-*/
-
-void
-process_pdu(gdp_pdu_t *pdu, gdp_chan_t *chan)
-{
-	EP_STAT estat;
-	gdp_req_t *req;
-
-	// package PDU up as a request
-	estat = _gdp_req_new(pdu->cmd, NULL, chan, pdu, 0, &req);
-	EP_STAT_CHECK(estat, goto fail0);
-
-	if (ep_dbg_test(Dbg, 66))
-	{
-		ep_dbg_printf("process_pdu: ");
-		_gdp_req_dump(req, stderr);
-	}
-
-	// send it off to the thread pool for the rest
-	ep_thr_pool_run(&gdpd_req_thread, req);
-	return;
-
-fail0:
-	ep_log(estat, "process_pdu: cannot allocate request");
-}
-
-
-/*
 **	LOGD_SOCK_CLOSE_CB --- free resources when we lose a connection
 */
 
@@ -121,7 +47,7 @@ logd_sock_close_cb(gdp_chan_t *chan)
 static void
 gdpd_reclaim_resources(int fd, short what, void *ctx)
 {
-	ep_dbg_cprintf(Dbg, 39, "reclaim_resources\n");
+	ep_dbg_cprintf(Dbg, 69, "gdpd_reclaim_resources\n");
 	gcl_reclaim_resources();
 }
 
@@ -141,7 +67,7 @@ gdpd_reclaim_resources(int fd, short what, void *ctx)
 void
 siginfo(int sig, short what, void *arg)
 {
-	gcl_showusage(stderr);
+	_gdp_gcl_cache_dump(stderr);
 	ep_dumpfds(stderr);
 }
 
@@ -226,9 +152,10 @@ main(int argc, char **argv)
 	}
 
 	// initialize connection
+	void _gdp_pdu_process(gdp_pdu_t *, gdp_chan_t *);
 	phase = "open connection";
 	_GdpChannel = NULL;
-	estat = _gdp_chan_open(router_addr, process_pdu, &_GdpChannel);
+	estat = _gdp_chan_open(router_addr, _gdp_pdu_process, &_GdpChannel);
 	EP_STAT_CHECK(estat, goto fail0);
 	_GdpChannel->close_cb = &logd_sock_close_cb;
 	_GdpChannel->advertise = &logd_advertise_all;

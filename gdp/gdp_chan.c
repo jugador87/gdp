@@ -48,8 +48,9 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 			return;
 		}
 
-		ep_dbg_cprintf(Dbg, 9,
-				"\n*** Processing command %d=%s from socket %d\n",
+		ep_dbg_cprintf(Dbg, 11,
+				"\n*** Processing %s %d=%s from socket %d\n",
+				GDP_CMD_IS_COMMAND(pdu->cmd) ? "command" : "ack/nak",
 				pdu->cmd, _gdp_proto_cmd_name(pdu->cmd),
 				bufferevent_getfd(bev));
 

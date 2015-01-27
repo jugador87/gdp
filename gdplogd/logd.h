@@ -34,10 +34,6 @@ struct gdp_gcl_xtra
 {
 	// declarations relating to semantics
 	gdp_gcl_t			*gcl;			// enclosing GCL
-	time_t				utime;			// last usage time (sec only)
-	LIST_ENTRY(gdp_gcl_xtra)
-						ulist;			// list sorted by use time
-	bool				islocked:1;		// GclByUseMutex already locked
 
 	// physical implementation declarations
 	long				ver;			// version number of on-disk file

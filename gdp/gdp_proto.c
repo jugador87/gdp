@@ -42,7 +42,7 @@ _gdp_invoke(gdp_req_t *req)
 {
 	EP_STAT estat;
 	EP_TIME_SPEC timeout;
-	static long delta_timeout = -1;
+	long delta_timeout = ep_adm_getlongparam("swarm.gdp.invoke.timeout", 10000L);
 	int retries = ep_adm_getintparam("swarm.gdp.invoke.retries", 3);
 
 	EP_ASSERT_POINTER_VALID(req);
@@ -56,21 +56,22 @@ _gdp_invoke(gdp_req_t *req)
 		gdp_datum_print(req->pdu->datum, ep_dbg_getfile());
 	}
 
-	if (delta_timeout < 0)
-	{
-		delta_timeout = ep_adm_getlongparam("swarm.gdp.invoke.timeout",
-								10000L);
-	}
 
 	// loop to allow for retransmissions
-	do
+	if (retries < 1)
+		retries = 1;
+	while (retries-- > 0)
 	{
 		/*
 		**  Top Half: sending the command
 		*/
 
+		ep_dbg_cprintf(Dbg, 36,
+				"_gdp_invoke: sending %d, retries=%d\n",
+				req->pdu->cmd, retries);
+
 		estat = _gdp_req_send(req);
-		EP_STAT_CHECK(estat, goto fail0);
+		EP_STAT_CHECK(estat, continue);
 
 		/*
 		**  Bottom Half: read the response
@@ -83,8 +84,12 @@ _gdp_invoke(gdp_req_t *req)
 		estat = EP_STAT_OK;
 		while (!EP_UT_BITSET(GDP_REQ_DONE, req->flags))
 		{
+			char ebuf[100];
 			int e = ep_thr_cond_wait(&req->cond, &req->mutex, &timeout);
-			ep_dbg_cprintf(Dbg, 52, "  ... got %d\n", e);
+			ep_dbg_cprintf(Dbg, 52,
+					"  ... got %d, done=%d, stat=%s\n",
+					e, EP_UT_BITSET(GDP_REQ_DONE, req->flags),
+					ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
 			if (e != 0)
 			{
 				estat = ep_stat_from_errno(e);
@@ -92,7 +97,10 @@ _gdp_invoke(gdp_req_t *req)
 			}
 		}
 		if (EP_STAT_ISOK(estat))
+		{
 			estat = req->stat;
+			retries = 0;			// we're done, don't retry
+		}
 		ep_thr_mutex_unlock(&req->mutex);
 
 #if 0
@@ -104,14 +112,13 @@ _gdp_invoke(gdp_req_t *req)
 		}
 #endif
 		// ok, done!
-	} while (!EP_STAT_ISOK(estat) && retries-- > 0);
+	}
 
-fail0:
 	if (ep_dbg_test(Dbg, 22))
 	{
 		char ebuf[200];
 
-		ep_dbg_printf("gdp_invoke: returning %s\n  ",
+		ep_dbg_printf("gdp_invoke <<< %s\n  ",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
@@ -530,11 +537,31 @@ _gdp_req_dispatch(gdp_req_t *req)
 	EP_STAT estat;
 	dispatch_ent_t *d;
 
+	if (ep_dbg_test(Dbg, 18))
+	{
+		ep_dbg_printf("_gdp_req_dispatch >>> %s (%d), ",
+				_gdp_proto_cmd_name(req->pdu->cmd), req->pdu->cmd);
+		if (ep_dbg_test(Dbg, 30))
+			_gdp_req_dump(req, ep_dbg_getfile());
+	}
+
 	d = &DispatchTable[req->pdu->cmd];
 	if (d->func == NULL)
 		estat = cmd_not_implemented(req);
 	else
 		estat = (*d->func)(req);
+
+	if (ep_dbg_test(Dbg, 18))
+	{
+		char ebuf[200];
+
+		ep_dbg_printf("_gdp_req_dispatch <<< %s\n    %s\n    ",
+				_gdp_proto_cmd_name(req->pdu->cmd),
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		if (ep_dbg_test(Dbg, 30))
+			_gdp_pdu_dump(req->pdu, ep_dbg_getfile());
+	}
+
 	return estat;
 }
 

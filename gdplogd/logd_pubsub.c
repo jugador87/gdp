@@ -80,9 +80,9 @@ sub_end_subscription(gdp_req_t *req)
 
 	// remove the request from the work list
 	ep_thr_mutex_lock(&req->gcl->mutex);
-	if (req->ongcllist)
+	if (EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
 		LIST_REMOVE(req, gcllist);
-	req->ongcllist = false;
+	req->flags &= ~GDP_REQ_ON_GCL_LIST;
 	ep_thr_mutex_unlock(&req->gcl->mutex);
 
 	// _gdp_gcl_decref(req->gcl) will happen in gdpd_req_thread cleanup

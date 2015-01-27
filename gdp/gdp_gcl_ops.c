@@ -365,7 +365,7 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 
 	// issue the subscription --- no data returned
 	estat = _gdp_invoke(req);
-	EP_ASSERT(req->inuse);		// make sure it didn't get freed
+	EP_ASSERT(EP_UT_BITSET(GDP_REQ_INUSE, req->flags));		// make sure it didn't get freed
 
 	// now arrange for responses to appear as events or callbacks
 	req->flags |= GDP_REQ_SUBSCRIPTION;
