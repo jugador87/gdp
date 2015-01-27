@@ -9,8 +9,8 @@
     <h1>Global Data Plane Programmatic API<br>
     </h1>
     <h4>Editor: Eric Allman, U.C. Berkeley Swarm Lab,
-      eric@cs.berkeley.edu</h4>
-    <h5>Version 0.71, 2015-01-16</h5>
+      eric@cs.berkeley.edu<br>
+      Version 0.71, 2015-01-16</h4>
     <br>
     <p>This document describes the procedural programmatic interface to
       the Global Data Plane.&nbsp; The native code is written in C for
@@ -59,15 +59,14 @@
     <p> The primary abstraction is the GDP Channel-Log (GCL). A GCL
       represents the rendezvous point for communication in the data
       plane. It is not directly tied to either a file or a network
-      connection. On creation, a GCL is assigned a name, which is just a
-      random UUID [maybe; see discussion]. A GCL is append-only to
-      writers.&nbsp; For the moment you can access the dataplane in one
-      of two modes: synchronous mode (using <code>gdp_gcl_read</code>
-      for reading) an asynchronous mode (using <code>gdp_gcl_subscribe</code>
-      for reading). To use it in asynchronous mode you must subscribe to
-      any GCLs of interest and then call <code>gdp_event_next</code>
-      repeatedly to read the results.&nbsp; These are described in more
-      detail below.<br>
+      connection. On creation, a GCL is assigned a 256-bit opaque name.
+      A GCL is append-only to writers.&nbsp; For the moment you can
+      access the dataplane in one of two modes: synchronous mode (using
+      <code>gdp_gcl_read</code> for reading) an asynchronous mode (using
+      <code>gdp_gcl_subscribe</code> for reading). To use it in
+      asynchronous mode you must subscribe to any GCLs of interest and
+      then call <code>gdp_event_next</code> repeatedly to read the
+      results.&nbsp; These are described in more detail below.<br>
     </p>
     <p>All GCLs are named with an opaque, location independent, 256-bit
       number from a flat namespace.&nbsp; When printed it is shown as a
@@ -111,7 +110,8 @@
     </p>
     <hr size="2" width="100%">
     <h4> Name</h4>
-    gdp_gcl_create — Create an append-only GCL<br>
+    gdp_gcl_create — Create an append-only GCL on a specified log daemon
+    node &nbsp; <i><b>[TEMPORARY INTERFACE]</b></i><br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_create(gdp_name_t gcl_name,
 		gdp_name_t logdname,<br>                gdp_gclmd_t *gmd,<br>                gdp_gcl_t **gclp)
@@ -119,15 +119,18 @@
     <h4> Notes</h4>
     <ul>
       <li> Creates a GCL with the given name on the indicated log
-        server, both of which must be 256-bit values (e.g., the hash of
-        a human-meaningful string).</li>
+        server, both of which must be 256-bit values.</li>
       <li> Returns a GCL handle (indirectly through <code>*gclp</code>).</li>
       <li> The returned GCL handle is an append-only object.&nbsp; <i>(Actually,
 
 
 
 
-          this is not enforced at this time).</i><br>
+
+
+          this is not enforced at this time).</i></li>
+      <li>This interface <strong><em>will</em></strong> be replaced or
+        updated in the future.<br>
       </li>
       <li> We probably need payment information, some way of specifying
         resource requirements, and so forth.</li>
@@ -176,7 +179,7 @@
     <hr size="2" width="100%">
     <h4> </h4>
     <h4> Name</h4>
-    gdp_gcl_close — Close a GCL<br>
+    gdp_gcl_close — Close a GCL and release resources<br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_close(gdp_gcl_t *gcl)
 </pre>
@@ -188,8 +191,7 @@
     <br>
     <hr size="2" width="100%">
     <h4> Name</h4>
-    gdp_gcl_getname — Return the name of a GCL&nbsp; <strong><em>[NOT
-        IMPLEMENTED]</em></strong><br>
+    gdp_gcl_getname — Return the name of a GCL<br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_getname(gdp_gcl_t *gcl,
 		gdp_name_t namebuf)
@@ -280,7 +282,9 @@
       <li>If ext is a URI-base64-encoded string of the correct length,
         it is converted directly to 256 bits.</li>
       <li>Otherwise, it is hashed using sha256 to create the internal
-        name.</li>
+        name.&nbsp; <i>[This functionality will disappear in the
+          future, after a Directory Service is defined and implemented.]</i><br>
+      </li>
     </ul>
     <ul>
     </ul>
@@ -303,6 +307,8 @@
     <hr size="2" width="100%">
     <h4> Name</h4>
     gdp_gcl_subscribe — Subscribe to a readable GCL&nbsp; <strong><em>[PARTIALLY
+
+
 
 
 
@@ -356,8 +362,8 @@ void (*cbfunc)(gdp_event_t *gev)
       <li>Example:&nbsp; suppose there are 20 records already in a
         GCL.&nbsp; Then:</li>
     </ul>
-    <table width="80%" align="center" border="1" cellpadding="2"
-      cellspacing="2">
+    <table align="center" border="1" cellpadding="2" cellspacing="2"
+      width="80%">
       <tbody>
         <tr>
           <td valign="top">start<br>
@@ -453,6 +459,8 @@ void (*cbfunc)(gdp_event_t *gev)
 
 
 
+
+
         IMPLEMENTED]</em></strong><br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_multiread(gdp_gcl_t *gcl,
@@ -466,6 +474,8 @@ void (*cbfunc)(gdp_event_t *gev)
         read (i.e., this is only for reading historic data).</li>
       <li>If a <code>cbfunc</code> is specified, arranges to call
         callback when a message is generated on the <code>gcl</code>.&nbsp;
+
+
 
         See below for the definition of gdp_event_t.<br>
       </li>
@@ -503,8 +513,8 @@ void (*cbfunc)(gdp_event_t *gev)
       <li>Example:&nbsp; suppose there are 20 records already in a
         GCL.&nbsp; Then:</li>
     </ul>
-    <table width="80%" align="center" border="1" cellpadding="2"
-      cellspacing="2">
+    <table align="center" border="1" cellpadding="2" cellspacing="2"
+      width="80%">
       <tbody>
         <tr>
           <td valign="top">start<br>
@@ -624,8 +634,8 @@ void (*cbfunc)(gdp_event_t *gev)
     <ul>
       <li>The event types are as follows:</li>
     </ul>
-    <table width="80%" align="center" border="1" cellpadding="2"
-      cellspacing="2">
+    <table align="center" border="1" cellpadding="2" cellspacing="2"
+      width="80%">
       <tbody>
         <tr>
           <td valign="top">Event Name<br>
@@ -694,6 +704,8 @@ void (*cbfunc)(gdp_event_t *gev)
     </p>
     <h2>4&nbsp; Datums (Records)</h2>
     <p>GCLs are represented as a series of records of type <code>gdp_datum_t</code>.&nbsp;
+
+
 
 
 
@@ -991,7 +1003,7 @@ href="http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtim
     <p> </p>
     <h2> Appendix B: References</h2>
     <br>
-    <table width="100%" border="1" cellpadding="2" cellspacing="2">
+    <table border="1" cellpadding="2" cellspacing="2" width="100%">
       <tbody>
         <tr>
           <td valign="top">[Dab13a]<br>
