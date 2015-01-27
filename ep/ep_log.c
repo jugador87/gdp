@@ -46,7 +46,7 @@ ep_log_init(const char *tag,	// NULL => use program name
 
 static void
 ep_log_file(EP_STAT estat,
-	char *fmt,
+	const char *fmt,
 	va_list ap,
 	EP_TIME_SPEC *tv,
 	FILE *fp)
@@ -82,7 +82,7 @@ ep_log_file(EP_STAT estat,
 
 
 static void
-ep_log_syslog(EP_STAT estat, char *fmt, va_list ap)
+ep_log_syslog(EP_STAT estat, const char *fmt, va_list ap)
 {
 	char ebuf[100];
 	char mbuf[500];
@@ -137,7 +137,7 @@ ep_log_syslog(EP_STAT estat, char *fmt, va_list ap)
 
 
 void
-ep_log(EP_STAT estat, char *fmt, ...)
+ep_log(EP_STAT estat, const char *fmt, ...)
 {
 	va_list ap;
 	EP_TIME_SPEC tv;

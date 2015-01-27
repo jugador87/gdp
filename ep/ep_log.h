@@ -16,6 +16,6 @@ extern void	ep_log_init(
 			const char *fname);	// NULL => don't log to disk file
 
 extern void EP_TYPE_PRINTFLIKE(2, 3)
-		ep_log(EP_STAT estat, char *fmt, ...);
+		ep_log(EP_STAT estat, const char *fmt, ...);
 
 #endif // _EP_LOG_H_
