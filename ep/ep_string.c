@@ -310,6 +310,10 @@ struct epCharSequences	EpCharASCII =
 	.null =		"NULL",		// null
 	.notequal =	"!=",		// not equal
 	.unprintable =	"?",		// sub for unprintable
+	.paragraph =	"pp.",
+	.section =	"sec.",		// section
+	.notsign =	"(not)",	// "not" symbol
+	.infinity =	"(inf)",
 };
 
 // ISO 8859-1:1987
@@ -325,7 +329,11 @@ struct epCharSequences	EpCharISO_8859_1 =
 	.divide =	"\xF7",
 	.null =		"\xD8",
 	.notequal =	"!=",
-	.unprintable =	"\xA4",
+	.unprintable =	"\xA4",		// generic currency symbol
+	.paragraph =	"\xB6",
+	.section =	"\xA7",
+	.notsign =	"\xAC",
+	.infinity =	"(inf)",
 };
 
 // Unicode UTF-8 (US conventions)
@@ -343,6 +351,10 @@ struct epCharSequences	EpCharUTF_8 =
 	.notequal =	"\xE2\x89\xA0",	// U+2260
 	.unprintable =	"\xE2\x8C\xA7",	// U+2327, "X" in a box
 //	.unprintable =	"\xE2\x8D\xB0",	// U+2370, question mark in a box
+	.paragraph =	"\xC2\xB6",	// U+00B6
+	.section =	"\xC2\xA7",	// U+00A7
+	.notsign =	"\xC2\xAC",	// U+00AC
+	.infinity =	"\xE2\x88\x9E",	// U+221E
 };
 
 struct epCharSequences	*EpChar = &EpCharUTF_8;

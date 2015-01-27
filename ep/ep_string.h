@@ -64,6 +64,10 @@ extern struct epCharSequences
 	const char	*null;		// null symbol
 	const char	*notequal;	// not equal symbol
 	const char	*unprintable;	// non-printable character
+	const char	*paragraph;	// paragraph symbol
+	const char	*section;	// section symbol
+	const char	*notsign;	// "not" symbol
+	const char	*infinity;	// infinity symbol
 } *EpChar;
 
 // function to adjust alternate printing
