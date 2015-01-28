@@ -279,6 +279,7 @@ _gdp_chan_open(const char *gdp_addr,
 			if (connect(sock, a->ai_addr, a->ai_addrlen) < 0)
 			{
 				// connection failure
+				estat = ep_stat_from_errno(errno);
 				ep_dbg_cprintf(Dbg, 38,
 						"_gdp_chan_open: connect failed: %s\n",
 						strerror(errno));
