@@ -139,6 +139,8 @@ _gdp_gcl_create(gdp_name_t gclname,
 	gdp_gcl_t *gcl = NULL;
 	EP_STAT estat = EP_STAT_OK;
 
+	errno = 0;				// avoid spurious messages
+
 	{
 		gdp_pname_t gxname, dxname;
 
@@ -202,6 +204,8 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 	EP_STAT estat = EP_STAT_OK;
 	gdp_req_t *req = NULL;
 
+	errno = 0;				// avoid spurious messages
+
 	estat = _gdp_req_new(cmd, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
@@ -241,6 +245,8 @@ _gdp_gcl_close(gdp_gcl_t *gcl,
 	EP_STAT estat;
 	gdp_req_t *req;
 
+	errno = 0;				// avoid spurious messages
+
 	EP_ASSERT_POINTER_VALID(gcl);
 
 	estat = _gdp_req_new(GDP_CMD_CLOSE, gcl, chan, NULL, reqflags, &req);
@@ -272,6 +278,8 @@ _gdp_gcl_publish(gdp_gcl_t *gcl,
 {
 	EP_STAT estat;
 	gdp_req_t *req = NULL;
+
+	errno = 0;				// avoid spurious messages
 
 	EP_ASSERT_POINTER_VALID(gcl);
 	EP_ASSERT_POINTER_VALID(datum);
@@ -312,6 +320,8 @@ _gdp_gcl_read(gdp_gcl_t *gcl,
 {
 	EP_STAT estat;
 	gdp_req_t *req;
+
+	errno = 0;				// avoid spurious messages
 
 	EP_ASSERT_POINTER_VALID(gcl);
 	EP_ASSERT_POINTER_VALID(datum);
@@ -354,6 +364,8 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 	EP_STAT estat = EP_STAT_OK;
 	gdp_req_t *req;
 
+	errno = 0;				// avoid spurious messages
+
 	EP_ASSERT_POINTER_VALID(gcl);
 
 	estat = _gdp_req_new(cmd, gcl, chan, NULL, reqflags | GDP_REQ_PERSIST, &req);
@@ -390,6 +402,8 @@ _gdp_gcl_getmetadata(gdp_gcl_t *gcl,
 {
 	EP_STAT estat;
 	gdp_req_t *req;
+
+	errno = 0;				// avoid spurious messages
 
 	estat = _gdp_req_new(GDP_CMD_GETMETADATA, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
