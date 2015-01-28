@@ -423,6 +423,18 @@ evlib_log_cb(int severity, const char *msg)
 
 
 /*
+**  Arrange to call atexit(3) functions on SIGINT and SIGTERM
+*/
+
+static void
+exit_on_signal(int sig)
+{
+	fprintf(stderr, "\nExiting on signal %d\n", sig);
+	exit(sig);
+}
+
+
+/*
 **  Initialization, Part 1:
 **		Initialize the various external libraries.
 **		Set up the I/O event loop base.
@@ -453,6 +465,13 @@ _gdp_lib_init(void)
 	progname = ep_app_getprogname();
 	if (progname != NULL)
 		ep_adm_readparams(progname);
+
+	// arrange to call atexit(3) functions on SIGTERM
+	if (ep_adm_getboolparam("swarm.gdp.catch-sigterm", true))
+	{
+		(void) signal(SIGINT, exit_on_signal);
+		(void) signal(SIGTERM, exit_on_signal);
+	}
 
 	// register status strings
 	_gdp_stat_init();
