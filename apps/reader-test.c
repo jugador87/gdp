@@ -5,7 +5,9 @@
 #include <ep/ep_app.h>
 #include <gdp/gdp.h>
 #include <event2/buffer.h>
+
 #include <unistd.h>
+#include <errno.h>
 #include <errno.h>
 #include <getopt.h>
 #include <string.h>
@@ -25,6 +27,26 @@
 **		this; one only reads existing data, and the other will wait for
 **		data to be published by another client.
 */
+
+
+/*
+**  DO_LOG --- log a timestamp (for performance checking).
+*/
+
+FILE	*LogFile;
+
+void
+do_log(const char *tag)
+{
+	struct timeval tv;
+
+	if (LogFile == NULL)
+		return;
+	gettimeofday(&tv, NULL);
+	fprintf(LogFile, "%s %ld.%06ld\n", tag, tv.tv_sec, (long) tv.tv_usec);
+}
+
+#define LOG(tag)	{ if (LogFile != NULL) do_log(tag); }
 
 
 /*
@@ -52,6 +74,7 @@ do_simpleread(gdp_gcl_t *gcl, gdp_recno_t firstrec, int numrecs)
 	{
 		// ask the GDP to give us a record
 		estat = gdp_gcl_read(gcl, recno, datum);
+		LOG("R");
 
 		// make sure it did; if not, break out of the loop
 		EP_STAT_CHECK(estat, break);
@@ -90,6 +113,7 @@ multiread_print_event(gdp_event_t *gev, bool subscribe)
 	{
 	  case GDP_EVENT_DATA:
 		// this event contains a data return
+		LOG("S");
 		fprintf(stdout, " >>> ");
 		gdp_datum_print(gdp_event_getdatum(gev), stdout);
 		break;
@@ -241,9 +265,10 @@ main(int argc, char **argv)
 	int32_t numrecs = 0;
 	gdp_recno_t firstrec = 0;
 	bool show_usage = false;
+	char *log_file_name = NULL;
 
 	// parse command-line options
-	while ((opt = getopt(argc, argv, "cD:f:G:mMn:s")) > 0)
+	while ((opt = getopt(argc, argv, "cD:f:G:L:mMn:s")) > 0)
 	{
 		switch (opt)
 		{
@@ -265,6 +290,10 @@ main(int argc, char **argv)
 		  case 'G':
 			// set the port for connecting to the GDP daemon
 			gdpd_addr = optarg;
+			break;
+
+		  case 'L':
+			log_file_name = optarg;
 			break;
 
 		  case 'm':
@@ -299,9 +328,20 @@ main(int argc, char **argv)
 	{
 		fprintf(stderr,
 				"Usage: %s [-c] [-D dbgspec] [-f firstrec] [-G gdpd_addr] [-m]\n"
-				"  [-M] [-n nrecs] [-s] <gcl_name>\n",
+				"  [-L logfile] [-M] [-n nrecs] [-s] <gcl_name>\n",
 				ep_app_getprogname());
 		exit(EX_USAGE);
+	}
+
+	if (log_file_name != NULL)
+	{
+		// open a log file (for timing measurements)
+		LogFile = fopen(log_file_name, "a");
+		if (LogFile == NULL)
+			fprintf(stderr, "Cannot open log file %s: %s\n",
+					log_file_name, strerror(errno));
+		else
+			setlinebuf(LogFile);
 	}
 
 	// initialize the GDP library

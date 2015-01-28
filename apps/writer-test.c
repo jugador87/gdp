@@ -7,6 +7,7 @@
 #include <gdp/gdp.h>
 
 #include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <string.h>
@@ -22,10 +23,30 @@
 */
 
 
+/*
+**  DO_LOG --- log a timestamp (for performance checking).
+*/
+
+FILE	*LogFile;
+
+void
+do_log(const char *tag)
+{
+	struct timeval tv;
+
+	if (LogFile == NULL)
+		return;
+	gettimeofday(&tv, NULL);
+	fprintf(LogFile, "%s %ld.%06ld\n", tag, tv.tv_sec, (long) tv.tv_usec);
+}
+
+#define LOG(tag)	{ if (LogFile != NULL) do_log(tag); }
+
+
 void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [-D dbgspec] [-G gdpd_addr] gcl_name\n",
+	fprintf(stderr, "Usage: %s [-D dbgspec] [-G gdpd_addr] [-L log_file] gcl_name\n",
 			ep_app_getprogname());
 	exit(EX_USAGE);
 }
@@ -41,9 +62,10 @@ main(int argc, char **argv)
 	char *gdpd_addr = NULL;
 	char buf[200];
 	bool show_usage = false;
+	char *log_file_name = NULL;
 
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "D:G:")) > 0)
+	while ((opt = getopt(argc, argv, "D:G:L:")) > 0)
 	{
 		switch (opt)
 		{
@@ -53,6 +75,10 @@ main(int argc, char **argv)
 
 		 case 'G':
 			gdpd_addr = optarg;
+			break;
+
+		 case 'L':
+			log_file_name = optarg;
 			break;
 
 		 default:
@@ -65,6 +91,17 @@ main(int argc, char **argv)
 
 	if (show_usage || argc != 1)
 		usage();
+
+	if (log_file_name != NULL)
+	{
+		// open a log file (for timing measurements)
+		LogFile = fopen(log_file_name, "a");
+		if (LogFile == NULL)
+			fprintf(stderr, "Cannot open log file %s: %s\n",
+					log_file_name, strerror(errno));
+		else
+			setlinebuf(LogFile);
+	}
 
 	// initialize the GDP library
 	estat = gdp_init(gdpd_addr);
@@ -107,6 +144,7 @@ main(int argc, char **argv)
 		gdp_buf_write(gdp_datum_getbuf(datum), buf, strlen(buf));
 
 		// then send the buffer to the GDP
+		LOG("W");
 		estat = gdp_gcl_publish(gcl, datum);
 		EP_STAT_CHECK(estat, goto fail2);
 
