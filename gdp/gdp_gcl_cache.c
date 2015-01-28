@@ -60,7 +60,7 @@ _gdp_gcl_cache_init(void)
 		{
 			estat = ep_stat_from_errno(errno);
 			ep_log(estat, "gdp_gcl_cache_init: could not create OpenGCLCache");
-			ep_app_abort("gdp_gcl_cache_init: could not create OpenGCLCache");
+			ep_app_fatal("gdp_gcl_cache_init: could not create OpenGCLCache");
 		}
 	}
 

@@ -177,13 +177,13 @@ main(int argc, char **argv)
 	pthread_join(_GdpIoEventLoopThread, NULL);
 
 	// should never get here
-	ep_app_abort("Fell out of GdpIoEventLoopThread");
+	ep_app_fatal("Fell out of GdpIoEventLoopThread");
 
 fail0:
 	{
 		char ebuf[100];
 
-		ep_app_abort("Cannot initialize %s:\n\t%s",
+		ep_app_fatal("Cannot initialize %s:\n\t%s",
 				phase,
 		        ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
