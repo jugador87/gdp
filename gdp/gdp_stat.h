@@ -50,6 +50,7 @@ extern void		_gdp_stat_init(void);
 #define GDP_STAT_FROM_ACK(c)			GDP_STAT_NEW(OK, (c) - GDP_ACK_MIN + 200)
 #define GDP_STAT_FROM_C_NAK(c)			GDP_STAT_NEW(ERROR, (c) - GDP_NAK_C_MIN + 400)
 #define GDP_STAT_FROM_S_NAK(c)			GDP_STAT_NEW(SEVERE, (c) - GDP_NAK_S_MIN + 500)
+#define GDP_STAT_FROM_R_NAK(c)			GDP_STAT_NEW(ERROR, (c) - GDP_NAK_R_MIN + 600)
 
 // CoAp status codes (times 100): mapping to HTTP is shown in comments
 //		CoAp based on RFC7252, HTTP based on 1.1
@@ -118,3 +119,5 @@ extern void		_gdp_stat_init(void);
 #define GDP_STAT_NAK_SVCUNAVAIL		GDP_STAT_NEW(SEVERE, GDP_COAP_SVCUNAVAIL)
 #define GDP_STAT_NAK_GWTIMEOUT		GDP_STAT_NEW(SEVERE, GDP_COAP_GWTIMEOUT)
 #define GDP_STAT_NAK_PROXYNOTSUP	GDP_STAT_NEW(SEVERE, GDP_COAP_PROXYNOTSUP)
+
+#define GDP_STAT_NAK_NOROUTE		GDP_STAT_NEW(ERROR, 600)

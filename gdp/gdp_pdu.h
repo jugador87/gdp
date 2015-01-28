@@ -60,12 +60,12 @@
 **			1	command or ack/nak
 **			32	destination address
 **			32	source address
+**			4	request id
 **			1	signature algorithm
 **			1	signature length (in 32 bit words)
 **			1	optionals length (in 32 bit words)
 **			1	flags (indicate presence/lack of optional fields)
 **			4	length of data portion
-**			[4	request id (optional)]
 **			[8	record number (optional)]
 **			[8	sequence number (optional)]
 **			[16	commit timestamp (optional)]
@@ -110,8 +110,8 @@ typedef struct gdp_pdu
 
 
 // size of fixed size part of header
-// (ver, ttl, rsvd, cmd, dst, src, sigalg, siglen, olen, flags, dlen)
-#define _GDP_PDU_FIXEDHDRSZ		(1 + 1 + 1 + 1 + 32 + 32+ 1 + 1 + 1 + 1 + 4)
+// (ver, ttl, rsvd, cmd, dst, src, rid, sigalg, siglen, olen, flags, dlen)
+#define _GDP_PDU_FIXEDHDRSZ		(1+1+1+1+32+32+4+1+1+1+1+4)
 
 // maximum size of options portion
 #define _GDP_PDU_MAXOPTSZ		(255 * 4)
@@ -186,7 +186,6 @@ typedef struct gdp_pdu
 
 
 /***** values for gdp_pkg_hdr flags field *****/
-#define GDP_PDU_HAS_RID		0x01		// has a rid field
 #define GDP_PDU_HAS_RECNO	0x02		// has a recno field
 #define GDP_PDU_HAS_SEQNO	0x04		// has a seqno field
 #define GDP_PDU_HAS_TS		0x08		// has a timestamp field

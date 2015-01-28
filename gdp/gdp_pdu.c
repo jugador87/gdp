@@ -33,7 +33,6 @@ EP_DBG	Dbg = EP_DBG_INIT("gdp.pdu", "GDP PDU traffic");
 
 static EP_PRFLAGS_DESC	PduFlags[] =
 {
-	{	GDP_PDU_HAS_RID,	GDP_PDU_HAS_RID,	"HAS_RID"		},
 	{	GDP_PDU_HAS_RECNO,	GDP_PDU_HAS_RECNO,	"HAS_RECNO"		},
 	{	GDP_PDU_HAS_SEQNO,	GDP_PDU_HAS_SEQNO,	"HAS_SEQNO"		},
 	{	GDP_PDU_HAS_TS,		GDP_PDU_HAS_TS,		"HAS_TS"		},
@@ -122,8 +121,8 @@ _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 			*pbp++ = ((v) & 0xff); \
 		}
 
-#define OOFF		70		// ofset of olen from beginning of pdu
-#define FOFF		71		// offet of flags from beginning of pdu
+#define OOFF		74		// ofset of olen from beginning of pdu
+#define FOFF		75		// offet of flags from beginning of pdu
 
 EP_STAT
 _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
@@ -141,7 +140,7 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 
 	if (ep_dbg_test(Dbg, 22))
 	{
-		ep_dbg_printf("_gdp_pdu_out (fd = %d):\n\t",
+		ep_dbg_printf("_gdp_pdu_out (fd = %d):\n    ",
 				bufferevent_getfd(chan->bev));
 		_gdp_pdu_dump(pdu, ep_dbg_getfile());
 	}
@@ -172,6 +171,9 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	memcpy(pbp, pdu->src, sizeof pdu->src);
 	pbp += sizeof pdu->src;
 
+	// request id
+	PUT32(pdu->rid);
+
 	// signature algorithm and size
 	*pbp++ = pdu->sigalg;
 	*pbp++ = pdu->siglen;
@@ -191,13 +193,6 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 
 	// end of fixed part of header
 	EP_ASSERT((pbp - pbuf) == _GDP_PDU_FIXEDHDRSZ);
-
-	// request id
-	if (pdu->rid != GDP_PDU_NO_RID)
-	{
-		pbuf[FOFF] |= GDP_PDU_HAS_RID;
-		PUT32(pdu->rid);
-	}
 
 	// record number
 	if (pdu->datum != NULL && pdu->datum->recno != GDP_PDU_NO_RECNO)
@@ -342,7 +337,7 @@ _gdp_pdu_hdr_in(gdp_pdu_t *pdu,
 	// see if the fixed part of the header is all in
 	needed = gdp_buf_peek(ibuf, pbuf, _GDP_PDU_FIXEDHDRSZ);
 
-	if (ep_dbg_test(Dbg, 50))
+	if (ep_dbg_test(Dbg, 62))
 	{
 		ep_dbg_printf("_gdp_pdu_in: fixed pdu header:\n");
 		ep_hexdump(pbuf, needed, ep_dbg_getfile(), EP_HEXDUMP_HEX, 0);
@@ -377,6 +372,7 @@ _gdp_pdu_hdr_in(gdp_pdu_t *pdu,
 	pbp += sizeof pdu->dst;
 	memcpy(pdu->src, pbp, sizeof pdu->src);
 	pbp += sizeof pdu->src;
+	GET32(pdu->rid);
 	pdu->sigalg = *pbp++;
 	pdu->siglen = *pbp++ * 4;
 	pdu->olen = *pbp++ * 4;
@@ -385,8 +381,6 @@ _gdp_pdu_hdr_in(gdp_pdu_t *pdu,
 
 	// do some error checking
 	int olen = 0;
-	if (EP_UT_BITSET(GDP_PDU_HAS_RID, pdu->flags))
-		olen += sizeof (gdp_rid_t);
 	if (EP_UT_BITSET(GDP_PDU_HAS_SEQNO, pdu->flags))
 		olen += sizeof (gdp_seqno_t);
 	if (EP_UT_BITSET(GDP_PDU_HAS_RECNO, pdu->flags))
@@ -472,12 +466,6 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		ep_dbg_printf("_gdp_pdu_in: read packet header:\n");
 		ep_hexdump(pbuf, sz, ep_dbg_getfile(), EP_HEXDUMP_HEX, 0);
 	}
-
-	// Request Id
-	if (!EP_UT_BITSET(GDP_PDU_HAS_RID, pdu->flags))
-		pdu->rid = GDP_PDU_NO_RID;
-	else
-		GET32(pdu->rid);
 
 	// record number
 	if (!EP_UT_BITSET(GDP_PDU_HAS_RECNO, pdu->flags))

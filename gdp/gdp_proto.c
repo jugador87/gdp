@@ -78,7 +78,7 @@ _gdp_invoke(gdp_req_t *req)
 		*/
 
 		// wait until we receive a result
-		ep_dbg_cprintf(Dbg, 37, "gdp_invoke: waiting on %p\n", &req->cond);
+		ep_dbg_cprintf(Dbg, 37, "_gdp_invoke: waiting on %p\n", req);
 		ep_time_deltanow(delta_timeout * INT64_C(1000000), &timeout);
 		ep_thr_mutex_lock(&req->mutex);
 		estat = EP_STAT_OK;
@@ -87,7 +87,7 @@ _gdp_invoke(gdp_req_t *req)
 			char ebuf[100];
 			int e = ep_thr_cond_wait(&req->cond, &req->mutex, &timeout);
 			ep_dbg_cprintf(Dbg, 52,
-					"  ... got %d, done=%d, stat=%s\n",
+					"_gdp_invoke wait: got %d, done=%d, stat=%s\n",
 					e, EP_UT_BITSET(GDP_REQ_DONE, req->flags),
 					ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
 			if (e != 0)
@@ -199,7 +199,7 @@ static EP_STAT
 nak_router(gdp_req_t *req)
 {
 	ep_dbg_cprintf(Dbg, 2, "nak_router: received %d\n", req->pdu->cmd);
-	return GDP_STAT_FROM_S_NAK(req->pdu->cmd);
+	return GDP_STAT_FROM_R_NAK(req->pdu->cmd);
 }
 
 

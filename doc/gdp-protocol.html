@@ -131,8 +131,13 @@
             <br>
           </td>
         </tr>
+        <tr align="center">
+          <td colspan="4" rowspan="1" valign="top">Request Id (4 octets)<br>
+          </td>
+        </tr>
         <tr>
           <td colspan="1" rowspan="1" align="center" valign="top">Signature
+
 
 
 
@@ -144,6 +149,7 @@
             (1 octet)<br>
           </td>
           <td colspan="1" rowspan="1" align="center" valign="top">Optionals
+
 
 
 
@@ -162,22 +168,13 @@
           </td>
         </tr>
         <tr align="center">
-          <td colspan="4" rowspan="1" align="center" valign="top">Request
-
-
-
-
-
-            Id (4 octets, optional)<br>
-          </td>
-        </tr>
-        <tr align="center">
           <td colspan="4" rowspan="1" align="center" valign="top">Record
             Number (8 octets, optional)<br>
           </td>
         </tr>
         <tr align="center">
           <td colspan="4" rowspan="1" align="center" valign="top">Sequence
+
 
 
 
@@ -199,6 +196,7 @@
 
 
 
+
             optional header fields (variable length)<br>
           </td>
         </tr>
@@ -209,6 +207,7 @@
         </tr>
         <tr>
           <td rowspan="1" colspan="4" align="center" valign="top">Signature
+
 
 
 
@@ -273,16 +272,6 @@
           </td>
         </tr>
         <tr>
-          <td valign="top">HAS_RID<br>
-          </td>
-          <td valign="top">0x01<br>
-          </td>
-          <td valign="top">The Request Id field is included in this
-            PDU.&nbsp; If this bit is not set, the Request Id is
-            interpreted as though it were zero.<br>
-          </td>
-        </tr>
-        <tr>
           <td valign="top">HAS_RECNO<br>
           </td>
           <td valign="top">0x02<br>
@@ -313,8 +302,8 @@
     </table>
     <p> </p>
     <p>Data Length (4 octets).&nbsp; This gives the length of the Data
-      field in octets.&nbsp; It does <i>not</i> include the signature.&nbsp;
-      <i>[[Note that this limits data records to 2</i><i><sup>32</sup></i><i>
+      field in octets.&nbsp; It does <i>not</i> include the
+      signature.&nbsp; <i>[[Note that this limits data records to 2</i><i><sup>32</sup></i><i>
         bytes</i><i>.&nbsp; This is intentional since 32-bit machines
         won't be able to manipulate larger records.&nbsp; To change this
         would require allowing record fragments to be transmitted.&nbsp;
@@ -571,6 +560,7 @@
       is, one octet and variable length options have no additional
       padding, two octet options are padded to two octet alignment, and
       all others are padded to four octet alignments.&nbsp; <i>[[Question:
+
         should this go up to eight octet alignment for x86_64
         architectures?]]</i><br>
     </p>
@@ -598,6 +588,7 @@
         </tr>
         <tr>
           <td colspan="4" rowspan="1" align="center" valign="top">Additional
+
 
 
 

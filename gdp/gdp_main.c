@@ -194,7 +194,7 @@ gdp_pdu_proc_thread(void *req_)
 			req->flags |= GDP_REQ_DONE;
 			if (ep_dbg_test(Dbg, 44))
 			{
-				ep_dbg_printf("gdp_pdu_proc_thread <<< ");
+				ep_dbg_printf("gdp_pdu_proc_thread: signalling ");
 				_gdp_req_dump(req, ep_dbg_getfile());
 			}
 

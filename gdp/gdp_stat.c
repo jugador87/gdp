@@ -53,12 +53,15 @@ static struct ep_stat_to_string Stats[] =
 	{ GDP_STAT_NAK_PRECONFAILED,		"4.12 precondition failed",		},
 	{ GDP_STAT_NAK_TOOLARGE,			"4.13 request entity too large", },
 	{ GDP_STAT_NAK_UNSUPMEDIA,			"4.15 unsupported media type",	},
+
 	{ GDP_STAT_NAK_INTERNAL,			"5.00 internal server error",	},
 	{ GDP_STAT_NAK_NOTIMPL,				"5.01 not implemented",			},
 	{ GDP_STAT_NAK_BADGATEWAY,			"5.02 bad gateway",				},
 	{ GDP_STAT_NAK_SVCUNAVAIL,			"5.03 service unavailable",		},
 	{ GDP_STAT_NAK_GWTIMEOUT,			"5.04 gateway timeout",			},
 	{ GDP_STAT_NAK_PROXYNOTSUP,			"5.05 proxying not supported",	},
+
+	{ GDP_STAT_NAK_NOROUTE,				"6.00 no route available",		},
 
 	// end of list sentinel
 	{ EP_STAT_OK,						NULL							},

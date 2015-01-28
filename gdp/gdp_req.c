@@ -258,7 +258,7 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 	_gdp_pdu_dump(req->pdu, fp);
 	fprintf(fp, "    flags=");
 	ep_prflags(req->flags, ReqFlags, fp);
-	fprintf(fp, "    chan=%p, cb=%p, udata=%p\n    stat=%s\n",
+	fprintf(fp, "\n    chan=%p, cb=%p, udata=%p\n    stat=%s\n",
 			req->chan, req->cb.generic, req->udata,
 			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
 }
