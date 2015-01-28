@@ -185,7 +185,7 @@ do_multiread(gdp_gcl_t *gcl,
 	{
 		char ebuf[200];
 
-		ep_app_abort("Cannot %s:\n\t%s",
+		ep_app_fatal("Cannot %s:\n\t%s",
 				subscribe ? "subscribe" : "multiread",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
@@ -362,8 +362,8 @@ main(int argc, char **argv)
 	estat = gdp_parse_name(argv[0], gclname);
 	if (!EP_STAT_ISOK(estat))
 	{
-		ep_app_abort("illegal GCL name syntax:\n\t%s", argv[0]);
-		exit(1);
+		ep_app_fatal("illegal GCL name syntax:\n\t%s", argv[0]);
+		exit(EX_USAGE);
 	}
 
 	// convert it to printable format and tell the user what we are doing

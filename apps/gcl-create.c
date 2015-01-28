@@ -197,7 +197,7 @@ main(int argc, char **argv)
 
 		// already too late to test for this
 		if ((derp - der_buf) > sizeof der_buf)
-			ep_app_abort("DANGER: i2d_RSAPublicKey overflowed buffer");
+			ep_app_fatal("DANGER: i2d_RSAPublicKey overflowed buffer");
 
 		gdp_gclmd_add(gmd, GDP_GCLMD_PUBKEY, derp - der_buf, der_buf);
 	}
@@ -239,7 +239,7 @@ main(int argc, char **argv)
 		{
 			// oops, we shouldn't be able to open it
 			(void) gdp_gcl_close(gcl);
-			ep_app_abort("Cannot create %s: already exists", gclxname);
+			ep_app_fatal("Cannot create %s: already exists", gclxname);
 		}
 
 		// OK, we're cool, go ahead and create it...
