@@ -34,6 +34,36 @@ ep_app_getprogname(void)
 # endif
 }
 
+
+
+////////////////////////////////////////////////////////////////////////
+//
+//  PRINTMESSAGE -- helper routine for message printing
+//
+
+static void
+printmessage(const char *tag, const char *fmt, va_list av)
+{
+	const char *progname;
+
+	if ((progname = ep_app_getprogname()) != NULL)
+		fprintf(stderr, "%s: ", progname);
+	fprintf(stderr, "%s%s%s: ", EpVid->vidinv, tag, EpVid->vidnorm);
+	if (fmt != NULL)
+		vfprintf(stderr, fmt, av);
+	else
+		fprintf(stderr, "unknown %s", tag);
+	if (errno != 0)
+	{
+		char nbuf[40];
+
+		strerror_r(errno, nbuf, sizeof nbuf);
+		fprintf(stderr, "\n\t(%s)", nbuf);
+	}
+	fprintf(stderr, "\n");
+}
+
+
 ////////////////////////////////////////////////////////////////////////
 //
 //  EP_APP_WARN -- print a warning message
@@ -52,17 +82,9 @@ ep_app_warn(
 	...)
 {
 	va_list av;
-	const char *progname;
 
 	va_start(av, fmt);
-	fprintf(stderr, "%sWARNING:%s ", EpVid->vidinv, EpVid->vidnorm);
-	if ((progname = ep_app_getprogname()) != NULL)
-		fprintf(stderr, "%s: ", progname);
-	if (fmt != NULL)
-		vfprintf(stderr, fmt, av);
-	else
-		fprintf(stderr, "unknown warning");
-	fprintf(stderr, "\n");
+	printmessage("WARNING", fmt, av);
 	va_end(av);
 }
 
@@ -86,23 +108,41 @@ ep_app_error(
 	...)
 {
 	va_list av;
-	const char *progname;
 
 	va_start(av, fmt);
-	fprintf(stderr, "%sERROR:%s ", EpVid->vidinv, EpVid->vidnorm);
-	if ((progname = ep_app_getprogname()) != NULL)
-		fprintf(stderr, "%s: ", progname);
-	if (fmt != NULL)
-		vfprintf(stderr, fmt, av);
-	if (errno != 0)
-	{
-		char nbuf[40];
-
-		strerror_r(errno, nbuf, sizeof nbuf);
-		fprintf(stderr, "\n\t(%s)", nbuf);
-	}
-	fprintf(stderr, "\n");
+	printmessage("ERROR", fmt, av);
 	va_end(av);
+}
+
+
+////////////////////////////////////////////////////////////////////////
+//
+//  EP_APP_FATAL -- print a fatal error message and exit
+//
+//	Just uses a generic exit status.
+//
+//	Parameters:
+//		fmt -- format for a message
+//		... -- arguments
+//
+//	Returns:
+//		never
+//
+
+void
+ep_app_fatal(
+	const char *fmt,
+	...)
+{
+	va_list av;
+
+	va_start(av, fmt);
+	printmessage("FATAL", fmt, av);
+	va_end(av);
+
+	fprintf(stderr, "\t(exiting)\n");
+	exit(1);
+	/*NOTREACHED*/
 }
 
 
@@ -124,24 +164,12 @@ ep_app_abort(
 	...)
 {
 	va_list av;
-	const char *progname;
 
 	va_start(av, fmt);
-	fprintf(stderr, "%sFATAL:%s ", EpVid->vidinv, EpVid->vidnorm);
-	if ((progname = ep_app_getprogname()) != NULL)
-		fprintf(stderr, "%s: ", progname);
-	if (fmt != NULL)
-		vfprintf(stderr, fmt, av);
-	if (errno != 0)
-	{
-		char nbuf[40];
-
-		strerror_r(errno, nbuf, sizeof nbuf);
-		fprintf(stderr, "\n\t(%s)", nbuf);
-	}
-	fprintf(stderr, "\n\t(exiting)\n");
+	printmessage("ABORT", fmt, av);
 	va_end(av);
 
+	fprintf(stderr, "\n\t(exiting)\n");
 	abort();
 	/*NOTREACHED*/
 }
