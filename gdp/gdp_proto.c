@@ -182,7 +182,7 @@ fail0:
 static EP_STAT
 nak_client(gdp_req_t *req)
 {
-	ep_dbg_cprintf(Dbg, 2, "nak_client: received %d\n", req->pdu->cmd);
+	ep_dbg_cprintf(Dbg, 8, "nak_client: received %d\n", req->pdu->cmd);
 	return GDP_STAT_FROM_C_NAK(req->pdu->cmd);
 }
 
@@ -190,7 +190,7 @@ nak_client(gdp_req_t *req)
 static EP_STAT
 nak_server(gdp_req_t *req)
 {
-	ep_dbg_cprintf(Dbg, 2, "nak_server: received %d\n", req->pdu->cmd);
+	ep_dbg_cprintf(Dbg, 8, "nak_server: received %d\n", req->pdu->cmd);
 	return GDP_STAT_FROM_S_NAK(req->pdu->cmd);
 }
 
@@ -198,7 +198,7 @@ nak_server(gdp_req_t *req)
 static EP_STAT
 nak_router(gdp_req_t *req)
 {
-	ep_dbg_cprintf(Dbg, 2, "nak_router: received %d\n", req->pdu->cmd);
+	ep_dbg_cprintf(Dbg, 8, "nak_router: received %d\n", req->pdu->cmd);
 	return GDP_STAT_FROM_R_NAK(req->pdu->cmd);
 }
 

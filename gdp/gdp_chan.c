@@ -308,10 +308,10 @@ _gdp_chan_open(const char *gdp_addr,
 	{
 		estat = ep_stat_from_errno(errno);
 fail0:
-		ep_dbg_cprintf(Dbg, 12,
-				"_gdp_chan_open: could not create channel: %s\n",
+		ep_dbg_cprintf(Dbg, 2,
+				"_gdp_chan_open: could not open channel: %s\n",
 				strerror(errno));
-		//ep_log(estat, "_gdp_chan_open: could not create channel");
+		//ep_log(estat, "_gdp_chan_open: could not open channel");
 		if (chan != NULL && newchan)
 		{
 			if (chan->bev != NULL)
@@ -320,6 +320,10 @@ fail0:
 			ep_mem_free(chan);
 			*pchan = NULL;
 		}
+	}
+	else
+	{
+		ep_dbg_cprintf(Dbg, 1, "Talking to router at %s:%s\n", host, port);
 	}
 
 	{
