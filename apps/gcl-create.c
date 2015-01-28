@@ -232,6 +232,17 @@ main(int argc, char **argv)
 		if (gmd == NULL)
 			gmd = gdp_gclmd_new();
 		gdp_gclmd_add(gmd, GDP_GCLMD_XID, strlen(gclxname), gclxname);
+
+		// make sure it doesn't already exist
+		estat = gdp_gcl_open(gcliname, GDP_MODE_RO, &gcl);
+		if (EP_STAT_ISOK(estat))
+		{
+			// oops, we shouldn't be able to open it
+			(void) gdp_gcl_close(gcl);
+			ep_app_abort("Cannot create %s: already exists", gclxname);
+		}
+
+		// OK, we're cool, go ahead and create it...
 		estat = gdp_gcl_create(gcliname, logdiname, gmd, &gcl);
 	}
 	EP_STAT_CHECK(estat, goto fail1);
