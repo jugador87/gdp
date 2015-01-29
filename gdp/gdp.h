@@ -101,7 +101,8 @@ typedef struct gdp_event	gdp_event_t;
 
 // event types
 #define GDP_EVENT_DATA		1	// returned data
-#define GDP_EVENT_EOS		2	// end of subscription
+#define GDP_EVENT_EOS		2	// normal end of subscription
+#define GDP_EVENT_SHUTDOWN	3	// subscription terminating because of shutdown
 
 extern gdp_event_t		*gdp_event_next(	// get event (caller must free!)
 							int64_t timeout);	// wait for event to appear?

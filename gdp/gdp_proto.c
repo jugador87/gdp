@@ -56,7 +56,6 @@ _gdp_invoke(gdp_req_t *req)
 		gdp_datum_print(req->pdu->datum, ep_dbg_getfile());
 	}
 
-
 	// loop to allow for retransmissions
 	if (retries < 1)
 		retries = 1;
@@ -220,7 +219,7 @@ static dispatch_ent_t	DispatchTable[256] =
 {
 	{ NULL,				"CMD_KEEPALIVE"			},			// 0
 	{ NULL,				"CMD_ADVERTISE"			},			// 1
-	NOENT,				// 2
+	{ NULL,				"CMD_WITHDRAW"			},			// 2
 	NOENT,				// 3
 	NOENT,				// 4
 	NOENT,				// 5
@@ -457,7 +456,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	NOENT,				// 236
 	NOENT,				// 237
 	NOENT,				// 238
-	NOENT,				// 239
+	{ nak_server,		"NAK_S_EXITING"			},			// 239
 	{ nak_router,		"NAK_R_NOROUTE"			},			// 240
 	NOENT,				// 241
 	NOENT,				// 242
@@ -486,10 +485,18 @@ _gdp_proto_cmd_name(uint8_t cmd)
 {
 	dispatch_ent_t *d = &DispatchTable[cmd];
 
-	if (d->name == NULL)
-		return "???";
-	else
+	if (d->name != NULL)
+	{
 		return d->name;
+	}
+	else
+	{
+		// not thread safe, but shouldn't happen
+		static char buf[10];
+
+		snprintf(buf, sizeof buf, "%d", cmd);
+		return buf;
+	}
 }
 
 
@@ -571,23 +578,23 @@ _gdp_req_dispatch(gdp_req_t *req)
 */
 
 EP_STAT
-_gdp_advertise(EP_STAT (*func)(gdp_buf_t *, void *), void *ctx)
+_gdp_advertise(EP_STAT (*func)(gdp_buf_t *, void *, int), void *ctx, int cmd)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gdp_req_t *req;
 	gdp_chan_t *chan = _GdpChannel;
 	uint32_t reqflags = 0;
 
-	ep_dbg_cprintf(Dbg, 39, "_gdp_advertise:\n");
+	ep_dbg_cprintf(Dbg, 39, "_gdp_advertise(%d):\n", cmd);
 
 	// create a new request and point it at the routing layer
-	estat = _gdp_req_new(GDP_CMD_ADVERTISE, NULL, chan, NULL, reqflags, &req);
+	estat = _gdp_req_new(cmd, NULL, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 	memcpy(req->pdu->dst, RoutingLayerAddr, sizeof req->pdu->dst);
 
 	// add any additional information to advertisement
 	if (func != NULL)
-		estat = func(req->pdu->datum->dbuf, ctx);
+		estat = func(req->pdu->datum->dbuf, ctx, cmd);
 
 	// send the request
 	estat = _gdp_req_send(req);
@@ -613,7 +620,7 @@ fail0:
 */
 
 EP_STAT
-_gdp_advertise_me(void)
+_gdp_advertise_me(int cmd)
 {
-	return _gdp_advertise(NULL, NULL);
+	return _gdp_advertise(NULL, NULL, cmd);
 }

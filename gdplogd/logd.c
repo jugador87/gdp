@@ -20,7 +20,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.main", "GDP Log Daemon");
 
 
 /*
-**	LOGD_SOCK_CLOSE_CB --- free resources when we lose a connection
+**	LOGD_SOCK_CLOSE_CB --- free resources when we lose a router connection
 */
 
 void
@@ -49,6 +49,34 @@ gdpd_reclaim_resources(int fd, short what, void *ctx)
 {
 	ep_dbg_cprintf(Dbg, 69, "gdpd_reclaim_resources\n");
 	gcl_reclaim_resources();
+}
+
+
+/*
+**  Do shutdown at exit
+*/
+
+void
+shutdown_req(gdp_req_t *req)
+{
+	if (ep_dbg_test(Dbg, 59))
+	{
+		ep_dbg_printf("shutdown_req: ");
+		_gdp_req_dump(req, ep_dbg_getfile());
+	}
+
+	if (EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, req->flags))
+		sub_send_message_notification(req, NULL, GDP_NAK_S_EXITING);
+}
+
+void
+logd_shutdown(void)
+{
+	ep_dbg_cprintf(Dbg, 1, "\n\n*** Shutting down GCL cache ***\n");
+	_gdp_gcl_cache_shutdown(&shutdown_req);
+
+	ep_dbg_cprintf(Dbg, 1, "\n\n*** Withdrawing all advertisements ***\n");
+	logd_advertise_all(GDP_CMD_WITHDRAW);
 }
 
 
@@ -167,8 +195,11 @@ main(int argc, char **argv)
 
 	// advertise all of our GCLs
 	phase = "advertise GCLs";
-	estat = logd_advertise_all();
+	estat = logd_advertise_all(GDP_CMD_ADVERTISE);
 	EP_STAT_CHECK(estat, goto fail0);
+
+	// arrange for clean shutdown
+	atexit(&logd_shutdown);
 
 	/*
 	**  At this point we should be running

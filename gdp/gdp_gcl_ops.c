@@ -96,7 +96,7 @@ _gdp_gcl_freehandle(gdp_gcl_t *gcl)
 	{
 		// release any remaining requests (shouldn't be any left)
 		ep_dbg_cprintf(Dbg, 1, "gdp_gcl_freehandle: non-null request list\n");
-		_gdp_req_freeall(&gcl->reqs);
+		_gdp_req_freeall(&gcl->reqs, NULL);
 	}
 
 	// free any additional per-GCL resources

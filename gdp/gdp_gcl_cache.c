@@ -269,6 +269,33 @@ _gdp_gcl_cache_reclaim(time_t maxage)
 
 
 /*
+**  Shut down GCL cache --- immediately!
+**
+**		Informs subscribers of imminent shutdown.
+**		Only used when the entire daemon is shutting down.
+*/
+
+void
+_gdp_gcl_cache_shutdown(void (*shutdownfunc)(gdp_req_t *))
+{
+	gdp_gcl_t *g1, *g2;
+
+	ep_dbg_cprintf(Dbg, 30, "\n_gdp_gcl_shutdown\n");
+
+	// don't bother with mutexes --- we need to shut down now!
+
+	// free all GCLs and all reqs linked to them
+	for (g1 = LIST_FIRST(&GclsByUse); g1 != NULL; g1 = g2)
+	{
+		g2 = LIST_NEXT(g1, ulist);
+		LIST_REMOVE(g1, ulist);
+		_gdp_req_freeall(&g1->reqs, shutdownfunc);
+		_gdp_gcl_freehandle(g1);
+	}
+}
+
+
+/*
 **  _GDP_GCL_INCREF --- increment the reference count on a GCL
 */
 

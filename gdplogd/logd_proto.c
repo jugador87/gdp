@@ -314,7 +314,7 @@ cmd_publish(gdp_req_t *req)
 
 	// send the new data to any subscribers
 	if (EP_STAT_ISOK(estat))
-		sub_notify_all_subscribers(req);
+		sub_notify_all_subscribers(req, GDP_ACK_CONTENT);
 
 	// we can now let the data in the request go
 	evbuffer_drain(req->pdu->datum->dbuf,

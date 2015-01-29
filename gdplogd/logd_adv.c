@@ -42,7 +42,7 @@ adv_addone(gdp_name_t gname, void *ctx)
 
 
 static EP_STAT
-advertise_all(gdp_buf_t *dbuf, void *ctx)
+advertise_all(gdp_buf_t *dbuf, void *ctx, int cmd)
 {
 	gcl_physforeach(adv_addone, dbuf);
 	return EP_STAT_OK;
@@ -50,9 +50,9 @@ advertise_all(gdp_buf_t *dbuf, void *ctx)
 
 
 EP_STAT
-logd_advertise_all(void)
+logd_advertise_all(int cmd)
 {
-	EP_STAT estat = _gdp_advertise(advertise_all, NULL);
+	EP_STAT estat = _gdp_advertise(advertise_all, NULL, cmd);
 	if (ep_dbg_test(Dbg, 10))
 	{
 		char ebuf[100];
@@ -69,7 +69,7 @@ logd_advertise_all(void)
 */
 
 static EP_STAT
-advertise_one(gdp_buf_t *dbuf, void *ctx)
+advertise_one(gdp_buf_t *dbuf, void *ctx, int cmd)
 {
 	gdp_buf_write(dbuf, ctx, sizeof (gdp_name_t));
 	return EP_STAT_OK;
@@ -78,7 +78,7 @@ advertise_one(gdp_buf_t *dbuf, void *ctx)
 void
 logd_advertise_one(gdp_name_t gname)
 {
-	EP_STAT estat = _gdp_advertise(advertise_one, gname);
+	EP_STAT estat = _gdp_advertise(advertise_one, gname, GDP_CMD_ADVERTISE);
 	if (ep_dbg_test(Dbg, 10))
 	{
 		char ebuf[100];

@@ -133,7 +133,7 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 				ep_time_nanosleep(delay * INT64_C(1000000));
 			estat = _gdp_chan_open(NULL, NULL, pchan);
 		} while (!EP_STAT_ISOK(estat));
-		(*chan->advertise)();
+		(*chan->advertise)(GDP_CMD_ADVERTISE);
 	}
 }
 

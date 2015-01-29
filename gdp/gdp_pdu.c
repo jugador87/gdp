@@ -50,17 +50,17 @@ _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 	}
 
 	int len = _GDP_PDU_FIXEDHDRSZ + pdu->olen;
-	fprintf(fp, "v=%d, ttl=%d, cmd=%d=%s,"
-				"\n\tolen=%d, rid=%u, sigalg=%x"
-				"\n\tflags=",
-				pdu->ver, pdu->ttl,
-				pdu->cmd, _gdp_proto_cmd_name(pdu->cmd),
-				pdu->olen, pdu->rid, pdu->sigalg);
-	ep_prflags(pdu->flags, PduFlags, fp);
+	fprintf(fp, "\n\tv=%d, ttl=%d, rsvd1=%d, cmd=%d=%s",
+				pdu->ver, pdu->ttl, pdu->rsvd1,
+				pdu->cmd, _gdp_proto_cmd_name(pdu->cmd));
 	fprintf(fp, "\n\tdst=");
 	gdp_print_name(pdu->dst, fp);
 	fprintf(fp, "\n\tsrc=");
 	gdp_print_name(pdu->src, fp);
+	fprintf(fp, "\n\trid=%u, sigalg=0x%x, siglen=%d, olen=%d"
+				"\n\tflags=",
+				pdu->rid, pdu->sigalg, pdu->siglen, pdu->olen);
+	ep_prflags(pdu->flags, PduFlags, fp);
 	fprintf(fp, "\n\tdatum=%p", pdu->datum);
 	if (pdu->datum != NULL)
 	{
@@ -135,8 +135,6 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	struct evbuffer *obuf = bufferevent_get_output(chan->bev);
 
 	EP_ASSERT_POINTER_VALID(pdu);
-	EP_ASSERT_POINTER_VALID(pdu->datum);
-	EP_ASSERT_POINTER_VALID(pdu->datum->dbuf);
 
 	if (ep_dbg_test(Dbg, 22))
 	{
@@ -205,7 +203,7 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	if (pdu->seqno > 0)
 	{
 		pbuf[FOFF] |= GDP_PDU_HAS_SEQNO;
-		PUT64(pdu->datum->recno);
+		PUT64(pdu->seqno);
 	}
 
 	// timestamp

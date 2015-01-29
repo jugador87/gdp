@@ -19,23 +19,23 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.pubsub",
 */
 
 void
-sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum)
+sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum, int cmd)
 {
 	EP_STAT estat;
 
-	req->pdu->cmd = GDP_ACK_CONTENT;
+	req->pdu->cmd = cmd;
 	req->pdu->datum = datum;
 
 	if (ep_dbg_test(Dbg, 33))
 	{
-		ep_dbg_printf("sub_send_message_notification req:\n  ");
+		ep_dbg_printf("sub_send_message_notification(%d): ", cmd);
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
 	estat = _gdp_pdu_out(req->pdu, req->chan);
 	req->pdu->datum = NULL;				// we just borrowed the datum
 
-	if (req->numrecs > 0 && --req->numrecs <= 0)
+	if (cmd == GDP_ACK_CONTENT && req->numrecs > 0 && --req->numrecs <= 0)
 		sub_end_subscription(req);
 }
 
@@ -45,13 +45,14 @@ sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum)
 */
 
 void
-sub_notify_all_subscribers(gdp_req_t *pubreq)
+sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 {
 	gdp_req_t *req;
 
 	if (ep_dbg_test(Dbg, 32))
 	{
-		ep_dbg_printf("sub_notify_all_subscribers:\n  ");
+		ep_dbg_printf("sub_notify_all_subscribers(%s):\n  ",
+				_gdp_proto_cmd_name(cmd));
 		_gdp_req_dump(pubreq, ep_dbg_getfile());
 	}
 
@@ -61,9 +62,14 @@ sub_notify_all_subscribers(gdp_req_t *pubreq)
 		if (req == pubreq)
 			continue;
 
+		if (ep_dbg_test(Dbg, 59))
+		{
+			_gdp_req_dump(req, ep_dbg_getfile());
+		}
+
 		// notify subscribers
 		if (EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, req->flags))
-			sub_send_message_notification(req, pubreq->pdu->datum);
+			sub_send_message_notification(req, pubreq->pdu->datum, cmd);
 	}
 }
 

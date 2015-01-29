@@ -134,6 +134,7 @@ typedef struct gdp_pdu
 //		0-63			Blind commands
 #define GDP_CMD_KEEPALIVE		0			// used for keepalives
 #define GDP_CMD_ADVERTISE		1			// advertise known GCLs
+#define GDP_CMD_WITHDRAW		2			// withdraw advertisment
 //		64-127			Acknowledged commands
 #define GDP_CMD_PING			64			// test connection
 #define GDP_CMD_HELLO			65			// initial startup/handshake
@@ -177,6 +178,7 @@ typedef struct gdp_pdu
 #define GDP_NAK_S_SVCUNAVAIL	_GDP_NAK_S_FROM_COAP(SVCUNAVAIL)		// 227
 #define GDP_NAK_S_GWTIMEOUT		_GDP_NAK_S_FROM_COAP(GWTIMEOUT)			// 228
 #define GDP_NAK_S_PROXYNOTSUP	_GDP_NAK_S_FROM_COAP(PROXYNOTSUP)		// 229
+#define GDP_NAK_S_EXITING		239
 #define GDP_NAK_S_MAX		239			// maximum server-side nak code
 //		240-254			Negative acks, routing layer
 #define GDP_NAK_R_MIN		240			// minimum routing layer nak code

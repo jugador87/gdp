@@ -151,6 +151,10 @@ gdp_pdu_proc_thread(void *req_)
 				evtype = GDP_EVENT_EOS;
 				break;
 
+			  case GDP_NAK_S_EXITING:
+				evtype = GDP_EVENT_SHUTDOWN;
+				break;
+
 			  default:
 				ep_dbg_cprintf(Dbg, 1,
 						"gdp_pdu_proc_thread: unexpected ack %d in subscription\n",

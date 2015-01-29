@@ -124,6 +124,12 @@ multiread_print_event(gdp_event_t *gev, bool subscribe)
 				subscribe ? "Subscription" : "Multiread");
 		return EP_STAT_END_OF_FILE;
 
+	  case GDP_EVENT_SHUTDOWN:
+		// log daemon has shut down, meaning we lose our subscription
+		fprintf(stdout, "%s terminating because of log daemon shutdown\n",
+				subscribe ? "Subscription" : "Multiread");
+		return GDP_STAT_DEAD_DAEMON;
+
 	  default:
 		// should be ignored, but we print it since this is a test program
 		fprintf(stderr, "Unknown event type %d\n", gdp_event_gettype(gev));

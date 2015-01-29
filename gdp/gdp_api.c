@@ -258,7 +258,7 @@ gdp_init(const char *router_addr)
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// advertise ourselves
-	estat = _gdp_advertise_me();
+	estat = _gdp_advertise_me(GDP_CMD_ADVERTISE);
 	if (!EP_STAT_ISOK(estat))
 	{
 		if (_GdpChannel->bev != NULL)

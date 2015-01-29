@@ -37,7 +37,7 @@ struct gdp_chan
 	void				(*close_cb)(	// called on channel close
 							gdp_chan_t *chan);
 	EP_STAT				(*advertise)(	// called to do our advertisements
-							void);
+							int cmd);
 	void				(*process)(		// called to process a packet
 							gdp_pdu_t *pdu,
 							gdp_chan_t *chan);
@@ -216,6 +216,9 @@ void			_gdp_gcl_cache_drop(		// drop entry from cache
 void			_gdp_gcl_cache_reclaim(		// flush old entries
 						time_t maxage);
 
+void			_gdp_gcl_cache_shutdown(	// immediately shut down cache
+						void (*shutdownfunc)(gdp_req_t *));
+
 void			_gdp_gcl_touch(				// move to front of LRU list
 						gdp_gcl_t *gcl);
 
@@ -325,7 +328,8 @@ EP_STAT			_gdp_invoke(				// send request to daemon
 						gdp_req_t *req);
 
 void			_gdp_req_freeall(			// free all requests in list
-						struct req_head *reqlist);
+						struct req_head *reqlist,
+						void (*shutdownfunc)(gdp_req_t *));
 
 void			_gdp_req_dump(				// print (debug) request
 						gdp_req_t *req,
@@ -334,12 +338,18 @@ void			_gdp_req_dump(				// print (debug) request
 void			_gdp_chan_drain_input(		// drain all input from channel
 						gdp_chan_t *chan);
 
+
+/*
+**  Advertising.
+*/
+
 EP_STAT			_gdp_advertise(				// advertise resources (generic)
-						EP_STAT (*func)(gdp_buf_t *, void *),
-						void *ctx);
+						EP_STAT (*func)(gdp_buf_t *, void *, int),
+						void *ctx,
+						int cmd);
 
 EP_STAT			_gdp_advertise_me(			// advertise me only
-						void);
+						int cmd);
 
 /*
 **  Gdpd communication

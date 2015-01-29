@@ -128,6 +128,7 @@
 
 
 
+
           this is not enforced at this time).</i></li>
       <li>This interface <strong><em>will</em></strong> be replaced or
         updated in the future.<br>
@@ -314,6 +315,7 @@
 
 
 
+
         IMPLEMENTED]</em></strong><br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_subscribe(gdp_gcl_t *gcl,
@@ -461,6 +463,7 @@ void (*cbfunc)(gdp_event_t *gev)
 
 
 
+
         IMPLEMENTED]</em></strong><br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_multiread(gdp_gcl_t *gcl,
@@ -474,6 +477,7 @@ void (*cbfunc)(gdp_event_t *gev)
         read (i.e., this is only for reading historic data).</li>
       <li>If a <code>cbfunc</code> is specified, arranges to call
         callback when a message is generated on the <code>gcl</code>.&nbsp;
+
 
 
 
@@ -656,6 +660,13 @@ void (*cbfunc)(gdp_event_t *gev)
           <td valign="top">Subscription is terminated.<br>
           </td>
         </tr>
+        <tr>
+          <td valign="top"><tt>GDP_EVENT_SHUTDOWN</tt><br>
+          </td>
+          <td valign="top">Subscription is terminated because the log
+            daemon has shut down.<br>
+          </td>
+        </tr>
       </tbody>
     </table>
     <ul>
@@ -704,6 +715,7 @@ void (*cbfunc)(gdp_event_t *gev)
     </p>
     <h2>4&nbsp; Datums (Records)</h2>
     <p>GCLs are represented as a series of records of type <code>gdp_datum_t</code>.&nbsp;
+
 
 
 

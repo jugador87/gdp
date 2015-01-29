@@ -142,6 +142,7 @@
 
 
 
+
             Alg<br>
             (1 octet)<br>
           </td>
@@ -149,6 +150,7 @@
             (1 octet)<br>
           </td>
           <td colspan="1" rowspan="1" align="center" valign="top">Optionals
+
 
 
 
@@ -180,6 +182,7 @@
 
 
 
+
             Number (8 octets, optional)<br>
           </td>
         </tr>
@@ -197,6 +200,7 @@
 
 
 
+
             optional header fields (variable length)<br>
           </td>
         </tr>
@@ -207,6 +211,7 @@
         </tr>
         <tr>
           <td rowspan="1" colspan="4" align="center" valign="top">Signature
+
 
 
 
@@ -561,6 +566,7 @@
       padding, two octet options are padded to two octet alignment, and
       all others are padded to four octet alignments.&nbsp; <i>[[Question:
 
+
         should this go up to eight octet alignment for x86_64
         architectures?]]</i><br>
     </p>
@@ -588,6 +594,7 @@
         </tr>
         <tr>
           <td colspan="4" rowspan="1" align="center" valign="top">Additional
+
 
 
 
@@ -1106,6 +1113,17 @@
           <td valign="top">5.05/–<br>
           </td>
           <td valign="top"><i>Not currently used.</i> </td>
+        </tr>
+        <tr>
+          <td valign="top">NAK_S_EXITING<br>
+          </td>
+          <td valign="top">239<br>
+          </td>
+          <td valign="top">–<br>
+          </td>
+          <td valign="top">Log server is exiting (subscriptions will be
+            terminated).<br>
+          </td>
         </tr>
         <tr>
           <td valign="top">NAK_R_NOROUTE<br>
