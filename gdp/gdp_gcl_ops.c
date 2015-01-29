@@ -381,7 +381,7 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 
 	// now arrange for responses to appear as events or callbacks
 	req->flags |= GDP_REQ_SUBSCRIPTION;
-	req->cb.subs = cbfunc;
+	req->sub_cb = cbfunc;
 	req->udata = cbarg;
 
 	if (!EP_STAT_ISOK(estat))

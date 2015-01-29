@@ -124,11 +124,6 @@ struct gdp_gcl
 **		reused if desired once an operation is complete.  Note:
 **		some operations (e.g., subscriptions) can return multiple
 **		results, but they will have the same rid.
-**
-**		The cb (callback) field is used by GDPD to indicate the
-**		routine that should be called in a worker thread.  The
-**		callback gets the request as the parameter.  It is also
-**		used in the gdp library for subscription callbacks.
 */
 
 typedef struct gdp_req
@@ -145,12 +140,7 @@ typedef struct gdp_req
 	uint32_t			flags;		// see below
 	void				(*postproc)(struct gdp_req *);
 									// do post processing after ack sent
-	gdp_gcl_sub_cbfunc_t	sub_cb;	// subscription callback
-	union
-	{
-		gdp_gcl_sub_cbfunc_t	subs;
-		void					(*generic)(void *);
-	}					cb;			// callback (see above)
+	gdp_gcl_sub_cbfunc_t sub_cb;	// subscription callback
 	void				*udata;		// user-supplied opaque data to cb
 } gdp_req_t;
 

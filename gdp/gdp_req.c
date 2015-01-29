@@ -260,8 +260,10 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 	_gdp_pdu_dump(req->pdu, fp);
 	fprintf(fp, "    flags=");
 	ep_prflags(req->flags, ReqFlags, fp);
-	fprintf(fp, "\n    chan=%p, cb=%p, udata=%p\n    stat=%s\n",
-			req->chan, req->cb.generic, req->udata,
+	fprintf(fp, "\n    numrecs=%" PRIu32
+			", chan=%p, postproc=%p, sub_cb=%p udata=%p\n"
+			"    stat=%s\n",
+			req->numrecs, req->chan, req->postproc, req->sub_cb, req->udata,
 			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
 }
 

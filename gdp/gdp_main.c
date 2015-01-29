@@ -172,15 +172,15 @@ gdp_pdu_proc_thread(void *req_)
 			gev->udata = req->udata;
 			req->pdu->datum = NULL;			// avoid use after free
 
-			if (req->cb.generic != NULL)
+			if (req->sub_cb != NULL)
 			{
 				// caller wanted a callback
 #ifdef RUN_CALLBACKS_IN_THREAD
 				// ... to run in a separate thread ...
-				ep_thr_pool_run(req->cb.generic, gev);
+				ep_thr_pool_run(req->sub_cb, gev);
 #else
 				// ... to run in I/O event thread ...
-				(*req->cb.generic)(gev);
+				(*req->sub_cb)(gev);
 #endif
 			}
 			else
