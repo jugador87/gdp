@@ -258,17 +258,9 @@ _gdp_chan_open(const char *gdp_addr,
 		ep_thr_mutex_lock(&chan->mutex);
 		for (a = res; a != NULL; a = a->ai_next)
 		{
-			// must use a new socket each time to prevent errors
-			evutil_socket_t sock = bufferevent_getfd(chan->bev);
-			if (sock >= 0)
-			{
-				close(sock);
-				bufferevent_setfd(chan->bev, -1);
-			}
-
 			// make the actual connection
 			// it would be nice to have a private timeout here...
-			sock = socket(a->ai_family, SOCK_STREAM, 0);
+			evutil_socket_t sock = socket(a->ai_family, SOCK_STREAM, 0);
 			estat = ep_stat_from_errno(errno);
 			if (sock < 0)
 			{
@@ -283,6 +275,7 @@ _gdp_chan_open(const char *gdp_addr,
 				ep_dbg_cprintf(Dbg, 38,
 						"_gdp_chan_open: connect failed: %s\n",
 						strerror(errno));
+				close(sock);
 				continue;
 			}
 
