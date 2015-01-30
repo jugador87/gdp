@@ -91,7 +91,7 @@ extern EP_STAT	dispatch_cmd(			// dispatch a request
 
 extern EP_STAT	logd_advertise_all(int cmd);
 
-extern void		logd_advertise_one(gdp_name_t name);
+extern void		logd_advertise_one(gdp_name_t name, int cmd);
 
 extern void		sub_send_message_notification(
 					gdp_req_t *req,

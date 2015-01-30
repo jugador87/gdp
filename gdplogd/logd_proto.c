@@ -141,7 +141,7 @@ cmd_create(gdp_req_t *req)
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// advertise this new GCL
-	logd_advertise_one(gcl->name);
+	logd_advertise_one(gcl->name, GDP_CMD_ADVERTISE);
 
 	// cache the open GCL Handle for possible future use
 	EP_ASSERT_INSIST(gdp_name_is_valid(gcl->name));

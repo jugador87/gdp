@@ -76,9 +76,9 @@ advertise_one(gdp_buf_t *dbuf, void *ctx, int cmd)
 }
 
 void
-logd_advertise_one(gdp_name_t gname)
+logd_advertise_one(gdp_name_t gname, int cmd)
 {
-	EP_STAT estat = _gdp_advertise(advertise_one, gname, GDP_CMD_ADVERTISE);
+	EP_STAT estat = _gdp_advertise(advertise_one, gname, cmd);
 	if (ep_dbg_test(Dbg, 10))
 	{
 		char ebuf[100];
