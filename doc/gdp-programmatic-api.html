@@ -55,7 +55,7 @@
         entity in the Global Data Plane, which may be a log or a service.</dd>
     </dl>
     <p> </p>
-    <h2> 2&nbsp; Theory of Operation and Initialization<br>
+    <h2> 2&nbsp; Theory of Operation, Data Types, and Initialization<br>
     </h2>
     <p> GDP-based applications rely on three pieces: an in-process GDP library,
       a GDP Log Daemon, and the Routing Layer.&nbsp;&nbsp; This document
@@ -90,11 +90,19 @@
       these unsightly names with some sort of directory service.<br>
     </p>
     <p>Applications using the GDP library should <code>#include
-        &lt;gdp/gdp.h&gt;</code> for all the essential definitions.&nbsp; Before
-      the GDP library can be used it must be initialized:<br>
-    </p>
+        &lt;gdp/gdp.h&gt;</code> for all the essential definitions.</p>
+    <hr>
+    <h4>Name</h4>
+    <p>GDP data types</p>
+    <h4>Synopsis</h4>
+    <pre>#include &lt;gdp/gdp.h&gt;<br><br>gdp_name_t	InternalGdpName;	// 256-bit number<br>gdp_pname_t	PrintableGdpName;	// base-64 encoded string<br>bool		GDP_NAME_SAME(gdp_name_t a, gdp_name_t b);<br>bool		gdp_name_is_valid(gdp_name_t gname);<br>char		*gdp_printable_name(const gdp_name_t Internal, gdp_pname_t Printable);<br>EP_STAT		gdp_internal_name(const gdp_pname_t Printable, gdp_name_t Internal);<br>EP_STAT		gdp_parse_name(const char *external, gdp_name_t Internal);<br><br>gdp_gcl_t	*GdpChannelLog;<br><br>gdp_datum_t	*GdpDatum;<br>gdp_recno_t	RecordNumber;<br>EP_TIME_SPEC	TimeStampSpec;</pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>Most of these are described in more detail below.</li>
+    </ul>
     <h3> </h3>
-    <hr size="2" width="100%">
+    <hr size="2" width="100%"><br>
+      <br>
     <h4> Name</h4>
     gdp_init &mdash; Initialize the GDP library<br>
     <h4> Synopsis</h4>
@@ -125,6 +133,9 @@
         as the year, month, and date of this version of the GDP library.&nbsp;
         It can be used during compilation.</li>
     </ul>
+    <hr>
+    <p><br>
+    </p>
     <h2>3&nbsp; GCL Synchronous Operation</h2>
     <p>Synchronous operations block until the operation is complete.&nbsp; They
       are the easiest interface for simple programs.<br>
@@ -142,6 +153,7 @@
     <ul>
       <li> Creates a GCL with the given name on the indicated log server, both
         of which must be 256-bit values.</li>
+      <li>Metadata can be passed in that will be stored with the GCL.</li>
       <li> Returns a GCL handle (indirectly through <code>*gclp</code>).</li>
       <li> The returned GCL handle is an append-only object.&nbsp; <i>(Actually,
 
@@ -152,8 +164,8 @@
 
 
           this is not enforced at this time).</i></li>
-      <li>This interface <strong><em>will</em></strong> be replaced or updated
-        in the future.<br>
+      <li><span class="warning">This interface <strong><em>will</em></strong>
+          be replaced or updated in the future.</span><br>
       </li>
       <li> We probably need payment information, some way of specifying resource
         requirements, and so forth.</li>
@@ -161,9 +173,9 @@
         think explicit creation is important (because of Quality of Service),
         but the semantics could be automatic creation on first reference with
         default QoS.</li>
-      <li><em>Ultimately this will be a call to a service that will acquire the
-          resources, determine physical location, etc., and then tell the
-          appropriate log daemon(s) to do the physical creation.</em></li>
+      <li><span class="warning">Ultimately this will be a call to a service that
+          will acquire the resources, determine physical location, etc., and
+          then tell the appropriate log daemon(s) to do the physical creation.</span></li>
     </ul>
     <br>
     <hr size="2" width="100%">
@@ -293,9 +305,9 @@
     </ul>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    gdp_gcl_parse_name &mdash; parse an external representation to internal<br>
+    gdp_parse_name &mdash; parse an external representation to internal<br>
     <h4>Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_parse_name(const char *ext, gdp_name_t gcl_name)</pre>
+    <pre>EP_STAT gdp_parse_name(const char *ext, gdp_name_t gcl_name)</pre>
     <h4>Notes</h4>
     <ul>
       <li>Converts an external string representation of a GCL name to an
@@ -305,7 +317,7 @@
       <li>Otherwise, it is hashed using sha256 to create the internal name.</li>
       <li><span class="warning">[This functionality will disappear in the
           future, after a Directory Service is defined and implemented.&nbsp; In
-          particular, it will not be possible for users to select that name of a
+          particular, it will not be possible for users to select the name of a
           GCL.]</span><br>
       </li>
     </ul>
