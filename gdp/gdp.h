@@ -154,7 +154,7 @@ extern EP_STAT	gdp_gcl_close(
 					gdp_gcl_t *gcl);		// GCL handle to close
 
 // append to a writable GCL
-extern EP_STAT	gdp_gcl_publish(
+extern EP_STAT	gdp_gcl_append(
 					gdp_gcl_t *gcl,			// writable GCL handle
 					gdp_datum_t *);			// message to write
 
@@ -270,19 +270,9 @@ extern void		gdp_datum_print(
 extern gdp_recno_t	gdp_datum_getrecno(
 					const gdp_datum_t *datum);
 
-// set a record number in a datum
-extern void		gdp_datum_setrecno(
-					gdp_datum_t *datum,
-					gdp_recno_t recno);
-
 // get the timestamp from a datum
 extern void		gdp_datum_getts(
 					const gdp_datum_t *datum,
-					EP_TIME_SPEC *ts);
-
-// set the timestamp in a datum
-extern void		gdp_datum_setts(
-					gdp_datum_t *datum,
 					EP_TIME_SPEC *ts);
 
 // get the data length from a datum

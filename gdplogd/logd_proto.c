@@ -287,13 +287,13 @@ cmd_read(gdp_req_t *req)
 
 
 /*
-**  CMD_PUBLISH --- publish (write) a datum to a GCL
+**  CMD_APPEND --- append a datum to a GCL
 **
 **		This will have side effects if there are subscriptions pending.
 */
 
 EP_STAT
-cmd_publish(gdp_req_t *req)
+cmd_append(gdp_req_t *req)
 {
 	EP_STAT estat;
 
@@ -302,7 +302,7 @@ cmd_publish(gdp_req_t *req)
 	estat = get_open_handle(req, GDP_MODE_AO);
 	if (!EP_STAT_ISOK(estat))
 	{
-		return gdpd_gcl_error(req->pdu->dst, "cmd_publish: GCL not open",
+		return gdpd_gcl_error(req->pdu->dst, "cmd_append: GCL not open",
 							estat, GDP_NAK_C_BADREQ);
 	}
 
@@ -418,7 +418,7 @@ post_subscribe(gdp_req_t *req)
 **
 **		Arranges to return existing data (if any) after the response
 **		is sent, and non-existing data (if any) as a side-effect of
-**		publish.
+**		append.
 **
 **		XXX	Race Condition: if records are written between the time
 **			the subscription and the completion of the first half of
@@ -753,7 +753,7 @@ static struct cmdfuncs	CmdFuncs[] =
 	{ GDP_CMD_OPEN_RO,		cmd_open_ro		},
 	{ GDP_CMD_CLOSE,		cmd_close		},
 	{ GDP_CMD_READ,			cmd_read		},
-	{ GDP_CMD_PUBLISH,		cmd_publish		},
+	{ GDP_CMD_APPEND,		cmd_append		},
 	{ GDP_CMD_SUBSCRIBE,	cmd_subscribe	},
 	{ GDP_CMD_MULTIREAD,	cmd_multiread	},
 	{ GDP_CMD_GETMETADATA,	cmd_getmetadata	},

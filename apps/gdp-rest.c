@@ -437,16 +437,16 @@ a_show_gcl(scgi_request *req, gdp_name_t gcliname)
 
 
 /*
-**  A_PUBLISH --- publish datum to GCL
+**  A_APPEND --- append datum to GCL
 */
 
 EP_STAT
-a_publish(scgi_request *req, gdp_name_t gcliname, gdp_datum_t *datum)
+a_append(scgi_request *req, gdp_name_t gcliname, gdp_datum_t *datum)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gdp_gcl_t *gcl = NULL;
 
-	ep_dbg_cprintf(Dbg, 5, "=== Publish value to GCL\n");
+	ep_dbg_cprintf(Dbg, 5, "=== Append value to GCL\n");
 
 	//XXX violates the principle that gdp-rest is "just an app"
 	if ((gcl = _gdp_gcl_cache_get(gcliname, GDP_MODE_AO)) == NULL)
@@ -455,7 +455,7 @@ a_publish(scgi_request *req, gdp_name_t gcliname, gdp_datum_t *datum)
 	}
 	if (EP_STAT_ISOK(estat))
 	{
-		estat = gdp_gcl_publish(gcl, datum);
+		estat = gdp_gcl_append(gcl, datum);
 	}
 	if (!EP_STAT_ISOK(estat))
 	{
@@ -715,7 +715,7 @@ pfx_gcl(scgi_request *req, char *uri)
 				gdp_datum_t *datum = gdp_datum_new();
 
 				gdp_buf_write(datum->dbuf, req->body, req->scgi_content_length);
-				estat = a_publish(req, gcliname, datum);
+				estat = a_append(req, gcliname, datum);
 				gdp_datum_free(datum);
 			}
 			break;
@@ -867,7 +867,7 @@ pfx_kv(scgi_request *req, char *uri)
 
 		// if that succeeded, append the record to the GCL
 		if (EP_STAT_ISOK(estat))
-			a_publish(req, KeyValInternalName, datum);
+			a_append(req, KeyValInternalName, datum);
 
 		// don't forget to mop up!
 		gdp_datum_free(datum);

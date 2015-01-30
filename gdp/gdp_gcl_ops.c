@@ -265,13 +265,13 @@ fail0:
 
 
 /*
-**  _GDP_GCL_PUBLISH --- shared operation for publishing to a GCL
+**  _GDP_GCL_APPEND --- shared operation for appending to a GCL
 **
 **		Used both in GDP client library and gdpd.
 */
 
 EP_STAT
-_gdp_gcl_publish(gdp_gcl_t *gcl,
+_gdp_gcl_append(gdp_gcl_t *gcl,
 			gdp_datum_t *datum,
 			gdp_chan_t *chan,
 			uint32_t reqflags)
@@ -284,7 +284,7 @@ _gdp_gcl_publish(gdp_gcl_t *gcl,
 	EP_ASSERT_POINTER_VALID(gcl);
 	EP_ASSERT_POINTER_VALID(datum);
 
-	estat = _gdp_req_new(GDP_CMD_PUBLISH, gcl, chan, NULL, reqflags, &req);
+	estat = _gdp_req_new(GDP_CMD_APPEND, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 	gdp_datum_free(req->pdu->datum);
 	(void) ep_time_now(&datum->ts);

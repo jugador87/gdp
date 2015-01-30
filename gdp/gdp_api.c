@@ -361,13 +361,13 @@ gdp_gcl_close(gdp_gcl_t *gcl)
 
 
 /*
-**	GDP_GCL_PUBLISH --- append a message to a writable GCL
+**	GDP_GCL_APPEND --- append a message to a writable GCL
 */
 
 EP_STAT
-gdp_gcl_publish(gdp_gcl_t *gcl, gdp_datum_t *datum)
+gdp_gcl_append(gdp_gcl_t *gcl, gdp_datum_t *datum)
 {
-	return _gdp_gcl_publish(gcl, datum, _GdpChannel, 0);
+	return _gdp_gcl_append(gcl, datum, _GdpChannel, 0);
 }
 
 

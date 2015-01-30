@@ -213,7 +213,7 @@
     gdp_gcl_getstat — Return information about a GCL&nbsp; <i><b>[NOT
         YET IMPLEMENTED]</b></i><br>
     <h4> Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_getstat(gdp_gcl_t *gcl,
+    <pre>EP_STAT gdp_gcl_getstat(gdp_name_t gclname,
 		gcl_stat_t *statbuf)
 </pre>
     <h4> Notes</h4>
@@ -238,15 +238,15 @@
     </ul>
     <hr size="2" width="100%">
     <h4> Name</h4>
-    gdp_gcl_publish — Publish (append) a record to a writable GCL<br>
+    gdp_gcl_publish — Append a record to a writable GCL<br>
     <h4> Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_publish(gdp_gcl_t *gcl,
+    <pre>EP_STAT gdp_gcl_append(gdp_gcl_t *gcl,
 		gdp_datum_t *datum)
 </pre>
     <h4> Notes</h4>
     <ul>
       <li> Appends the indicated datum to the GCL.</li>
-      <li>Any subscribers get immediate updates about this publication.</li>
+      <li>Any subscribers get immediate updates about the new datum.</li>
       <li><i> Should writes be asynchronous at this level? Could return
           status as an event. Easy to build synchronous on top of
           asynchronous.</i></li>
@@ -746,20 +746,18 @@ void (*cbfunc)(gdp_event_t *gev)
     </ul>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    gdp_datum_getrecno, gdp_datum_setrecno — get/set the record number
-    from a datum<br>
+    gdp_datum_getrecno — get the record number from a datum<br>
     <h4>Synopsis</h4>
     <pre>    <tt>gdp_recno_t gdp_datum_getrecno(const gdp_datum_t *datum)
-    </tt><tt>void gdp_datum_setrecno(gdp_datum_t *datum,<br>                            gdp_recno_t recno)</tt></pre>
+</tt></pre>
     <h4>Notes<br>
     </h4>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    gdp_datum_getts, gdp_datum_setts — get/set the timestamp from a
-    datum<br>
+    gdp_datum_getts — get the timestamp from a datum<br>
     <h4>Synopsis</h4>
     <pre>    void gdp_datum_getts(const gdp_datum_t *datum, EP_TIME_SPEC *ts)
-    void gdp_datum_setts(gdp_datum_t *datum, EP_TIME_SPEC *ts)</pre>
+</pre>
     <h4>Notes</h4>
     <hr size="2" width="100%">
     <h4>Name</h4>
@@ -886,14 +884,14 @@ typedef struct
     <p>The following pseudo-code example excerpts from <tt>apps/writer-test.c</tt>.<br>
     </p>
     <pre>#include &lt;gdp/gdp.h&gt;<br>#include &lt;stdio.h&gt;<br>#include &lt;string.h&gt;<br><br>int main(int argc, char **argv)<br>{<br>	gdp_tcl_t *gcl;<br>	EP_STAT estat;<br>	gdp_name_t gcliname;	// internal name of GCL<br>	gdp_datum_t *d;<br><br>	// general startup and initialization<br>	if (argc &lt; 2)<br>		usage_error();<br>	estat = gdp_init();<br>	if (!EP_STAT_ISOK(estat))<br>		initialization_error(estat);<br>	d = gdp_datum_new();
-<br><br>	// parse command line name to internal format<br>	estat = gdp_gcl_parse_name(argv[1], gcliname);<br>	if (!EP_STAT_ISOK(estat))<br>		name_syntax_error();<br><br>	// attempt to create that name<br>	estat = gdp_gcl_create(gcliname, &amp;gcl);<br>	if (!EP_STAT_ISOK(estat))<br>		creation_error(estat);<br><br>	// read lines from standard input<br>	while (fgets(buf, sizeof buf, stdin) != NULL)<br>	{<br>		char *p = strchr(buf, '\n');<br>		if (p != NULL)<br>			*p = '\0';<br><br>		// write them to the dataplane<br>		estat = gdp_buf_write(gdp_datum_getbuf(datum), buf, strlen(buf));<br>		EP_STAT_CHECK(estat, break);<br>	}<br><br>	// cleanup and exit<br>	gdp_gcl_close(gcl);<br>	exit(!EP_STAT_ISOK(estat));<br>}<br></pre>
+<br><br>	// parse command line name to internal format<br>	estat = gdp_gcl_parse_name(argv[1], gcliname);<br>	if (!EP_STAT_ISOK(estat))<br>		name_syntax_error();<br><br>	// attempt to create that name<br>	estat = gdp_gcl_create(gcliname, &amp;gcl);<br>	if (!EP_STAT_ISOK(estat))<br>		creation_error(estat);<br><br>	// read lines from standard input<br>	while (fgets(buf, sizeof buf, stdin) != NULL)<br>	{<br>		char *p = strchr(buf, '\n');<br>		if (p != NULL)<br>			*p = '\0';<br><br>		// write them to the dataplane<br>		if (gdp_buf_write(gdp_datum_getbuf(datum), buf, strlen(buf)) &lt; 0)<br>                        estat = GDP_STAT_BUFFER_FAILURE;<br>                else<br>                        estat = gdp_gcl_append(gcl, datum);<br>		EP_STAT_CHECK(estat, break);<br>	}<br><br>	// cleanup and exit<br>	gdp_gcl_close(gcl);<br>	exit(!EP_STAT_ISOK(estat));<br>}<br></pre>
     <hr size="2" width="100%">
     <p>This example is a similar excerpt from apps/reader-test.c
       (without using subscriptions):</p>
     <pre>#include &lt;gdp/gdp.h&gt;<br><br>int main(int argc, char **argv)<br>{<br>	gdp_tcl_t *gcl;<br>	EP_STAT estat;<br>	gdp_name_t gcliname;	// internal name of GCL<br>	gdp_datum_t *d;<br>	gdp_recno_t recno;<br><br>	// general startup and initialization<br>	if (argc &lt; 2)<br>		usage_error();<br>	estat = gdp_init();<br>	if (!EP_STAT_ISOK(estat))<br>		initialization_error(estat);<br>	d = gdp_datum_new();
 <br><br>	// parse command line name to internal format<br>	estat = gdp_gcl_parse_name(argv[1], gcliname);<br>	if (!EP_STAT_ISOK(estat))<br>		name_syntax_error();
 <br>	// attempt to open the GCL<br>	estat = gdp_gcl_open(gcliname, GDP_MODE_RO, &amp;gcl);<br>	if (!EP_STAT_ISOK(estat))<br>		open_error(estat, argv[1]);<br>
-&nbsp;	recno = 1;<br>	for (;;)<br>	{<br>		estat = gdp_gcl_read(gcl, recno, d);<br>		EP_STAT_CHECK(estat, break);<br>		gdp_datum_print(d, stdout);<br>	}<br>	exit(0);<br>}<br></pre>
+&nbsp;	recno = 1;<br>	for (;;)<br>	{<br>		estat = gdp_gcl_read(gcl, recno++, d);<br>		EP_STAT_CHECK(estat, break);<br>		gdp_datum_print(d, stdout);<br>	}<br>	exit(0);<br>}<br></pre>
     <br>
     <hr size="2" width="100%">
     <p>If you want to use subscriptions, the recno variable can be

@@ -260,7 +260,7 @@ EP_STAT			_gdp_gcl_read(				// read a GCL record (gdpd shared)
 						gdp_chan_t *chan,
 						uint32_t reqflags);
 
-EP_STAT			_gdp_gcl_publish(			// publish a record (gdpd shared)
+EP_STAT			_gdp_gcl_append(			// append a record (gdpd shared)
 						gdp_gcl_t *gcl,
 						gdp_datum_t *datum,
 						gdp_chan_t *chan,

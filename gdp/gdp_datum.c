@@ -85,21 +85,9 @@ gdp_datum_getrecno(const gdp_datum_t *datum)
 }
 
 void
-gdp_datum_setrecno(gdp_datum_t *datum, gdp_recno_t recno)
-{
-	datum->recno = recno;
-}
-
-void
 gdp_datum_getts(const gdp_datum_t *datum, EP_TIME_SPEC *ts)
 {
 	memcpy(ts, &datum->ts, sizeof *ts);
-}
-
-void
-gdp_datum_setts(gdp_datum_t *datum, EP_TIME_SPEC *ts)
-{
-	memcpy(&datum->ts, ts, sizeof datum->ts);
 }
 
 size_t

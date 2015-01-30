@@ -145,7 +145,7 @@ main(int argc, char **argv)
 
 		// then send the buffer to the GDP
 		LOG("W");
-		estat = gdp_gcl_publish(gcl, datum);
+		estat = gdp_gcl_append(gcl, datum);
 		EP_STAT_CHECK(estat, goto fail2);
 
 		// print the return value (shows the record number assigned)

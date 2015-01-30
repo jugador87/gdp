@@ -143,7 +143,7 @@ typedef struct gdp_pdu
 #define GDP_CMD_OPEN_RO			68			// open a GCL for read-only
 #define GDP_CMD_CLOSE			69			// close a GCL
 #define GDP_CMD_READ			70			// read a given record by index
-#define GDP_CMD_PUBLISH			71			// append a record
+#define GDP_CMD_APPEND			71			// append a record
 #define GDP_CMD_SUBSCRIBE		72			// subscribe to a GCL
 #define GDP_CMD_MULTIREAD		73			// read more than one records
 #define GDP_CMD_GETMETADATA		74			// fetch metadata

@@ -191,7 +191,7 @@ main(int argc, char *argv[])
 			datum->recno = i + 1;
 			gdp_buf_write(datum->dbuf, &data[(i * max_record_size)], dlen);
 
-			estat = gdp_gcl_publish(gcl_write, datum);
+			estat = gdp_gcl_append(gcl_write, datum);
 			gdp_datum_free(datum);
 			EP_STAT_CHECK(estat, goto fail1);
 		}

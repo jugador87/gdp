@@ -288,7 +288,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	{ NULL,				"CMD_OPEN_RO"			},			// 68
 	{ NULL,				"CMD_CLOSE"				},			// 69
 	{ NULL,				"CMD_READ"				},			// 70
-	{ NULL,				"CMD_PUBLISH"			},			// 71
+	{ NULL,				"CMD_APPEND"			},			// 71
 	{ NULL,				"CMD_SUBSCRIBE"			},			// 72
 	{ NULL,				"CMD_MULTIREAD",		},			// 73
 	{ NULL,				"CMD_GETMETADATA",		},			// 74

@@ -25,7 +25,7 @@
 **		records; these are returned as events that are collected after
 **		the initial command completes.  There are two interfaces for
 **		this; one only reads existing data, and the other will wait for
-**		data to be published by another client.
+**		data to be appended by another client.
 */
 
 
