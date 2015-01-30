@@ -23,6 +23,7 @@ HFILES=	\
 	gdp_pdu.h \
 	gdp_priv.h \
 	gdp_stat.h \
+	gdp_version.h \
 
 GDPLIBMAJVER=	1
 GDPLIBMINVER=	0
@@ -70,5 +71,12 @@ libgdp.so.${GDPLIBVER}: ${OBJS}
 
 ${OBJS}: ${HFILES}
 
+GDP_LIB_VERSION=	`date +%Y%m%d`
+
+newversion:	FORCE
+	sed -e "s/@GDP_LIB_VERSION@/${GDP_LIB_VERSION}/" < gdp_version.template > gdp_version.h
+
 clean:
 	-rm -f ${ALL} *.o *.core
+
+FORCE:
