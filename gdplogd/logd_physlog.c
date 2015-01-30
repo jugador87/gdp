@@ -98,12 +98,51 @@ get_gcl_path(gdp_gcl_t *gcl, const char *ext, char *pbuf, int pbufsiz)
 
 	EP_ASSERT_POINTER_VALID(gcl);
 
+	errno = 0;
 	gdp_printable_name(gcl->name, pname);
-	i = snprintf(pbuf, pbufsiz, "%s/%s%s", GCLDir, pname, ext);
+
+	// find the subdirectory based on the first part of the name
+	{
+		struct stat st;
+
+		i = snprintf(pbuf, pbufsiz, "%s/_%02x",
+					GCLDir, gcl->name[0]);
+		if (i >= pbufsiz)
+			goto fail0;
+		if (stat(pbuf, &st) < 0)
+		{
+			// doesn't exist; we need to create it
+			ep_dbg_cprintf(Dbg, 10, "get_gcl_path: creating %s\n", pbuf);
+			i = mkdir(pbuf, 0775);
+			if (i < 0)
+				goto fail0;
+		}
+		else if ((st.st_mode & S_IFMT) != S_IFDIR)
+		{
+			errno = ENOTDIR;
+			goto fail0;
+		}
+	}
+
+	i = snprintf(pbuf, pbufsiz, "%s/_%02x/%s%s",
+				GCLDir, gcl->name[0], pname, ext);
 	if (i < pbufsiz)
 		return EP_STAT_OK;
-	else
-		return EP_STAT_ERROR;
+
+fail0:
+	{
+		EP_STAT estat;
+		char ebuf[100];
+
+		if (errno == 0)
+			estat = EP_STAT_ERROR;
+		else
+			estat = ep_stat_from_errno(errno);
+
+		ep_dbg_cprintf(Dbg, 8, "get_gcl_path(%s):\n\t%s\n",
+				pbuf, ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		return estat;
+	}
 }
 
 
@@ -831,47 +870,50 @@ fail_stdio:
 void
 gcl_physforeach(void (*func)(gdp_name_t, void *), void *ctx)
 {
-	DIR *dir;
+	int subdir;
 
-	dir = opendir(GCLDir);
-	if (dir == NULL)
+	for (subdir = 0; subdir < 0x100; subdir++)
 	{
-		ep_log(ep_stat_from_errno(errno),
-				"gcl_physforeach: cannot open %s", GCLDir);
-		return;
-	}
+		DIR *dir;
+		char dbuf[400];
 
-	for (;;)
-	{
-		struct dirent dentbuf;
-		struct dirent *dent;
-
-		// read the next directory entry
-		int i = readdir_r(dir, &dentbuf, &dent);
-		if (i != 0)
-		{
-			ep_log(ep_stat_from_errno(i),
-					"gcl_physforeach: readdir_r failed");
-			break;
-		}
-		if (dent == NULL)
-			break;
-
-		// we're only interested in .data files
-		char *p = strrchr(dent->d_name, '.');
-		if (p == NULL || strcmp(p, GCL_DATA_SUFFIX) != 0)
+		snprintf(dbuf, sizeof dbuf, "%s/_%02x", GCLDir, subdir);
+		dir = opendir(dbuf);
+		if (dir == NULL)
 			continue;
 
-		// strip off the ".data"
-		*p = '\0';
+		for (;;)
+		{
+			struct dirent dentbuf;
+			struct dirent *dent;
 
-		// convert the base64-encoded name to internal form
-		gdp_name_t gname;
-		EP_STAT estat = gdp_internal_name(dent->d_name, gname);
-		EP_STAT_CHECK(estat, continue);
+			// read the next directory entry
+			int i = readdir_r(dir, &dentbuf, &dent);
+			if (i != 0)
+			{
+				ep_log(ep_stat_from_errno(i),
+						"gcl_physforeach: readdir_r failed");
+				break;
+			}
+			if (dent == NULL)
+				break;
 
-		// now call the function
-		(*func)((uint8_t *) gname, ctx);
+			// we're only interested in .data files
+			char *p = strrchr(dent->d_name, '.');
+			if (p == NULL || strcmp(p, GCL_DATA_SUFFIX) != 0)
+				continue;
+
+			// strip off the ".data"
+			*p = '\0';
+
+			// convert the base64-encoded name to internal form
+			gdp_name_t gname;
+			EP_STAT estat = gdp_internal_name(dent->d_name, gname);
+			EP_STAT_CHECK(estat, continue);
+
+			// now call the function
+			(*func)((uint8_t *) gname, ctx);
+		}
+		closedir(dir);
 	}
-	closedir(dir);
 }
