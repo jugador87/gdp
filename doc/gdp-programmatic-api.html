@@ -146,20 +146,18 @@
     gdp_gcl_open — Open an existing GCL<br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_open(gdp_name_t name,
-		gcl_iomode_t rw,
-		gdp_gcl_t **gclp)
+		gcl_iomode_t rw,<br>                gdp_qos_req_t *qos,<br>               &nbsp;gdp_gcl_t **gclp)
 </pre>
     <h4> Notes</h4>
     <ul>
       <li> Opens the GCL with the indicated name for the mode indicated
         by <code>rw</code>, which may be <code>GDP_MODE_RO</code>
         (read only) or <code>GDP_MODE_AO</code> (append only).</li>
+      <li>QoS requirements are for future use.&nbsp; For now pass in
+        NULL.<br>
+      </li>
       <li>The handle itself is returned indirectly through <code>*gclp</code>.<br>
       </li>
-      <li><i>Pass in type/subtype? That would make it seem to be part of
-          the naming. Alternatively there could be a "requirements"
-          parameter that would specify this information as well as QoS
-          requirements. This could be useful.</i></li>
       <i> </i>
       <li><i> Can handles be R/W or are the only options RO or AO
           (Append Only)? Or for that matter can you update an existing
@@ -218,10 +216,8 @@
 </pre>
     <h4> Notes</h4>
     <ul>
-      <li> What status is included? Size (or number of
-        records/messages), type, subtype, last access, …</li>
-      <li> What about type-dependent status information?</li>
-      <li> Should this take a handle or a name? Or two interfaces?</li>
+      <li> <i>What status is included? Size (or number of
+          records/messages), last access, …</i></li>
     </ul>
     <br>
     <hr size="2" width="100%">

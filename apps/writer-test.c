@@ -116,7 +116,7 @@ main(int argc, char **argv)
 
 	// open a GCL with the provided name
 	gdp_parse_name(argv[0], gcliname);
-	estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gcl);
+	estat = gdp_gcl_open(gcliname, GDP_MODE_AO, NULL, &gcl);
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// dump the internal version of the GCL to facilitate testing

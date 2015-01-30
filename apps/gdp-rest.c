@@ -451,7 +451,7 @@ a_append(scgi_request *req, gdp_name_t gcliname, gdp_datum_t *datum)
 	//XXX violates the principle that gdp-rest is "just an app"
 	if ((gcl = _gdp_gcl_cache_get(gcliname, GDP_MODE_AO)) == NULL)
 	{
-		estat = gdp_gcl_open(gcliname, GDP_MODE_AO, &gcl);
+		estat = gdp_gcl_open(gcliname, GDP_MODE_AO, NULL, &gcl);
 	}
 	if (EP_STAT_ISOK(estat))
 	{
@@ -516,7 +516,7 @@ a_read_datum(scgi_request *req, gdp_name_t gcliname, gdp_recno_t recno)
 	gdp_gcl_t *gcl = NULL;
 	gdp_datum_t *datum = gdp_datum_new();
 
-	estat = gdp_gcl_open(gcliname, GDP_MODE_RO, &gcl);
+	estat = gdp_gcl_open(gcliname, GDP_MODE_RO, NULL, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	estat = gdp_gcl_read(gcl, recno, datum);
@@ -804,7 +804,7 @@ kv_initialize(void)
 
 	// open the "KeyVal" GCL
 	gdp_parse_name(KeyValStoreName, KeyValInternalName);
-	estat = gdp_gcl_open(KeyValInternalName, GDP_MODE_AO, &KeyValGcl);
+	estat = gdp_gcl_open(KeyValInternalName, GDP_MODE_AO, NULL, &KeyValGcl);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// read all the data

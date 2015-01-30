@@ -377,7 +377,7 @@ main(int argc, char **argv)
 	fprintf(stdout, "Reading GCL %s\n", gclpname);
 
 	// open the GCL; arguably this shouldn't be necessary
-	estat = gdp_gcl_open(gclname, GDP_MODE_RO, &gcl);
+	estat = gdp_gcl_open(gclname, GDP_MODE_RO, NULL, &gcl);
 	if (!EP_STAT_ISOK(estat))
 	{
 		char sbuf[100];

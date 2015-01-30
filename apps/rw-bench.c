@@ -203,7 +203,7 @@ main(int argc, char *argv[])
 		memcpy(internal_name, gdp_gcl_getname(gcl_write), sizeof internal_name);
 		gdp_printable_name(internal_name, printable_name);
 		gdp_gcl_close(gcl_write);
-		estat = gdp_gcl_open(internal_name, GDP_MODE_RO, &gcl_read);
+		estat = gdp_gcl_open(internal_name, GDP_MODE_RO, NULL, &gcl_read);
 		ep_time_now(&start_time);
 		fprintf(stdout, "Reading data (start_time = %" PRIu64 ":%u)\n",
 				start_time.tv_sec, start_time.tv_nsec);
