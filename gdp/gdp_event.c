@@ -22,6 +22,10 @@ static EP_THR_MUTEX		ActiveListMutex	EP_THR_MUTEX_INITIALIZER;
 static EP_THR_COND		ActiveListSig	EP_THR_COND_INITIALIZER;
 static struct ev_head	ActiveList		= STAILQ_HEAD_INITIALIZER(ActiveList);
 
+static EP_THR_MUTEX		CallbackListMutex	EP_THR_MUTEX_INITIALIZER;
+static EP_THR_COND		CallbackListSig		EP_THR_COND_INITIALIZER;
+static struct ev_head	CallbackList		= STAILQ_HEAD_INITIALIZER(CallbackList);
+
 EP_STAT
 gdp_event_new(gdp_event_t **gevp)
 {
@@ -94,10 +98,22 @@ gdp_event_trigger(gdp_event_t *gev)
 {
 	EP_ASSERT_POINTER_VALID(gev);
 
-	ep_thr_mutex_lock(&ActiveListMutex);
-	STAILQ_INSERT_TAIL(&ActiveList, gev, queue);
-	ep_thr_cond_signal(&ActiveListSig);
-	ep_thr_mutex_unlock(&ActiveListMutex);
+	if (req->sub_cb == NULL)
+	{
+		// signal the user thread
+		ep_thr_mutex_lock(&ActiveListMutex);
+		STAILQ_INSERT_TAIL(&ActiveList, gev, queue);
+		ep_thr_cond_signal(&ActiveListSig);
+		ep_thr_mutex_unlock(&ActiveListMutex);
+	}
+	else
+	{
+		// signal the callback thread
+		ep_thr_mutex_lock(&CallbackListMutex);
+		STAILQ_INSERT_TAIL(&CallbackList, gev, queue);
+		ep_thr_cond_signal(&CallbackListSig);
+		ep_thr_mutex_unlock(&CallbackListMutex);
+	}
 }
 
 
