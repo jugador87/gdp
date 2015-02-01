@@ -41,6 +41,61 @@ init_error(const char *datum, const char *where)
 }
 
 
+static EP_STAT
+process_subscription_event(gdp_req_t *req)
+{
+	EP_STAT estat = EP_STAT_OK;
+
+	// link the request onto the event queue
+	gdp_event_t *gev;
+	int evtype;
+
+	// make note that we've seen activity for this subscription
+	ep_time_now(&req->sub_ts);
+
+	// for the moment we only understand data responses (for subscribe)
+	switch (req->pdu->cmd)
+	{
+	case GDP_ACK_SUCCESS:
+		// this is in response to a PING on the subscription
+		return estat;
+
+	case GDP_ACK_CONTENT:
+		evtype = GDP_EVENT_DATA;
+		break;
+
+	case GDP_ACK_DELETED:
+		// end of subscription
+		evtype = GDP_EVENT_EOS;
+		break;
+
+	default:
+		ep_dbg_cprintf(Dbg, 1,
+				"gdp_pdu_proc_thread: unexpected ack %d in subscription\n",
+				req->pdu->cmd);
+		estat = GDP_STAT_PROTOCOL_FAIL;
+		return estat;
+	}
+
+	estat = _gdp_event_new(&gev);
+	EP_STAT_CHECK(estat, return estat);
+
+	gev->type = evtype;
+	gev->gcl = req->gcl;
+	gev->datum = req->pdu->datum;
+	gev->udata = req->udata;
+	gev->cb = req->sub_cb;
+	req->pdu->datum = NULL;			// avoid use after free
+
+	// schedule the event for delivery
+	_gdp_event_trigger(gev);
+
+	// the callback must call gdp_event_free(gev)
+
+	return estat;
+}
+
+
 /*
 **  GDP_PDU_PROC_THREAD --- process PDU --- heavy part
 **
@@ -132,64 +187,10 @@ gdp_pdu_proc_thread(void *req_)
 		// ASSERT(all data from chan has been consumed);
 
 		ep_thr_mutex_lock(&req->mutex);
-
 		if (EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, req->flags))
 		{
-			// link the request onto the event queue
-			gdp_event_t *gev;
-			int evtype;
-
-			// for the moment we only understand data responses (for subscribe)
-			switch (req->pdu->cmd)
-			{
-			  case GDP_ACK_CONTENT:
-				evtype = GDP_EVENT_DATA;
-				break;
-
-			  case GDP_ACK_DELETED:
-				// end of subscription
-				evtype = GDP_EVENT_EOS;
-				break;
-
-			  case GDP_NAK_S_EXITING:
-				evtype = GDP_EVENT_SHUTDOWN;
-				break;
-
-			  default:
-				ep_dbg_cprintf(Dbg, 1,
-						"gdp_pdu_proc_thread: unexpected ack %d in subscription\n",
-						req->pdu->cmd);
-				estat = GDP_STAT_PROTOCOL_FAIL;
-				goto fail1;
-			}
-
-			estat = gdp_event_new(&gev);
-			EP_STAT_CHECK(estat, goto fail1);
-
-			gev->type = evtype;
-			gev->gcl = req->gcl;
-			gev->datum = req->pdu->datum;
-			gev->udata = req->udata;
-			req->pdu->datum = NULL;			// avoid use after free
-
-			if (req->sub_cb != NULL)
-			{
-				// caller wanted a callback
-#ifdef RUN_CALLBACKS_IN_THREAD
-				// ... to run in a separate thread ...
-				ep_thr_pool_run(req->sub_cb, gev);
-#else
-				// ... to run in I/O event thread ...
-				(*req->sub_cb)(gev);
-#endif
-			}
-			else
-			{
-				// caller wanted events
-				gdp_event_trigger(gev);
-			}
-
-			// the callback must call gdp_event_free(gev)
+			// send the status as an event
+			estat = process_subscription_event(req);
 		}
 		else
 		{
@@ -205,7 +206,6 @@ gdp_pdu_proc_thread(void *req_)
 			// wake up invoker, which will return the status
 			ep_thr_cond_signal(&req->cond);
 		}
-	fail1:
 		ep_thr_mutex_unlock(&req->mutex);
 	}
 
@@ -331,17 +331,17 @@ fail0:
 pthread_t		_GdpIoEventLoopThread;
 
 static void
-event_loop_timeout(int fd, short what, void *ctx)
+event_loop_timeout(int fd, short what, void *eli_)
 {
-	struct event_loop_info *eli = ctx;
+	struct event_loop_info *eli = eli_;
 
 	ep_dbg_cprintf(Dbg, 79, "%s event loop timeout\n", eli->where);
 }
 
 static void *
-run_event_loop(void *ctx)
+run_event_loop(void *eli_)
 {
-	struct event_loop_info *eli = ctx;
+	struct event_loop_info *eli = eli_;
 	struct event_base *evb = eli->evb;
 	long evdelay = ep_adm_getlongparam("swarm.gdp.event.loopdelay", 100000L);
 	
@@ -471,21 +471,20 @@ _gdp_lib_init(void)
 		ep_adm_readparams(progname);
 
 	// arrange to call atexit(3) functions on SIGTERM
-	if (ep_adm_getboolparam("swarm.gdp.catch-sigterm", true))
-	{
+	if (ep_adm_getboolparam("swarm.gdp.catch.sigint", true))
 		(void) signal(SIGINT, exit_on_signal);
+	if (ep_adm_getboolparam("swarm.gdp.catch.sigterm", true))
 		(void) signal(SIGTERM, exit_on_signal);
-	}
 
 	// register status strings
 	_gdp_stat_init();
 
-	// figure out or generate our name
 	if (progname != NULL)
 	{
 		char argname[100];
 		const char *logfac;
 
+		// figure out or generate our name
 		snprintf(argname, sizeof argname, "swarm.%s.gdpname", progname);
 		myname = ep_adm_getstrparam(argname, NULL);
 		if (myname != NULL)
@@ -498,20 +497,12 @@ _gdp_lib_init(void)
 			EP_STAT_CHECK(estat, myname = NULL);
 		}
 
+		// allow log facilities on a per-app basis
 		snprintf(argname, sizeof argname, "swarm.%s.log.facility", progname);
 		logfac = ep_adm_getstrparam(argname, NULL);
 		if (logfac == NULL)
 			logfac = ep_adm_getstrparam("swarm.gdp.log.facility", "local4");
 		ep_log_init(progname, ep_syslog_fac_from_name(logfac), stderr, NULL);
-	}
-	if (myname == NULL)
-	{
-		gdp_pname_t pname;
-
-		// no name found in configuration
-		_gdp_newname(_GdpMyRoutingName);
-		ep_dbg_cprintf(Dbg, 19, "Made up my name: %s\n",
-				gdp_printable_name(_GdpMyRoutingName, pname));
 	}
 
 	if (ep_dbg_test(Dbg, 1))
@@ -541,16 +532,14 @@ _gdp_lib_init(void)
 	if (GdpIoEventBase == NULL)
 	{
 		// Initialize for I/O events
-		{
-			struct event_config *ev_cfg = event_config_new();
+		struct event_config *ev_cfg = event_config_new();
 
-			event_config_require_features(ev_cfg, 0);
-			GdpIoEventBase = event_base_new_with_config(ev_cfg);
-			if (GdpIoEventBase == NULL)
-				estat = init_error("could not create event base", "gdp_lib_init");
-			event_config_free(ev_cfg);
-			EP_STAT_CHECK(estat, goto fail0);
-		}
+		event_config_require_features(ev_cfg, 0);
+		GdpIoEventBase = event_base_new_with_config(ev_cfg);
+		if (GdpIoEventBase == NULL)
+			estat = init_error("could not create event base", "gdp_lib_init");
+		event_config_free(ev_cfg);
+		EP_STAT_CHECK(estat, goto fail0);
 	}
 
 	{

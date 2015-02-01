@@ -6,9 +6,10 @@
 #include <ep/ep_hash.h>
 
 #include "gdp.h"
+#include "gdp_event.h"
 #include "gdp_gclmd.h"
-#include "gdp_stat.h"
 #include "gdp_priv.h"
+#include "gdp_stat.h"
 
 #include <event2/event.h>
 
@@ -379,14 +380,20 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 	estat = _gdp_invoke(req);
 	EP_ASSERT(EP_UT_BITSET(GDP_REQ_INUSE, req->flags));		// make sure it didn't get freed
 
-	// now arrange for responses to appear as events or callbacks
-	req->flags |= GDP_REQ_SUBSCRIPTION;
-	req->sub_cb = cbfunc;
-	req->udata = cbarg;
-
 	if (!EP_STAT_ISOK(estat))
 	{
 		_gdp_req_free(req);
+	}
+	else
+	{
+		// now arrange for responses to appear as events or callbacks
+		req->flags |= GDP_REQ_SUBSCRIPTION;
+		req->sub_cb = cbfunc;
+		req->udata = cbarg;
+
+		// if using callbacks, make sure we have a callback thread running
+		if (cbfunc != NULL)
+			_gdp_event_start_cb_thread();
 	}
 
 fail0:

@@ -45,6 +45,8 @@ typedef struct gdp_qos_req	gdp_qos_req_t;
 // the internal name of a GCL
 typedef uint8_t				gdp_name_t[32];
 
+#define GDP_NAME_SAME(a, b)	(memcmp((a), (b), sizeof (gdp_name_t)) == 0)
+
 // the printable name of a GCL
 #define GDP_GCL_PNAME_LEN	43			// length of an encoded pname
 typedef char				gdp_pname_t[GDP_GCL_PNAME_LEN + 1];
@@ -103,6 +105,7 @@ typedef struct gdp_datum	gdp_datum_t;
 typedef struct gdp_event	gdp_event_t;
 
 // event types
+#define _GDP_EVENT_FREE		0	// internal use: event is free
 #define GDP_EVENT_DATA		1	// returned data
 #define GDP_EVENT_EOS		2	// normal end of subscription
 #define GDP_EVENT_SHUTDOWN	3	// subscription terminating because of shutdown

@@ -8,6 +8,7 @@
 #include <ep/ep_dbg.h>
 
 #include "gdp.h"
+#include "gdp_priv.h"
 #include "gdp_event.h"
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.event", "GDP event handling");
@@ -15,19 +16,24 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.event", "GDP event handling");
 
 STAILQ_HEAD(ev_head, gdp_event);
 
+// free (unused) events
 static EP_THR_MUTEX		FreeListMutex	EP_THR_MUTEX_INITIALIZER;
 static struct ev_head	FreeList		= STAILQ_HEAD_INITIALIZER(FreeList);
 
+// active events (synchronous, ready for gdp_event_next)
 static EP_THR_MUTEX		ActiveListMutex	EP_THR_MUTEX_INITIALIZER;
 static EP_THR_COND		ActiveListSig	EP_THR_COND_INITIALIZER;
 static struct ev_head	ActiveList		= STAILQ_HEAD_INITIALIZER(ActiveList);
 
+// callback events (asynchronous, ready for delivery in callback thread)
 static EP_THR_MUTEX		CallbackListMutex	EP_THR_MUTEX_INITIALIZER;
 static EP_THR_COND		CallbackListSig		EP_THR_COND_INITIALIZER;
 static struct ev_head	CallbackList		= STAILQ_HEAD_INITIALIZER(CallbackList);
+static pthread_t		CallbackThread;
+static bool				CallbackThreadStarted	= false;
 
 EP_STAT
-gdp_event_new(gdp_event_t **gevp)
+_gdp_event_new(gdp_event_t **gevp)
 {
 	gdp_event_t *gev = NULL;
 
@@ -40,7 +46,7 @@ gdp_event_new(gdp_event_t **gevp)
 		gev = ep_mem_zalloc(sizeof *gev);
 	}
 	*gevp = gev;
-	ep_dbg_cprintf(Dbg, 48, "gdp_event_new => %p\n", gev);
+	ep_dbg_cprintf(Dbg, 48, "_gdp_event_new => %p\n", gev);
 	return EP_STAT_OK;
 }
 
@@ -55,6 +61,7 @@ gdp_event_free(gdp_event_t *gev)
 	if (gev->datum != NULL)
 		gdp_datum_free(gev->datum);
 	gev->datum = NULL;
+	gev->type = _GDP_EVENT_FREE;
 	ep_thr_mutex_lock(&FreeListMutex);
 	STAILQ_INSERT_HEAD(&FreeList, gev, queue);
 	ep_thr_mutex_unlock(&FreeListMutex);
@@ -94,13 +101,13 @@ gdp_event_next(int64_t timeout)
 
 
 void
-gdp_event_trigger(gdp_event_t *gev)
+_gdp_event_trigger(gdp_event_t *gev)
 {
 	EP_ASSERT_POINTER_VALID(gev);
 
-	if (req->sub_cb == NULL)
+	if (gev->cb == NULL)
 	{
-		// signal the user thread
+		// signal the user thread (synchronous delivery)
 		ep_thr_mutex_lock(&ActiveListMutex);
 		STAILQ_INSERT_TAIL(&ActiveList, gev, queue);
 		ep_thr_cond_signal(&ActiveListSig);
@@ -108,13 +115,60 @@ gdp_event_trigger(gdp_event_t *gev)
 	}
 	else
 	{
-		// signal the callback thread
+		// signal the callback thread (asynchronous delivery via callback)
 		ep_thr_mutex_lock(&CallbackListMutex);
 		STAILQ_INSERT_TAIL(&CallbackList, gev, queue);
 		ep_thr_cond_signal(&CallbackListSig);
 		ep_thr_mutex_unlock(&CallbackListMutex);
 	}
 }
+
+
+static void *
+_gdp_event_thread(void *ctx)
+{
+	for (;;)
+	{
+		gdp_event_t *gev;
+
+		// get the next event off the list
+		ep_thr_mutex_lock(&CallbackListMutex);
+		do
+		{
+			ep_thr_cond_wait(&CallbackListSig, &CallbackListMutex, NULL);
+			gev = STAILQ_FIRST(&CallbackList);
+		} while (gev == NULL);
+		STAILQ_REMOVE_HEAD(&CallbackList, queue);
+		ep_thr_mutex_unlock(&CallbackListMutex);
+
+		// sanity checks...
+		EP_ASSERT(gev->cb != NULL);
+		EP_ASSERT(gev->type != _GDP_EVENT_FREE);
+
+		// now invoke it
+		(*gev->cb)(gev);
+
+		// don't forget to clean up (unless it's already free)
+		if (gev->type != _GDP_EVENT_FREE)
+			gdp_event_free(gev);
+	}
+}
+
+
+EP_STAT
+_gdp_event_start_cb_thread(void)
+{
+	if (!CallbackThreadStarted)
+	{
+		int err = pthread_create(&CallbackThread, NULL,
+						&_gdp_event_thread, NULL);
+			if (err != 0)
+				return ep_stat_from_errno(err);
+		CallbackThreadStarted = true;
+	}
+	return EP_STAT_OK;
+}
+
 
 
 int
