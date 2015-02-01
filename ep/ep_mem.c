@@ -103,7 +103,7 @@ bunny_malloc(
 {
 	EP_STAT stat = EP_STAT_OK;
 	int triesleft = N_MALLOC_TRIES;
-	
+
 	while (triesleft-- > 0)
 	{
 		void *p;

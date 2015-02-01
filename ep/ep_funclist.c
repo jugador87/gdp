@@ -73,7 +73,7 @@ ep_funclist_new(
 	return flp;
 }
 
-void    
+void
 ep_funclist_free(EP_FUNCLIST *flp)
 {
 	EP_ASSERT_POINTER_VALID(flp);
@@ -81,7 +81,7 @@ ep_funclist_free(EP_FUNCLIST *flp)
 	ep_rpool_free(flp->rpool);	// also frees flp
 }
 
-void 
+void
 ep_funclist_push(EP_FUNCLIST *flp,
 	void (*func)(void *),
 	void *arg)
@@ -129,7 +129,7 @@ ep_funclist_clear(EP_FUNCLIST *flp)
 
 #endif /* 0 */
 
-void 
+void
 ep_funclist_invoke(EP_FUNCLIST *flp)
 {
 	struct fseg *fsp;

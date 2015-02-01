@@ -218,7 +218,7 @@ do_multiread(gdp_gcl_t *gcl,
 		// hang for an hour waiting for events
 		sleep(3600);
 	}
-	
+
 	return estat;
 }
 

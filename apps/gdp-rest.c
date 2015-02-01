@@ -597,7 +597,7 @@ fail0:
 		gdp_pname_t gclpname;
 
 		gdp_printable_name(gcliname, gclpname);
-		gdp_failure(req, "404", "Cannot read GCL", "ss", 
+		gdp_failure(req, "404", "Cannot read GCL", "ss",
 				"GCL", gclpname,
 				"reason", ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
