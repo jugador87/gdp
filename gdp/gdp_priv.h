@@ -138,6 +138,7 @@ typedef struct gdp_req
 	EP_STAT				stat;		// status code from last operation
 	int32_t				numrecs;	// remaining number of records to return
 	uint32_t			flags;		// see below
+	EP_TIME_SPEC		sub_ts;		// timestamp of last subscription activity
 	void				(*postproc)(struct gdp_req *);
 									// do post processing after ack sent
 	gdp_gcl_sub_cbfunc_t sub_cb;	// subscription callback

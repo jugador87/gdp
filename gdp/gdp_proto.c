@@ -290,8 +290,8 @@ static dispatch_ent_t	DispatchTable[256] =
 	{ NULL,				"CMD_READ"				},			// 70
 	{ NULL,				"CMD_APPEND"			},			// 71
 	{ NULL,				"CMD_SUBSCRIBE"			},			// 72
-	{ NULL,				"CMD_MULTIREAD",		},			// 73
-	{ NULL,				"CMD_GETMETADATA",		},			// 74
+	{ NULL,				"CMD_MULTIREAD"			},			// 73
+	{ NULL,				"CMD_GETMETADATA"		},			// 74
 	NOENT,				// 75
 	NOENT,				// 76
 	NOENT,				// 77
@@ -456,7 +456,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	NOENT,				// 236
 	NOENT,				// 237
 	NOENT,				// 238
-	{ nak_server,		"NAK_S_EXITING"			},			// 239
+	{ nak_server,		"NAK_S_LOSTSUB"			},			// 239
 	{ nak_router,		"NAK_R_NOROUTE"			},			// 240
 	NOENT,				// 241
 	NOENT,				// 242

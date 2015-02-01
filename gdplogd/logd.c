@@ -66,7 +66,7 @@ shutdown_req(gdp_req_t *req)
 	}
 
 	if (EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, req->flags))
-		sub_send_message_notification(req, NULL, GDP_NAK_S_EXITING);
+		sub_send_message_notification(req, NULL, GDP_NAK_S_LOSTSUB);
 }
 
 void

@@ -73,16 +73,46 @@ implement_me(char *s)
 
 /*
 **  CMD_PING --- just return an OK response to indicate that we are alive.
+**
+**		If this is addressed to a GCL (instead of the daemon itself),
+**		it is really a test to see if the subscription is still alive.
 */
 
 EP_STAT
 cmd_ping(gdp_req_t *req)
 {
-	req->pdu->cmd = GDP_ACK_SUCCESS;
+	gdp_gcl_t *gcl;
+	EP_STAT estat = EP_STAT_OK;
 
+	req->pdu->cmd = GDP_ACK_SUCCESS;
 	flush_input_data(req, "cmd_ping");
 
-	return EP_STAT_OK;
+	if (GDP_NAME_SAME(req->pdu->dst, _GdpMyRoutingName))
+		return EP_STAT_OK;
+
+	gcl = _gdp_gcl_cache_get(req->pdu->dst, GDP_MODE_RO);
+	if (gcl != NULL)
+	{
+		// We know about the GCL.  How about the subscription?
+		gdp_req_t *sub;
+
+		LIST_FOREACH(sub, &req->gcl->reqs, gcllist)
+		{
+			if (GDP_NAME_SAME(sub->pdu->dst, req->pdu->src) &&
+					EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, sub->flags))
+			{
+				// Yes, we have a subscription!
+				goto done;
+			}
+		}
+	}
+
+	req->pdu->cmd = GDP_NAK_S_LOSTSUB;		// lost subscription
+	estat =  GDP_STAT_NAK_NOTFOUND;
+
+done:
+	_gdp_gcl_decref(gcl);
+	return estat;
 }
 
 

@@ -69,6 +69,10 @@ process_subscription_event(gdp_req_t *req)
 		evtype = GDP_EVENT_EOS;
 		break;
 
+	case GDP_NAK_S_LOSTSUB:
+		evtype = GDP_EVENT_SHUTDOWN;
+		break;
+
 	default:
 		ep_dbg_cprintf(Dbg, 1,
 				"gdp_pdu_proc_thread: unexpected ack %d in subscription\n",
@@ -344,7 +348,7 @@ run_event_loop(void *eli_)
 	struct event_loop_info *eli = eli_;
 	struct event_base *evb = eli->evb;
 	long evdelay = ep_adm_getlongparam("swarm.gdp.event.loopdelay", 100000L);
-	
+
 	// keep the loop alive if EVLOOP_NO_EXIT_ON_EMPTY isn't available
 	long ev_timeout = ep_adm_getlongparam("swarm.gdp.event.looptimeout", 30L);
 	struct timeval tv = { ev_timeout, 0 };
