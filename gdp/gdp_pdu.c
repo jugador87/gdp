@@ -136,17 +136,17 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 
 	EP_ASSERT_POINTER_VALID(pdu);
 
+	if (!gdp_name_is_valid(pdu->src))
+	{
+		// use our own name as the source if nothing specified
+		memcpy(pdu->src, _GdpMyRoutingName, sizeof pdu->src);
+	}
+
 	if (ep_dbg_test(Dbg, 22))
 	{
 		ep_dbg_printf("_gdp_pdu_out (fd = %d):\n    ",
 				bufferevent_getfd(chan->bev));
 		_gdp_pdu_dump(pdu, ep_dbg_getfile());
-	}
-
-	if (!gdp_name_is_valid(pdu->src))
-	{
-		// use our own name as the source if nothing specified
-		memcpy(pdu->src, _GdpMyRoutingName, sizeof pdu->src);
 	}
 
 	// version number

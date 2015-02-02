@@ -509,6 +509,9 @@ _gdp_lib_init(void)
 		ep_log_init(progname, ep_syslog_fac_from_name(logfac), stderr, NULL);
 	}
 
+	if (!gdp_name_is_valid(_GdpMyRoutingName))
+		_gdp_newname(_GdpMyRoutingName);
+
 	if (ep_dbg_test(Dbg, 1))
 	{
 		gdp_pname_t pname;
