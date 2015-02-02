@@ -810,7 +810,7 @@ kv_initialize(void)
 	// read all the data
 	estat = gdp_gcl_multiread(KeyValGcl, 1, 0, NULL, NULL);
 	EP_STAT_CHECK(estat, goto fail1);
-	while ((gev = gdp_event_next(0)) != NULL)
+	while ((gev = gdp_event_next(KeyValGcl, 0)) != NULL)
 	{
 		if (gdp_event_gettype(gev) == GDP_EVENT_EOS)
 		{
@@ -1089,7 +1089,7 @@ main(int argc, char **argv, char **env)
 	{
 		gdp_event_t *gev;
 
-		while ((gev = gdp_event_next(false)) != NULL)
+		while ((gev = gdp_event_next(NULL, 0)) != NULL)
 		{
 			process_event(gev);
 			gdp_event_free(gev);

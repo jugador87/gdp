@@ -41,9 +41,10 @@ EP_STAT
 _gdp_invoke(gdp_req_t *req)
 {
 	EP_STAT estat;
-	EP_TIME_SPEC timeout;
-	long delta_timeout = ep_adm_getlongparam("swarm.gdp.invoke.timeout", 10000L);
+	EP_TIME_SPEC abs_to;
+	long delta_to = ep_adm_getlongparam("swarm.gdp.invoke.timeout", 10000L);
 	int retries = ep_adm_getintparam("swarm.gdp.invoke.retries", 3);
+	EP_TIME_SPEC delta_ts;
 
 	EP_ASSERT_POINTER_VALID(req);
 	if (ep_dbg_test(Dbg, 22))
@@ -55,6 +56,9 @@ _gdp_invoke(gdp_req_t *req)
 				req->gcl);
 		gdp_datum_print(req->pdu->datum, ep_dbg_getfile());
 	}
+
+	// scale timeout to milliseconds
+	ep_time_from_nsec(delta_to * INT64_C(1000000), &delta_ts);
 
 	// loop to allow for retransmissions
 	if (retries < 1)
@@ -78,13 +82,13 @@ _gdp_invoke(gdp_req_t *req)
 
 		// wait until we receive a result
 		ep_dbg_cprintf(Dbg, 37, "_gdp_invoke: waiting on %p\n", req);
-		ep_time_deltanow(delta_timeout * INT64_C(1000000), &timeout);
+		ep_time_deltanow(&delta_ts, &abs_to);
 		ep_thr_mutex_lock(&req->mutex);
 		estat = EP_STAT_OK;
 		while (!EP_UT_BITSET(GDP_REQ_DONE, req->flags))
 		{
 			char ebuf[100];
-			int e = ep_thr_cond_wait(&req->cond, &req->mutex, &timeout);
+			int e = ep_thr_cond_wait(&req->cond, &req->mutex, &abs_to);
 			ep_dbg_cprintf(Dbg, 52,
 					"_gdp_invoke wait: got %d, done=%d, stat=%s\n",
 					e, EP_UT_BITSET(GDP_REQ_DONE, req->flags),
@@ -562,11 +566,14 @@ _gdp_req_dispatch(gdp_req_t *req)
 	{
 		char ebuf[200];
 
-		ep_dbg_printf("_gdp_req_dispatch <<< %s\n    %s\n    ",
+		ep_dbg_printf("_gdp_req_dispatch <<< %s\n    %s\n",
 				_gdp_proto_cmd_name(req->pdu->cmd),
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		if (ep_dbg_test(Dbg, 30))
+		{
+			ep_dbg_printf("    ");
 			_gdp_pdu_dump(req->pdu, ep_dbg_getfile());
+		}
 	}
 
 	return estat;

@@ -90,18 +90,21 @@ ep_time_now(EP_TIME_SPEC *tv)
 **  EP_TIME_DELTANOW --- return current time of day plus a delta
 **
 **	The delta is in nanoseconds.
+**	At the moment, delta must be positive; it isn't even
+**		clear how to represent a negative delta in
+**		an EP_TIME_SPEC.
 */
 
 EP_STAT
-ep_time_deltanow(uint64_t delta, EP_TIME_SPEC *tv)
+ep_time_deltanow(EP_TIME_SPEC *delta, EP_TIME_SPEC *tv)
 {
 	EP_STAT estat;
 
 	estat = ep_time_now(tv);
 	EP_STAT_CHECK(estat, return estat);
 
-	tv->tv_sec += delta / ONESECOND;
-	tv->tv_nsec += delta % ONESECOND;
+	tv->tv_sec += delta->tv_sec;
+	tv->tv_nsec += delta->tv_nsec;
 	if (tv->tv_nsec > ONESECOND)
 	{
 		tv->tv_sec++;
@@ -110,6 +113,22 @@ ep_time_deltanow(uint64_t delta, EP_TIME_SPEC *tv)
 	return EP_STAT_OK;
 }
 
+
+/*
+**  EP_TIME_FROM_NANOSEC --- convert nanoseconds to a EP_TIME_SPEC
+*/
+
+void
+ep_time_from_nsec(int64_t nsec, EP_TIME_SPEC *tv)
+{
+	tv->tv_sec = nsec / ONESECOND;
+	tv->tv_nsec = nsec % ONESECOND;
+}
+
+
+/*
+**  EP_TIME_NANOSLEEP --- sleep for designated number of nanoseconds
+*/
 
 EP_STAT
 ep_time_nanosleep(int64_t nsec)
@@ -123,6 +142,10 @@ ep_time_nanosleep(int64_t nsec)
 	return EP_STAT_OK;
 }
 
+
+/*
+**  EP_TIME_FORMAT --- format a time/date for printing
+*/
 
 void
 ep_time_format(const EP_TIME_SPEC *tv, char *tbuf, size_t tbsiz, bool human)
@@ -161,6 +184,10 @@ ep_time_format(const EP_TIME_SPEC *tv, char *tbuf, size_t tbsiz, bool human)
 }
 
 
+/*
+**  EP_TIME_PRINT --- print a time/date spec to a file
+*/
+
 void
 ep_time_print(const EP_TIME_SPEC *tv, FILE *fp, bool human)
 {
@@ -170,6 +197,12 @@ ep_time_print(const EP_TIME_SPEC *tv, FILE *fp, bool human)
 	fprintf(fp, "%s", tbuf);
 }
 
+
+/*
+**  EP_TIME_PARSE --- convert external to internal format
+**
+**	Only works for a very specific format.
+*/
 
 EP_STAT
 ep_time_parse(const char *timestr, EP_TIME_SPEC *tv)

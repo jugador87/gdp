@@ -111,7 +111,8 @@ typedef struct gdp_event	gdp_event_t;
 #define GDP_EVENT_SHUTDOWN	3	// subscription terminating because of shutdown
 
 extern gdp_event_t		*gdp_event_next(	// get event (caller must free!)
-							int64_t timeout);	// wait for event to appear?
+							gdp_gcl_t *gcl,		// if set wait for this GCL only
+							EP_TIME_SPEC *timeout);
 
 extern EP_STAT			gdp_event_free(		// free event from gdp_event_next
 							gdp_event_t *gev);	// event to free

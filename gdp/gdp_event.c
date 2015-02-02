@@ -11,6 +11,8 @@
 #include "gdp_priv.h"
 #include "gdp_event.h"
 
+#include <sys/errno.h>
+
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.event", "GDP event handling");
 
 
@@ -70,31 +72,55 @@ gdp_event_free(gdp_event_t *gev)
 
 
 gdp_event_t *
-gdp_event_next(int64_t timeout)
+gdp_event_next(gdp_gcl_t *gcl, EP_TIME_SPEC *timeout)
 {
 	gdp_event_t *gev;
-	EP_TIME_SPEC *absolute_timeout = NULL;
+	EP_TIME_SPEC *abs_to = NULL;
 	EP_TIME_SPEC tv;
 
-	if (timeout > 0)
+	if (timeout != NULL)
 	{
 		ep_time_deltanow(timeout, &tv);
-		absolute_timeout = &tv;
+		abs_to = &tv;
 	}
 
 	ep_thr_mutex_lock(&ActiveListMutex);
-	gev = STAILQ_FIRST(&ActiveList);
-	if (gev == NULL)
+	for (;;)
 	{
+		int err;
+
 		while ((gev = STAILQ_FIRST(&ActiveList)) == NULL)
 		{
-			ep_thr_cond_wait(&ActiveListSig, &ActiveListMutex, absolute_timeout);
-			if (absolute_timeout != NULL)
-				break;
+			// wait until we have at least one thing to try
+			err = ep_thr_cond_wait(&ActiveListSig, &ActiveListMutex, abs_to);
+			if (err == ETIMEDOUT)
+				goto fail0;
 		}
+		while (gev != NULL)
+		{
+			// if this isn't the GCL we want, keep searching the list
+			if (gcl == NULL || gev->gcl == gcl)
+				break;
+
+			// not the event we want
+			gev = STAILQ_NEXT(gev, queue);
+		}
+
+		if (gev != NULL)
+		{
+			// found a match!
+			break;
+		}
+
+		// if there is no match, wait until something is added and try again
+		err = ep_thr_cond_wait(&ActiveListSig, &ActiveListMutex, abs_to);
+		if (err == ETIMEDOUT)
+			break;
 	}
+
 	if (gev != NULL)
-		STAILQ_REMOVE_HEAD(&ActiveList, queue);
+		STAILQ_REMOVE(&ActiveList, gev, gdp_event, queue);
+fail0:
 	ep_thr_mutex_unlock(&ActiveListMutex);
 	return gev;
 }
