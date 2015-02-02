@@ -58,14 +58,18 @@ _gdp_req_new(int cmd,
 	ep_thr_mutex_unlock(&ReqFreeListMutex);
 	if (req == NULL)
 	{
+		// nothing on free list; allocate another
 		req = ep_mem_zalloc(sizeof *req);
 		ep_thr_mutex_init(&req->mutex, EP_THR_MUTEX_DEFAULT);
 		ep_thr_cond_init(&req->cond);
 	}
 
+	// sanity checks
 	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_INUSE, req->flags));
 	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
 	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags));
+
+	// initialize request
 	if (pdu != NULL)
 		req->pdu = pdu;
 	else
@@ -74,11 +78,15 @@ _gdp_req_new(int cmd,
 	req->stat = EP_STAT_OK;
 	req->flags = flags;
 	req->chan = chan;
+
+	// keep track of all outstanding requests on a channel
 	if (chan != NULL)
 	{
 		LIST_INSERT_HEAD(&chan->reqs, req, chanlist);
 		req->flags |= GDP_REQ_ON_CHAN_LIST;
 	}
+
+	// if we're not passing in a PDU, initialize the new one
 	if (newpdu)
 	{
 		req->pdu->cmd = cmd;

@@ -18,9 +18,13 @@ struct gdp_event
 	int						type;		// event type
 	gdp_gcl_t				*gcl;		// GCL handle for event
 	gdp_datum_t				*datum;		// datum for event
+	uint32_t				flags;		// see below
 	gdp_gcl_sub_cbfunc_t	cb;			// callback for event
 	void					*udata;		// user data
 };
+
+// flag bits
+#define GDP_EVENT_F_KEEPPDU		0x00000001	// keep PDU when event is freed
 
 // allocate an event
 extern EP_STAT			_gdp_event_new(gdp_event_t **gevp);

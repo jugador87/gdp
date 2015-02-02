@@ -45,6 +45,7 @@ static EP_STAT
 process_subscription_event(gdp_req_t *req)
 {
 	EP_STAT estat = EP_STAT_OK;
+	uint32_t gevflags = 0;
 
 	// link the request onto the event queue
 	gdp_event_t *gev;
@@ -62,6 +63,7 @@ process_subscription_event(gdp_req_t *req)
 
 	case GDP_ACK_CONTENT:
 		evtype = GDP_EVENT_DATA;
+		gevflags |= GDP_EVENT_F_KEEPPDU;
 		break;
 
 	case GDP_ACK_DELETED:
@@ -89,7 +91,7 @@ process_subscription_event(gdp_req_t *req)
 	gev->datum = req->pdu->datum;
 	gev->udata = req->udata;
 	gev->cb = req->sub_cb;
-	req->pdu->datum = NULL;			// avoid use after free
+	gev->flags = gevflags;
 
 	// schedule the event for delivery
 	_gdp_event_trigger(gev);
