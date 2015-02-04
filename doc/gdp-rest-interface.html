@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
   <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta content="text/html; charset=UTF-8" http-equiv="content-type">
     <title>GDP REST Interface</title>
     <meta content="Eric Allman" name="author">
   </head>
@@ -10,69 +10,66 @@
     Eric Allman<br>
     U.C. Berkeley Swarm Lab 2015-01-16<br>
     Draft 6<br>
-    <p>This document describes the RESTful interface to the Global Data
-      Plane (GDP). Note that this is not part of the GDP itself, since
-      that layer treats all records as opaque. This level adds simple
-      key-value structure to the data for the convenience of users, and
-      in some cases assumes the data is valid JSON text.</p>
+    <p>This document describes the RESTful interface to the Global Data Plane
+      (GDP). Note that this is not part of the GDP itself, since that layer
+      treats all records as opaque. This level adds simple key-value structure
+      to the data for the convenience of users, and in some cases assumes the
+      data is valid JSON text.</p>
     <h2>1 Introduction</h2>
     <p>This interface is a true RESTful interface, that is, it uses
-      GET/POST/PUT/DELETE instead of overloading everything into GET.
-      This implies that it won't work using only an off the shelf web
-      browser because browsers will only use POST methods in response to
-      an HTML form.</p>
-    <p>The data representation chosen is JSON, which is easier to build
-      and parse than XML.&nbsp; <i>[[This should be expanded to include
-        XML as specified by the Accept header.]]</i><br>
+      GET/POST/PUT/DELETE instead of overloading everything into GET. This
+      implies that it won't work using only an off the shelf web browser because
+      browsers will only use POST methods in response to an HTML form.</p>
+    <p>The data representation chosen is JSON, which is easier to build and
+      parse than XML.&nbsp; <i>[[This should be expanded to include XML as
+        specified by the Accept header.]]</i><br>
     </p>
     <p>All RESTful calls have the prefix "<code>/gdp/v1</code>" to allow
-      overloading with other services and to allow multiple versions of
-      the protocol to run simultaneously on one node.</p>
-    <p>Objects in the dataplane are called GDP Channel-Logs (GCLs),
-      representing their dual nature as both a communication channel and
-      a storage log. GCLs are named with 256-bit values encoded in
-      Base64url notation or as a user-meaningful text string, possibly
-      including slashes, which is hashed using SHA-256 to produce an
-      internal value.</p>
+      overloading with other services and to allow multiple versions of the
+      protocol to run simultaneously on one node.</p>
+    <p>Objects in the dataplane are called GDP Channel-Logs (GCLs), representing
+      their dual nature as both a communication channel and a storage log. GCLs
+      are named with 256-bit values encoded in Base64url notation or as a
+      user-meaningful text string, possibly including slashes, which is hashed
+      using SHA-256 to produce an internal value.</p>
     <h2>2 Security</h2>
-    <p>Everything stored in the GDP is supposed to be encrypted;
-      however, this interface does not enforce this policy and treats
-      all GDP data as though it were encoded in JSON; in particular, in
-      some cases it may be encapsulated inside another JSON object. Data
-      returned in response to a status request (e.g., for the number of
-      records available) is always returned unencrypted as a JSON
-      object.<br>
+    <p>Everything stored in the GDP is supposed to be encrypted; however, this
+      interface does not enforce this policy and treats all GDP data as though
+      it were encoded in JSON; in particular, in some cases it may be
+      encapsulated inside another JSON object. Data returned in response to a
+      status request (e.g., for the number of records available) is always
+      returned unencrypted as a JSON object.<br>
     </p>
-    <p><i>A way around this assumption of JSON data content is to return
-        all data as base64-encoded strings.&nbsp; However, this puts
-        more work on the client.</i><br>
+    <p><i>A way around this assumption of JSON data content is to return all
+        data as base64-encoded strings.&nbsp; However, this puts more work on
+        the client.</i><br>
     </p>
-    <p>Although the data portion of the transaction may be encrypted,
-      the request/response exchange is not, so it is highly recommended
-      that clients communicate using https.</p>
+    <p>Although the data portion of the transaction may be encrypted, the
+      request/response exchange is not, so it is highly recommended that clients
+      communicate using https.</p>
     <h2>3 Individual Operations</h2>
-    <p>In general all GET calls must include "Accept:
-      application/json".&nbsp; <i>Is this true?</i><br>
+    <p>In general all GET calls must include "Accept: application/json".&nbsp; <i>Is
+        this true?</i><br>
     </p>
-    <p>The symbol &lt;gcl_name&gt; can be either a 43-character
-      base64-encoded value or a string composed of characters legal in
-      the path portion of a URL (including slashes), either of which is
-      converted to a 256-bit location-independent GCL name.<br>
+    <p>The symbol &lt;gcl_name&gt; can be either a 43-character base64-encoded
+      value or a string composed of characters legal in the path portion of a
+      URL (including slashes), either of which is converted to a 256-bit
+      location-independent GCL name.<br>
     </p>
-    <p>The symbol &lt;gcl_id&gt; refers only to the base64-encoded name
-      of a GCL.<br>
+    <p>The symbol &lt;gcl_id&gt; refers only to the base64-encoded name of a
+      GCL.<br>
     </p>
     <p>In all cases, timestamps are in ISO 8601 format (<i>YYYY</i>-<i>MM</i>-<i>DD</i>T<i>HH</i>:<i>MM</i>:<i>SS</i>.<i>SSSSSSSSS</i>Z,
 
 
-      including nanoseconds, and in UTC) possibly followed by a slash
-      ("/") and a time accuracy in seconds; for example
+      including nanoseconds, and in UTC) possibly followed by a slash ("/") and
+      a time accuracy in seconds; for example
       "2014-11-22T13:03:09.395023619/3.5" (you can read the slash as
-      "±").&nbsp; Record numbers may be as large as 2<sup>63</sup> – 1
-      (18,446,744,073,709,551,615). </p>
+      "&plusmn;").&nbsp; Record numbers may be as large as 2<sup>63</sup>
+      &ndash; 1 (18,446,744,073,709,551,615). </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    GET /gdp/v1/gcl — list all known GCLs<br>
+    GET /gdp/v1/gcl &mdash; list all known GCLs<br>
     <h4>Request Body</h4>
     none<br>
     <h4>Response</h4>
@@ -81,25 +78,24 @@
     <pre>    Content-Type: application/json; type=gdp/gcllist
 <br>    [
 	&lt;gcl_id&gt;,
-	...<br>    ]<br></pre>
+	...<br>    ]</pre>
     <p>401 Unauthorized<br>
     </p>
     <h4>Description</h4>
     <p>Returns a list of GCL names encoded as base64 strings.<br>
     </p>
-    <p><i>[[Should include some way of limiting the number of values,
-        e.g., "?start=&lt;#&gt;&amp;max=&lt;#&gt;", since this could be
-        a very large list.&nbsp; It would probably be more useful if we
-        could include some query, e.g., only return GCLs where the
-        metadata matches some pattern, but that would require a change
-        in the GDP protocol itself.]]</i><br>
+    <p><i>[[Should include some way of limiting the number of values, e.g.,
+        "?start=&lt;#&gt;&amp;max=&lt;#&gt;", since this could be a very large
+        list.&nbsp; It would probably be more useful if we could include some
+        query, e.g., only return GCLs where the metadata matches some pattern,
+        but that would require a change in the GDP protocol itself.]]</i><br>
     </p>
-    <p>Not implemented at this time (requires GDP protocol
-      extension).&nbsp; Returns 405 Method Not Allowed.<br>
+    <p>Not implemented at this time (requires GDP protocol extension).&nbsp;
+      Returns 405 Method Not Allowed.<br>
     </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    GET /gdp/v1/gcl/&lt;gcl_name&gt; — list information known about
+    GET /gdp/v1/gcl/&lt;gcl_name&gt; &mdash; list information known about
     specified GCL<br>
     <h4>Request Data</h4>
     none<br>
@@ -116,15 +112,15 @@
     <p>404 Not Found<br>
     </p>
     <h4>Description</h4>
-    <p>Returns information about the created GCL encoded as a JSON
-      object.&nbsp; The information should at a minimum include the
-      canonical name of the GCL and the number of records.&nbsp; When
-      GCL metadata is present it should be returned as well.</p>
+    <p>Returns information about the created GCL encoded as a JSON object.&nbsp;
+      The information should at a minimum include the canonical name of the GCL
+      and the number of records.&nbsp; When GCL metadata is present it should be
+      returned as well.</p>
     <p> </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    POST /gdp/v1/gcl — Create a new GCL&nbsp; <i>[NOT IMPLEMENTED;
-      create using the gcl_create application]</i><br>
+    POST /gdp/v1/gcl &mdash; Create a new GCL&nbsp; <i>[NOT IMPLEMENTED; create
+      using the gcl_create application]</i><br>
     <h4>Request Data</h4>
     <p> <i>[[Should include metadata, once that is supported.]]</i></p>
     <p> </p>
@@ -138,14 +134,14 @@
     <p>401 Unauthorized<br>
     </p>
     <h4>Description</h4>
-    <p>Creates a new GCL under an internally-assigned name and returns
-      the information about that GCL in the same format as that
-      delivered by the status query.<br>
+    <p>Creates a new GCL under an internally-assigned name and returns the
+      information about that GCL in the same format as that delivered by the
+      status query.<br>
     </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    PUT /gdp/v1/gcl/&lt;symbolic_name&gt; — Create a new named GCL&nbsp;
-    <i>[NOT IMPLEMENTED; create using the gcl_create application]</i>
+    PUT /gdp/v1/gcl/&lt;symbolic_name&gt; &mdash; Create a new named GCL&nbsp; <i>[NOT
+      IMPLEMENTED; create using the gcl_create application]</i>
     <h4>Request Data</h4>
     <p> <i>[[Should include metadata, once that is supported.]]</i></p>
     <h4>Response Data</h4>
@@ -160,15 +156,14 @@
     <p>405 Not Allowed<br>
     </p>
     <h4>Description</h4>
-    <p>Creates a new GCL under a user-assigned name and returns the
-      information about that GCL in the same format as that delivered by
-      the status query.</p>
-    <p><i>Question: should this give an error if the GCL already
-        exists?&nbsp; If so use 405?</i><br>
+    <p>Creates a new GCL under a user-assigned name and returns the information
+      about that GCL in the same format as that delivered by the status query.</p>
+    <p><i>Question: should this give an error if the GCL already exists?&nbsp;
+        If so use 405?</i><br>
     </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    DELETE /gdp/v1/gcl/&lt;gcl_name&gt; — delete a GCL<br>
+    DELETE /gdp/v1/gcl/&lt;gcl_name&gt; &mdash; delete a GCL<br>
     <h4>Request Data</h4>
     <p>none<br>
     </p>
@@ -183,7 +178,7 @@
     </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    POST /gdp/v1/gcl/&lt;gcl_name&gt; — add a record to specified GCL<br>
+    POST /gdp/v1/gcl/&lt;gcl_name&gt; &mdash; add a record to specified GCL<br>
     <h4>Request Data</h4>
     (Opaque data to be appended, but recommended to use JSON)<br>
     <h4>Response Data</h4>
@@ -198,14 +193,14 @@
     <p>404 Not Found<br>
     </p>
     <h4>Description</h4>
-    <p>Adds a record to the named GCL.&nbsp; The information returned
-      shows the GDP-assigned metadata associated with the new record.<br>
+    <p>Adds a record to the named GCL.&nbsp; The information returned shows the
+      GDP-assigned metadata associated with the new record.<br>
     </p>
     <p> </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    GET /gdp/v1/gcl/&lt;gcl_name&gt;?recno=&lt;#&gt; — return a
-    specified record<br>
+    GET /gdp/v1/gcl/&lt;gcl_name&gt;?recno=&lt;#&gt; &mdash; return a specified
+    record<br>
     <h4>Request Data</h4>
     none<br>
     <h4>Response Data</h4>
@@ -217,40 +212,34 @@
     <p>404 Not Found<br>
     </p>
     <h4>Description</h4>
-    <p>Returns the contents of the record indicated by <i>recno</i>.&nbsp;
-
-
-      As a special case, if recno is the text "last" it returns the last
-      (most recently written) record.<br>
+    <p>Returns the contents of the record indicated by <i>recno</i>.&nbsp; As a
+      special case, if recno is the text "last" it returns the last (most
+      recently written) record.<br>
     </p>
-    <p>Note that the metadata is included in the response header, not in
-      the data itself, in order to maintain the opacity of that data. <i>Question:
-
-
-
-
-        should we move the metadata into the header for other commands
-        as well to maintain symmetry?</i><br>
+    <p>Note that the metadata is included in the response header, not in the
+      data itself, in order to maintain the opacity of that data. <i>Question:
+        should we move the metadata into the header for other commands as well
+        to maintain symmetry?</i><br>
     </p>
-    <p>This call is not orthogonal to the others because it does not
-      assume that the data is application/json.<br>
+    <p>This call is not orthogonal to the others because it does not assume that
+      the data is application/json.<br>
     </p>
     <hr size="2" width="100%">
     <p> </p>
     <h4>Name</h4>
-    GET /gdp/v1/gcl/&lt;gcl_name&gt;?recno=&lt;#&gt;&amp;nrecs=&lt;#&gt;
-    — get a series of records<br>
+    GET /gdp/v1/gcl/&lt;gcl_name&gt;?recno=&lt;#&gt;&amp;nrecs=&lt;#&gt; &mdash;
+    get a series of records<br>
     <h4>Request Data</h4>
     none<br>
     <h4>Response</h4>
     200 OK<br>
-    <pre>    [<br>	{<br>	    "recno": &lt;integer&gt;,<br>	    "timestamp": &lt;timestamp&gt;,<br>	    "value": &lt;record value&gt;<br>	},<br>	...<br>    ]<br></pre>
+    <pre>    [<br>	{<br>	    "recno": &lt;integer&gt;,<br>	    "timestamp": &lt;timestamp&gt;,<br>	    "value": &lt;record value&gt;<br>	},<br>	...<br>    ]</pre>
     404 Not Found<br>
     <h4>Description</h4>
     <p>Returns a sequence of up to <i>nrecs</i> records starting from <i>recno</i>
-      encoded as an array of JSON objects.&nbsp; If <i>nrecs</i> is
-      zero, all data from <i>recno</i> to the end is returned.&nbsp;
-      The <i>recno</i> parameter is optional and defaults to 1.<br>
+      encoded as an array of JSON objects.&nbsp; If <i>nrecs</i> is zero, all
+      data from <i>recno</i> to the end is returned.&nbsp; The <i>recno</i>
+      parameter is optional and defaults to 1.<br>
     </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
@@ -260,7 +249,7 @@
 
 
 
-    — monitor a GCL<br>
+    &mdash; monitor a GCL<br>
     <h4>Request Data</h4>
     none<br>
     <h4>Response Data</h4>
@@ -273,42 +262,40 @@
     <p>408 Request Timeout<br>
     </p>
     <h4>Description</h4>
-    <p>If the indicated GCL does not exist, the GET returns immediately
-      with a 404 error code. Otherwise, if the indicated record number
-      exists, the result is exactly the same as the previous case. If
-      the indicated record number does not exist, this call waits for up
-      to the indicated timeout for that record to appear; if it does,
-      the record is returned in the usual way, otherwise it returns with
-      a 408 Request Timeout response. If the starting record number is
-      not specified, it starts from the beginning.</p>
-    <p><i>[[Perhaps this should not take recno and nrecs, and just
-        return the next record that appears at the GCL.]]</i><br>
+    <p>If the indicated GCL does not exist, the GET returns immediately with a
+      404 error code. Otherwise, if the indicated record number exists, the
+      result is exactly the same as the previous case. If the indicated record
+      number does not exist, this call waits for up to the indicated timeout for
+      that record to appear; if it does, the record is returned in the usual
+      way, otherwise it returns with a 408 Request Timeout response. If the
+      starting record number is not specified, it starts from the beginning.</p>
+    <p><i>[[Perhaps this should not take recno and nrecs, and just return the
+        next record that appears at the GCL.]]</i><br>
     </p>
-    <p><i>[[There is some debate about whether this is the correct
-        interface rather than falling back to a non-REST interface (such
-        as WebSockets) for subscriptions. HTTP (and hence REST) isn’t
-        designed to handle spontaneous server to client messages.</i><i>]]</i><br>
+    <p><i>[[There is some debate about whether this is the correct interface
+        rather than falling back to a non-REST interface (such as WebSockets)
+        for subscriptions. HTTP (and hence REST) isn&rsquo;t designed to handle
+        spontaneous server to client messages.</i><i>]]</i><br>
     </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    GET /gdp/v1/post/gcl/&lt;gcl_name&gt;?&lt;arguments&gt; — add data
-    to a GCL (<i><b>not REST compliant</b></i>)<br>
+    GET /gdp/v1/post/gcl/&lt;gcl_name&gt;?&lt;arguments&gt; &mdash; add data to
+    a GCL (<i><b>not REST compliant</b></i>)<br>
     <h4>Description</h4>
-    <p>To be determined.&nbsp; Probably will create a JSON object
-      including the specified arguments and append that to the GCL,
-      unencrypted of course.<br>
+    <p>To be determined.&nbsp; Probably will create a JSON object including the
+      specified arguments and append that to the GCL, unencrypted of course.<br>
     </p>
     <p> </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
-    POST /gdp/v1/kv — add data to key-value store<br>
+    POST /gdp/v1/kv &mdash; add data to key-value store<br>
     <h4>Description</h4>
-    <p>There is a single key-value store.&nbsp; All data must be
-      formatted as JSON objects.&nbsp; POST adds all of the names inside
-      the content to the KV store.&nbsp; For example a POST with the
-      contents { "a": 1, "b": 2 } adds two values to the store.&nbsp; A
-      subsequent POST with contents { "a": 3, "c": 4 } updates the value
-      of a, adds a new value c, and leaves b unchanged.</p>
+    <p>There is a single key-value store.&nbsp; All data must be formatted as
+      JSON objects.&nbsp; POST adds all of the names inside the content to the
+      KV store.&nbsp; For example a POST with the contents { "a": 1, "b": 2 }
+      adds two values to the store.&nbsp; A subsequent POST with contents { "a":
+      3, "c": 4 } updates the value of a, adds a new value c, and leaves b
+      unchanged.</p>
     <hr size="2" width="100%">
     <h4>Name</h4>
     <p>GET /gdp/v1/kv/&lt;key&gt;<br>
@@ -320,10 +307,10 @@
     <p><br>
     </p>
     <h2> 4 Summary</h2>
-    <p>This is just a quick recap of the material presented above.&nbsp;
-      All URLs begin with "/gdp/v1/".<br>
+    <p>This is just a quick recap of the material presented above.&nbsp; All
+      URLs begin with "/gdp/v1/".<br>
     </p>
-    <table width="100%" border="1" cellpadding="2" cellspacing="2">
+    <table border="1" cellpadding="2" cellspacing="2" width="100%">
       <tbody>
         <tr>
           <td valign="top">Method<br>
@@ -393,8 +380,8 @@
           </td>
           <td valign="top">gcl/&lt;id&gt;?recno=&lt;#&gt;<br>
           </td>
-          <td valign="top">Read record recno from GCL &lt;id&gt;
-            (returns raw data)<br>
+          <td valign="top">Read record recno from GCL &lt;id&gt; (returns raw
+            data)<br>
           </td>
         </tr>
         <tr>
@@ -402,8 +389,8 @@
           </td>
           <td valign="top">gcl/&lt;id&gt;?recno=&lt;#&gt;&amp;nrecs=&lt;#&gt;<br>
           </td>
-          <td valign="top">Read up to nrecs record from&nbsp; GCL
-            &lt;id&gt; starting at recno (returns JSON array)<br>
+          <td valign="top">Read up to nrecs record from&nbsp; GCL &lt;id&gt;
+            starting at recno (returns JSON array)<br>
           </td>
         </tr>
         <tr>
@@ -419,8 +406,8 @@
           </td>
           <td valign="top">put/gcl/&lt;id&gt;?&lt;arguments&gt;<br>
           </td>
-          <td valign="top">Add JSON record to GCL &lt;id&gt;
-            (deprecated: violates REST standard)<br>
+          <td valign="top">Add JSON record to GCL &lt;id&gt; (deprecated:
+            violates REST standard)<br>
           </td>
         </tr>
         <tr>
@@ -436,8 +423,8 @@
           </td>
           <td valign="top">kv/&lt;key&gt;<br>
           </td>
-          <td valign="top">Return JSON information associated with
-            &lt;key&gt; in the key-value store<br>
+          <td valign="top">Return JSON information associated with &lt;key&gt;
+            in the key-value store<br>
           </td>
         </tr>
       </tbody>
@@ -445,13 +432,13 @@
     <p><br>
     </p>
     <h2>4 Unresolved Issues</h2>
-    <p>How is GCL metadata actually handled?&nbsp; Perhaps series of
-      name:value pairs?<br>
+    <p>How is GCL metadata actually handled?&nbsp; Perhaps series of name:value
+      pairs?<br>
     </p>
     <p>How does "GET as POST" work?<br>
     </p>
-    <p>Do subscriptions wait until all data is ready to return, or does
-      it return immediately as soon as any data appears?<br>
+    <p>Do subscriptions wait until all data is ready to return, or does it
+      return immediately as soon as any data appears?<br>
     </p>
     <h2> </h2>
   </body>
