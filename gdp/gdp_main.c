@@ -13,6 +13,7 @@
 #include <event2/thread.h>
 
 #include <errno.h>
+#include <signal.h>
 #include <string.h>
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.main", "GDP initialization and main loop");
