@@ -234,7 +234,7 @@ struct epVidSequences	EpVidNull =
 	.vidbgwhite =	"",		// video background white
 };
 
-struct epVidSequences	*EpVid = &EpVidANSI_X3_64;
+struct epVidSequences	*EpVid = &EpVidNull;
 
 
 /***********************************************************************
@@ -257,12 +257,15 @@ ep_str_vid_set(
 	const char *type)
 {
 	if (type == NULL)
+		type = getenv("EP_TERM");
+	if (type == NULL)
 	{
 		// try to guess based on environment
-		EpVid = &EpVidNull;		// if all else fails
 		if (isatty(1))
 		{
-			if (strncmp(getenv("TERM"), "xterm", 5) == 0)
+			type = getenv("TERM");
+			if (strncmp(type, "xterm", 5) == 0 ||
+			    strncmp(type, "ansi", 4) == 0)
 				EpVid = &EpVidANSI_X3_64;
 		}
 		return EP_STAT_OK;
@@ -280,7 +283,7 @@ ep_str_vid_set(
 	{
 		char e1buf[64];
 
-		fprintf(stderr, "ep_str_char_set: character set type `%s' not valid\n",
+		fprintf(stderr, "ep_str_vid_set: video type `%s' not valid\n",
 			ep_pcvt_str(e1buf, sizeof e1buf, type));
 		return EP_STAT_ERROR;
 	}
@@ -357,7 +360,7 @@ struct epCharSequences	EpCharUTF_8 =
 	.infinity =	"\xE2\x88\x9E",	// U+221E
 };
 
-struct epCharSequences	*EpChar = &EpCharUTF_8;
+struct epCharSequences	*EpChar = &EpCharASCII;
 
 
 /***********************************************************************
@@ -383,7 +386,6 @@ ep_str_char_set(
 	{
 		// try to guess based on environment
 		char *p;
-		EpChar = &EpCharASCII;		// fallback default
 
 		if (!isatty(1))
 			return EP_STAT_OK;

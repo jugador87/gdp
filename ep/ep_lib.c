@@ -5,6 +5,7 @@
 ***********************************************************************/
 
 #include <ep.h>
+#include <ep_string.h>
 
 /*
 **  EP_LIB_INIT --- initialize the library
@@ -20,5 +21,7 @@ ep_lib_init(uint32_t flags)
 		_ep_thr_init();
 	_ep_stat_init();
 	ep_adm_readparams("defaults");
+	ep_str_vid_set(NULL);
+	ep_str_char_set(NULL);
 	return EP_STAT_OK;
 }

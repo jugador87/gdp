@@ -50,6 +50,9 @@ extern struct epVidSequences
 #define EP_VID_BLINK	0x00000010
 #define EP_VID_INV	0x00000020
 
+extern EP_STAT	ep_str_vid_set(const char *);
+
+
 // character sequences (e.g., ASCII, ISO-8859-1, UTF-8)
 extern struct epCharSequences
 {
@@ -69,6 +72,8 @@ extern struct epCharSequences
 	const char	*notsign;	// "not" symbol
 	const char	*infinity;	// infinity symbol
 } *EpChar;
+
+extern EP_STAT	ep_str_char_set(const char *);
 
 // function to adjust alternate printing
 extern uint32_t	(*EpStPrintfAltprFunc)(int *, char *, char *);
