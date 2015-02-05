@@ -24,15 +24,26 @@ bool	_EpThrUsePthreads = false;	// also used by ep_dbg_*
 	if (m->__data.__owner < 0 ||				\
 	    m->__data.__lock > 1 || m->__data.__nusers > 1)	\
 		fprintf(stderr,					\
-		    "%s%s MUTEX(%p): __lock=%d, __owner=%d, __nusers=%d%s\n",	\
+		    "%smutex_%s(%p): __lock=%d, __owner=%d, __nusers=%d%s\n",	\
 		    EpVid->vidfgred, e, m,			\
 		    m->__data.__lock, m->__data.__owner,	\
 		    m->__data.__nusers,	EpVid->vidnorm);	\
+    } while (false)
+#define CHECKCOND(c, e)							\
+    do									\
+    {									\
+	if (ep_dbg_test(Dbg, 10))					\
+	    fprintf(stderr,						\
+		    "%scond_%s(%p): __lock=%d, __futex=%d, __nwaiters=%d%s\n",	\
+		    EpVid->vidfgred, e, c,				\
+		    c->__data.__lock, c->__data.__futex,		\
+		    c->__data.__nwaiters, EpVid->vidnorm);		\
     } while (false)
 #endif
 
 #ifndef CHECKMTX
 # define CHECKMTX(m, e)
+# define CHECKCOND(c, e)
 #endif
 
 /*
@@ -99,7 +110,7 @@ ep_thr_mutex_init(EP_THR_MUTEX *mtx, int type)
 	if ((err = pthread_mutex_init(mtx, &attr)) != 0)
 		diagnose_thr_err(err, "mutex_init");
 	pthread_mutexattr_destroy(&attr);
-	CHECKMTX(mtx, "<<<");
+	CHECKMTX(mtx, "init <<<");
 	return err;
 }
 
@@ -111,7 +122,7 @@ ep_thr_mutex_destroy(EP_THR_MUTEX *mtx)
 	TRACE(mtx, "mutex_destroy");
 	if (!_EpThrUsePthreads)
 		return 0;
-	CHECKMTX(mtx, ">>>");
+	CHECKMTX(mtx, "destroy >>>");
 	if ((err = pthread_mutex_destroy(mtx)) != 0)
 		diagnose_thr_err(err, "mutex_destroy");
 	return err;
@@ -125,10 +136,10 @@ ep_thr_mutex_lock(EP_THR_MUTEX *mtx)
 	TRACE(mtx, "mutex_lock");
 	if (!_EpThrUsePthreads)
 		return 0;
-	CHECKMTX(mtx, ">>>");
+	CHECKMTX(mtx, "lock >>>");
 	if ((err = pthread_mutex_lock(mtx)) != 0)
 		diagnose_thr_err(err, "mutex_lock");
-	CHECKMTX(mtx, "<<<");
+	CHECKMTX(mtx, "lock <<<");
 	return err;
 }
 
@@ -140,10 +151,10 @@ ep_thr_mutex_trylock(EP_THR_MUTEX *mtx)
 	TRACE(mtx, "mutex_trylock");
 	if (!_EpThrUsePthreads)
 		return 0;
-	CHECKMTX(mtx, ">>>");
+	CHECKMTX(mtx, "trylock >>>");
 	if ((err = pthread_mutex_trylock(mtx)) != 0)
 		diagnose_thr_err(err, "mutex_trylock");
-	CHECKMTX(mtx, "<<<");
+	CHECKMTX(mtx, "trylock <<<");
 	return err;
 }
 
@@ -155,17 +166,17 @@ ep_thr_mutex_unlock(EP_THR_MUTEX *mtx)
 	TRACE(mtx, "mutex_unlock");
 	if (!_EpThrUsePthreads)
 		return 0;
-	CHECKMTX(mtx, ">>>");
+	CHECKMTX(mtx, "unlock >>>");
 	if ((err = pthread_mutex_unlock(mtx)) != 0)
 		diagnose_thr_err(err, "mutex_unlock");
-	CHECKMTX(mtx, "<<<");
+	CHECKMTX(mtx, "unlock <<<");
 	return err;
 }
 
 int
 ep_thr_mutex_check(EP_THR_MUTEX *mtx)
 {
-	CHECKMTX(mtx, "===");
+	CHECKMTX(mtx, "check ===");
 	return 0;
 }
 
@@ -184,6 +195,7 @@ ep_thr_cond_init(EP_THR_COND *cv)
 		return 0;
 	if ((err = pthread_cond_init(cv, NULL)) != 0)
 		diagnose_thr_err(err, "cond_init");
+	CHECKCOND(cv, "init <<<");
 	return err;
 }
 
@@ -195,6 +207,7 @@ ep_thr_cond_destroy(EP_THR_COND *cv)
 	TRACE(cv, "cond_destroy");
 	if (!_EpThrUsePthreads)
 		return 0;
+	CHECKCOND(cv, "destroy >>>");
 	if ((err = pthread_cond_destroy(cv)) != 0)
 		diagnose_thr_err(err, "cond_destroy");
 	return err;
@@ -208,8 +221,10 @@ ep_thr_cond_signal(EP_THR_COND *cv)
 	TRACE(cv, "cond_signal");
 	if (!_EpThrUsePthreads)
 		return 0;
+	CHECKCOND(cv, "signal >>>");
 	if ((err = pthread_cond_signal(cv)) != 0)
 		diagnose_thr_err(err, "cond_signal");
+	CHECKCOND(cv, "signal <<<");
 	return err;
 }
 
@@ -221,7 +236,8 @@ ep_thr_cond_wait(EP_THR_COND *cv, EP_THR_MUTEX *mtx, EP_TIME_SPEC *timeout)
 	TRACE(cv, "cond_wait");
 	if (!_EpThrUsePthreads)
 		return 0;
-	CHECKMTX(mtx, ">>>");
+	CHECKMTX(mtx, "wait >>>");
+	CHECKCOND(cv, "wait >>>");
 	if (timeout == NULL)
 	{
 		err = pthread_cond_wait(cv, mtx);
@@ -235,7 +251,8 @@ ep_thr_cond_wait(EP_THR_COND *cv, EP_THR_MUTEX *mtx, EP_TIME_SPEC *timeout)
 	}
 	if (err != 0)
 		diagnose_thr_err(err, "cond_wait");
-	CHECKMTX(mtx, "<<<");
+	CHECKMTX(mtx, "wait <<<");
+	CHECKCOND(cv, "wait <<<");
 	return err;
 }
 
@@ -247,8 +264,10 @@ ep_thr_cond_broadcast(EP_THR_COND *cv)
 	TRACE(cv, "cond_broadcast");
 	if (!_EpThrUsePthreads)
 		return 0;
+	CHECKCOND(cv, "broadcast >>>");
 	if ((err = pthread_cond_broadcast(cv)) != 0)
 		diagnose_thr_err(err, "cond_broadcast");
+	CHECKCOND(cv, "broadcast <<<");
 	return err;
 }
 
