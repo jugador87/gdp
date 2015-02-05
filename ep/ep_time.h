@@ -11,7 +11,7 @@
 typedef struct
 {
 	int64_t		tv_sec;		// seconds since Jan 1, 1970
-	uint32_t	tv_nsec;	// nanoseconds
+	int32_t		tv_nsec;	// nanoseconds
 	float		tv_accuracy;	// clock accuracy in seconds
 } EP_TIME_SPEC;
 #pragma pack(pop)
@@ -26,6 +26,17 @@ extern EP_STAT	ep_time_deltanow(
 				EP_TIME_SPEC *delta,
 				EP_TIME_SPEC *tv);
 
+// add a delta to a time (delta may be negative)
+extern void	ep_time_add_delta(
+				EP_TIME_SPEC *delta,
+				EP_TIME_SPEC *tv);
+
+// determine if A occurred before B
+extern bool	ep_time_before(
+				EP_TIME_SPEC *a,
+				EP_TIME_SPEC *b);
+
+// create a time from a scalar number of nanoseconds
 extern void	ep_time_from_nsec(
 				int64_t delta,
 				EP_TIME_SPEC *tv);

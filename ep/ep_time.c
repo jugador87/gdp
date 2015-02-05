@@ -89,10 +89,10 @@ ep_time_now(EP_TIME_SPEC *tv)
 /*
 **  EP_TIME_DELTANOW --- return current time of day plus a delta
 **
-**	The delta is in nanoseconds.
-**	At the moment, delta must be positive; it isn't even
-**		clear how to represent a negative delta in
-**		an EP_TIME_SPEC.
+**	This assumes that a negative delta is represented as both
+**	a non-positive number of seconds and a non-positive number
+**	of nanoseconds; for example, { -5, +500000 } wouldn't make
+**	sense.
 */
 
 EP_STAT
@@ -103,6 +103,18 @@ ep_time_deltanow(EP_TIME_SPEC *delta, EP_TIME_SPEC *tv)
 	estat = ep_time_now(tv);
 	EP_STAT_CHECK(estat, return estat);
 
+	ep_time_add_delta(delta, tv);
+	return EP_STAT_OK;
+}
+
+
+/*
+**  EP_TIME_ADD --- add a delta to a time
+*/
+
+void
+ep_time_add_delta(EP_TIME_SPEC *delta, EP_TIME_SPEC *tv)
+{
 	tv->tv_sec += delta->tv_sec;
 	tv->tv_nsec += delta->tv_nsec;
 	if (tv->tv_nsec > ONESECOND)
@@ -110,7 +122,30 @@ ep_time_deltanow(EP_TIME_SPEC *delta, EP_TIME_SPEC *tv)
 		tv->tv_sec++;
 		tv->tv_nsec -= ONESECOND;
 	}
-	return EP_STAT_OK;
+	else if (tv->tv_nsec < 0)
+	{
+		tv->tv_sec--;
+		tv->tv_nsec += ONESECOND;
+	}
+}
+
+
+/*
+**  EP_TIME_BEFORE --- true if A occurred before B
+**
+**	This doesn't allow for clock precision; it should really have
+**	a "maybe" return.
+*/
+
+bool
+ep_time_before(EP_TIME_SPEC *a, EP_TIME_SPEC *b)
+{
+	if (a->tv_sec < b->tv_sec)
+		return true;
+	else if (a->tv_sec > b->tv_sec)
+		return false;
+	else
+		return (a->tv_nsec < b->tv_nsec);
 }
 
 
