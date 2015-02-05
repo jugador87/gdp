@@ -79,6 +79,8 @@ _gdp_gcl_touch(gdp_gcl_t *gcl)
 {
 	struct timeval tv;
 
+	EP_ASSERT_REQUIRE(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
+
 	if (!EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
 	{
 		ep_dbg_cprintf(Dbg, 8, "_gcl_gcl_touch(%p): uncached!\n", gcl);
@@ -121,6 +123,10 @@ _gdp_gcl_cache_get(gdp_name_t gcl_name, gdp_iomode_t mode)
 	if (gcl == NULL)
 		goto done;
 	ep_thr_mutex_lock(&gcl->mutex);
+
+	// sanity checking
+	EP_ASSERT_INSIST(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
+	EP_ASSERT_INSIST(EP_UT_BITSET(GCLF_INCACHE, gcl->flags));
 
 	// see if someone snuck in and deallocated this
 	if (EP_UT_BITSET(GCLF_DROPPING, gcl->flags))
@@ -171,6 +177,7 @@ _gdp_gcl_cache_add(gdp_gcl_t *gcl, gdp_iomode_t mode)
 	// sanity checks
 	EP_ASSERT_POINTER_VALID(gcl);
 	EP_ASSERT_REQUIRE(gdp_name_is_valid(gcl->name));
+	EP_ASSERT_REQUIRE(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
 
 	if (EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
 	{
@@ -305,7 +312,7 @@ _gdp_gcl_incref(gdp_gcl_t *gcl)
 	ep_thr_mutex_lock(&gcl->mutex);
 	gcl->refcnt++;
 	_gdp_gcl_touch(gcl);
-	ep_dbg_cprintf(Dbg, 44, "_gdp_gcl_incref: %p %d\n", gcl, gcl->refcnt);
+	ep_dbg_cprintf(Dbg, 44, "_gdp_gcl_incref(%p): %d\n", gcl, gcl->refcnt);
 	ep_thr_mutex_unlock(&gcl->mutex);
 }
 
@@ -328,7 +335,7 @@ _gdp_gcl_decref(gdp_gcl_t *gcl)
 		ep_log(EP_STAT_ABORT, "_gdp_gcl_decref: %p: zero refcnt", gcl);
 	}
 
-	ep_dbg_cprintf(Dbg, 44, "_gdl_gcl_decref: %p: %d\n",
+	ep_dbg_cprintf(Dbg, 44, "_gdl_gcl_decref(%p): %d\n",
 			gcl, gcl->refcnt);
 	ep_thr_mutex_unlock(&gcl->mutex);
 }

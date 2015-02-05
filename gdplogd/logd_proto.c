@@ -99,7 +99,7 @@ cmd_ping(gdp_req_t *req)
 		LIST_FOREACH(sub, &req->gcl->reqs, gcllist)
 		{
 			if (GDP_NAME_SAME(sub->pdu->dst, req->pdu->src) &&
-					EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, sub->flags))
+					EP_UT_BITSET(GDP_REQ_SRV_SUBSCR, sub->flags))
 			{
 				// Yes, we have a subscription!
 				goto done;
@@ -431,7 +431,7 @@ post_subscribe(gdp_req_t *req)
 	else
 	{
 		ep_dbg_cprintf(Dbg, 24, "post_subscribe: converting to subscription\n");
-		req->flags |= GDP_REQ_SUBSCRIPTION;
+		req->flags |= GDP_REQ_SRV_SUBSCR;
 
 		// link this request into the GCL so the subscription can be found
 		ep_thr_mutex_lock(&req->gcl->mutex);
@@ -526,7 +526,7 @@ cmd_subscribe(gdp_req_t *req)
 	{
 		// this is a pure "future" subscription
 		ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: enabling subscription\n");
-		req->flags |= GDP_REQ_SUBSCRIPTION;
+		req->flags |= GDP_REQ_SRV_SUBSCR;
 
 		// link this request into the GCL so the subscription can be found
 		ep_thr_mutex_lock(&req->gcl->mutex);
@@ -628,7 +628,7 @@ cmd_multiread(gdp_req_t *req)
 	{
 		// this is a pure "future" subscription
 		ep_dbg_cprintf(Dbg, 24, "cmd_multiread: enabling subscription\n");
-		req->flags |= GDP_REQ_SUBSCRIPTION;
+		req->flags |= GDP_REQ_SRV_SUBSCR;
 
 		// link this request into the GCL so the subscription can be found
 		ep_thr_mutex_lock(&req->gcl->mutex);

@@ -9,18 +9,15 @@
 #include "gdp_event.h"
 #include "gdp_gclmd.h"
 #include "gdp_priv.h"
-#include "gdp_stat.h"
 
 #include <event2/event.h>
 
-#include <errno.h>
 #include <string.h>
+#include <sys/errno.h>
 
 /*
 **	This implements GDP Connection Log (GCL) utilities.
 */
-
-/************************  PRIVATE	************************/
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl.ops", "GCL operations for GDP");
 
@@ -64,6 +61,7 @@ _gdp_gcl_newhandle(gdp_name_t gcl_name, gdp_gcl_t **pgcl)
 	gdp_printable_name(gcl->name, gcl->pname);
 
 	// success
+	gcl->flags |= GCLF_INUSE;
 	*pgcl = gcl;
 	ep_dbg_cprintf(Dbg, 28, "_gdp_gcl_newhandle => %p (%s)\n",
 			gcl, gcl->pname);
@@ -88,6 +86,8 @@ void
 _gdp_gcl_freehandle(gdp_gcl_t *gcl)
 {
 	ep_dbg_cprintf(Dbg, 28, "_gdp_gcl_freehandle(%p)\n", gcl);
+
+	EP_ASSERT(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
 
 	// drop it from the name -> handle cache
 	_gdp_gcl_cache_drop(gcl);
@@ -116,6 +116,7 @@ _gdp_gcl_freehandle(gdp_gcl_t *gcl)
 	}
 
 	// finally release the memory for the handle itself
+	gcl->flags &= ~GCLF_INUSE;
 	ep_mem_free(gcl);
 }
 
@@ -180,7 +181,10 @@ fail0:
 	if (gcl != NULL)
 		_gdp_gcl_freehandle(gcl);
 	if (req != NULL)
+	{
+		req->gcl = NULL;
 		_gdp_req_free(req);
+	}
 
 	{
 		char ebuf[100];
@@ -212,8 +216,7 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 
 	estat = _gdp_invoke(req);
 
-	if (req != NULL)
-		_gdp_req_free(req);
+	_gdp_req_free(req);
 
 fail0:
 	// log failure
@@ -340,62 +343,6 @@ _gdp_gcl_read(gdp_gcl_t *gcl,
 	// ok, done!
 	req->pdu->datum = NULL;			// owned by caller
 	_gdp_req_free(req);
-fail0:
-	return estat;
-}
-
-
-/*
-**	_GDP_GCL_SUBSCRIBE --- subscribe to a GCL
-**
-**		This also implements multiread based on the cmd parameter.
-*/
-
-EP_STAT
-_gdp_gcl_subscribe(gdp_gcl_t *gcl,
-		int cmd,
-		gdp_recno_t start,
-		int32_t numrecs,
-		EP_TIME_SPEC *timeout,
-		gdp_gcl_sub_cbfunc_t cbfunc,
-		void *cbarg,
-		gdp_chan_t *chan,
-		uint32_t reqflags)
-{
-	EP_STAT estat = EP_STAT_OK;
-	gdp_req_t *req;
-
-	errno = 0;				// avoid spurious messages
-
-	EP_ASSERT_POINTER_VALID(gcl);
-
-	estat = _gdp_req_new(cmd, gcl, chan, NULL, reqflags | GDP_REQ_PERSIST, &req);
-	EP_STAT_CHECK(estat, goto fail0);
-
-	// add start and stop parameters to packet
-	req->pdu->datum->recno = start;
-	gdp_buf_put_uint32(req->pdu->datum->dbuf, numrecs);
-
-	// issue the subscription --- no data returned
-	estat = _gdp_invoke(req);
-	EP_ASSERT(EP_UT_BITSET(GDP_REQ_INUSE, req->flags));		// make sure it didn't get freed
-
-	if (!EP_STAT_ISOK(estat))
-	{
-		_gdp_req_free(req);
-	}
-	else
-	{
-		// now arrange for responses to appear as events or callbacks
-		req->flags |= GDP_REQ_SUBSCRIPTION;
-		req->sub_cb = cbfunc;
-		req->udata = cbarg;
-
-		// if using callbacks, make sure we have a callback thread running
-		if (cbfunc != NULL)
-			_gdp_event_start_cb_thread();
-	}
-
 fail0:
 	return estat;
 }

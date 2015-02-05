@@ -135,6 +135,7 @@ typedef struct gdp_pdu
 #define GDP_CMD_KEEPALIVE		0			// used for keepalives
 #define GDP_CMD_ADVERTISE		1			// advertise known GCLs
 #define GDP_CMD_WITHDRAW		2			// withdraw advertisment
+#define GDP_CMD_POKE_SUBSCR		3			// "poke" a subscription
 //		64-127			Acknowledged commands
 #define GDP_CMD_PING			64			// test connection/subscription
 #define GDP_CMD_HELLO			65			// initial startup/handshake
@@ -223,6 +224,10 @@ EP_STAT		_gdp_pdu_in(				// read a PDU from a network buffer
 void		_gdp_pdu_dump(
 				gdp_pdu_t *pdu,
 				FILE *fp);
+
+void		_gdp_pdu_process(
+				gdp_pdu_t *pdu,
+				gdp_chan_t *chan);
 
 // generic sockaddr union	XXX does this belong in this header file?
 union sockaddr_xx

@@ -104,6 +104,7 @@ struct gdp_gcl
 #define GCLF_DROPPING	0x0001		// handle is being deallocated
 #define GCLF_INCACHE	0x0002		// handle is in cache
 #define GCLF_ISLOCKED	0x0004		// GclCacheMutex already locked
+#define GCLF_INUSE		0x0008		// handle is allocated
 
 
 /*
@@ -147,17 +148,19 @@ typedef struct gdp_req
 
 #define GDP_REQ_INUSE			0x00000001	// request is in use
 #define GDP_REQ_DONE			0x00000002	// operation complete
-#define GDP_REQ_SUBSCRIPTION	0x00000004	// this is a subscription
-#define GDP_REQ_PERSIST			0x00000008	// request persists after response
-#define GDP_REQ_SUBUPGRADE		0x00000010	// can upgrade to subscription
-#define GDP_REQ_ALLOC_RID		0x00000020	// force allocation of new rid
-#define GDP_REQ_ON_GCL_LIST		0x00000040	// this is on a GCL list
-#define GDP_REQ_ON_CHAN_LIST	0x00000080	// this is on a channel list
-#define GDP_REQ_CORE			0x00000100	// internal to the core code
+#define GDP_REQ_CLT_SUBSCR		0x00000004	// client-side subscription
+#define GDP_REQ_SRV_SUBSCR		0x00000008	// server-side subscription
+#define GDP_REQ_PERSIST			0x00000010	// request persists after response
+#define GDP_REQ_SUBUPGRADE		0x00000020	// can upgrade to subscription
+#define GDP_REQ_ALLOC_RID		0x00000040	// force allocation of new rid
+#define GDP_REQ_ON_GCL_LIST		0x00000080	// this is on a GCL list
+#define GDP_REQ_ON_CHAN_LIST	0x00000100	// this is on a channel list
+#define GDP_REQ_CORE			0x00000200	// internal to the core code
 
 extern gdp_req_t	*_gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid);
 extern gdp_rid_t	_gdp_rid_new(gdp_gcl_t *gcl, gdp_chan_t *chan);
 extern EP_STAT		_gdp_req_send(gdp_req_t *req);
+extern EP_STAT		_gdp_req_unsend(gdp_req_t *req);
 
 
 /*
@@ -343,10 +346,23 @@ EP_STAT			_gdp_advertise_me(			// advertise me only
 						int cmd);
 
 /*
-**  Gdpd communication
+**  Subscriptions.
 */
 
-EP_STAT			_gdp_chan_open(				// open channel to gdpd
+EP_STAT			_gdp_subscr_event(			// process a new event
+						gdp_req_t *req);
+
+void			_gdp_subscr_lost(			// subscription disappeared
+						gdp_req_t *req);
+
+void			_gdp_subscr_poke(			// test subscriptions still alive
+						gdp_chan_t *chan);
+
+/*
+**  Communications.
+*/
+
+EP_STAT			_gdp_chan_open(				// open channel to routing layer
 						const char *gdpd_addr,
 						void (*process)(gdp_pdu_t *, gdp_chan_t *),
 						gdp_chan_t **pchan);

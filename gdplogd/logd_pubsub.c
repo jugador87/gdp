@@ -68,7 +68,7 @@ sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 		}
 
 		// notify subscribers
-		if (EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, req->flags))
+		if (EP_UT_BITSET(GDP_REQ_SRV_SUBSCR, req->flags))
 			sub_send_message_notification(req, pubreq->pdu->datum, cmd);
 	}
 }
@@ -82,7 +82,7 @@ void
 sub_end_subscription(gdp_req_t *req)
 {
 	// make it not persistent and not a subscription
-	req->flags &= ~(GDP_REQ_PERSIST | GDP_REQ_SUBSCRIPTION);
+	req->flags &= ~(GDP_REQ_PERSIST | GDP_REQ_SRV_SUBSCR);
 
 	// remove the request from the work list
 	ep_thr_mutex_lock(&req->gcl->mutex);

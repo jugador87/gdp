@@ -152,6 +152,7 @@ _gdp_req_free(gdp_req_t *req)
 	ep_thr_mutex_unlock(&ReqFreeListMutex);
 }
 
+
 void
 _gdp_req_freeall(struct req_head *reqlist, void (*shutdownfunc)(gdp_req_t *))
 {
@@ -184,10 +185,11 @@ _gdp_req_send(gdp_req_t *req)
 
 	if (ep_dbg_test(Dbg, 45))
 	{
-		ep_dbg_printf("_gdp_req_send: gcl=%p, ", gcl);
+		ep_dbg_printf("_gdp_req_send: ");
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
+	req->flags &= ~GDP_REQ_DONE;
 	if (gcl != NULL && !EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
 	{
 		// link the request to the GCL
@@ -206,6 +208,35 @@ _gdp_req_send(gdp_req_t *req)
 
 	// done
 	return estat;
+}
+
+
+/*
+**  _GDP_REQ_UNSEND --- pull a request off a GCL list
+**
+**		Used when the attempt to do an invocation fails.
+*/
+
+EP_STAT
+_gdp_req_unsend(gdp_req_t *req)
+{
+	gdp_gcl_t *gcl = req->gcl;
+
+	if (ep_dbg_test(Dbg, 45))
+	{
+		ep_dbg_printf("_gdp_req_unsend: ");
+		_gdp_req_dump(req, ep_dbg_getfile());
+	}
+
+	if (gcl != NULL && EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
+	{
+		ep_thr_mutex_lock(&gcl->mutex);
+		LIST_REMOVE(req, gcllist);
+		req->flags &= ~GDP_REQ_ON_GCL_LIST;
+		ep_thr_mutex_unlock(&gcl->mutex);
+	}
+
+	return EP_STAT_OK;
 }
 
 
@@ -242,7 +273,8 @@ static EP_PRFLAGS_DESC	ReqFlags[] =
 	{ GDP_REQ_INUSE,		GDP_REQ_INUSE,			"INUSE"			},
 	{ GDP_REQ_DONE,			GDP_REQ_DONE,			"DONE"			},
 	{ GDP_REQ_PERSIST,		GDP_REQ_PERSIST,		"PERSIST"		},
-	{ GDP_REQ_SUBSCRIPTION,	GDP_REQ_SUBSCRIPTION,	"SUBSCRIPTION"	},
+	{ GDP_REQ_CLT_SUBSCR,	GDP_REQ_CLT_SUBSCR,		"CLT_SUBSCR"	},
+	{ GDP_REQ_SRV_SUBSCR,	GDP_REQ_SRV_SUBSCR,		"SRV_SUBSCR"	},
 	{ GDP_REQ_SUBUPGRADE,	GDP_REQ_SUBUPGRADE,		"SUBUPGRADE"	},
 	{ GDP_REQ_ALLOC_RID,	GDP_REQ_ALLOC_RID,		"ALLOC_RID"		},
 	{ GDP_REQ_ON_GCL_LIST,	GDP_REQ_ON_GCL_LIST,	"ON_GCL_LIST"	},

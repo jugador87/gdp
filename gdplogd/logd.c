@@ -65,7 +65,7 @@ shutdown_req(gdp_req_t *req)
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
-	if (EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, req->flags))
+	if (EP_UT_BITSET(GDP_REQ_SRV_SUBSCR, req->flags))
 		sub_send_message_notification(req, NULL, GDP_NAK_S_LOSTSUB);
 }
 

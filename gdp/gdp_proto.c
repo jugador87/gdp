@@ -96,6 +96,7 @@ _gdp_invoke(gdp_req_t *req)
 			if (e != 0)
 			{
 				estat = ep_stat_from_errno(e);
+				retries = 0;
 				break;
 			}
 		}
@@ -103,6 +104,11 @@ _gdp_invoke(gdp_req_t *req)
 		{
 			estat = req->stat;
 			retries = 0;			// we're done, don't retry
+		}
+		else
+		{
+			// if the invoke failed, we have to pull the req off the gcl list
+			_gdp_req_unsend(req);
 		}
 		ep_thr_mutex_unlock(&req->mutex);
 
@@ -114,6 +120,7 @@ _gdp_invoke(gdp_req_t *req)
 			estat = GDP_STAT_INTERNAL_ERROR;
 		}
 #endif
+
 		// ok, done!
 	}
 
@@ -224,7 +231,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	{ NULL,				"CMD_KEEPALIVE"			},			// 0
 	{ NULL,				"CMD_ADVERTISE"			},			// 1
 	{ NULL,				"CMD_WITHDRAW"			},			// 2
-	NOENT,				// 3
+	{ NULL,				"CMD_POKE_SUBSCR"		},			// 3
 	NOENT,				// 4
 	NOENT,				// 5
 	NOENT,				// 6

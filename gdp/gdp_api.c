@@ -234,9 +234,6 @@ gdp_init(const char *router_addr)
 {
 	static bool inited = false;
 	EP_STAT estat;
-	extern EP_STAT _gdp_lib_init(void);
-	extern EP_STAT _gdp_evloop_init(void);
-	extern void _gdp_pdu_process(gdp_pdu_t *, gdp_chan_t *);
 
 	if (inited)
 		return EP_STAT_OK;

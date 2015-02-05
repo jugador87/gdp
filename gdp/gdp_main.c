@@ -42,67 +42,6 @@ init_error(const char *datum, const char *where)
 }
 
 
-static EP_STAT
-process_subscription_event(gdp_req_t *req)
-{
-	EP_STAT estat = EP_STAT_OK;
-	uint32_t gevflags = 0;
-
-	// link the request onto the event queue
-	gdp_event_t *gev;
-	int evtype;
-
-	// make note that we've seen activity for this subscription
-	ep_time_now(&req->sub_ts);
-
-	// for the moment we only understand data responses (for subscribe)
-	switch (req->pdu->cmd)
-	{
-	case GDP_ACK_SUCCESS:
-		// this is in response to a PING on the subscription
-		return estat;
-
-	case GDP_ACK_CONTENT:
-		evtype = GDP_EVENT_DATA;
-		gevflags |= GDP_EVENT_F_KEEPPDU;
-		break;
-
-	case GDP_ACK_DELETED:
-		// end of subscription
-		evtype = GDP_EVENT_EOS;
-		break;
-
-	case GDP_NAK_S_LOSTSUB:
-		evtype = GDP_EVENT_SHUTDOWN;
-		break;
-
-	default:
-		ep_dbg_cprintf(Dbg, 1,
-				"gdp_pdu_proc_thread: unexpected ack %d in subscription\n",
-				req->pdu->cmd);
-		estat = GDP_STAT_PROTOCOL_FAIL;
-		return estat;
-	}
-
-	estat = _gdp_event_new(&gev);
-	EP_STAT_CHECK(estat, return estat);
-
-	gev->type = evtype;
-	gev->gcl = req->gcl;
-	gev->datum = req->pdu->datum;
-	gev->udata = req->udata;
-	gev->cb = req->sub_cb;
-	gev->flags = gevflags;
-
-	// schedule the event for delivery
-	_gdp_event_trigger(gev);
-
-	// the callback must call gdp_event_free(gev)
-
-	return estat;
-}
-
-
 /*
 **  GDP_PDU_PROC_THREAD --- process PDU --- heavy part
 **
@@ -194,10 +133,10 @@ gdp_pdu_proc_thread(void *req_)
 		// ASSERT(all data from chan has been consumed);
 
 		ep_thr_mutex_lock(&req->mutex);
-		if (EP_UT_BITSET(GDP_REQ_SUBSCRIPTION, req->flags))
+		if (EP_UT_BITSET(GDP_REQ_CLT_SUBSCR, req->flags))
 		{
 			// send the status as an event
-			estat = process_subscription_event(req);
+			estat = _gdp_subscr_event(req);
 		}
 		else
 		{
@@ -460,7 +399,7 @@ _gdp_lib_init(void)
 	const char *progname;
 	const char *myname = NULL;
 
-	ep_dbg_cprintf(Dbg, 4, "gdp_lib_init:\n");
+	ep_dbg_cprintf(Dbg, 4, "_gdp_lib_init:\n");
 
 	if (ep_dbg_test(EvlibDbg, 80))
 	{
