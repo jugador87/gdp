@@ -359,10 +359,7 @@ main(int argc, char **argv)
 	}
 
 	// allow thread to settle to avoid interspersed debug output
-	{
-		struct timespec ts = {0, 100000000};	// 100 msec
-		nanosleep(&ts, NULL);
-	}
+	ep_time_nanosleep(INT64_C(100000000));		// 100 msec
 
 	// parse the name (either base64-encoded or symbolic)
 	estat = gdp_parse_name(argv[0], gclname);
