@@ -15,6 +15,7 @@ ep_hexdump(const void *bufp, size_t buflen, FILE *fp,
 	const uint8_t *b = bufp;
 	const size_t width = 16;
 
+	flockfile(fp);			// to make threads happy
 	while (bufleft > 0)
 	{
 		int lim = bufleft;
@@ -49,4 +50,5 @@ ep_hexdump(const void *bufp, size_t buflen, FILE *fp,
 		bufleft -= lim;
 		offset += lim;
 	}
+	funlockfile(fp);
 }

@@ -288,11 +288,12 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 {
 	char ebuf[200];
 
+	flockfile(fp);
 	fprintf(fp, "req@%p: ", req);
 	if (req == NULL)
 	{
 		fprintf(fp, "null\n");
-		return;
+		goto done;
 	}
 	fprintf(fp, "\n    ");
 	gdp_gcl_print(req->gcl, fp, 1, 0);
@@ -305,6 +306,8 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 			"    stat=%s\n",
 			req->numrecs, req->chan, req->postproc, req->sub_cb, req->udata,
 			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
+done:
+	funlockfile(fp);
 }
 
 

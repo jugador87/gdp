@@ -211,11 +211,13 @@ ep_dbg_printf(const char *fmt, ...)
 	if (DebugFile == NULL)
 		ep_dbg_init();
 
+	flockfile(DebugFile);
 	fprintf(DebugFile, "%s", EpVid->vidfgyellow);
 	va_start(av, fmt);
 	vfprintf(DebugFile, fmt, av);
 	va_end(av);
 	fprintf(DebugFile, "%s", EpVid->vidnorm);
+	funlockfile(DebugFile);
 }
 
 

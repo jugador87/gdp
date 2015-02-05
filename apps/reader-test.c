@@ -273,6 +273,8 @@ main(int argc, char **argv)
 	bool show_usage = false;
 	char *log_file_name = NULL;
 
+	setlinebuf(stdout);			//DEBUG
+
 	// parse command-line options
 	while ((opt = getopt(argc, argv, "cD:f:G:L:mMn:s")) > 0)
 	{

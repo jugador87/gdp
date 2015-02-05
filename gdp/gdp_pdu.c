@@ -42,11 +42,12 @@ static EP_PRFLAGS_DESC	PduFlags[] =
 void
 _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 {
+	flockfile(fp);
 	fprintf(fp, "PDU@%p: ", pdu);
 	if (pdu == NULL)
 	{
 		fprintf(fp, "NULL\n");
-		return;
+		goto done;
 	}
 
 	int len = _GDP_PDU_FIXEDHDRSZ + pdu->olen;
@@ -80,6 +81,8 @@ _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 			len += sizeof pdu->datum->ts;
 	}
 	fprintf(fp, "\n\ttotal header=%d\n", len);
+done:
+	funlockfile(fp);
 }
 
 

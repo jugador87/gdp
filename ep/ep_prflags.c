@@ -36,6 +36,7 @@ ep_prflags(
 		fprintf(out, "0");
 		return;
 	}
+	flockfile(out);			// thread magic
 	fprintf(out, "0x%x<", flagword);
 	for (; flagdesc->name != NULL; flagdesc++)
 	{
@@ -47,4 +48,5 @@ ep_prflags(
 		firsttime = false;
 	}
 	fprintf(out, ">");
+	funlockfile(out);
 }
