@@ -6,6 +6,7 @@
 ***********************************************************************/
 
 #include <ep.h>
+#include <ep_app.h>
 #include <ep_dbg.h>
 #include <ep_string.h>
 #include <ep_assert.h>
@@ -45,7 +46,7 @@ void
 ep_dbg_init(void)
 {
 	if (DebugFile == NULL)
-		ep_dbg_setfile(NULL);
+		ep_dbg_setfile(stderr);
 	EP_ASSERT(DebugFile != NULL);
 }
 
@@ -244,10 +245,30 @@ ep_dbg_setfile(
 //		(void) fclose(DebugFile);
 
 	// if fp is NULL, switch to the default
-	if (fp == NULL)
-		DebugFile = stderr;
-	else
+	if (fp != NULL)
+	{
 		DebugFile = fp;
+	}
+	else
+	{
+		const char *dfile;
+
+		dfile = ep_adm_getstrparam("libep.dbg.file", "stderr");
+		if (strcmp(dfile, "stderr") == 0)
+			DebugFile = stderr;
+		else if (strcmp(dfile, "stdout") == 0)
+			DebugFile = stdout;
+		else
+		{
+			DebugFile = fopen(dfile, "a");
+			if (DebugFile == NULL)
+			{
+				ep_app_warn("Cannot open debug file %s",
+						dfile);
+				DebugFile = stderr;
+			}
+		}
+	}
 }
 
 
