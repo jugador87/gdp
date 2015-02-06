@@ -439,7 +439,7 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 
 	EP_ASSERT_POINTER_VALID(pdu);
 
-	ep_dbg_cprintf(Dbg, 60, "_gdp_pdu_in\n");	// XXX
+	ep_dbg_cprintf(Dbg, 30, "\n\t>>>>>  _gdp_pdu_in  >>>>>\n");
 	EP_ASSERT(pdu->datum != NULL);
 	EP_ASSERT(pdu->datum->dbuf != NULL);
 	ibuf = bufferevent_get_input(chan->bev);
@@ -457,7 +457,7 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		estat = GDP_STAT_BUFFER_FAILURE;
 		ep_log(estat,
 				"_gdp_pdu_in: gdp_buf_drain failed, sz = %zu, needed = %u\n",
-				sz, _GDP_PDU_FIXEDHDRSZ);
+				sz, _GDP_PDU_FIXEDHDRSZ + pdu->olen);
 		// buffer is now out of sync; not clear if we can continue
 	}
 	pbp = &pbuf[_GDP_PDU_FIXEDHDRSZ];
