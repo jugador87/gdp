@@ -113,14 +113,15 @@ gdp_datum_print(const gdp_datum_t *datum,
 	unsigned char *d;
 	int l;
 
+	flockfile(fp);
 	fprintf(fp, "datum @ %p: ", datum);
 	if (datum == NULL)
 	{
 		fprintf(fp, "null datum\n");
-		return;
+		goto done;
 	}
 
-	fprintf(fp, "GDP record %" PRIgdp_recno ", ", datum->recno);
+	fprintf(fp, "recno %" PRIgdp_recno ", ", datum->recno);
 
 	if (datum->dbuf == NULL)
 	{
@@ -137,7 +138,7 @@ gdp_datum_print(const gdp_datum_t *datum,
 
 	if (EP_TIME_ISVALID(&datum->ts))
 	{
-		fprintf(fp, ", timestamp ");
+		fprintf(fp, ", ts ");
 		ep_time_print(&datum->ts, fp, true);
 	}
 	else
@@ -145,8 +146,10 @@ gdp_datum_print(const gdp_datum_t *datum,
 		fprintf(fp, ", no timestamp");
 	}
 
-	fprintf(fp, ", %sinuse\n", datum->inuse ? "" : "!");
+	fprintf(fp, "%s\n", datum->inuse ? "" : ", !inuse");
 
 	if (l > 0)
 		ep_hexdump(d, l, fp, EP_HEXDUMP_ASCII, 0);
+done:
+	funlockfile(fp);
 }
