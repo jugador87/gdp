@@ -107,7 +107,7 @@ get_param_path(void)
 	// initialize the hash table
 	ParamHash = ep_hash_new("ep_adm hash", NULL, 97);
 
-	path = getenv("PARAM_PATH");
+	path = getenv("EP_PARAM_PATH");
 	if (path == NULL)
 	{
 		strlcpy(pathbuf, ".ep_adm_params:", sizeof pathbuf);
