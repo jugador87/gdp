@@ -108,27 +108,29 @@ do_simpleread(gdp_gcl_t *gcl, gdp_recno_t firstrec, int numrecs)
 EP_STAT
 multiread_print_event(gdp_event_t *gev, bool subscribe)
 {
+	FILE *outfile = stdout;
+
 	// decode it
 	switch (gdp_event_gettype(gev))
 	{
 	  case GDP_EVENT_DATA:
 		// this event contains a data return
 		LOG("S");
-		flockfile(stdout);
-		fprintf(stdout, " >>> ");
-		gdp_datum_print(gdp_event_getdatum(gev), stdout);
-		funlockfile(stdout);
+		flockfile(outfile);
+		fprintf(outfile, " >>> ");
+		gdp_datum_print(gdp_event_getdatum(gev), outfile);
+		funlockfile(outfile);
 		break;
 
 	  case GDP_EVENT_EOS:
 		// "end of subscription": no more data will be returned
-		fprintf(stdout, "End of %s\n",
+		fprintf(outfile, "End of %s\n",
 				subscribe ? "Subscription" : "Multiread");
 		return EP_STAT_END_OF_FILE;
 
 	  case GDP_EVENT_SHUTDOWN:
 		// log daemon has shut down, meaning we lose our subscription
-		fprintf(stdout, "%s terminating because of log daemon shutdown\n",
+		fprintf(outfile, "%s terminating because of log daemon shutdown\n",
 				subscribe ? "Subscription" : "Multiread");
 		return GDP_STAT_DEAD_DAEMON;
 
