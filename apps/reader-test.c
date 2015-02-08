@@ -114,8 +114,10 @@ multiread_print_event(gdp_event_t *gev, bool subscribe)
 	  case GDP_EVENT_DATA:
 		// this event contains a data return
 		LOG("S");
+		flockfile(stdout);
 		fprintf(stdout, " >>> ");
 		gdp_datum_print(gdp_event_getdatum(gev), stdout);
+		funlockfile(stdout);
 		break;
 
 	  case GDP_EVENT_EOS:
@@ -196,6 +198,9 @@ do_multiread(gdp_gcl_t *gcl,
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 
+	// this sleep will allow multiple results to appear before we start reading
+	ep_time_nanosleep(500000000);	//DEBUG: one half second
+
 	// now start reading the events that will be generated
 	if (!use_callbacks)
 	{
@@ -273,7 +278,9 @@ main(int argc, char **argv)
 	bool show_usage = false;
 	char *log_file_name = NULL;
 
-	setlinebuf(stdout);			//DEBUG
+	setlinebuf(stdout);								//DEBUG
+	//char outbuf[65536];							//DEBUG
+	//setbuffer(stdout, outbuf, sizeof outbuf);		//DEBUG
 
 	// parse command-line options
 	while ((opt = getopt(argc, argv, "cD:f:G:L:mMn:s")) > 0)
