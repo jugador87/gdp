@@ -5,6 +5,48 @@ This directory contains a very poor prototype of the Global Dataplane
 HTTP-based RESTful interface.  The first is used to implement the
 second.  All of these are likely to change in the future.
 
+Getting Started:
+    These are a "quick start" guide to running the GDP.  Details are
+    all included below.
+
+   1.	Install the prerequisite packages described below.  For the base
+	system all you'll need are libevent2-dev and libssl-dev, but the
+	others are needed for full functionality.
+
+   2.	Compile the code as described below.
+
+   3.	Create the directory /var/tmp/gcl.  This is where the data
+	files are kept.  It should be owned by whatever user will be
+	running gdpd.  For security reasons, this should NOT be root!!
+	You can change the name of this directory by setting the
+	administrative parameter "swarm.gdplogd.gcl.dir", as described
+	toward the end of this document.
+
+   4.	Adjust any administrative parameters (see below).  In particular,
+	you may want to update swarm.gdplogd.gdpname so that the log
+	daemon has the same name every time it starts up (otherwise it
+	will choose a random name).  In any case, it will print its own
+	name when it starts up.
+
+   5.	Start the GDP routing daemon (routia).
+
+   6.	Start the GDP log daemon (see above).  Make note of its "GDP
+	routing name" for use in the next step.
+
+   7.	Create your first GCL using apps/gcl-create.  It takes two
+	arguments: the name of the log daemon on which to create the
+	GCL (as displayed in the previous step) and the name of the new
+	log.  If the second parameter is omitted an internal name is
+	used.
+
+   8.	Run apps/writer-test giving it the name of the log you just
+	created to add data to the log.  It will ask for lines of input
+	that are appended ot the log.  There is no need to give the
+	name of the log daemon; routia will find it for you.
+
+   9.	Check success by running apps/reader-test giving it the
+	same name as you used in the previous step.
+
 
 Required Packages:
 
@@ -23,39 +65,21 @@ Required Packages:
 		it by hand; in particular, it does the Mac-specific
 		configuration for you.
 	scgilib --- C binding for Simple Common Gateway Interface: to connect
-		lighttpd with GDP; from http://www.xamuel.com/scgilib/;
-		a slightly modified version is included with this
-		distribution.
+		lighttpd with GDP.  It is included (with some local patches)
+		with this distribution.  For the original version, see
+		http://www.xamuel.com/scgilib/.
 	Jansson --- JSON library from http://www.digip.org/jansson/.
 		On Linux it can be installed as the libjansson-dev package.
 		On MacOS and FreeBSD it is the "jansson" port or pkg.
 
-Directory Structure:
-	ep --- A library of C utility functions.  This is a stripped
-		down version of a library I wrote several years ago.
-		If you look at the code you'll see vestiges of some
-		of the stripped out functions.  I plan on cleaning
-		this version up and releasing it again.
-	gdp --- A library for GDP manipulation.  This is the library
-		that applications must link to access the GDP.
-	gdplogd --- The GDP log daemon.  This implements physical
-		(on disk) logs for the GDP.  The implementation is
-		still fairly simplistic.  It depends on a routing
-		layer (currently routia, in a separate repository).
-	scgilib --- An updated version of the SCGI code from
-		http://www.xamuel.com/scgilib/.  SCGI permits a
-		web server to access outside programs by opening
-		a socket in a manner much more efficient than basic
-		CGI fork/exec.  This is only used for the REST interface.
-	apps --- Application programs, including tests.
-	doc --- Some documentation, woefully incomplete.
-	lang --- sub-directories with language-specific application
-                programs and supporting code.
-        lang/js - JavaScript-specific apps and libraries.  Also contains
-                the Node.js/JS GDP RESTful interface code.  See associated
-                README files for details.
-        lang/python
-                - Python-specific apps and libraries.
+	To install these, use the following commands:
+	On the Mac:
+	    sudo port install libevent openssl lighttpd jansson
+	On FreeBSD:
+	    sudo pkg install libevent2 openssl lighttpd jansson
+	On Ubuntu/Linux:
+	    sudo apt-get install libevent-dev libssl-dev \
+			lighttpd libjansson-dev
 
 Compiling:
 	First, install the prerequisite packages.
@@ -67,11 +91,13 @@ Compiling:
 	and even in gcc without the -std=c99 flag.  As a result of
 	this problem, we don't use the -std=c99 flag by default, but
 	this means that not all features of C99 are available.
+	If you want full C99, use "STD=-std=c99" on the make command
+	line.
 
 	As of this writing, GDP works on MacOS 10.9 (using clang),
 	Ubuntu 12.04 (using gcc or clang), and Freebsd 10.0 (using
-	clang).  I believe one person has it running on MacOS 10.7
-	using gcc.
+	clang).  I believe at least one person has it running on
+	MacOS 10.7 using gcc.
 
         Note, the lang/js/ JavaScript system currently must be built
         separately using the target all_JavaScript in gdp/Makefile:
@@ -83,9 +109,11 @@ Compiling:
 Running a GDP-based program:
 	For anything interesting to happen, two daemons must be
 	running.  The first is the routing layer, currently a
-	Python application named Routia.  It currently uses a
-	BGP-style approach with globally known state.  Everything
-	else connects into the routing layer.
+	Python application named Routia.  It currently uses a simple
+	"global knowledge" algorithm where every routing node knows
+	every name known by the system.  Names include running servers
+	and applications as well as logs.  Everything else connects
+	into the routing layer.
 
 	The second is gdplogd, which implements physical on-disk
 	logs.  It must be started after the routing layer.
@@ -111,42 +139,14 @@ Running a GDP-based program:
 	You also have to create the directory "/var/tmp/gcl" to store
 	the data repository.
 
-Getting Started:
-   1.	Install the prerequisites described above.  For the base system
-	all you'll need are libevent2-dev and libssl-dev, but the others
-	are needed for full functionality. The one line installlation for
-	Ubuntu/Linux is:
-		sudo apt-get install libevent-dev libssl-dev cgilib \
-			lighttpd libjansson-dev
-
-   2.	Compile the code as described above.
-
-   3.	Create the directory /var/tmp/gcl.  This is where the data
-	files are kept.  It should be owned by whatever user will be
-	running gdpd.  For security reasons, this should NOT be root!!
-
-   4.	Adjust any administrative parameters (see below).
-
-   5.	Start the GDP routing daemon (routia).
-
-   6.	Start the GDP log daemon (see above).
-
-   7.	Create your first GCL using apps/writer-test.  You can run
-	this without arguments and it will create a (random) 256-bit
-	name, or with an argument which will be sha-256'd to create
-	the internal name.  It will accept text from the input and
-	write that text to the GCL.
-
-   8.	Check success by running apps/reader-test giving it the
-	internal (256-bit) name printed by writer-test.  If you
-	gave writer-test an argument you can use that instead.
-
+	In many cases, GDP programs will try to reconnect if a
+	component (gdplogd, routia) goes down, but they must all be
+	up and running before they will start in the first place.
 
 Subscriptions:
 	You can "subscribe" to a GCL, which will produce an output
 	whenever that GCL has a record written to it.  To subscribe,
 	use "apps/reader-test -s <name>".
-
 
 Running the GDP RESTful Interface:
 	(In these instructions, <gcl-name> is a URI-base-64-encoded
@@ -204,38 +204,28 @@ Running the GDP RESTful Interface:
 	use Chrome.  Install the "postman" extension to enable
 	sending of arbitrary methods such as POST and PUT.
 
-Setting Debug Flags:
-	You can turn on debugging output using a command line flag,
-	conventionally "-D<pattern>=<level>".  The <pattern> specifies
-	which flags should be set and <level> specifies how much
-	should be printed; zero indicates no output, and more output
-	is added as the values increase.
-
-	By convention <level> is no greater than 127, and values 100
-	and above may modify the base behavior of the program (i.e.,
-	do more than just printing information).
-
-	Each debug flag has a hierarchical name with (by convention)
-	"." as the separator, for example, "gdp.proto" to indicate
-	the protocol processing of the GDP.  The "what(1)" program on
-	a binary will show you which debug flags are available,
-	including a short description.
-
 Changing Parameters:
 	If you want to change parameters such as socket numbers or the
 	GCL directory you can do so without recompiling.  Configuration
 	files are simple "name=value" pairs, one per line.  There is
-	a built-in search path
-	".ep_adm_params:~/.ep_adm_params:/usr/local/etc/ep_adm_params"
-	that can be overridden the PARAM_PATH environment variable.
-	Those directories are searched for files named "gdpd" (for
-	gdpd only), "gdp" (for all programs that use the GDP), or
+	a built-in search path ".ep_adm_params:~/.ep_adm_params:\
+	/usr/local/etc/ep_adm_params:/etc/ep_adm_params"
+	that can be overridden the EP_PARAM_PATH environment variable.
+	Those directories are searched for files named "gdplogd" (for
+	gdplogd only), "gdp" (for all programs that use the GDP), or
 	"defaults" (for all programs).
 
-	Parameters you can change in those files include:
+	There are many parameters you change, as described below.  In
+	most cases, the ones you are likely to find interesting (and
+	the files in which they should probably live) are:
+		swarm.gdp.routers		gdp
+		swarm.gdplogd.gcl.dir		gdplogd
+		swarm.gdplogd.gdpname		gdplogd
 
-	swarm.gdp.routers --- the address of the gdp routing layer (used
-		by clients).  This should eventually be replaced by
+	swarm.gdp.routers --- the address(es) of the gdp routing layer
+		(used by clients).  Multiple addresses can be included,
+		separated by semicolons.  If no port is included, it
+		defaults to 8007.  This will eventually be replaced by
 		service discovery.  Defaults to 127.0.0.1:8007.
 	swarm.gdp.event.loopdelay --- if the event loop exits for some
 		reason, this is the number of microseconds to delay
@@ -295,3 +285,46 @@ Changing Parameters:
 		worker threads in the thread pool.  If not specified
 		the default is two times the number of available
 		cores.  It can be overridden by the calling application.
+
+Setting Debug Flags:
+	You can turn on debugging output using a command line flag,
+	conventionally "-D<pattern>=<level>".  The <pattern> specifies
+	which flags should be set and <level> specifies how much
+	should be printed; zero indicates no output, and more output
+	is added as the values increase.
+
+	By convention <level> is no greater than 127, and values 100
+	and above may modify the base behavior of the program (i.e.,
+	do more than just printing information).
+
+	Each debug flag has a hierarchical name with (by convention)
+	"." as the separator, for example, "gdp.proto" to indicate
+	the protocol processing of the GDP.  The "what(1)" program on
+	a binary will show you which debug flags are available
+	including a short description.
+
+Directory Structure:
+	ep --- A library of C utility functions.  This is a stripped
+		down version of a library I wrote several years ago.
+		If you look at the code you'll see vestiges of some
+		of the stripped out functions.  I plan on cleaning
+		this version up and releasing it again.
+	gdp --- A library for GDP manipulation.  This is the library
+		that applications must link to access the GDP.
+	gdplogd --- The GDP log daemon.  This implements physical
+		(on disk) logs for the GDP.  The implementation is
+		still fairly simplistic.  It depends on a routing
+		layer (currently routia, in a separate repository).
+	scgilib --- An updated version of the SCGI code from
+		http://www.xamuel.com/scgilib/.  SCGI permits a
+		web server to access outside programs by opening
+		a socket in a manner much more efficient than basic
+		CGI fork/exec.  This is only used for the REST interface.
+	apps --- Application programs, including tests.
+	doc --- Some documentation, woefully incomplete.
+	lang --- sub-directories with language-specific application
+                programs and supporting code.
+        lang/js --- JavaScript-specific apps and libraries.  Also contains
+                the Node.js/JS GDP RESTful interface code.  See associated
+                README files for details.
+        lang/python --- Python-specific apps and libraries.
