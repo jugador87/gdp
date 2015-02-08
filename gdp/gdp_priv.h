@@ -14,7 +14,6 @@
 #include <stdio.h>
 
 typedef struct gdp_chan		gdp_chan_t;
-typedef struct gcl_class	gcl_class_t;
 
 extern pthread_t	_GdpIoEventLoopThread;
 gdp_chan_t			*_GdpChannel;		// our primary app-level protocol port
@@ -75,10 +74,6 @@ struct gdp_datum
 
 /*
 **  GDP Channel/Logs
-**
-**		The implementation class is currently used only by gdpd,
-**		to distinguish between GCLs that are locally stored and
-**		those available remotely.
 */
 
 struct gdp_gcl
@@ -95,8 +90,6 @@ struct gdp_gcl
 	int					refcnt;			// reference counter
 	void				(*freefunc)(struct gdp_gcl *);
 										// called when this is freed
-	gcl_class_t			*cl;			// implementation class
-	void				*cd;			// class-specific data
 	struct gdp_gcl_xtra	*x;				// for use by gdpd, gdp-rest
 };
 
