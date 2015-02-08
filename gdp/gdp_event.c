@@ -60,11 +60,10 @@ gdp_event_free(gdp_event_t *gev)
 
 	ep_dbg_cprintf(Dbg, 48, "gdp_event_free(%p)\n", gev);
 
-	if (gev->datum != NULL && !EP_UT_BITSET(GDP_EVENT_F_KEEPPDU, gev->flags))
+	if (gev->datum != NULL)
 		gdp_datum_free(gev->datum);
 	gev->datum = NULL;
 	gev->type = _GDP_EVENT_FREE;
-	gev->flags = 0;
 	ep_thr_mutex_lock(&FreeListMutex);
 	STAILQ_INSERT_HEAD(&FreeList, gev, queue);
 	ep_thr_mutex_unlock(&FreeListMutex);
