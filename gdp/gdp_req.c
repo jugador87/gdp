@@ -54,6 +54,7 @@ _gdp_req_new(int cmd,
 	if ((req = LIST_FIRST(&ReqFreeList)) != NULL)
 	{
 		LIST_REMOVE(req, gcllist);
+		EP_ASSERT(req->state == GDP_REQ_FREE);
 	}
 	ep_thr_mutex_unlock(&ReqFreeListMutex);
 	if (req == NULL)
@@ -65,9 +66,9 @@ _gdp_req_new(int cmd,
 	}
 
 	// sanity checks
-	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_INUSE, req->flags));
 	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
 	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags));
+	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 
 	// initialize request
 	if (pdu != NULL)
@@ -105,21 +106,31 @@ _gdp_req_new(int cmd,
 		}
 	}
 
+	// always return the request pre-locked
+	_gdp_req_lock(req);
+
 	// success
-	req->flags |= GDP_REQ_INUSE;
+	req->state = GDP_REQ_ACTIVE;
 	*reqp = req;
 	ep_dbg_cprintf(Dbg, 48, "gdp_req_new(gcl=%p) => %p\n", gcl, req);
 	return estat;
 }
 
 
+/*
+**  _GDP_REQ_FREE --- return a request to the free list
+**
+**		Note that we grab the GCL linked list as the free list, since
+**		it's impossible for a free request to be attached to a GCL.
+*/
+
 void
 _gdp_req_free(gdp_req_t *req)
 {
 	ep_dbg_cprintf(Dbg, 48, "gdp_req_free(%p)  gcl=%p\n", req, req->gcl);
 
-	ep_thr_mutex_lock(&req->mutex);
-	EP_ASSERT(EP_UT_BITSET(GDP_REQ_INUSE, req->flags));
+	EP_ASSERT(req->state != GDP_REQ_FREE);
+	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 
 	// remove the request from the channel subscription list
 	if (EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags))
@@ -143,8 +154,8 @@ _gdp_req_free(gdp_req_t *req)
 		req->gcl = NULL;
 	}
 
-	req->flags &= ~GDP_REQ_INUSE;
-	ep_thr_mutex_unlock(&req->mutex);
+	req->state = GDP_REQ_FREE;
+	_gdp_req_unlock(req);
 
 	// add the empty request to the free list
 	ep_thr_mutex_lock(&ReqFreeListMutex);
@@ -152,6 +163,10 @@ _gdp_req_free(gdp_req_t *req)
 	ep_thr_mutex_unlock(&ReqFreeListMutex);
 }
 
+
+/*
+**  _GDP_REQ_FREEALL --- free all requests for a given GCL
+*/
 
 void
 _gdp_req_freeall(struct req_head *reqlist, void (*shutdownfunc)(gdp_req_t *))
@@ -172,9 +187,39 @@ _gdp_req_freeall(struct req_head *reqlist, void (*shutdownfunc)(gdp_req_t *))
 
 
 /*
+**  Lock/unlock a request
+*/
+
+void
+_gdp_req_lock(gdp_req_t *req)
+{
+	EP_ASSERT_INSIST(!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
+	ep_dbg_cprintf(Dbg, 60, "_gdp_req_lock: req @ %p\n", req);
+	req->flags |= GDP_REQ_LOCKED;
+	ep_thr_mutex_lock(&req->mutex);
+}
+
+void
+_gdp_req_unlock(gdp_req_t *req)
+{
+	EP_ASSERT_INSIST(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
+	ep_dbg_cprintf(Dbg, 60, "_gdp_req_unlock: req @ %p\n", req);
+	req->flags &= ~GDP_REQ_LOCKED;
+	ep_thr_mutex_unlock(&req->mutex);
+}
+
+
+/*
 **   _GDP_REQ_SEND --- send a request to the GDP daemon
 **
 **		This makes no attempt to read results.
+**
+**		This routine also links the request onto the GCL list (if any)
+**		so that the matching response PDU can find the request (the
+**		PDU contains the GCL and the RID, which are enough to find
+**		the corresponding request).  If it's already on a GCL list we
+**		work on the assumption that it is this one.  We might want to
+**		verify that for debugging purposes.
 */
 
 EP_STAT
@@ -228,7 +273,17 @@ _gdp_req_unsend(gdp_req_t *req)
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
-	if (gcl != NULL && EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
+	if (gcl == NULL)
+	{
+		ep_dbg_cprintf(Dbg, 4, "_gdp_req_unsend: req %p has NULL GCL\n",
+				req);
+	}
+	else if (!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
+	{
+		ep_dbg_cprintf(Dbg, 4, "_gdp_req_unsend: req %p not on GCL list\n",
+				req);
+	}
+	else
 	{
 		ep_thr_mutex_lock(&gcl->mutex);
 		LIST_REMOVE(req, gcllist);
@@ -242,6 +297,20 @@ _gdp_req_unsend(gdp_req_t *req)
 
 /*
 **  _GDP_REQ_FIND --- find a request in a GCL
+**
+**		The state must show that the req is not currently active; if it
+**		is we would clobber one another.  Note that we can't just keep
+**		the req locked because that would require passing a lock between
+**		threads, which is a non-starter.  To get around that the req
+**		has a state; if it is currently in active use by another thread
+**		we have to wait.
+**
+**		This may be the wrong place to do this, since this blocks the
+**		I/O thread.  Arguably the I/O thread should read PDUs, put them
+**		on a service list, and let another thread handle it.  This is
+**		more-or-less what gdplogd does now, so this problem only shows
+**		up in clients that may be working with many GCLs at the same
+**		time.  Tomorrow is another day.
 */
 
 gdp_req_t *
@@ -250,10 +319,25 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 	gdp_req_t *req;
 
 	ep_thr_mutex_lock(&gcl->mutex);
-	LIST_FOREACH(req, &gcl->reqs, gcllist)
+	for (;;)
 	{
-		if (req->pdu->rid == rid)
-			break;
+		LIST_FOREACH(req, &gcl->reqs, gcllist)
+		{
+			if (req->pdu->rid == rid)
+				break;
+		}
+		if (req == NULL)
+			break;				// nothing to find
+
+		EP_ASSERT(req->state != GDP_REQ_FREE);
+		if (req->state != GDP_REQ_ACTIVE)
+			break;				// this is what we are looking for!
+
+		// it's in the wrong state; wait for a change and then try again
+		ep_dbg_cprintf(Dbg, 20, "_gdp_req_find: wrong state: %d\n",
+				req->state);
+		//XXX should have a timeout here
+		ep_thr_cond_wait(&req->cond, &req->mutex, NULL);
 	}
 	if (req != NULL && !EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
 	{
@@ -262,15 +346,19 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 		req->flags &= ~GDP_REQ_ON_GCL_LIST;
 	}
 	ep_thr_mutex_unlock(&gcl->mutex);
-	ep_dbg_cprintf(Dbg, 48, "gdp_req_find(gcl=%p, rid=%" PRIgdp_rid ") => %p\n",
-			gcl, rid, req);
+
+	// we want to make sure the request is locked upon return
+	_gdp_req_lock(req);
+	ep_dbg_cprintf(Dbg, 48,
+			"gdp_req_find(gcl=%p, rid=%" PRIgdp_rid ", state=%d) => %p\n",
+			gcl, rid, req->state, req);
 	return req;
 }
 
 
 static EP_PRFLAGS_DESC	ReqFlags[] =
 {
-	{ GDP_REQ_INUSE,		GDP_REQ_INUSE,			"INUSE"			},
+	{ GDP_REQ_LOCKED,		GDP_REQ_LOCKED,			"LOCKED"		},
 	{ GDP_REQ_DONE,			GDP_REQ_DONE,			"DONE"			},
 	{ GDP_REQ_PERSIST,		GDP_REQ_PERSIST,		"PERSIST"		},
 	{ GDP_REQ_CLT_SUBSCR,	GDP_REQ_CLT_SUBSCR,		"CLT_SUBSCR"	},
@@ -283,10 +371,28 @@ static EP_PRFLAGS_DESC	ReqFlags[] =
 	{ 0,					0,						NULL			}
 };
 
+static const char *ReqStates[] =
+{
+	"FREE",			// 0
+	"ACTIVE",		// 1
+	"WAITING",		// 2
+	"IDLE",			// 3
+};
+
 void
 _gdp_req_dump(gdp_req_t *req, FILE *fp)
 {
 	char ebuf[200];
+	char sbuf[10];
+	const char *statestr;
+
+	if (req->state >= 0 && req->state < sizeof ReqStates)
+		statestr = ReqStates[req->state];
+	else
+	{
+		statestr = sbuf;
+		snprintf(sbuf, sizeof sbuf, "%d", req->state);
+	}
 
 	flockfile(fp);
 	fprintf(fp, "req@%p: ", req);
@@ -295,17 +401,18 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 		fprintf(fp, "null\n");
 		goto done;
 	}
+	fprintf(fp, "\n    state=%s, numrecs=%" PRIu32
+			", chan=%p, postproc=%p, sub_cb=%p udata=%p\n"
+			"    stat=%s\n",
+			statestr, req->numrecs, req->chan, req->postproc,
+			req->sub_cb, req->udata,
+			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
+	fprintf(fp, "    flags=");
+	ep_prflags(req->flags, ReqFlags, fp);
 	fprintf(fp, "\n    ");
 	gdp_gcl_print(req->gcl, fp, 1, 0);
 	fprintf(fp, "    ");
 	_gdp_pdu_dump(req->pdu, fp);
-	fprintf(fp, "    flags=");
-	ep_prflags(req->flags, ReqFlags, fp);
-	fprintf(fp, "\n    numrecs=%" PRIu32
-			", chan=%p, postproc=%p, sub_cb=%p udata=%p\n"
-			"    stat=%s\n",
-			req->numrecs, req->chan, req->postproc, req->sub_cb, req->udata,
-			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
 done:
 	funlockfile(fp);
 }

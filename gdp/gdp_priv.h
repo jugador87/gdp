@@ -106,10 +106,10 @@ struct gdp_gcl
 **		A GDP request is packaged up in one of these things and
 **		submitted.  Responses are returned in the same structure.
 **
-**		There is one packet header here that is used both for
+**		There is one PDU header here that is used both for
 **		sending and receiving.  The associated gdp_buf_t does not
 **		have a write callback, so it can be used without having
-**		any side effects.  The packet header has much of the
+**		any side effects.  The PDU header has much of the
 **		information, including the command/response code, the rid,
 **		the record number, the timestamp, and the data buffer.
 **
@@ -118,6 +118,35 @@ struct gdp_gcl
 **		reused if desired once an operation is complete.  Note:
 **		some operations (e.g., subscriptions) can return multiple
 **		results, but they will have the same rid.
+**
+**		Requests are potentially linked on lists.  Every request
+**		that is active on a channel is linked to that channel
+**		(with the GDP_REQ_ON_CHAN_LIST flag set); this is so that
+**		requests can be cleaned up if the channel goes away.  At
+**		this point we try to recover the channel, so this should
+**		be rare, but that list is also used to find requests that
+**		need to be timed out.
+**
+**		For active requests --- that is, requests that are either
+**		waiting for a response (in _gdp_invoke) or represent
+**		potential points for subscriptions --- are also linked to
+**		the corresponding GCL, and will have the GDP_REQ_ON_GCL_LIST
+**		flag set.  Subscription listeners also have the
+**		GDP_REQ_CLT_SUBSCR flag set.  GDP_REQ_SRV_SUBSCR is used
+**		by gdplogd to find the other end of the subscription, i.e,
+**		subscription data producers.
+**
+**		Since the channel I/O thread is asynchronous with the main
+**		data flow of the application, there is the potential for
+**		subscription data to come in faster than the application
+**		can consume it.  But there is only one request to hold the
+**		subscription, which could cause a race condition.  For
+**		this reason, the request stays locked as long as it is
+**		actively processing (i.e., not when it's waiting for an
+**		I/O event, but all the rest of the time).  This long-lived
+**		mutex is a bit disturbing, but otherwise it would require
+**		cloning the request and opens the possibility that data
+**		returns could come in out of order.
 */
 
 typedef struct gdp_req
@@ -131,6 +160,7 @@ typedef struct gdp_req
 	gdp_chan_t			*chan;		// the network channel for this req
 	EP_STAT				stat;		// status code from last operation
 	int32_t				numrecs;	// remaining number of records to return
+	uint16_t			state;		// see below
 	uint32_t			flags;		// see below
 	EP_TIME_SPEC		sub_ts;		// timestamp of last subscription activity
 	void				(*postproc)(struct gdp_req *);
@@ -139,7 +169,14 @@ typedef struct gdp_req
 	void				*udata;		// user-supplied opaque data to cb
 } gdp_req_t;
 
-#define GDP_REQ_INUSE			0x00000001	// request is in use
+// states
+#define GDP_REQ_FREE			0			// request is free
+#define GDP_REQ_ACTIVE			1			// currently being processed
+#define GDP_REQ_WAITING			2			// waiting on cond variable
+#define GDP_REQ_IDLE			3			// subscription waiting for data
+
+// flags
+#define GDP_REQ_LOCKED			0x00000001	// mutex is locked
 #define GDP_REQ_DONE			0x00000002	// operation complete
 #define GDP_REQ_CLT_SUBSCR		0x00000004	// client-side subscription
 #define GDP_REQ_SRV_SUBSCR		0x00000008	// server-side subscription
@@ -150,6 +187,8 @@ typedef struct gdp_req
 #define GDP_REQ_ON_CHAN_LIST	0x00000100	// this is on a channel list
 #define GDP_REQ_CORE			0x00000200	// internal to the core code
 
+extern void			_gdp_req_lock(gdp_req_t *);
+extern void			_gdp_req_unlock(gdp_req_t *);
 extern gdp_req_t	*_gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid);
 extern gdp_rid_t	_gdp_rid_new(gdp_gcl_t *gcl, gdp_chan_t *chan);
 extern EP_STAT		_gdp_req_send(gdp_req_t *req);

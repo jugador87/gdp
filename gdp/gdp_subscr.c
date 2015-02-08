@@ -45,7 +45,7 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 
 	// issue the subscription --- no data returned
 	estat = _gdp_invoke(req);
-	EP_ASSERT(EP_UT_BITSET(GDP_REQ_INUSE, req->flags));		// make sure it didn't get freed
+	EP_ASSERT(req->state == GDP_REQ_ACTIVE);
 
 	if (!EP_STAT_ISOK(estat))
 	{
@@ -57,6 +57,10 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 		req->flags |= GDP_REQ_CLT_SUBSCR;
 		req->sub_cb = cbfunc;
 		req->udata = cbarg;
+		req->state = GDP_REQ_IDLE;
+
+		// now waiting for other events; go ahead and unlock
+		_gdp_req_unlock(req);
 
 		// if using callbacks, make sure we have a callback thread running
 		if (cbfunc != NULL)

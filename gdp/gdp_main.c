@@ -48,6 +48,9 @@ init_error(const char *datum, const char *where)
 **		This is the part of PDU processing that should be done in
 **		a thread if the command is heavy weight.  As a rule of
 **		thumb, commands are heavy, acks/naks are light.
+**
+**		On entry, the request will be locked.  If we are done with
+**		it, we have to either free it or unlock it.
 */
 
 static void
@@ -132,7 +135,6 @@ gdp_pdu_proc_thread(void *req_)
 
 		// ASSERT(all data from chan has been consumed);
 
-		ep_thr_mutex_lock(&req->mutex);
 		if (EP_UT_BITSET(GDP_REQ_CLT_SUBSCR, req->flags))
 		{
 			// send the status as an event
@@ -152,13 +154,19 @@ gdp_pdu_proc_thread(void *req_)
 			// wake up invoker, which will return the status
 			ep_thr_cond_signal(&req->cond);
 		}
-		ep_thr_mutex_unlock(&req->mutex);
 	}
 
 	// free up resources
 	if (EP_UT_BITSET(GDP_REQ_CORE, req->flags) &&
 		!EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
+	{
+		// _gdp_req_free also unlockes
 		_gdp_req_free(req);
+	}
+	else
+	{
+		_gdp_req_unlock(req);
+	}
 
 	ep_dbg_cprintf(Dbg, 40, "gdp_pdu_proc_thread <<< done\n");
 }

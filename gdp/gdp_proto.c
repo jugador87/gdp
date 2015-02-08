@@ -83,12 +83,16 @@ _gdp_invoke(gdp_req_t *req)
 		// wait until we receive a result
 		ep_dbg_cprintf(Dbg, 37, "_gdp_invoke: waiting on %p\n", req);
 		ep_time_deltanow(&delta_ts, &abs_to);
-		ep_thr_mutex_lock(&req->mutex);
 		estat = EP_STAT_OK;
+		req->state = GDP_REQ_WAITING;
 		while (!EP_UT_BITSET(GDP_REQ_DONE, req->flags))
 		{
-			char ebuf[100];
+			// cond_wait will unlock the mutex
+			req->flags &= ~GDP_REQ_LOCKED;
 			int e = ep_thr_cond_wait(&req->cond, &req->mutex, &abs_to);
+			req->flags |= GDP_REQ_LOCKED;
+
+			char ebuf[100];
 			ep_dbg_cprintf(Dbg, 52,
 					"_gdp_invoke wait: got %d, done=%d, stat=%s\n",
 					e, EP_UT_BITSET(GDP_REQ_DONE, req->flags),
@@ -100,6 +104,7 @@ _gdp_invoke(gdp_req_t *req)
 				break;
 			}
 		}
+		req->state = GDP_REQ_ACTIVE;
 		if (EP_STAT_ISOK(estat))
 		{
 			estat = req->stat;
@@ -110,7 +115,6 @@ _gdp_invoke(gdp_req_t *req)
 			// if the invoke failed, we have to pull the req off the gcl list
 			_gdp_req_unsend(req);
 		}
-		ep_thr_mutex_unlock(&req->mutex);
 
 #if 0
 		//XXX what status will/should we return?
