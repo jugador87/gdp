@@ -416,6 +416,9 @@ _gdp_lib_init(void)
 	if (progname != NULL)
 		ep_adm_readparams(progname);
 
+	// we can now re-adjust debugging
+	ep_dbg_setfile(NULL);
+
 	// arrange to call atexit(3) functions on SIGTERM
 	if (ep_adm_getboolparam("swarm.gdp.catch.sigint", true))
 		(void) signal(SIGINT, exit_on_signal);
