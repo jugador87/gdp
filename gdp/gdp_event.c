@@ -131,6 +131,10 @@ _gdp_event_trigger(gdp_event_t *gev)
 {
 	EP_ASSERT_POINTER_VALID(gev);
 
+	ep_dbg_cprintf(Dbg, 48,
+			"_gdp_event_trigger: adding event %p (%d) to %s list\n",
+			gev, gev->type, gev->cb == NULL ? "active" : "callback");
+
 	if (gev->cb == NULL)
 	{
 		// signal the user thread (synchronous delivery)
