@@ -685,24 +685,6 @@ fail0:
 }
 
 
-/*
-**  CMD_NOT_IMPLEMENTED --- generic "not implemented" error
-*/
-
-EP_STAT
-cmd_not_implemented(gdp_req_t *req)
-{
-	//XXX print/log something here?
-
-	// should have no input data; ignore anything there
-	flush_input_data(req, "cmd_not_implemented");
-
-	req->pdu->cmd = GDP_NAK_S_NOTIMPL;
-	_gdp_pdu_out_hard(req->pdu, req->chan);
-	return GDP_STAT_NAK_NOTIMPL;
-}
-
-
 /**************** END OF COMMAND IMPLEMENTATIONS ****************/
 
 
