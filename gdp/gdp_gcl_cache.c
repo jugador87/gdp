@@ -248,7 +248,7 @@ _gdp_gcl_cache_reclaim(time_t maxage)
 	gdp_gcl_t *g1, *g2;
 	time_t mintime;
 
-	ep_dbg_cprintf(Dbg, 48, "_gdp_gcl_cache_reclaim(maxage = %ld)\n", maxage);
+	ep_dbg_cprintf(Dbg, 68, "_gdp_gcl_cache_reclaim(maxage = %ld)\n", maxage);
 
 	gettimeofday(&tv, NULL);
 	mintime = tv.tv_sec - maxage;
@@ -261,7 +261,7 @@ _gdp_gcl_cache_reclaim(time_t maxage)
 		g2 = LIST_NEXT(g1, ulist);
 		if (g1->refcnt <= 0 && !EP_UT_BITSET(GCLF_DROPPING, g1->flags))
 		{
-			if (ep_dbg_test(Dbg, 12))
+			if (ep_dbg_test(Dbg, 32))
 			{
 				ep_dbg_printf("_gdp_gcl_cache_reclaim: reclaiming:\n   ");
 				gdp_gcl_print(g1, ep_dbg_getfile(), 8, 0);
