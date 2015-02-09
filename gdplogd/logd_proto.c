@@ -119,7 +119,7 @@ done:
 /*
 **  CMD_CREATE --- create new GCL.
 **
-**		A bit unusual in that the packet is addressed to the daemon,
+**		A bit unusual in that the PDU is addressed to the daemon,
 **		not the log; the log name is in the payload.  However, we
 **		respond using the name of the new log rather than the
 **		daemon.

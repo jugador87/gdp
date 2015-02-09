@@ -142,7 +142,7 @@ _gdp_req_free(gdp_req_t *req)
 		LIST_REMOVE(req, gcllist);
 	req->flags &= ~GDP_REQ_ON_GCL_LIST;
 
-	// free the associated packet
+	// free the associated PDU
 	if (req->pdu != NULL)
 		_gdp_pdu_free(req->pdu);
 	req->pdu = NULL;
@@ -401,11 +401,11 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 		fprintf(fp, "null\n");
 		goto done;
 	}
-	fprintf(fp, "\n    state=%s, numrecs=%" PRIu32
-			", chan=%p, postproc=%p, sub_cb=%p udata=%p\n"
-			"    stat=%s\n",
-			statestr, req->numrecs, req->chan, req->postproc,
-			req->sub_cb, req->udata,
+	fprintf(fp, "\n    numrecs=%" PRIu32
+			", chan=%p, postproc=%p, sub_cb=%p, udata=%p\n"
+			"    state=%s, stat=%s\n",
+			req->numrecs, req->chan, req->postproc,
+			req->sub_cb, req->udata, statestr,
 			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
 	fprintf(fp, "    flags=");
 	ep_prflags(req->flags, ReqFlags, fp);

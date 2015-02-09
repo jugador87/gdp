@@ -21,7 +21,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.proto", "GDP protocol processing");
 /*
 **	GDP_READ_CB --- data is available for reading from gdpd socket
 **
-**		Minimal implementation: read in packet and hand it to
+**		Minimal implementation: read in PDU and hand it to
 **		processing routine.  If that processing is going to be
 **		lengthy it should use a thread.
 */

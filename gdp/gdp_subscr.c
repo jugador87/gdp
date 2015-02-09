@@ -39,7 +39,7 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 	estat = _gdp_req_new(cmd, gcl, chan, NULL, reqflags | GDP_REQ_PERSIST, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	// add start and stop parameters to packet
+	// add start and stop parameters to PDU
 	req->pdu->datum->recno = start;
 	gdp_buf_put_uint32(req->pdu->datum->dbuf, numrecs);
 

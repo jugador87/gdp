@@ -146,10 +146,10 @@ _gdp_invoke(gdp_req_t *req)
 **	Protocol processing (CMD/ACK/NAK)
 **
 **		All of these take as parameters:
-**			req --- the request information (including packet header)
+**			req --- the request information (including PDU header)
 **
 **		They can return GDP_STAT_KEEP_READING to tell the upper
-**		layer that the whole packet hasn't been read yet.
+**		layer that the whole PDU hasn't been read yet.
 **
 ***********************************************************************/
 
@@ -176,7 +176,7 @@ ack_success(gdp_req_t *req)
 
 	gcl = req->gcl;
 
-	//	If we started with no gcl id, adopt from incoming packet.
+	//	If we started with no gcl id, adopt from incoming PDU.
 	//	This can happen when creating a GCL.
 	if (gcl != NULL && !gdp_name_is_valid(gcl->name))
 	{

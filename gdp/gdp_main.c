@@ -112,7 +112,7 @@ gdp_pdu_proc_thread(void *req_)
 //		else if (EP_STAT_ISERROR(estat))
 //			req->pdu->cmd = GDP_ACK_XXX;
 
-		// send response packet if appropriate
+		// send response PDU if appropriate
 		if (GDP_CMD_NEEDS_ACK(cmd))
 		{
 			ep_dbg_cprintf(Dbg, 41,
@@ -249,7 +249,7 @@ _gdp_pdu_process(gdp_pdu_t *pdu, gdp_chan_t *chan)
 			pdu->datum->dbuf = NULL;
 			gdp_datum_free(pdu->datum);
 
-			// point the new packet at the old datum
+			// point the new PDU at the old datum
 			pdu->datum = req->pdu->datum;
 			EP_ASSERT(pdu->datum->inuse);
 		}

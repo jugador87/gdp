@@ -1,13 +1,13 @@
 /* vim: set ai sw=4 sts=4 ts=4 :*/
 
 /*
-**	GDP_PDU.C --- low-level packet internal <=> external translations
+**	GDP_PDU.C --- low-level PDU internal <=> external translations
 **
 **		Everything is read and written in network byte order.
 **
 **		XXX Should we be working on raw files instead of stdio files?
 **			Will make a difference if we use UDP.
-**		XXX Should we pad out the packet header to an even four bytes?
+**		XXX Should we pad out the PDU header to an even four bytes?
 **			Might help some implementations when reading or writing
 **			the data.
 */
@@ -87,9 +87,9 @@ done:
 
 
 /*
-**	GDP_PDU_OUT --- send a packet to a network buffer
+**	GDP_PDU_OUT --- send a PDU to a network buffer
 **
-**		Outputs packet, including all the data in the dbuf.
+**		Outputs PDU, including all the data in the dbuf.
 **
 **	XXX need to enable buffer locking somewhere!!
 **		[evbuffer_enable_locking(buffer, void *lock)]
@@ -223,7 +223,7 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 
 	if (ep_dbg_test(Dbg, 32))
 	{
-		ep_dbg_printf("_gdp_pdu_out: sending packet:\n");
+		ep_dbg_printf("_gdp_pdu_out: sending PDU:\n");
 		ep_hexdump(pbuf, hdrlen, ep_dbg_getfile(), EP_HEXDUMP_HEX, 0);
 	}
 
@@ -276,13 +276,13 @@ _gdp_pdu_out_hard(gdp_pdu_t *pdu, gdp_chan_t *chan)
 
 	if (!EP_STAT_ISOK(estat))
 	{
-		ep_log(estat, "_gdp_pdu_out_hard: cannot put packet");
+		ep_log(estat, "_gdp_pdu_out_hard: cannot put PDU");
 	}
 }
 
 
 /*
-**	GDP_PDU_IN --- read a packet from the network
+**	GDP_PDU_IN --- read a PDU from the network
 **
 **		The caller has to loop on this while it returns
 **		GDP_STAT_KEEP_READING, which means that some required data
@@ -353,7 +353,7 @@ _gdp_pdu_hdr_in(gdp_pdu_t *pdu,
 		return GDP_STAT_KEEP_READING;
 	}
 
-	// read the fixed part of the packet header in
+	// read the fixed part of the PDU header in
 	pbp = pbuf;
 	pdu->ver = *pbp++;
 
@@ -403,7 +403,7 @@ _gdp_pdu_hdr_in(gdp_pdu_t *pdu,
 	*dlenp = dlen;
 	*pduszp = needed;
 
-	// see if the entire packet (header + data) is available
+	// see if the entire PDU (header + data) is available
 	if (gdp_buf_getlength(ibuf) < needed)
 	{
 		// still not enough data
@@ -447,7 +447,7 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	estat = _gdp_pdu_hdr_in(pdu, chan, &needed, &dlen);
 	EP_STAT_CHECK(estat, return estat);
 
-	// the entire packet is now in ibuf
+	// the entire PDU is now in ibuf
 
 	// now drain the data we have processed
 	sz = gdp_buf_read(ibuf, pbuf, _GDP_PDU_FIXEDHDRSZ + pdu->olen);
@@ -464,7 +464,7 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 
 	if (ep_dbg_test(Dbg, 32))
 	{
-		ep_dbg_printf("_gdp_pdu_in: read packet header:\n");
+		ep_dbg_printf("_gdp_pdu_in: read PDU header:\n");
 		ep_hexdump(pbuf, sz, ep_dbg_getfile(), EP_HEXDUMP_HEX, 0);
 	}
 
@@ -532,9 +532,9 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 
 
 /*
-**  Active and Free packet queues
+**  Active and Free PDU queues
 **
-**		When packets come off the wire they are added to the Active
+**		When PDU come off the wire they are added to the Active
 **		queue; a separate consumer thread consumes them.  Normally it
 **		is the I/O thread adding to the queue and the main thread
 **		consuming, but this could be changed to have a thread pool
@@ -546,7 +546,7 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 **		free lists, which are managed as LIFOs in order to try to keep
 **		the hardware cache as hot as possible.
 **
-**		XXX	Packet queue is not implemented at the moment, implying
+**		XXX	PDU queue is not implemented at the moment, implying
 **			that processing is single threaded.  This will be needed
 **			if we want to do processing out of a thread pool.
 */
@@ -555,17 +555,17 @@ static EP_THR_MUTEX		PduFreeListMutex	EP_THR_MUTEX_INITIALIZER;
 static TAILQ_HEAD(pkt_head, gdp_pdu)
 						PduFreeList = TAILQ_HEAD_INITIALIZER (PduFreeList);
 
-#ifdef GDP_PACKET_QUEUE
+#ifdef GDP_PDU_QUEUE
 static EP_THR_MUTEX		ActivePduMutex		EP_THR_MUTEX_INITIALIZER;
 static EP_THR_COND		ActivePduCond		EP_THR_COND_INITIALIZER;
 static TAILQ_HEAD(active_head, gdp_pdu)
-						ActivePacketQueue = TAILQ_HEAD_INITIALIZER(ActivePacketQueue);
+						ActivePduQueue = TAILQ_HEAD_INITIALIZER(ActivePduQueue);
 #endif
 
 
 /*
-**  _GDP_PDU_NEW --- allocate a packet (from free list if possible)
-**  _GDP_PDU_FREE --- return a packet to the free list
+**  _GDP_PDU_NEW --- allocate a PDU (from free list if possible)
+**  _GDP_PDU_FREE --- return a PDU to the free list
 */
 
 gdp_pdu_t *
@@ -583,7 +583,7 @@ _gdp_pdu_new(void)
 		pdu = ep_mem_zalloc(sizeof *pdu);
 	}
 
-	// initialize the packet
+	// initialize the PDU
 	EP_ASSERT(!pdu->inuse);
 	memset(pdu, 0, sizeof *pdu);
 	pdu->ver = GDP_PROTO_CUR_VERSION;
@@ -610,18 +610,18 @@ _gdp_pdu_free(gdp_pdu_t *pdu)
 }
 
 
-#ifdef GDP_PACKET_QUEUE
+#ifdef GDP_PDU_QUEUE
 
 /*
-**  _GDP_PDU_ADD_TO_QUEUE --- add a packet to the active queue
-**  _GDP_PDU_GET_ACTIVE --- get a packet from the active queue
+**  _GDP_PDU_ADD_TO_QUEUE --- add a PDU to the active queue
+**  _GDP_PDU_GET_ACTIVE --- get a PDU from the active queue
 */
 
 void
 _gdp_pdu_add_to_queue(gdp_pdu_t *pdu)
 {
 	ep_thr_mutex_lock(&ActivePduMutex);
-	TAILQ_INSERT_TAIL(&ActivePacketQueue, pdu, list);
+	TAILQ_INSERT_TAIL(&ActivePduQueue, pdu, list);
 	ep_thr_cond_signal(&ActivePduCond);
 	ep_thr_mutex_unlock(&ActivePduMutex);
 }
@@ -632,12 +632,12 @@ _gdp_pdu_get_active(void)
 	gdp_pdu_t *pdu;
 
 	ep_thr_mutex_lock(&ActivePduMutex);
-	while (TAILQ_EMPTY(&ActivePacketQueue))
+	while (TAILQ_EMPTY(&ActivePduQueue))
 	{
 		ep_thr_cond_wait(&ActivePduCond, &ActivePduMutex, NULL);
 	}
-	pdu = TAILQ_FIRST(&ActivePacketQueue);
-	TAILQ_REMOVE(&ActivePacketQueue, pdu, list);
+	pdu = TAILQ_FIRST(&ActivePduQueue);
+	TAILQ_REMOVE(&ActivePduQueue, pdu, list);
 	ep_thr_mutex_unlock(&ActivePduMutex);
 
 	return pdu;

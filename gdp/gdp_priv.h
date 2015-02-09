@@ -37,7 +37,7 @@ struct gdp_chan
 							gdp_chan_t *chan);
 	EP_STAT				(*advertise)(	// called to do our advertisements
 							int cmd);
-	void				(*process)(		// called to process a packet
+	void				(*process)(		// called to process a PDU
 							gdp_pdu_t *pdu,
 							gdp_chan_t *chan);
 };
@@ -156,7 +156,7 @@ typedef struct gdp_req
 	LIST_ENTRY(gdp_req)	gcllist;	// linked list for cache management
 	LIST_ENTRY(gdp_req)	chanlist;	// reqs associated with a given channel
 	gdp_gcl_t			*gcl;		// the corresponding GCL handle
-	gdp_pdu_t			*pdu;		// packet buffer
+	gdp_pdu_t			*pdu;		// PDU buffer
 	gdp_chan_t			*chan;		// the network channel for this req
 	EP_STAT				stat;		// status code from last operation
 	int32_t				numrecs;	// remaining number of records to return
