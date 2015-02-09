@@ -50,6 +50,64 @@ check_file_offset(FILE *fp, long offset)
 
 
 int
+list_gcls(const char *gcl_dir_name)
+{
+	DIR *dir;
+	int subdir;
+
+	dir = opendir(gcl_dir_name);
+	if (dir == NULL)
+	{
+		fprintf(stderr, "Could not open %s, errno = %d\n",
+				gcl_dir_name, errno);
+		return EX_NOINPUT;
+	}
+	closedir(dir);
+
+	for (subdir = 0; subdir < 0x100; subdir++)
+	{
+		char dbuf[400];
+
+		snprintf(dbuf, sizeof dbuf, "%s/_%02x", gcl_dir_name, subdir);
+		dir = opendir(dbuf);
+		if (dir == NULL)
+			continue;
+
+		for (;;)
+		{
+			struct dirent dentbuf;
+			struct dirent *dent;
+
+			// read the next directory entry
+			int i = readdir_r(dir, &dentbuf, &dent);
+			if (i != 0)
+			{
+				ep_log(ep_stat_from_errno(i),
+						"list_gcls: readdir_r failed");
+				break;
+			}
+			if (dent == NULL)
+				break;
+
+			// we're only interested in .data files
+			char *p = strrchr(dent->d_name, '.');
+			if (p == NULL || strcmp(p, GCL_DATA_SUFFIX) != 0)
+				continue;
+
+			// strip off the ".data"
+			*p = '\0';
+
+			// print the name
+			fprintf(stdout, "%s\n", dent->d_name);
+		}
+		closedir(dir);
+	}
+
+	return EX_OK;
+}
+
+
+int
 main(int argc, char *argv[])
 {
 	int opt;
@@ -77,30 +135,9 @@ main(int argc, char *argv[])
 
 	if (list_gcl)
 	{
-		struct dirent *dir_entry;
-		DIR *gcl_dir = opendir(gcl_dir_name);
-
-		printf("argc = %d, argv[0] = %s, argv[1] = %s\n", argc, argv[0], argv[1]);
 		if (argc > 0)
 			usage("cannot use a GCL name with -l");
-
-		if (gcl_dir == NULL)
-		{
-			fprintf(stderr, "Could not open %s, errno = %d\n",
-					gcl_dir_name, errno);
-			return EX_NOINPUT;
-		}
-
-		while ((dir_entry = readdir(gcl_dir)) != NULL)
-		{
-			char *dot = strrchr(dir_entry->d_name, '.');
-			if (dot && !strcmp(dot, GCL_DATA_SUFFIX))
-			{
-				fprintf(stdout, "%.*s\n",
-						(int)(dot - dir_entry->d_name), dir_entry->d_name);
-			}
-		}
-		return EX_OK;
+		return list_gcls(gcl_dir_name);
 	}
 
 	if (argc > 0)
