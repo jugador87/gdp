@@ -55,7 +55,7 @@ main(int argc, char *argv[])
 	int opt;
 	bool list_gcl = false;
 	bool print_raw = true;
-	char *gcl_name = NULL;
+	char *gcl_xname = NULL;
 	char *gcl_dir_name = GCL_DIR;
 
 	while ((opt = getopt(argc, argv, "lr")) > 0)
@@ -105,7 +105,7 @@ main(int argc, char *argv[])
 
 	if (argc > 0)
 	{
-		gcl_name = argv[0];
+		gcl_xname = argv[0];
 		argc--;
 		argv++;
 		if (argc > 0)
@@ -116,17 +116,26 @@ main(int argc, char *argv[])
 		usage("GCL name required");
 	}
 
-	// Add 1 in the middle for '/'
-	int filename_size = strlen(gcl_dir_name) + 1 + strlen(gcl_name) +
+	gdp_name_t gcl_name;
+	gdp_pname_t gcl_pname;
+
+	EP_STAT estat = gdp_parse_name(gcl_xname, gcl_name);
+	if (!EP_STAT_ISOK(estat))
+	{
+		usage("unparsable GCL name");
+	}
+
+	(void) gdp_printable_name(gcl_name, gcl_pname);
+
+	// Add 5 in the middle for '/_xx/'
+	int filename_size = strlen(gcl_dir_name) + 5 + strlen(gcl_pname) +
 			strlen(GCL_DATA_SUFFIX) + 1;
 	char *data_filename = malloc(filename_size);
 
-	data_filename[0] = '\0';
-	strlcat(data_filename, gcl_dir_name, filename_size);
-	strlcat(data_filename, "/", filename_size);
-	strlcat(data_filename, gcl_name, filename_size);
-	strlcat(data_filename, GCL_DATA_SUFFIX, filename_size);
-	fprintf(stdout, "GCL name: %s\n", gcl_name);
+	snprintf(data_filename, filename_size,
+			"%s/_%02x/%s%s",
+			gcl_dir_name, gcl_name[0], gcl_pname, GCL_DATA_SUFFIX);
+	fprintf(stdout, "GCL name: %s\n", gcl_pname);
 	fprintf(stdout, "Reading %s\n\n", data_filename);
 
 	FILE *data_fp = fopen(data_filename, "r");
