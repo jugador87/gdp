@@ -99,7 +99,7 @@ static char *
 get_param_path(void)
 {
 	static char *path = NULL;
-	static char pathbuf[200];
+	static char pathbuf[200] = "";
 
 	if (path != NULL)
 		return path;
@@ -107,18 +107,24 @@ get_param_path(void)
 	// initialize the hash table
 	ParamHash = ep_hash_new("ep_adm hash", NULL, 97);
 
-	path = getenv("EP_PARAM_PATH");
+	if (getuid() == geteuid())
+		path = getenv("EP_PARAM_PATH");
 	if (path == NULL)
 	{
-		strlcpy(pathbuf, ".ep_adm_params:", sizeof pathbuf);
-		path = getenv("HOME");
-		if (path != NULL)
+		if (getuid() == geteuid())
 		{
-			strlcat(pathbuf, path, sizeof pathbuf);
-			strlcat(pathbuf, "/.ep_adm_params:", sizeof pathbuf);
+			strlcpy(pathbuf, ".ep_adm_params:", sizeof pathbuf);
+			path = getenv("HOME");
+			if (path != NULL)
+			{
+				strlcat(pathbuf, path, sizeof pathbuf);
+				strlcat(pathbuf, "/.ep_adm_params:",
+						sizeof pathbuf);
+			}
 		}
-		strlcat(pathbuf, "/usr/local/etc/ep_adm_params:/etc/ep_app_params",
-				sizeof pathbuf);
+		strlcat(pathbuf,
+			"/usr/local/etc/ep_adm_params:/etc/ep_app_params",
+			sizeof pathbuf);
 	}
 	else
 	{
