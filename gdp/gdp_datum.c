@@ -106,15 +106,15 @@ gdp_datum_getbuf(const gdp_datum_t *datum)
 **	GDP_DATUM_PRINT --- print a datum (for debugging)
 */
 
-void
-gdp_datum_print(const gdp_datum_t *datum,
-			FILE *fp)
+static void
+datum_doprint(const gdp_datum_t *datum, FILE *fp, int detail)
 {
 	unsigned char *d;
 	int l;
 
 	flockfile(fp);
-	fprintf(fp, "datum @ %p: ", datum);
+	if (detail > 0)
+		fprintf(fp, "datum @ %p: ", datum);
 	if (datum == NULL)
 	{
 		fprintf(fp, "null datum\n");
@@ -152,4 +152,18 @@ gdp_datum_print(const gdp_datum_t *datum,
 		ep_hexdump(d, l, fp, EP_HEXDUMP_ASCII, 0);
 done:
 	funlockfile(fp);
+}
+
+void
+gdp_datum_print(const gdp_datum_t *datum,
+			FILE *fp)
+{
+	datum_doprint(datum, fp, 0);
+}
+
+void
+_gdp_datum_dump(const gdp_datum_t *datum,
+			FILE *fp)
+{
+	datum_doprint(datum, fp, 1);
 }

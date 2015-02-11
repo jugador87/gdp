@@ -54,7 +54,7 @@ _gdp_invoke(gdp_req_t *req)
 				_gdp_proto_cmd_name(req->pdu->cmd),
 				req->pdu->cmd,
 				req->gcl);
-		gdp_datum_print(req->pdu->datum, ep_dbg_getfile());
+		_gdp_datum_dump(req->pdu->datum, ep_dbg_getfile());
 	}
 
 	// scale timeout to milliseconds

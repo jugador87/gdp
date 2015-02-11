@@ -723,7 +723,7 @@ gcl_physappend(gdp_gcl_t *gcl,
 	if (ep_dbg_test(Dbg, 14))
 	{
 		ep_dbg_printf("gcl_physappend ");
-		gdp_datum_print(datum, ep_dbg_getfile());
+		_gdp_datum_dump(datum, ep_dbg_getfile());
 	}
 
 	ep_thr_rwlock_wrlock(&entry->lock);

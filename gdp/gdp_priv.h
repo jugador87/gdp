@@ -414,4 +414,13 @@ struct event_loop_info
 
 EP_STAT			_gdp_evloop_init(void);		// start event loop
 
+/*
+**  Miscellaneous
+*/
+
+// dump data record (for debugging)
+extern void		_gdp_datum_dump(
+					const gdp_datum_t *datum,	// message to print
+					FILE *fp);					// file to print it to
+
 #endif // _GDP_PRIV_H_

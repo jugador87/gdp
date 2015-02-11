@@ -269,7 +269,7 @@ gdp_datum_t		*gdp_datum_new(void);
 // free a message
 void			gdp_datum_free(gdp_datum_t *);
 
-// print a message (for debugging)
+// print out data record
 extern void		gdp_datum_print(
 					const gdp_datum_t *datum,	// message to print
 					FILE *fp);					// file to print it to

@@ -236,7 +236,7 @@ _gdp_pdu_process(gdp_pdu_t *pdu, gdp_chan_t *chan)
 				ep_dbg_printf("_gdp_pdu_process: reusing old datum "
 						"for req %p\n   ",
 						req);
-				gdp_datum_print(req->pdu->datum, ep_dbg_getfile());
+				_gdp_datum_dump(req->pdu->datum, ep_dbg_getfile());
 			}
 
 			// don't need the old dbuf
