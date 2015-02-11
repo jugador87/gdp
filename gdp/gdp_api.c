@@ -24,7 +24,6 @@
 **	TSN/AVB, but for now we don't worry about that.
 */
 
-/************************  PRIVATE	************************/
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.api", "C API for GDP");
 
