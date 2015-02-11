@@ -28,6 +28,8 @@
 **		data to be appended by another client.
 */
 
+static EP_DBG	Dbg = EP_DBG_INIT("reader-test", "GDP Reader Test Program");
+
 
 /*
 **  DO_LOG --- log a timestamp (for performance checking).
@@ -201,7 +203,8 @@ do_multiread(gdp_gcl_t *gcl,
 	}
 
 	// this sleep will allow multiple results to appear before we start reading
-	//ep_time_nanosleep(500000000);	//DEBUG: one half second
+	if (ep_dbg_test(Dbg, 1))
+		ep_time_nanosleep(500000000);	//DEBUG: one half second
 
 	// now start reading the events that will be generated
 	if (!use_callbacks)
