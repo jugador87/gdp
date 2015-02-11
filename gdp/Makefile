@@ -1,3 +1,7 @@
+DESTDIR=	/usr/local
+INCDIR=		${DESTDIR}/include
+LIBDIR=		${DESTDIR}/lib
+INSTALL=	install
 
 OBJS=	\
 	gdp_api.o \
@@ -16,8 +20,10 @@ OBJS=	\
 	gdp_subscr.o \
 	gdp_util.o \
 
-HFILES=	\
+PUBHFILES=	\
 	gdp.h \
+
+PRIVHFILES=	\
 	gdp_buf.h \
 	gdp_event.h \
 	gdp_gclmd.h \
@@ -26,10 +32,14 @@ HFILES=	\
 	gdp_stat.h \
 	gdp_version.h \
 
-GDPLIBMAJVER=	1
-GDPLIBMINVER=	0
+HFILES=		${PUBHFILES} ${PRIVHFILES}
+
+GDPLIBMAJVER=	0
+GDPLIBMINVER=	1
 GDPLIBVER=	${GDPLIBMAJVER}.${GDPLIBMINVER}
-ALL=		libgdp.a libgdp.so.${GDPLIBVER}
+INCALL=		${PUBHFILES}
+LIBALL=		libgdp.a libgdp.so.${GDPLIBVER}
+ALL=		${INCALL} ${LIBALL}
 
 LOCAL1=		/usr/local
 LOCAL2=		/opt/local
@@ -52,7 +62,9 @@ CFLAGS=		${COPTS} ${INCS} -fPIC
 
 LN=		ln
 MV=		mv
+CP=		cp
 RM=		rm
+MKDIR=		mkdir -p
 RANLIB=		ranlib
 SHARED=		-shared
 #SHARED=		-shared -Wl,-soname,$@
@@ -65,10 +77,6 @@ libgdp.a: ${OBJS}
 
 libgdp.so.${GDPLIBVER}: ${OBJS}
 	${CC} ${SHARED} -o $@ ${OBJS} ${LDFLAGS}
-	${MV} $@ ${LIBDIR}
-	(cd ${LIBDIR}; rm -f libgdp.so.${GDPLIBMAJVER}; ln -s libgdp.so.${GDPLIBVER} libgdp.so.${GDPLIBMAJVER})
-	(cd ${LIBDIR}; rm -f libgdp.so; ln -s libgdp.so.${GDPLIBMAJVER} libgdp.so)
-	(cd ${LIBDIR}; rm -f libgdp.${GDPLIBVER}.dylib; ln -s libgdp.so.${GDPLIBVER} libgdp.${GDPLIBVER}.dylib)
 
 ${OBJS}: ${HFILES}
 
@@ -78,6 +86,16 @@ newversion:	FORCE
 	sed -e "s/@GDP_LIB_VERSION@/${GDP_LIB_VERSION}/" < gdp_version.template > gdp_version.h
 
 clean:
-	-rm -f ${ALL} *.o *.core
+	-rm -f ${LIBALL} *.o *.core
+
+install:	${INCDIR}/gdp ${LIBDIR} ${ALL}
+	${CP} ${INCALL} ${INCDIR}/gdp
+	${INSTALL} ${LIBALL} ${LIBDIR}
+	(cd ${LIBDIR}; rm -f libgdp.so.${GDPLIBMAJVER}; ln -s libgdp.so.${GDPLIBVER} libgdp.so.${GDPLIBMAJVER})
+	(cd ${LIBDIR}; rm -f libgdp.so; ln -s libgdp.so.${GDPLIBMAJVER} libgdp.so)
+	(cd ${LIBDIR}; rm -f libgdp.${GDPLIBVER}.dylib; ln -s libgdp.so.${GDPLIBVER} libgdp.${GDPLIBVER}.dylib)
+
+${INCDIR}/gdp ${LIBDIR}:
+	${MKDIR} $@
 
 FORCE:

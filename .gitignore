@@ -6,12 +6,14 @@ apps/rw-bench
 apps/writer-test
 gdplogd/gdplogd
 gdprouted/gdprouted
+debian/libgdp*
 scgilib/helloworld
 tags
 */tags
 *.swp
 *.o
 *.a
+*.so.*
 *~
 
 doc/*.pdf

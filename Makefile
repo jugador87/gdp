@@ -1,20 +1,28 @@
 CTAGS=		ctags
 
+DESTDIR=	/usr/local
+
 all:
 	-rm libs/*
-	(cd ep; make clean all)
-	(cd gdp; make clean all)
-	(cd scgilib; make clean all)
-	(cd gdplogd; make clean all)
-	(cd apps; make clean all)
+	(cd ep;		 make all)
+	(cd gdp;	 make all)
+	(cd scgilib;	 make all)
+	(cd gdplogd;	 make all)
+	(cd apps;	 make all)
 
 clean:
 	-rm libs/*
-	(cd ep; make clean)
-	(cd gdp; make clean)
-	(cd scgilib; make clean)
-	(cd gdplogd; make clean)
-	(cd apps; make clean)
+	(cd ep;		 make clean)
+	(cd gdp;	 make clean)
+	(cd scgilib;	 make clean)
+	(cd gdplogd;	 make clean)
+	(cd apps;	 make clean)
+
+install:
+	(cd ep;		make install DESTDIR=${DESTDIR})
+	(cd gdp;	make install DESTDIR=${DESTDIR})
+	(cd gdplogd;	make install DESTDIR=${DESTDIR})
+	(cd apps;	make install DESTDIR=${DESTDIR})
 
 CSRCS=		ep/*.[ch] \
 		gdp/*.[ch] \

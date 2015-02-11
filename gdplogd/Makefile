@@ -1,4 +1,9 @@
-ALL=		gdplogd
+SBINALL=	gdplogd
+ALL=		${SBINALL}
+
+DESTDIR=	/usr/local
+SBINDIR=	${DESTDIR}/sbin
+INSTALL=	install
 
 LOCAL1=		/usr/local
 LOCAL2=		/opt/local
@@ -25,6 +30,7 @@ WALL=		-Wall
 STD=
 COPTS=		${PG} -g ${WALL} $O ${STD}
 CFLAGS=		${COPTS} ${INCS}
+MKDIR=		mkdir -p
 
 OBJS=	\
 		logd.o \
@@ -51,7 +57,13 @@ all: ${ALL}
 gdplogd: ${OBJS}
 	${CC} -o $@ ${OBJS} ${LDFLAGS}
 
-${OBJS}: ${HDEPS} ${LIBDEPS}
-
 clean:
 	-rm -f ${ALL} *.o *.core
+
+install:	${SBINDIR} ${ALL}
+	${INSTALL} ${SBINALL} ${SBINDIR}
+
+${SBINDIR}:
+	${MKDIR} $@
+
+${OBJS}: ${HDEPS} ${LIBDEPS}

@@ -1,5 +1,13 @@
 #ALL=	gcl-create writer-test reader-test gdp-rest rw-bench log-view
-ALL=	gcl-create writer-test reader-test gdp-rest log-view
+BINALL=		gcl-create log-view reader-test writer-test
+SBINALL=	gdp-rest log-view
+
+ALL=		${BINALL} ${SBINALL}
+
+DESTDIR=	/usr/local
+BINDIR=		${DESTDIR}/bin
+SBINDIR=	${DESTDIR}/sbin
+INSTALL=	install
 
 LOCAL1=		/usr/local
 LOCAL2=		/opt/local
@@ -25,6 +33,7 @@ WALL=		-Wall
 STD=
 COPTS=		${PG} -g ${WALL} $O ${STD}
 CFLAGS=		${COPTS} ${INCS}
+MKDIR=		mkdir -p
 
 all:	${ALL}
 
@@ -50,3 +59,10 @@ ${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 
 clean:
 	-rm -f ${ALL} *.o *.core
+
+install:	${BINDIR} ${SBINDIR} ${ALL}
+	${INSTALL} ${BINALL} ${BINDIR}
+	${INSTALL} ${SBINALL} ${SBINDIR}
+
+${BINDIR} ${SBINDIR}:
+	${MKDIR} $@

@@ -6,6 +6,11 @@
 #	Copyright (c) 2008, Eric P. Allman.  All rights reserved.
 #
 
+DESTDIR=	/usr/local
+LIBDIR=		${DESTDIR}/lib
+INCDIR=		${DESTDIR}/include
+INSTALL=	install
+
 CURDIR=	.
 
 OBJS=	\
@@ -132,9 +137,10 @@ RM=	rm
 LD=	ld
 LDFLAGS=-L.
 LDLIBS=	libep.a
-LIBDIR= ../libs
 LN=	ln
 MV=	mv
+CP=	cp
+MKDIR=	mkdir -p
 RANLIB=	ranlib
 SHARED=	-shared
 #SHARED=	-shared -Wl,-soname,$@
@@ -143,7 +149,9 @@ TIME=
 EPLIBMAJVER=	2
 EPLIBMINVER=	0
 EPLIBVER=	${EPLIBMAJVER}.${EPLIBMINVER}
-ALL=		libep.a libep.so.${EPLIBVER}
+LIBALL=		libep.a libep.so.${EPLIBVER}
+INCALL=		${HFILES}
+ALL=		${LIBALL} ${INCALL}
 
 all: ${ALL}
 
@@ -153,10 +161,6 @@ libep.a: ${OBJS}
 
 libep.so.${EPLIBVER}: ${OBJS}
 	${CC} ${SHARED} -o $@ ${OBJS}
-	${MV} $@ ${LIBDIR}
-	(cd ${LIBDIR}; rm -f libep.so.${EPLIBMAJVER}; ln -s libep.so.${EPLIBVER} libep.so.${EPLIBMAJVER})
-	(cd ${LIBDIR}; rm -f libep.so; ln -s libep.so.${EPLIBMAJVER} libep.so)
-	(cd ${LIBDIR}; rm -f libep.${EPLIBVER}.dylib; ln -s libep.so.${EPLIBVER} libep.${EPLIBVER}.dylib)
 
 ep_version.o: ep_version.c FORCE
 	${CC} ${CFLAGS} -D_CURRENT_DATE_=\"`date +'%Y-%m-%d_%H:%M'`\" -c ep_version.c
@@ -173,6 +177,16 @@ FORCE:
 #
 
 clean:
-	-${RM} -f ${ALL} *.o *.core
+	-${RM} -f ${LIBALL} *.o *.core
+
+install:	${INCDIR}/ep ${LIBDIR} ${ALL}
+	${CP} ${INCALL} ${INCDIR}/ep
+	${INSTALL} ${LIBALL} ${LIBDIR}
+	(cd ${LIBDIR}; rm -f libep.so.${EPLIBMAJVER}; ln -s libep.so.${EPLIBVER} libep.so.${EPLIBMAJVER})
+	(cd ${LIBDIR}; rm -f libep.so; ln -s libep.so.${EPLIBMAJVER} libep.so)
+	(cd ${LIBDIR}; rm -f libep.${EPLIBVER}.dylib; ln -s libep.so.${EPLIBVER} libep.${EPLIBVER}.dylib)
+
+${INCDIR}/ep ${LIBDIR}:
+	${MKDIR} $@
 
 ${OBJS}: ${HFILES}
