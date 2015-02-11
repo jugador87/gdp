@@ -46,7 +46,7 @@ do_log(const char *tag)
 void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [-D dbgspec] [-G gdpd_addr] [-L log_file] gcl_name\n",
+	fprintf(stderr, "Usage: %s [-D dbgspec] [-G router_addr] [-L log_file] gcl_name\n",
 			ep_app_getprogname());
 	exit(EX_USAGE);
 }

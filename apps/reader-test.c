@@ -201,7 +201,7 @@ do_multiread(gdp_gcl_t *gcl,
 	}
 
 	// this sleep will allow multiple results to appear before we start reading
-	ep_time_nanosleep(500000000);	//DEBUG: one half second
+	//ep_time_nanosleep(500000000);	//DEBUG: one half second
 
 	// now start reading the events that will be generated
 	if (!use_callbacks)
@@ -344,7 +344,7 @@ main(int argc, char **argv)
 	if (show_usage || argc <= 0)
 	{
 		fprintf(stderr,
-				"Usage: %s [-c] [-D dbgspec] [-f firstrec] [-G gdpd_addr] [-m]\n"
+				"Usage: %s [-c] [-D dbgspec] [-f firstrec] [-G router_addr] [-m]\n"
 				"  [-L logfile] [-M] [-n nrecs] [-s] <gcl_name>\n",
 				ep_app_getprogname());
 		exit(EX_USAGE);
