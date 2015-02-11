@@ -1,0 +1,15 @@
+Source: gdp
+Section: unknown
+Priority: optional
+Maintainer: Eric Allman <eric@cs.berkeley.edu>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.4
+#Homepage: <insert the upstream URL, if relevant>
+#Vcs-Git: git://git.debian.org/collab-maint/gdp.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/gdp.git;a=summary
+
+Package: gdp
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>
