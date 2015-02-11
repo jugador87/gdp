@@ -2,14 +2,16 @@ Source: gdp
 Section: unknown
 Priority: optional
 Maintainer: Eric Allman <eric@cs.berkeley.edu>
-Build-Depends: debhelper (>= 8.0.0)
+Build-Depends: debhelper (>= 8.0.0),
+    libevent-dev (>= 2.0.21),
+    openssl (>= 1.0.1f),
+    lighttpd (>= 1.4.33),
+    libjansson-dev (>= 2.5-2)
 Standards-Version: 3.9.4
-#Homepage: <insert the upstream URL, if relevant>
-#Vcs-Git: git://git.debian.org/collab-maint/gdp.git
-#Vcs-Browser: http://git.debian.org/?p=collab-maint/gdp.git;a=summary
 
-Package: gdp
+Package: libgdp
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Description: Global Data Plane library
+    C library for accessing the Global Data Plane.  Includes Python
+    language bindings.
