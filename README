@@ -1,6 +1,6 @@
 		GLOBAL DATAPLANE INTERFACES
 
-This directory contains a very poor prototype of the Global Dataplane
+This directory contains a very basic prototype of the Global Dataplane
 (GDP) with two bindings.  The first is for C, and the second is a
 HTTP-based RESTful interface.  The first is used to implement the
 second.  All of these are likely to change in the future.
@@ -73,13 +73,13 @@ Required Packages:
 		On MacOS and FreeBSD it is the "jansson" port or pkg.
 
 	To install these, use the following commands:
-	On the Mac:
-	    sudo port install libevent openssl lighttpd jansson
-	On FreeBSD:
-	    sudo pkg install libevent2 openssl lighttpd jansson
-	On Ubuntu/Linux:
-	    sudo apt-get install libevent-dev libssl-dev \
-			lighttpd libjansson-dev
+	    On the Mac:
+		sudo port install libevent openssl lighttpd jansson
+	    On FreeBSD:
+		sudo pkg install libevent2 openssl lighttpd jansson
+	    On Ubuntu/Linux:
+		sudo apt-get install libevent-dev libssl-dev \
+			    lighttpd libjansson-dev
 
 Compiling:
 	First, install the prerequisite packages.
@@ -106,18 +106,104 @@ Compiling:
         modules which are installed by all_JavaScript):
             make clean_JavaScript
 
-Running a GDP-based program:
-	For anything interesting to happen, two daemons must be
-	running.  The first is the routing layer, currently a
-	Python application named Routia.  It currently uses a simple
+Create Log Directory:
+	If you are using the log servers at Berkeley you can skip
+	this step.
+
+	You'll have to select a location to store the log data.  For
+	obvious reasons this should be on a filesystem that has a
+	reasonable amount of free space.  The default is /var/tmp/gcl,
+	but this is just for testing; you are strongly advised to
+	choose another location.
+
+	Create a user (or choose an existing user) to own the on-disk
+	files.  These instructions will assume a new user named
+	gdp, group gdp.
+
+	The directory should be mode 700 or 750, owned by gdp:gdp.
+	Mode 750 is just to allow users in the gdp group to be able
+	to peek into the directory.  This should be limited to
+	people who are maintaining the GDP.
+
+Adjust Administrative Parameters:
+	If you want to change parameters such as socket numbers or the
+	GCL directory you can do so without recompiling.  Configuration
+	files are simple "name=value" pairs, one per line.  There is
+	a built-in search path ".ep_adm_params:~/.ep_adm_params:\
+	/usr/local/etc/ep_adm_params:/etc/ep_adm_params"
+	that can be overridden the EP_PARAM_PATH environment variable.
+	(Note: if a program is running setuid then only the two
+	system paths are searched, and EP_PARAM_PATH is ignored.)
+	Those directories are searched for files named "gdplogd" (for
+	gdplogd only), "gdp" (for all programs that use the GDP), or
+	"defaults" (for all programs).
+
+	There are many parameters you change, as described near the
+	end of this README.  In most cases, the ones you are likely
+	to find interesting (and the files in which they should
+	probably live) are:
+	    swarm.gdp.routers			gdp
+	    	A semicolon-separated list of host names or IP
+		addresses to search to find a running routing node.
+		This defaults to 127.0.0.1.  If you have a local
+		routing node you should name it first, followed
+		by "gdp-01.eecs.berkeley.edu; gdp-02.eecs.berkeley.edu"
+		(these are run by us for your convenience).
+	    swarm.gdplogd.gcl.dir		gdplogd
+	    	This is the name of the directory you created in
+		the previous step.  It only applies on nodes that
+		are running a log daemon.
+	    swarm.gdplogd.gdpname		gdplogd
+	    	This is a user-friendly name for the name of the
+		log daemon.  You'll need this for creating GCLs,
+		as described below.  If you don't specify this,
+		the name is chosen randomly each time gdplogd
+		starts up.
+	Example:
+	    In file /usr/local/etc/ep_adm_params/gdp:
+		swarm.gdp.routers=mygdp.example.com; \
+		    gdp-01.eecs.berkeley.edu; gdp-02.eecs.berkeley.edu
+	    In file /usr/local/etc/ep_adm_params/gdplogd:
+		swarm.gdplogd.gcl.dir=/home/gdp/data/gcls
+		swarm.gdplogd.gdpname=com.example.mygdp.gdplogd
+	    [The first example is line wrapped to fit; when you create
+	    the file it must be on one line.]
+
+Start the GDP Routing Daemon:
+	If you are using the routing daemons at Berkeley you can skip
+	this step.
+
+	The current version of the routing daemon uses a simple
 	"global knowledge" algorithm where every routing node knows
 	every name known by the system.  Names include running servers
-	and applications as well as logs.  Everything else connects
-	into the routing layer.
+	and applications as well as logs.  Because of this, every
+	routing server **must** be talking with every other routing
+	server.  [This restriction will be relaxed in the future.]
 
-	The second is gdplogd, which implements physical on-disk
-	logs.  It must be started after the routing layer.
-	Located in gdplogd/gdplogd, it takes these parameters:
+	To run your own, you'll have to make sure you know the address
+	of all other routing nodes in the GDP.  This is a temporary
+	situation, but for now it is critical that all routing nodes
+	know about all other routing nodes.  To do this you'll have to
+	get the current list of nodes (gdp-routers.list), add your
+	information to that list, and make sure that list gets updated
+	on all the nodes.  For now we'll maintain that master list at
+	Berkeley.
+
+	Once you have the list of routers you'll need to start the
+	Python program "gdpxbar.py".  It takes several parameters
+	which are described in detail in routia/README.md.  The most
+	important flag is "-r", which takes the list of known
+	routers as the argument.  For example:
+
+	    gdpxbar.py -r gdp-routers.list
+
+Start the GDP Log Daemon:
+	If you are using the log servers at Berkeley you can skip
+	this step.
+
+	The program gdplogd implements physical on-disk logs.  It must
+	be started after the routing layer.  Located in gdplogd/gdplogd,
+	it takes these parameters:
 	   -D<debug-spec>
 		Turn on debugging.  See "Setting Debug Flags" below
 		for more information.  Implies -F.
@@ -136,17 +222,97 @@ Running a GDP-based program:
 		finer control) using the libep.thr.pool.min_workers
 		and libep.thr.pool.max_workers parameters.
 
-	You also have to create the directory "/var/tmp/gcl" to store
-	the data repository.
+Create a GCL:
+	We have pre-created some logs at Berkeley you can use if
+	you want to skip this step.  Those logs are named
+	swarm/demo/<inst>/00 through swarm/demo/<inst>/09,
+	where <inst> is the name of your institution (we'll create
+	these for you on request).  There is an "instiution" named
+	"play" that you can use as well, but you'll be sharing them
+	with everyone else, and the data may not persist.
 
-	In many cases, GDP programs will try to reconnect if a
-	component (gdplogd, routia) goes down, but they must all be
-	up and running before they will start in the first place.
+	To create your own logs you'll need the GDP name (_not_ the
+	DNS name) of the log server that will store the log.  This
+	can be set as an administrative parameter, and the internal
+	form is printed out as the log server starts up.  We'll run
+	three log servers at Berkeley you can use:
 
-Subscriptions:
-	You can "subscribe" to a GCL, which will produce an output
-	whenever that GCL has a record written to it.  To subscribe,
-	use "apps/reader-test -s <name>".
+		edu.berkeley.eecs.gdp-01.gdplogd
+		edu.berkeley.eecs.gdp-02.gdplogd
+		edu.berkeley.eecs.gdp-03.gdplogd
+
+	You'll also need to select a name for your log.  We
+	recommend using a name that is unlikely to clash with other
+	logs, either similar to the gdplogd example above or using
+	<inst>/<project>/<name>.  For example either
+
+		edu.berkeley.eecs.swarmlab.sensor23
+		berkeley/swarmlab/sensor/23
+
+	would be reasonable choices.  To actually create the log on
+	a given server, use
+
+		gcl-create <server> <logname>
+
+	For example:
+
+		gcl-create edu.berkeley.eecs.gdp-01.gdplogd \
+			berkeley/swarmlab/sensor/23
+
+	The good news is that this the only time you'll need to know
+	the name of the log server.
+
+Running GDP-based Programs:
+	There are two test programs included with the GDP: reader-test
+	and writer-test.  There are also some demo programs you can
+	copy and adapt for your own use.  The descriptions given
+	below do not include all of the command line flags; these are
+	just the ones that are most useful.
+
+	Note that both the routing and the log daemons must be running
+	before a GDP program can start up.  In many cases, GDP programs
+	will try to reconnect if a component (gdplogd, routia) goes
+	down, but they must all be up and running before they will start
+	in the first place.
+
+	The writer-test program reads records from the standard input
+	and writes to the target log.  It is invoked as:
+
+	    writer-test [-D dbgspec] [-G router-addr] gcl-name
+
+	The -D flag turns on debugging output and is described below.
+	The -G flag overrides the swarm.gdp.routers parameter.  The
+	gcl-name is the name of the GCL to be appended to.  Lines are
+	read from the input and written to the log, where each input
+	line creates one log record.
+
+	The reader-test program reads records from the log and writes
+	them to the standard output.  It is invoked as:
+
+	    reader-test [-D dbgspec] [-f firstrec] [-G router-addr] \
+	    	[-m] [-M] [-n nrecs] [-s] gcl-name
+
+	The -D and -G flags are the same as writer-test.  The -f and
+	-n flags specify the first record number (starting from 1) and
+	the maximum number of records to read.  There are three ways
+	reader-test can operate.  By default, it reads the records
+	one at a time in separate read requests.  The -m flag changes
+	this to "multiread" mode, where the records are delivered in
+	a more efficient way --- essentially, the multiread command
+	returns success and then the data records are sent after the
+	command acknowledgement.  The -s flag turns on subscription
+	mode, which is like -m except that the log daemon will wait
+	until new records are added and deliver them spontaneously to
+	subscribers.  For example:
+
+	    reader-test -f 1 -s eric/sensor45
+
+	will return all the data already recorded in the log and then
+	wait until more data is written; the new data will be
+	immediately printed.  If -m were used instead of -s then
+	all the existing data would be returned, and then it would
+	exit.  If -s were used without -f, no existing data would
+	be printed, only new data.
 
 Running the GDP RESTful Interface:
 	(In these instructions, <gcl-name> is a URI-base-64-encoded
@@ -204,24 +370,7 @@ Running the GDP RESTful Interface:
 	use Chrome.  Install the "postman" extension to enable
 	sending of arbitrary methods such as POST and PUT.
 
-Changing Parameters:
-	If you want to change parameters such as socket numbers or the
-	GCL directory you can do so without recompiling.  Configuration
-	files are simple "name=value" pairs, one per line.  There is
-	a built-in search path ".ep_adm_params:~/.ep_adm_params:\
-	/usr/local/etc/ep_adm_params:/etc/ep_adm_params"
-	that can be overridden the EP_PARAM_PATH environment variable.
-	Those directories are searched for files named "gdplogd" (for
-	gdplogd only), "gdp" (for all programs that use the GDP), or
-	"defaults" (for all programs).
-
-	There are many parameters you change, as described below.  In
-	most cases, the ones you are likely to find interesting (and
-	the files in which they should probably live) are:
-		swarm.gdp.routers		gdp
-		swarm.gdplogd.gcl.dir		gdplogd
-		swarm.gdplogd.gdpname		gdplogd
-
+Full List of Administrative Parameters:
 	swarm.gdp.routers --- the address(es) of the gdp routing layer
 		(used by clients).  Multiple addresses can be included,
 		separated by semicolons.  If no port is included, it
