@@ -1,6 +1,7 @@
-DESTDIR=	/usr/local
-INCDIR=		${DESTDIR}/include
-LIBDIR=		${DESTDIR}/lib
+DESTDIR=
+INSTALLROOT=	/usr
+INCDIR=		${DESTDIR}${INSTALLROOT}/include
+LIBDIR=		${DESTDIR}${INSTALLROOT}/lib
 INSTALL=	install
 
 OBJS=	\

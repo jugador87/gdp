@@ -1,8 +1,10 @@
 SBINALL=	gdplogd
 ALL=		${SBINALL}
 
-DESTDIR=	/usr/local
-SBINDIR=	${DESTDIR}/sbin
+DESTDIR=
+INSTALLROOT=	/usr
+BINDIR=		${DESTDIR}${INSTALLROOT}/bin
+SBINDIR=	${DESTDIR}${INSTALLROOT}/sbin
 INSTALL=	install
 
 LOCAL1=		/usr/local

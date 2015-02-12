@@ -6,9 +6,12 @@
 #	Copyright (c) 2008, Eric P. Allman.  All rights reserved.
 #
 
-DESTDIR=	/usr/local
-LIBDIR=		${DESTDIR}/lib
-INCDIR=		${DESTDIR}/include
+DESTDIR=
+INSTALLROOT=	/usr
+BINDIR=		${DESTDIR}${INSTALLROOT}/bin
+SBINDIR=	${DESTDIR}${INSTALLROOT}/sbin
+LIBDIR=		${DESTDIR}${INSTALLROOT}/lib
+INCDIR=		${DESTDIR}${INSTALLROOT}/include
 INSTALL=	install
 
 CURDIR=	.

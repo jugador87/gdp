@@ -4,9 +4,10 @@ SBINALL=	gdp-rest log-view
 
 ALL=		${BINALL} ${SBINALL}
 
-DESTDIR=	/usr/local
-BINDIR=		${DESTDIR}/bin
-SBINDIR=	${DESTDIR}/sbin
+DESTDIR=
+INSTALLROOT=	/usr
+BINDIR=		${DESTDIR}${INSTALLROOT}/bin
+SBINDIR=	${DESTDIR}${INSTALLROOT}/sbin
 INSTALL=	install
 
 LOCAL1=		/usr/local
