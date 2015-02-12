@@ -11,6 +11,7 @@
 #include <ep/ep_dbg.h>
 #include <ep/ep_log.h>
 #include <ep/ep_prflags.h>
+#include <ep/ep_string.h>
 
 #include <errno.h>
 #include <string.h>
@@ -189,7 +190,7 @@ _gdp_chan_open(const char *gdp_addr,
 
 	// attach it to a socket
 	char abuf[500];
-	char *port;
+	char *port = NULL;		// keep gcc happy
 	char *host;
 
 	// get the host:port info into abuf

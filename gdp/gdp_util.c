@@ -10,7 +10,7 @@
 **	GDP Utility routines
 */
 
-static EP_DBG	Dbg = EP_DBG_INIT("gdp.util", "GDP utility routines");
+//static EP_DBG	Dbg = EP_DBG_INIT("gdp.util", "GDP utility routines");
 
 
 /*

@@ -163,6 +163,33 @@ main(int argc, char **argv)
 	estat = gdpd_proto_init();
 	EP_STAT_CHECK(estat, goto fail0);
 
+	// print our name as a reminder
+	{
+		gdp_pname_t pname;
+		const char *progname;
+		const char *myname = NULL;
+
+		progname = ep_app_getprogname();
+		if (progname != NULL)
+		{
+			char argname[100];
+
+			snprintf(argname, sizeof argname, "swarm.%s.gdpname", progname);
+			myname = ep_adm_getstrparam(argname, NULL);
+		}
+
+		if (myname == NULL)
+			myname = gdp_printable_name(_GdpMyRoutingName, pname);
+
+		fprintf(stdout, "My GDP routing name = %s\n", myname);
+	}
+
+	// go into background mode (before creating any threads!)
+	if (!run_in_foreground)
+	{
+		// do nothing for now
+	}
+
 	// initialize the thread pool
 	ep_thr_pool_init(nworkers, nworkers, 0);
 
@@ -200,27 +227,6 @@ main(int argc, char **argv)
 
 	// arrange for clean shutdown
 	atexit(&logd_shutdown);
-
-	// print our name as a reminder
-	{
-		gdp_pname_t pname;
-		const char *progname;
-		const char *myname = NULL;
-
-		progname = ep_app_getprogname();
-		if (progname != NULL)
-		{
-			char argname[100];
-
-			snprintf(argname, sizeof argname, "swarm.%s.gdpname", progname);
-			myname = ep_adm_getstrparam(argname, NULL);
-		}
-
-		if (myname == NULL)
-			myname = gdp_printable_name(_GdpMyRoutingName, pname);
-
-		fprintf(stdout, "My GDP routing name = %s\n", myname);
-	}
 
 	/*
 	**  At this point we should be running

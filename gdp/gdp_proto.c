@@ -40,7 +40,7 @@ static uint8_t	RoutingLayerAddr[32] =
 EP_STAT
 _gdp_invoke(gdp_req_t *req)
 {
-	EP_STAT estat;
+	EP_STAT estat = EP_STAT_OK;
 	EP_TIME_SPEC abs_to;
 	long delta_to = ep_adm_getlongparam("swarm.gdp.invoke.timeout", 10000L);
 	int retries = ep_adm_getintparam("swarm.gdp.invoke.retries", 3);

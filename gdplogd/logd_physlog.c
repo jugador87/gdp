@@ -643,7 +643,15 @@ gcl_physread(gdp_gcl_t *gcl,
 			mid = start + (end - start) / 2;
 			ep_dbg_cprintf(Dbg, 47, "\t%zu ... %zu ... %zu\n", start, mid, end);
 			fseek(entry->fp, mid * sizeof(gcl_index_record), SEEK_SET);
-			fread(&index_record, sizeof(gcl_index_record), 1, entry->fp);
+			if (fread(&index_record, sizeof(gcl_index_record), 1, entry->fp) < 1)
+			{
+				ep_dbg_cprintf(Dbg, 1, "gcl_physread: fread failed: %s\n",
+						strerror(errno));
+				estat = ep_stat_from_errno(errno);
+				funlockfile(entry->fp);
+				goto fail0;
+			}
+
 			if (datum->recno < index_record.recno)
 			{
 				end = mid;
@@ -677,8 +685,14 @@ gcl_physread(gdp_gcl_t *gcl,
 
 	// read header
 	flockfile(gcl->x->fp);
-	fseek(gcl->x->fp, offset, SEEK_SET);
-	fread(&log_record, sizeof(log_record), 1, gcl->x->fp);
+	if (fseek(gcl->x->fp, offset, SEEK_SET) < 0 ||
+			fread(&log_record, sizeof(log_record), 1, gcl->x->fp) < 1)
+	{
+		ep_dbg_cprintf(Dbg, 1, "gcl_physread: header fread failed: %s\n",
+				strerror(errno));
+		estat = ep_stat_from_errno(errno);
+		goto fail1;
+	}
 	offset += sizeof(log_record);
 	memcpy(&datum->ts, &log_record.timestamp, sizeof datum->ts);
 
@@ -686,18 +700,27 @@ gcl_physread(gdp_gcl_t *gcl,
 	int64_t data_length = log_record.data_length;
 	while (data_length >= sizeof(read_buffer))
 	{
-		fread(&read_buffer, sizeof(read_buffer), 1, gcl->x->fp);
+		if (fread(&read_buffer, sizeof(read_buffer), 1, gcl->x->fp) < 1)
+			goto fail2;
 		gdp_buf_write(datum->dbuf, &read_buffer, sizeof(read_buffer));
 		data_length -= sizeof(read_buffer);
 	}
 	if (data_length > 0)
 	{
-		fread(&read_buffer, data_length, 1, gcl->x->fp);
+		if (fread(&read_buffer, data_length, 1, gcl->x->fp) < 1)
+			goto fail2;
 		gdp_buf_write(datum->dbuf, &read_buffer, data_length);
 	}
 
 	// done
 
+	if (false)
+	{
+fail2:
+		ep_dbg_cprintf(Dbg, 1, "gcl_physread: data fread failed: %s\n",
+				strerror(errno));
+		estat = ep_stat_from_errno(errno);
+	}
 fail1:
 	funlockfile(gcl->x->fp);
 fail0:

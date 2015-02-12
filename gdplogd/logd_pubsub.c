@@ -33,6 +33,11 @@ sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum, int cmd)
 	}
 
 	estat = _gdp_pdu_out(req->pdu, req->chan);
+	if (!EP_STAT_ISOK(estat))
+	{
+		ep_dbg_cprintf(Dbg, 1,
+				"sub_send_message_notification: couldn't write PDU!\n");
+	}
 	req->pdu->datum = NULL;				// we just borrowed the datum
 
 	if (cmd == GDP_ACK_CONTENT && req->numrecs > 0 && --req->numrecs <= 0)

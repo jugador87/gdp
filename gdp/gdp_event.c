@@ -182,6 +182,9 @@ _gdp_event_thread(void *ctx)
 		if (gev->type != _GDP_EVENT_FREE)
 			gdp_event_free(gev);
 	}
+
+	// not reached, but make gcc happy
+	return NULL;
 }
 
 
