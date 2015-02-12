@@ -3,10 +3,10 @@ Section: unknown
 Priority: optional
 Maintainer: Eric Allman <eric@cs.berkeley.edu>
 Build-Depends: debhelper (>= 8.0.0),
-    libevent-dev (>= 2.0.21),
-    openssl (>= 1.0.1f),
-    lighttpd (>= 1.4.33),
-    libjansson-dev (>= 2.5-2)
+    libevent-dev (>= 2.0.5),
+    libssl-dev (>= 1.0.1e),
+    lighttpd (>= 1.4.31),
+    libjansson-dev (>= 2.3.1)
 Standards-Version: 3.9.4
 
 Package: libgdp
