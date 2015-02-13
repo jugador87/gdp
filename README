@@ -476,6 +476,8 @@ Directory Structure:
 		CGI fork/exec.  This is only used for the REST interface.
 	apps --- Application programs, including tests.
 	doc --- Some documentation, woefully incomplete.
+	examples --- Some example programs, intended be usable as
+		tutorials.
 	lang --- sub-directories with language-specific application
                 programs and supporting code.
         lang/js --- JavaScript-specific apps and libraries.  Also contains
