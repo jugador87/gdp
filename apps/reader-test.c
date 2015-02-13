@@ -21,12 +21,19 @@
 **		text.  Ultimately they should all be encrypted, but for now
 **		I wanted to keep the code simple.
 **
+**		Unfortunately it isn't that simple, since it is possible to read
+**		using all the internal mechanisms.  The -c, -m, and -s flags
+**		control which approach is being used.
+**
 **		There are two ways of reading.  The first is to get individual
-**		records in a loop, and the second is to request a batch of
-**		records; these are returned as events that are collected after
-**		the initial command completes.  There are two interfaces for
-**		this; one only reads existing data, and the other will wait for
-**		data to be appended by another client.
+**		records in a loop (as implemented in do_simpleread), and the
+**		second is to request a batch of records (as implemented in
+**		do_multiread); these are returned as events that are collected
+**		after the initial command completes or as callbacks that are
+**		invoked in a separate thread.  There are two interfaces for the
+**		event/callback techniques; one only reads existing data, and the
+**		other ("subscriptions") will wait for data to be appended by
+**		another client.
 */
 
 static EP_DBG	Dbg = EP_DBG_INIT("reader-test", "GDP Reader Test Program");
