@@ -18,6 +18,21 @@
 **
 **	This example is Linux-specific, but only because of the use
 **	of the sysinfo(2) syscall.
+**
+**	To use this program:
+**
+**	(1) start up gdp_router on some appropriate machine.
+**	(2) start up gdplogd on an appropriate machine (may be the
+**	    same one) --- this presumes you have the GDP configured
+**	    to find the routing node.
+**	(3) start up this program on a program you wish to monitor,
+**	    passing it the name of a log to hold the results.
+**	(4) start up reader-test specifying a text subscription
+**	    to the same log:
+**	    	reader-test -s -t logname
+**	(5) you should see the reader-test window spit out JSON
+**	    records every 30 seconds showing a bunch of information
+**	    about the machine being monitored.
 */
 
 
