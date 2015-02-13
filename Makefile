@@ -1,6 +1,9 @@
-CTAGS=		ctags
+# DESTDIR is just for staging.  LOCALROOT should be /usr or /usr/local.
+DESTDIR=
+LOCALROOT=	/usr
+INSTALLROOT=	${DESTDIR}${LOCALROOT}
 
-DESTDIR=	/usr/local
+CTAGS=		ctags
 
 all:
 	-rm libs/*
@@ -18,11 +21,18 @@ clean:
 	(cd gdplogd;	 make clean)
 	(cd apps;	 make clean)
 
-install:
-	(cd ep;		make install DESTDIR=${DESTDIR})
-	(cd gdp;	make install DESTDIR=${DESTDIR})
-	(cd gdplogd;	make install DESTDIR=${DESTDIR})
-	(cd apps;	make install DESTDIR=${DESTDIR})
+install: ${INSTALLROOT}/etc/ep_adm_params/gdp
+	(cd ep;		make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
+	(cd gdp;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
+	(cd gdplogd;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
+	(cd apps;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
+
+${INSTALLROOT}/etc/ep_adm_params/gdp:
+
+install-etc: ${INSTALLROOT}/etc/ep_adm_params
+
+${INSTALLROOT}/etc/ep_adm_params:
+	mkdir -p $@
 
 CSRCS=		ep/*.[ch] \
 		gdp/*.[ch] \
