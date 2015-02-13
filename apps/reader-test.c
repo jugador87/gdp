@@ -270,6 +270,25 @@ fail0:
 	}
 }
 
+void
+usage(void)
+{
+	fprintf(stderr,
+			"Usage: %s [-c] [-D dbgspec] [-f firstrec] [-G router_addr] [-m]\n"
+			"  [-L logfile] [-M] [-n nrecs] [-s] [-t] log_name\n"
+			"    -c  use callbacks\n"
+			"    -D  turn on debugging flags\n"
+			"    -f  first record number to read (from 1)\n"
+			"    -G  IP host to contact for gdp_router\n"
+			"    -L  set logging file name (for debugging)\n"
+			"    -m  use multiread\n"
+			"    -M  show log metadata\n"
+			"    -n  set number of records to read (default all)\n"
+			"    -s  subscribe to this log\n"
+			"    -t  print data as text (instead of hexdump)\n",
+			ep_app_getprogname());
+	exit(EX_USAGE);
+}
 
 /*
 **  MAIN --- the name says it all
@@ -361,13 +380,7 @@ main(int argc, char **argv)
 
 	// we require a GCL name
 	if (show_usage || argc <= 0)
-	{
-		fprintf(stderr,
-				"Usage: %s [-c] [-D dbgspec] [-f firstrec] [-G router_addr] [-m]\n"
-				"  [-L logfile] [-M] [-n nrecs] [-s] [-t] <gcl_name>\n",
-				ep_app_getprogname());
-		exit(EX_USAGE);
-	}
+		usage();
 
 	if (log_file_name != NULL)
 	{

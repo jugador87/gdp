@@ -46,7 +46,11 @@ do_log(const char *tag)
 void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [-D dbgspec] [-G router_addr] [-L log_file] gcl_name\n",
+	fprintf(stderr,
+			"Usage: %s [-D dbgspec] [-G router_addr] [-L log_file] log_name\n"
+			"    -D  set debugging flags\n"
+			"    -G  IP host to contact for gdp_router\n"
+			"    -L  set logging file name (for debugging)\n",
 			ep_app_getprogname());
 	exit(EX_USAGE);
 }
