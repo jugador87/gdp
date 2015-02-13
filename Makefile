@@ -43,3 +43,11 @@ all_JavaScript:
 
 clean_JavaScript:
 	(cd lang/js; make clean)
+
+# Build the debian-style package.  Must be done on the oldest system
+# around because of dependencies.
+
+VER=		XX
+debian-package:
+	@[ "${VER}" = "XX" ] && ( echo "Must include VER=<version>"; exit 1 )
+	adm/gdp-debbuild.sh -v ${VER} -r ..
