@@ -5,6 +5,10 @@ This directory contains a very basic prototype of the Global Dataplane
 HTTP-based RESTful interface.  The first is used to implement the
 second.  All of these are likely to change in the future.
 
+NOTE: these instructions assume you are starting with the source
+distribution.  This is not appropriate if you are installing the
+debian package.
+
 Getting Started:
     These are a "quick start" guide to running the GDP.  Details are
     all included below.
@@ -80,6 +84,7 @@ Required Packages:
 	    On Ubuntu/Linux:
 		sudo apt-get install libevent-dev libssl-dev \
 			    lighttpd libjansson-dev
+	Or, use the helper script adm/gdp-setup.sh.
 
 Compiling:
 	First, install the prerequisite packages.
@@ -95,7 +100,7 @@ Compiling:
 	line.
 
 	As of this writing, GDP works on MacOS 10.9 (using clang),
-	Ubuntu 12.04 (using gcc or clang), and Freebsd 10.0 (using
+	Ubuntu 14.04 (using gcc or clang), and Freebsd 10.0 (using
 	clang).  I believe at least one person has it running on
 	MacOS 10.7 using gcc.
 
@@ -190,12 +195,12 @@ Start the GDP Routing Daemon:
 	Berkeley.
 
 	Once you have the list of routers you'll need to start the
-	Python program "gdpxbar.py".  It takes several parameters
+	Python program "gdp-router.py".  It takes several parameters
 	which are described in detail in routia/README.md.  The most
 	important flag is "-r", which takes the list of known
 	routers as the argument.  For example:
 
-	    gdpxbar.py -r gdp-routers.list
+	    gdp-router.py -r gdp-routers.list
 
 Start the GDP Log Daemon:
 	If you are using the log servers at Berkeley you can skip
