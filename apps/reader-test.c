@@ -3,6 +3,7 @@
 #include <ep/ep.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_app.h>
+#include <ep/ep_time.h>
 #include <gdp/gdp.h>
 #include <event2/buffer.h>
 
@@ -36,6 +37,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("reader-test", "GDP Reader Test Program");
 */
 
 FILE	*LogFile;
+bool	TextData = false;		// set if data should be displayed as text
 
 void
 do_log(const char *tag)
@@ -49,6 +51,19 @@ do_log(const char *tag)
 }
 
 #define LOG(tag)	{ if (LogFile != NULL) do_log(tag); }
+
+/*
+**  PRINTDATUM --- just print out a datum
+*/
+
+void
+printdatum(gdp_datum_t *datum, FILE *fp)
+{
+	flockfile(fp);
+	fprintf(fp, " >>> ");
+	gdp_datum_print(datum, fp, TextData ? GDP_DATUM_PRTEXT : 0);
+	funlockfile(fp);
+}
 
 
 /*
@@ -82,8 +97,7 @@ do_simpleread(gdp_gcl_t *gcl, gdp_recno_t firstrec, int numrecs)
 		EP_STAT_CHECK(estat, break);
 
 		// print out the value returned
-		fprintf(stdout, " >>> ");
-		gdp_datum_print(datum, stdout);
+		printdatum(datum, stdout);
 
 		// move to the next record
 		recno++;
@@ -118,10 +132,7 @@ multiread_print_event(gdp_event_t *gev, bool subscribe)
 	  case GDP_EVENT_DATA:
 		// this event contains a data return
 		LOG("S");
-		flockfile(outfile);
-		fprintf(outfile, " >>> ");
-		gdp_datum_print(gdp_event_getdatum(gev), outfile);
-		funlockfile(outfile);
+		printdatum(gdp_event_getdatum(gev), outfile);
 		break;
 
 	  case GDP_EVENT_EOS:
@@ -288,7 +299,7 @@ main(int argc, char **argv)
 	//setbuffer(stdout, outbuf, sizeof outbuf);		//DEBUG
 
 	// parse command-line options
-	while ((opt = getopt(argc, argv, "cD:f:G:L:mMn:s")) > 0)
+	while ((opt = getopt(argc, argv, "cD:f:G:L:mMn:st")) > 0)
 	{
 		switch (opt)
 		{
@@ -335,6 +346,11 @@ main(int argc, char **argv)
 			subscribe = true;
 			break;
 
+		  case 't':
+			// print data as text
+			TextData = true;
+			break;
+
 		  default:
 			show_usage = true;
 			break;
@@ -348,7 +364,7 @@ main(int argc, char **argv)
 	{
 		fprintf(stderr,
 				"Usage: %s [-c] [-D dbgspec] [-f firstrec] [-G router_addr] [-m]\n"
-				"  [-L logfile] [-M] [-n nrecs] [-s] <gcl_name>\n",
+				"  [-L logfile] [-M] [-n nrecs] [-s] [-t] <gcl_name>\n",
 				ep_app_getprogname());
 		exit(EX_USAGE);
 	}

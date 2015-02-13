@@ -149,7 +149,7 @@ main(int argc, char **argv)
 		EP_STAT_CHECK(estat, goto fail2);
 
 		// print the return value (shows the record number assigned)
-		gdp_datum_print(datum, stdout);
+		gdp_datum_print(datum, stdout, 0);
 	}
 
 	// OK, all done.  Free our resources and exit

@@ -272,7 +272,11 @@ void			gdp_datum_free(gdp_datum_t *);
 // print out data record
 extern void		gdp_datum_print(
 					const gdp_datum_t *datum,	// message to print
-					FILE *fp);					// file to print it to
+					FILE *fp,					// file to print it to
+					uint32_t flags);			// formatting options
+
+#define GDP_DATUM_PRTEXT	0x00000001		// print data as text
+#define GDP_DATUM_PRDEBUG	0x00000002		// print debugging info
 
 // get the record number from a datum
 extern gdp_recno_t	gdp_datum_getrecno(
