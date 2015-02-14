@@ -1,5 +1,12 @@
 #!/bin/sh
 
+#
+#  This script assumes you have installed the following packages:
+#	build-essential
+#	devscripts
+#	debhelper
+#
+
 # staging area for building the package
 stage=$HOME/gdp-stage
 
