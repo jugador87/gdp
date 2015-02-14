@@ -2,6 +2,7 @@
 DESTDIR=
 LOCALROOT=	/usr
 INSTALLROOT=	${DESTDIR}${LOCALROOT}
+DOCDIR=		${INSTALLROOT}/share/doc/gdp
 
 CTAGS=		ctags
 
@@ -21,17 +22,19 @@ clean:
 	(cd gdplogd;	 make clean)
 	(cd apps;	 make clean)
 
-install: ${INSTALLROOT}/etc/ep_adm_params/gdp
+install: ${INSTALLROOT}/etc/ep_adm_params
 	(cd ep;		make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
 	(cd gdp;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
 	(cd gdplogd;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
 	(cd apps;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
-	mkdir -p ${INSTALLROOT}/share/doc/libgdp
-	cp -rp examples ${INSTALLROOT}/share/doc/libgdp/
+	(cd doc;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
+	mkdir -p ${DOCDIR}
+	cp -rp examples ${DOCDIR}
 
-${INSTALLROOT}/etc/ep_adm_params/gdp:
+install-etc: ${INSTALLROOT}/etc/ep_adm_params/gdp
 
-install-etc: ${INSTALLROOT}/etc/ep_adm_params
+${INSTALLROOT}/etc/ep_adm_params/gdp: ${INSTALLROOT}/etc/ep_adm_params
+	echo "# Configuration parameters for the Global Data Plane" > $@
 
 ${INSTALLROOT}/etc/ep_adm_params:
 	mkdir -p $@
@@ -42,7 +45,7 @@ CSRCS=		ep/*.[ch] \
 		scgilib/scgilib.[ch] \
 		apps/*.[ch] \
 
-tags:		.FORCE
+tags: .FORCE
 	${CTAGS} ${CSRCS}
 
 .FORCE:

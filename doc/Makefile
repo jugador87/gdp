@@ -1,18 +1,22 @@
-SOURCES=$(shell find . -name "*.dbk")
-OBJECTS=$(patsubst %.dbk,%.fo,$(SOURCES))
-TARGETS=$(patsubst %.fo,%.pdf,$(OBJECTS))
-STYLESHEET=/usr/share/xml/docbook/stylesheet/docbook-xsl-ns/fo/docbook.xsl
+ALL= \
+		gdp-gcl-metadata.html \
+		gdp-programmatic-api.html \
+		gdp-protocol.html \
+		gdp-rest-interface.html \
 
-all: $(TARGETS)
+DESTDIR=
+LOCALROOT=	/usr
+INSTALLROOT=	${DESTDIR}${LOCALDIR}
+DOCDIR=		${INSTALLROOT}/share/doc/gdp
 
-%.pdf: %.fo
-	fop $^ -pdf $@
-
-%.fo: %.dbk
-	xsltproc -xinclude -o $@ $(STYLESHEET) $^
+all: ${ALL}
+	echo "Nothing to do"
 
 clean:
-	rm -f *.pdf
-	rm -f *.fo
+	echo "Nothing to do"
 
-.PHONY: clean
+${DOCDIR}:
+	mkdir -p $@
+
+install: ${DOCDIR}
+	cp ${ALL} ${DOCDIR}
