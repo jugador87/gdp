@@ -1,0 +1,3 @@
+[submodule "gdp_router"]
+	path = gdp_router
+	url = https://github.com/niteshmor/gdp_router.git
