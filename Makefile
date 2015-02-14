@@ -26,6 +26,8 @@ install: ${INSTALLROOT}/etc/ep_adm_params/gdp
 	(cd gdp;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
 	(cd gdplogd;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
 	(cd apps;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
+	mkdir -p ${INSTALLROOT}/share/doc/libgdp
+	cp -rp examples ${INSTALLROOT}/share/doc/libgdp/
 
 ${INSTALLROOT}/etc/ep_adm_params/gdp:
 
