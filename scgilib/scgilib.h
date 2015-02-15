@@ -258,6 +258,7 @@ extern scgi_request *last_scgi_req;
 extern fd_set scgi_inset;		// socket programming stuff
 extern fd_set scgi_outset;
 extern fd_set scgi_excset;
+extern int scgi_debug;
 
 /*
  * Function prototypes for functions from scgilib.c

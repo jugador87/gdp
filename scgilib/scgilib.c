@@ -32,6 +32,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+int scgi_debug;
+
 /*
  * Doubly-linked list of ports to listen on
  */
@@ -258,6 +260,9 @@ void scgi_answer_the_phone( scgi_port *p )
     scgi_perror( "Warning: scgilib's phone rang but something prevented scgilib from answering it." );
     return;
   }
+
+  if (scgi_debug > 0)
+	  fprintf(stderr, "scgi_answer_the_phone: accept on port %d\n", caller);
 
   /*
    * SCGI is intended for applications which accept multiple connections asynchronously, so
