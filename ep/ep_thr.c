@@ -13,7 +13,7 @@
 
 #if EP_OSCF_USE_PTHREADS
 
-static EP_DBG	Dbg = EP_DBG_INIT("ep.thr", "Threading support");
+static EP_DBG	Dbg = EP_DBG_INIT("libep.thr", "Threading support");
 
 bool	_EpThrUsePthreads = false;	// also used by ep_dbg_*
 
