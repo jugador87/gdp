@@ -88,10 +88,11 @@ Required Packages:
 			    lighttpd libjansson-dev
 	Or, use the helper script adm/gdp-setup.sh.
 
-Compiling:
+Compiling the GDP Code:
 	First, install the prerequisite packages.
 
-	Should just be a matter of typing "make" in the root.
+	Compiling should just be a matter of typing "make" in the root.
+
 	Note: gcc on linux has a bug that causes it to complain about
 	non-constant expressions in an initializer when the -std=c99
 	flag is given.  Those same expressions are constant in Clang
@@ -100,6 +101,14 @@ Compiling:
 	this means that not all features of C99 are available.
 	If you want full C99, use "STD=-std=c99" on the make command
 	line.
+
+	Further note: At least some versions of gcc give warnings
+	about ignored return values even when the function call has
+	been explicitly voided.  We know about this and do not
+	consider it to be a bug in the GDP code.  If these warnings
+	bother you we recommend installing clang and using that
+	compiler.  (Hint: it gives much better error messages and
+	catches things that gcc does not.)
 
 	As of this writing, GDP works on MacOS 10.9 (using clang),
 	Ubuntu 14.04 (using gcc or clang), and Freebsd 10.0 (using
