@@ -9,6 +9,7 @@
 #include <ep_thr.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/errno.h>
 
 #if EP_OSCF_USE_PTHREADS
 
@@ -53,10 +54,14 @@ bool	_EpThrUsePthreads = false;	// also used by ep_dbg_*
 static void
 diagnose_thr_err(int err, const char *where)
 {
-	char nbuf[40];
+	// timed out is not unexpected, so put it at a high debug level
+	if (ep_dbg_test(Dbg, err == ETIMEDOUT ? 90 : 4))
+	{
+		char nbuf[40];
 
-	strerror_r(err, nbuf, sizeof nbuf);
-	ep_dbg_cprintf(Dbg, 4, "ep_thr_%s: %s\n", where, nbuf);
+		strerror_r(err, nbuf, sizeof nbuf);
+		ep_dbg_printf("ep_thr_%s: %s\n", where, nbuf);
+	}
 }
 
 static void
@@ -69,7 +74,7 @@ printtrace(void *lock, const char *where)
 }
 
 #define TRACE(lock, where)	\
-		if (ep_dbg_test(Dbg, 90)) printtrace(lock, where)
+		if (ep_dbg_test(Dbg, 99)) printtrace(lock, where)
 
 void
 _ep_thr_init(void)
