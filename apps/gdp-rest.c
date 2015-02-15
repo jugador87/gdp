@@ -1060,10 +1060,12 @@ main(int argc, char **argv, char **env)
 	}
 
 	// Initialize SCGI library
+	scgi_debug = ep_dbg_level(Dbg) / 10;
 	if (scgi_initialize(listenport))
 	{
-		ep_dbg_cprintf(Dbg, 1, "%s: listening for SCGI on port %d\n",
-				ep_app_getprogname(), listenport);
+		ep_dbg_cprintf(Dbg, 1,
+				"%s: listening for SCGI on port %d, scgi_debug %d\n",
+				ep_app_getprogname(), listenport, scgi_debug);
 	}
 	else
 	{
@@ -1088,8 +1090,9 @@ main(int argc, char **argv, char **env)
 	for (;;)
 	{
 		gdp_event_t *gev;
+		EP_TIME_SPEC to = { 0, 0, 0.0 };
 
-		while ((gev = gdp_event_next(NULL, 0)) != NULL)
+		while ((gev = gdp_event_next(NULL, &to)) != NULL)
 		{
 			process_event(gev);
 			gdp_event_free(gev);
