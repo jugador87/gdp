@@ -3,6 +3,8 @@ ALL= \
 		gdp-programmatic-api.html \
 		gdp-protocol.html \
 		gdp-rest-interface.html \
+		Libep.dbk \
+		Libep.pdf \
 
 DESTDIR=
 LOCALROOT=	/usr

@@ -93,7 +93,7 @@
         &lt;gdp/gdp.h&gt;</code> for all the essential definitions.</p>
     <hr>
     <h4>Name</h4>
-    <p>GDP data types</p>
+    <p>GDP data types and basic utilities</p>
     <h4>Synopsis</h4>
     <pre>#include &lt;gdp/gdp.h&gt;<br><br>gdp_name_t	InternalGdpName;	// 256-bit number<br>gdp_pname_t	PrintableGdpName;	// base-64 encoded string<br>bool		GDP_NAME_SAME(gdp_name_t a, gdp_name_t b);<br>bool		gdp_name_is_valid(gdp_name_t gname);<br>char		*gdp_printable_name(const gdp_name_t Internal, gdp_pname_t Printable);<br>EP_STAT		gdp_internal_name(const gdp_pname_t Printable, gdp_name_t Internal);<br>EP_STAT		gdp_parse_name(const char *external, gdp_name_t Internal);<br><br>gdp_gcl_t	*GdpChannelLog;<br><br>gdp_datum_t	*GdpDatum;<br>gdp_recno_t	RecordNumber;<br>EP_TIME_SPEC	TimeStampSpec;</pre>
     <h4>Notes</h4>
@@ -102,7 +102,7 @@
     </ul>
     <h3> </h3>
     <hr size="2" width="100%"><br>
-      <br>
+    <br>
     <h4> Name</h4>
     gdp_init &mdash; Initialize the GDP library<br>
     <h4> Synopsis</h4>
@@ -130,8 +130,8 @@
     <h4>Notes</h4>
     <ul>
       <li>The <code>gdp_version.h</code> file defines the constant <code>GDP_LIB_VERSION</code>
-        as the year, month, and date of this version of the GDP library.&nbsp;
-        It can be used during compilation.</li>
+        as the year, month, and date of this version of the GDP library, for
+        example, 20150217UL.&nbsp; It can be used during compilation.</li>
     </ul>
     <hr>
     <p><br>
@@ -623,10 +623,11 @@ void (*cbfunc)(gdp_event_t *gev)
     <h4> Name</h4>
     gdp_event_next &mdash; get next asynchronous event<br>
     <h4> Synopsis</h4>
-    <pre>gdp_event_t *gdp_event_next(EP_TIME_SPEC *timeout)</pre>
+    <pre>gdp_event_t *gdp_event_next(gdp_gcl_t *gcl,<br>		EP_TIME_SPEC *timeout)</pre>
     <h4> Notes</h4>
     <ul>
-      <li> Returns the next asynchronous event.</li>
+      <li> Returns the next asynchronous event on the specified GCL.&nbsp; If
+        gcl is NULL, returns the next event from any GCL.</li>
       <li>Returns <code>NULL</code> if the <code>timeout</code> expires.&nbsp;
         If <code>timeout</code> is <code>NULL</code>, it waits forever.<br>
       </li>
@@ -741,13 +742,17 @@ void (*cbfunc)(gdp_event_t *gev)
       allocate/free/print a datum structure<br>
     </p>
     <h4>Synopsis</h4>
-    <pre>gdp_datum_t *gdp_datum_new(void)<br>void gdp_datum_free(gdp_datum_t *datum)<br>void gdp_datum_print(const gdp_datum_t *datum, FILE *fp)</pre>
+    <pre>gdp_datum_t *gdp_datum_new(void)<br>void gdp_datum_free(gdp_datum_t *datum)<br>void gdp_datum_print(const gdp_datum_t *datum,<br>		FILE *fp,<br>		uint32_t flags)</pre>
     <h4>Notes</h4>
     <ul>
       <li><code>gdp_datum_new</code> allocates a new empty datum.</li>
       <li><code>gdp_datum_free</code> frees a datum.</li>
       <li><code>gdp_datum_print</code> writes a description of the datum
-        (including the data contents) to the given file.</li>
+        (including the data contents) to the given file.&nbsp; If flags includes
+        the GDP_DATUM_PRTEXT bit, it shows the datum as plain text (the default
+        shows it as a hex dump).&nbsp; It is up to the caller to determine that
+        the datum is printable.&nbsp; If the GDP_DATUM_PRDEBUG flag is set,
+        additional information about the datum is printed.</li>
     </ul>
     <hr size="2" width="100%">
     <h4>Name</h4>
