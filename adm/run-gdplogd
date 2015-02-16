@@ -1,0 +1,11 @@
+#!/bin/sh
+
+export HOME=`echo ~gdpd`
+cd $HOME
+
+while true; do
+	echo Starting gdplogd at `date`
+	bin/gdplogd $*
+	echo gdplogd exited with status $? at `date`
+	sleep 5
+done >> log/gdplogd 2>&1

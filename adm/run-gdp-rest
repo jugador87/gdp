@@ -1,0 +1,11 @@
+#!/bin/sh
+
+export HOME=`echo ~gdpd`
+cd $HOME
+
+while true; do
+	echo Starting gdp-rest at `date`
+	bin/gdp-rest $*
+	echo gdp-rest exited with status $? at `date`
+	sleep 5
+done >> log/gdp-rest 2>&1

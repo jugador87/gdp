@@ -1,0 +1,9 @@
+#!/bin/sh 
+export HOME=`echo ~gdpd`
+cd $HOME
+
+bin/run-gdp-router &
+sleep 2
+bin/run-gdplogd &
+sleep 2
+bin/run-gdp-rest &
