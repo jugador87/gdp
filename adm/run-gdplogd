@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export HOME=`echo ~gdpd`
+export HOME=`echo ~gdp`
 cd $HOME
 
 while true; do
