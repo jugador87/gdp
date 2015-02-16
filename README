@@ -435,6 +435,8 @@ Full List of Administrative Parameters:
 		Generally speaking, you will want to set this parameter;
 		I recommend reverse-dns addresses, e.g.,
 		swarm.gdplogd.gdpname=edu.berkeley.eecs.gdp-01.gdplogd.
+	swarm.rest.kv.gclname --- the name of the GCL to use for the
+		key-value store.  Defaults to "swarm.rest.kv.gcl".
 	swarm.rest.prefix --- the REST prefix (e.g., /gdp/v1/).
 	swarm.rest.scgi.port --- the port number for the SCGI server to
 		listen on.  If you change this you'll also have to
@@ -442,8 +444,6 @@ Full List of Administrative Parameters:
 	swarm.rest.scgi.pollinterval --- how often to poll for SCGI
 		connections (in microseconds).  Defaults to 100000
 		(100 msec).
-	swarm.rest.kv.gclname --- the name of the GCL to use for the
-		key-value store.  Defaults to "sys/kv/KeyValStore".
 	libep.time.accuracy --- the value filled in for the "accuracy"
 		field in time structures (defaults to zero).
 	libep.thr.pool.min_workers --- the default minimum number of

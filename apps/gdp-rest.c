@@ -799,8 +799,8 @@ kv_initialize(void)
 	// get space for our internal database
 	KeyValStore = json_object();
 
-	KeyValStoreName = ep_adm_getstrparam("swarm.rest.kv.gclname",
-							"sys/kv/KeyValStore");
+	KeyValStoreName = ep_adm_getstrparam("swarm.rest.kvstore.gclname",
+							"swarm.rest.kvstore.gclname");
 
 	// open the "KeyVal" GCL
 	gdp_parse_name(KeyValStoreName, KeyValInternalName);

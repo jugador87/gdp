@@ -67,6 +67,7 @@
       "2014-11-22T13:03:09.395023619/3.5" (you can read the slash as
       "&plusmn;").&nbsp; Record numbers may be as large as 2<sup>63</sup>
       &ndash; 1 (18,446,744,073,709,551,615). </p>
+    <h3>Standard GCLs</h3>
     <hr size="2" width="100%">
     <h4>Name</h4>
     GET /gdp/v1/gcl &mdash; list all known GCLs<br>
@@ -239,7 +240,8 @@
     <p>Returns a sequence of up to <i>nrecs</i> records starting from <i>recno</i>
       encoded as an array of JSON objects.&nbsp; If <i>nrecs</i> is zero, all
       data from <i>recno</i> to the end is returned.&nbsp; The <i>recno</i>
-      parameter is optional and defaults to 1.<br>
+      parameter is optional and defaults to 1.</p>
+    <p>The <var>nrecs</var> parameter is not implemented at this time.<br>
     </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
@@ -269,6 +271,8 @@
       that record to appear; if it does, the record is returned in the usual
       way, otherwise it returns with a 408 Request Timeout response. If the
       starting record number is not specified, it starts from the beginning.</p>
+    <p>The <var>nrecs</var> and <var>timeout</var> parameters are not
+      implemented at this time.</p>
     <p><i>[[Perhaps this should not take recno and nrecs, and just return the
         next record that appears at the GCL.]]</i><br>
     </p>
@@ -286,6 +290,21 @@
       specified arguments and append that to the GCL, unencrypted of course.<br>
     </p>
     <p> </p>
+    <hr size="2" width="100%">
+    <h3>Key-Value Store</h3>
+    <p>The key-value store is implemented as a single GCL that must be formatted
+      as unencrypted JSON data structured as a series of JSON objects.&nbsp; The
+      "keys" are the field names in that top level object.&nbsp; When adding
+      data to the KV store an arbitrary number of values may be sent in any one
+      record.&nbsp; When retrieving data the key name is specified and the most
+      recent value corresponding to that key is returned.</p>
+    <p>The GCL used to implement is named "<code>swarm.rest.kvstore.gcl</code>".&nbsp;
+      It may be overridden with the "<code>swarm.rest.kvstore.gclname</code>"
+      administrative runtime parameter.</p>
+    <p>Note that another way of implementing a KV store is to have an arbitrary
+      GCL, the name of which represents the key, and just get the last (most
+      recent) value to get the current value for that key.&nbsp; This trades off
+      a potentially large key space for efficiency and lack of clutter.</p>
     <hr size="2" width="100%">
     <h4>Name</h4>
     POST /gdp/v1/kv &mdash; add data to key-value store<br>
