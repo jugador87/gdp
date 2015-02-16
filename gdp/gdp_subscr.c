@@ -53,6 +53,8 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 	}
 	else
 	{
+		_gdp_req_lock(req);
+
 		// now arrange for responses to appear as events or callbacks
 		req->flags |= GDP_REQ_CLT_SUBSCR;
 		req->sub_cb = cbfunc;

@@ -83,6 +83,7 @@ _gdp_invoke(gdp_req_t *req)
 		// wait until we receive a result
 		ep_dbg_cprintf(Dbg, 37, "_gdp_invoke: waiting on %p\n", req);
 		ep_time_deltanow(&delta_ts, &abs_to);
+		_gdp_req_lock(req);
 		estat = EP_STAT_OK;
 		req->state = GDP_REQ_WAITING;
 		while (!EP_UT_BITSET(GDP_REQ_DONE, req->flags))
@@ -94,8 +95,8 @@ _gdp_invoke(gdp_req_t *req)
 
 			char ebuf[100];
 			ep_dbg_cprintf(Dbg, 52,
-					"_gdp_invoke wait: got %d, done=%d, stat=%s\n",
-					e, EP_UT_BITSET(GDP_REQ_DONE, req->flags),
+					"_gdp_invoke wait: got %d, done=%d, state=%d, stat=%s\n",
+					e, EP_UT_BITSET(GDP_REQ_DONE, req->flags), req->state,
 					ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
 			if (e != 0)
 			{
@@ -115,6 +116,7 @@ _gdp_invoke(gdp_req_t *req)
 			// if the invoke failed, we have to pull the req off the gcl list
 			_gdp_req_unsend(req);
 		}
+		_gdp_req_unlock(req);
 
 #if 0
 		//XXX what status will/should we return?

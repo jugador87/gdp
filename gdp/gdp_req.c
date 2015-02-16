@@ -106,9 +106,6 @@ _gdp_req_new(int cmd,
 		}
 	}
 
-	// always return the request pre-locked
-	_gdp_req_lock(req);
-
 	// success
 	req->state = GDP_REQ_ACTIVE;
 	*reqp = req;
@@ -130,7 +127,8 @@ _gdp_req_free(gdp_req_t *req)
 	ep_dbg_cprintf(Dbg, 48, "gdp_req_free(%p)  gcl=%p\n", req, req->gcl);
 
 	EP_ASSERT(req->state != GDP_REQ_FREE);
-	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
+	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
+	_gdp_req_lock(req);
 
 	// remove the request from the channel subscription list
 	if (EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags))
@@ -337,18 +335,20 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 		ep_dbg_cprintf(Dbg, 20, "_gdp_req_find: wrong state: %d\n",
 				req->state);
 		//XXX should have a timeout here
+		_gdp_req_lock(req);
 		ep_thr_cond_wait(&req->cond, &req->mutex, NULL);
+		_gdp_req_unlock(req);
 	}
 	if (req != NULL && !EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
 	{
+		_gdp_req_lock(req);
 		EP_ASSERT(EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
 		LIST_REMOVE(req, gcllist);
 		req->flags &= ~GDP_REQ_ON_GCL_LIST;
+		_gdp_req_unlock(req);
 	}
 	ep_thr_mutex_unlock(&gcl->mutex);
 
-	// we want to make sure the request is locked upon return
-	_gdp_req_lock(req);
 	ep_dbg_cprintf(Dbg, 48,
 			"gdp_req_find(gcl=%p, rid=%" PRIgdp_rid ", state=%d) => %p\n",
 			gcl, rid, req->state, req);

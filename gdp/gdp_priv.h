@@ -136,17 +136,42 @@ struct gdp_gcl
 **		by gdplogd to find the other end of the subscription, i.e,
 **		subscription data producers.
 **
-**		Since the channel I/O thread is asynchronous with the main
-**		data flow of the application, there is the potential for
-**		subscription data to come in faster than the application
-**		can consume it.  But there is only one request to hold the
-**		subscription, which could cause a race condition.  For
-**		this reason, the request stays locked as long as it is
-**		actively processing (i.e., not when it's waiting for an
-**		I/O event, but all the rest of the time).  This long-lived
-**		mutex is a bit disturbing, but otherwise it would require
-**		cloning the request and opens the possibility that data
-**		returns could come in out of order.
+**		In both the case of applications and gdplogd, requests may
+**		get passed between threads.  To prevent someone from finding
+**		a request on one of these lists and using it at the same time
+**		someone else has it in use, you would like to lock the data
+**		structure while it is active.  But you can't pass a mutex
+**		between threads.  This is a particular problem if subscription
+**		or multiread data comes in faster than it can be processed;
+**		since the I/O thread is separate from the processing thread
+**		things can clobber each other.
+**
+**		We solve this by assigning a state to each request:
+**
+**		FREE means that this request is on the free list.  It
+**			should never appear in any other context.
+**		ACTIVE means that there is currently an operation taking
+**			place on the request, and no one other than the owner
+**			should use it.  If you need it, you can wait on the
+**			condition variable.
+**		WAITING means that the request has been sent from a client
+**			to a server but hasn't gotten the response yet.  It
+**			shouldn't be possible for a WAITING request to also
+**			have an active subscription, but it will be in the GCL
+**			list.
+**		IDLE means that the request is not free, but there is no
+**			operation in process on it.  This will generally be
+**			because it is a subscription that does not have any
+**			currently active data.
+**
+**		If you want to deliver data to a subscription, you have to
+**		first make sure the req is in IDLE state, turn it to ACTIVE
+**		state, and then process it.  If it is not in IDLE state you
+**		sleep on the condition variable and try again.
+**
+**		Passing a request to another thread is basically the same.
+**		The invariant is that any req being passed between threads
+**		should always be ACTIVE.
 */
 
 typedef struct gdp_req

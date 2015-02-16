@@ -135,6 +135,7 @@ gdp_pdu_proc_thread(void *req_)
 
 		// ASSERT(all data from chan has been consumed);
 
+		_gdp_req_lock(req);
 		if (EP_UT_BITSET(GDP_REQ_CLT_SUBSCR, req->flags))
 		{
 			// send the status as an event
@@ -154,18 +155,14 @@ gdp_pdu_proc_thread(void *req_)
 			// wake up invoker, which will return the status
 			ep_thr_cond_signal(&req->cond);
 		}
+		_gdp_req_unlock(req);
 	}
 
 	// free up resources
 	if (EP_UT_BITSET(GDP_REQ_CORE, req->flags) &&
 		!EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
 	{
-		// _gdp_req_free also unlockes
 		_gdp_req_free(req);
-	}
-	else
-	{
-		_gdp_req_unlock(req);
 	}
 
 	ep_dbg_cprintf(Dbg, 40, "gdp_pdu_proc_thread <<< done\n");
