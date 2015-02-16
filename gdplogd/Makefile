@@ -53,7 +53,8 @@ HDEPS=	\
 		${INCROOT}/gdp/gdp_pdu.h \
 
 LIBDEPS= \
-	 	${LIBROOT}/gdp/libgdp.a \
+		${LIBROOT}/gdp/libgdp.a \
+		${LIBROOT}/ep/libep.a \
 
 all: ${ALL}
 
