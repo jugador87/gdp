@@ -2,8 +2,17 @@
 export HOME=`echo ~gdp`
 cd $HOME
 
-bin/run-gdp-router &
-sleep 2
-bin/run-gdplogd &
-sleep 2
-bin/run-gdp-rest &
+if [ -x bin/run-gdp-router ]
+then
+	bin/run-gdp-router &
+	sleep 2
+fi
+if [ -x bin/run-gdplogd ]
+then
+	bin/run-gdplogd &
+	sleep 2
+fi
+if [ -x bin/run-gdp-rest ]
+then
+	bin/run-gdp-rest &
+fi

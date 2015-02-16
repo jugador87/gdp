@@ -39,6 +39,20 @@ ${INSTALLROOT}/etc/ep_adm_params/gdp: ${INSTALLROOT}/etc/ep_adm_params
 ${INSTALLROOT}/etc/ep_adm_params:
 	mkdir -p $@
 
+GDPROOT=	~gdp
+GDPALL=		adm/start-* \
+		adm/run-* \
+		apps/gcl-create \
+		apps/gdp-rest \
+		apps/reader-test \
+		apps/writer-test \
+		gdplogd/gdplogd \
+		gdp_router/src/gdp_router.py \
+
+init-gdp:
+	sudo -u gdp adm/init-gdp.sh
+	sudo -u gdp cp ${GDPALL} ${GDPROOT}/bin/.
+
 CSRCS=		ep/*.[ch] \
 		gdp/*.[ch] \
 		gdplogd/*.[ch] \

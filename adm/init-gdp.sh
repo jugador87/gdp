@@ -44,6 +44,9 @@ fi
 if [ ! -f .ep_adm_params/gdp ]
 then (
 	echo "swarm.gdp.routers=$routers"
+	echo "libep.time.accuracy=0.5"
+	echo "libep.thr.mutex.type=errorcheck"
+	echo "libep.dbg.file=stdout"
 	) > .ep_adm_params/gdp
 else
 	echo "Warning: .ep_adm_params/gdp already exists; check consistency" 2>&1
