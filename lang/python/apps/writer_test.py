@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 A simple prgoram that reads keyboard input from stdin and logs it

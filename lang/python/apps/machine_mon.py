@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """
 An example program that logs some system information periodically.
 This is just an example program that can be used as a starting point.

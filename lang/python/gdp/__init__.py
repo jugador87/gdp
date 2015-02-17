@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 A Python API for libgdp. Uses ctypes and shared library versions of
