@@ -31,12 +31,12 @@ def generate_random_data(N, count):
 
     return ret
 
-def main(gcl_name):
+def main(name_str):
 
+    gcl_name = gdp.GDP_NAME(name_str)
 
-    # this might fail with an exception if the file alread exists. 
-    # We'd like to test that, so not trying to catch the exception
-    gcl_handle = gdp.GDP_GCL(create=True, name=gcl_name)
+    print "opening gcl", "".join(["%0.2x"%ord(x) for x in gcl_name.internal_name()])
+    gcl_handle = gdp.GDP_GCL(gcl_name, gdp.GDP_MODE_AO)
 
     # the data that will be written
     data = generate_random_data(100,10)
@@ -46,12 +46,9 @@ def main(gcl_name):
 
         print "writing message number", idx
         datum = {"data": s}         # Create a minimalist datum object
-        gcl_handle.publish(datum)   # write this to the GCL
-
+        gcl_handle.append(datum)   # write this to the GCL
 
     # reading the data back
-
-
     read_data = []      # to store the data read back from the GCL
     for idx in xrange(len(data)):
 
@@ -64,14 +61,12 @@ def main(gcl_name):
     for idx in xrange(len(data)):
         assert data[idx] == read_data[idx]
 
-
-
 if __name__=="__main__":
 
-    if len(sys.argv)==1:    # No name given. Generate a new random GCL
-        main(None)
-    else:
-        # first create a GCL name object
-        gcl_name = gdp.GCL_NAME(sys.argv[1])
+    if len(sys.argv)<2:
+        print "Usage: %s <gcl_name>" % sys.argv[0]
+        sys.exit(1)
 
-        main(gcl_name)   # create a GCL with the given name
+    gdp.gdp_init("127.0.0.1",8007)
+
+    main(sys.argv[1])   # create a GCL with the given name

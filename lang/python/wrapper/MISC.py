@@ -9,7 +9,7 @@ import os
 package_directory = os.path.dirname(os.path.abspath(__file__))
 
 ### Load the DLLs. Make sure that the files actually exist ###
-gdp = CDLL(os.path.join(package_directory, "..", "..", "..", "libs",  "libgdp.so.1.0"))
+gdp = CDLL(os.path.join(package_directory, "..", "..", "..", "libs",  "libgdp.so.0.1"))
 ep = CDLL(os.path.join(package_directory, "..", "..", "..","libs", "libep.so.2.0"))
 try: 
     evb = CDLL("libevent.so")       # On linux

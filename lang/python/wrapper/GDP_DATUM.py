@@ -52,7 +52,7 @@ class GDP_DATUM:
 
     def __del__(self):
         """
-        Destructor: Does not get called if this GDP datum was created by
+        Destructor: Does nothing if this GDP datum was created by
             passing an exisiting datum pointer
         """
 
@@ -96,20 +96,6 @@ class GDP_DATUM:
         return int(ret)
 
 
-    def setrecno(self,recno):
-        """
-        Set the record number to a given value. (I don't think this is 
-            very useful for the python purpose, including it anyways)
-        """
-        __recno = gdp_recno_t(recno)
-        __func = gdp.gdp_datum_setrecno
-        __func.argtypes = [POINTER(self.gdp_datum_t), gdp_recno_t]
-        # ignore the return value
-
-        __func(self.gdp_datum, __recno)
-        return
-
-
     def getts(self):
         """
         Return the timestamp associated with this GDP_DATUM in the form of a 
@@ -130,27 +116,6 @@ class GDP_DATUM:
         ret['tv_accuracy']  = ts.tv_accuracy
 
         return ret
-
-    def setts(self, ts):
-        """
-        Set the timestamp for this GDP_DATUM from the input dictionary provided.
-            It should have the following keys: tv_sec, tv_nsec and tv_accuracy
-            - tv_sec is internally represented by a 64 bit integer.
-            - tv_nsec is internally represented by a 32 bit integer.
-            - tv_accuracy is internally represented by a floating point.
-        """
-
-        __ts = self.__EP_TIME_SPEC()
-        __ts.tv_sec = c_int64(ts['tv_sec'])
-        __ts.tv_nsec = c_uint32(ts['tv_nsec'])
-        __ts.tv_accuracy = c_float(ts['tv_accuracy'])
-
-        __func = gdp.gdp_datum_setts
-        __func.argtypes = [POINTER(self.gdp_datum_t), POINTER(self.__EP_TIME_SPEC)]
-        # ignore the return value
-
-        __func(self.gdp_datum, byref(__ts))
-        return
 
 
     def getdlen(self):
