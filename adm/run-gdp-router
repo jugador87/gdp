@@ -5,7 +5,7 @@ cd $HOME
 
 while true; do
 	echo Starting gdp_router at `date`
-	bin/gdp_router.py $*
+	bin/gdp_router.py -r etc/gdp-routers.txt $*
 	echo gdp_router exited with status $? at `date`
 	sleep 5
 done >> log/gdp_router 2>&1

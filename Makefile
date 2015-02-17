@@ -51,6 +51,7 @@ GDPALL=		adm/start-* \
 
 init-gdp:
 	sudo -u gdp adm/init-gdp.sh
+	sudo -u gdp cp etc/gdp-routers.txt ${GDPROOT}/etc/.
 	sudo -u gdp cp ${GDPALL} ${GDPROOT}/bin/.
 
 CSRCS=		ep/*.[ch] \
