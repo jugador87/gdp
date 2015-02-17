@@ -21,7 +21,7 @@ mkdir -p $tmpdir/$sharedir/examples
 
 cp -a $topdir/gdp/*.py $tmpdir/$pydir/gdp/.
 # fix library locations
-sed -i "s/\"..\", \"..\", \"..\", \"libs\"/\"usr\", \"lib\"/g" $tmpdir/$pydir/gdp/MISC.py
+sed -i "s/\"..\", \"..\", \"..\", \"libs\"/\"\/\", \"usr\", \"lib\"/g" $tmpdir/$pydir/gdp/MISC.py
 
 # documentation and examples
 cp $topdir/README $tmpdir/$sharedir/.
