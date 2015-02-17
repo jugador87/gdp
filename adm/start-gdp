@@ -16,3 +16,7 @@ if [ -x bin/run-gdp-rest ]
 then
 	bin/run-gdp-rest &
 fi
+if [ -x bin/run-machine-mon ]
+then
+	bin/run-machine-mon &
+fi
