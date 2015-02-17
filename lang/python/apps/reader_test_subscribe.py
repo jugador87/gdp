@@ -30,5 +30,6 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print "Usage: %s <gcl-name>" % sys.argv[0]
 
+    # Change this to point to a gdp_router
     gdp.gdp_init("127.0.0.1", 8007)
     main(sys.argv[1])

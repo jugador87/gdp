@@ -67,6 +67,7 @@ if __name__ == "__main__":
         print "Usage: %s <gcl_name>" % sys.argv[0]
         sys.exit(1)
 
+    # Change this to point to a gdp_router
     gdp.gdp_init("127.0.0.1", 8007)
 
     main(sys.argv[1])   # create a GCL with the given name

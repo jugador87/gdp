@@ -116,9 +116,9 @@ class GDP_GCL:
 
     def append(self, datum_dict):
         """
-        Write a datum to the GCL. The datum should be a dictionary, with the following
-            possible keys:
-            - data : the actual data that is to be written
+        Write a datum to the GCL. The datum should be a dictionary, with
+            the only valid key being 'data'. The value is the actual 
+            data that is to be written
         """
 
         datum = GDP_DATUM()
@@ -197,7 +197,9 @@ class GDP_GCL:
 
     def subscribe(self, start, numrecs, timeout):
         """
-        Subscriptions. For now, callbacks are not exposed to end-user.
+        Subscriptions. Refer to the C-API for more details
+        For now, callbacks are not exposed to end-user. Events are 
+            generated instead.
         """
         return self.__subscribe(start, numrecs, timeout, None, None)
 
@@ -233,7 +235,9 @@ class GDP_GCL:
 
     def multiread(self, start, numrecs):
         """
-        Multiread. For now, callbacks are not exposed to end-user
+        Multiread. Refer to the C-API for details.
+        For now, callbacks are not exposed to end-user. Events are
+            generated instead.
         """
 
         return self.__multiread(self, start, numrecs, None, None)

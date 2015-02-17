@@ -1,0 +1,155 @@
+NOTE: 
+For latest version of this, use `pydoc`. 
+
+Help on package gdp:
+
+NAME
+    gdp
+
+DESCRIPTION
+    A Python API for libgdp. Uses ctypes and shared library versions of
+    libgdp and libep.
+    
+    This package exports two classes, and a few utility functions.
+    - GDP_NAME:     represents names in GDP
+    - GDP_GCL :     represents a GCL file handle
+    
+    The first thing that you will need to do is call `gdp_init`. `gdp_init` 
+    sets up the connection to a remote `gdp_router`. Example:
+    
+    ```
+    gdp_init("127.0.0.1", 8007)
+    ```
+    
+    Next, you would like to have a `GDP_NAME` object that represents the 
+    names in GDP. The reason for a `GDP_NAME` object is that each name can
+    have multiple representations.
+    
+    To create a `GDP_NAME`, use the following:
+    ```
+    gcl_name = GDP_NAME(some_name)
+    ```
+    `some_name` could be either a human readable name that is then hashed
+    using SHA256, or it could be an internal name represented as a python
+    binary string, or it could also be a printable GDP name. (For more
+    details on this, look at the C API documentation)
+    
+    Once you have the GDP_NAME, you can use it to open `GDP_GCL` objects,
+    which behave like a file handle in some certain sense.
+    
+    The unit of reading/writing from a `GDP_GCL` is a datum, which is a
+    python dictionary. `GDP_GCL` supports append, reading by record number,
+    or subscriptions. For more details, look at the sample programs
+    provided.
+
+PACKAGE CONTENTS
+    GDP_DATUM
+    GDP_GCL
+    GDP_NAME
+    MISC
+
+DATA
+    __all__ = [0, 1, 2, <function gdp_init>, <function gdp_run_accept_even...
+
+
+gdp.GDP_NAME = class GDP_NAME
+ |  Represents name of a GCL. Each GCL has potentially up to three kind of 
+ |  names:
+ |      - a 256 bit binary name
+ |      - a Base-64(ish) representation
+ |      - (optional) a more memorable name, which potentially is hashed to 
+ |        get the binary name
+ |  
+ |  Methods defined here:
+ |  
+ |  __init__(self, name)
+ |      takes either an internal name, or a printable name, or a human friendly
+ |          name, and creates a python object that can be passed around for the
+ |          various GDP calls
+ |  
+ |  internal_name(self)
+ |      Returns a python string that represents the internal binray name
+ |  
+ |  is_valid(self)
+ |      Borrowed from the GDP C api, tells if the name is valid or not
+ |  
+ |  printable_name(self)
+ |      Returns a python string that represents the printable name
+ |  
+ |  ----------------------------------------------------------------------
+ |  Data and other attributes defined here:
+ |  
+ |  PNAME_LEN = 43
+ |  
+ |  name_t = <class 'gdp.GDP_NAME.c_ubyte_Array_32'>
+ |  
+ |  
+ |  pname_t = <class 'gdp.GDP_NAME.c_ubyte_Array_44'>
+
+gdp.GDP_GCL = class GDP_GCL
+ |  A class that represents a GCL handle. A GCL handle resembles an open
+ |      file handle in various ways. However, it is still different in
+ |      certain ways
+ |  
+ |  Methods defined here:
+ |  
+ |  __del__(self)
+ |      close this GCL handle, and free the allocated resources
+ |  
+ |  __init__(self, name, iomode)
+ |      Open a GCL with given name and io-mode
+ |      Creating new GCL's is no longer supported.
+ |      
+ |      name=<name-of-gcl>, iomode=<mode>
+ |      name is a GDP_NAME object
+ |      mode is one of the following: GDP_MODE_ANY, GDP_MODE_RO, GDP_MODE_AO
+ |  
+ |  append(self, datum_dict)
+ |      Write a datum to the GCL. The datum should be a dictionary, with
+ |          the only valid key being 'data'. The value is the actual 
+ |          data that is to be written
+ |  
+ |  getname(self)
+ |      Get the name of this GCL, returns a GDP_NAME object
+ |  
+ |  multiread(self, start, numrecs)
+ |      Multiread. Refer to the C-API for details.
+ |      For now, callbacks are not exposed to end-user. Events are
+ |          generated instead.
+ |  
+ |  print_to_file(self, fh, detail, indent)
+ |      Print this GDP object to a file. Could be sys.stdout
+ |          The actual printing is done by the C library
+ |  
+ |  read(self, recno)
+ |      Returns a datum dictionary. The dictionary has the following keys:
+ |          - recno: the record number for this GDP
+ |          - ts   : the timestamp, which itself is a dictionary with the keys
+ |                      being tv_sec, tv_nsec, tv_accuracy
+ |          - data : the actual data associated with this datum.
+ |  
+ |  subscribe(self, start, numrecs, timeout)
+ |      Subscriptions. Refer to the C-API for more details
+ |      For now, callbacks are not exposed to end-user. Events are 
+ |          generated instead.
+ |  
+ |  ----------------------------------------------------------------------
+ |  Class methods defined here:
+ |  
+ |  get_next_event(cls, timeout) from __builtin__.classobj
+ |      Get the events for any open GCL.
+ |  
+ |  ----------------------------------------------------------------------
+ |  Data and other attributes defined here:
+ |  
+ |  gdp_event_t = <class 'gdp.GDP_GCL.gdp_event_t'>
+ |      Corresponds to gdp_event_t structure exported by C library
+ |  
+ |  gdp_gcl_sub_cbfunc_t = <class 'ctypes.CFunctionType'>
+ |  
+ |  
+ |  gdp_gcl_t = <class 'gdp.GDP_GCL.gdp_gcl_t'>
+ |      Corresponds to gdp_gcl_t structure exported by C library
+ |  
+ |  object_dir = {}
+
