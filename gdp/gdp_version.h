@@ -5,5 +5,5 @@
 */
 
 #ifndef GDP_LIB_VERSION
-#define GDP_LIB_VERSION		20150130UL
+#define GDP_LIB_VERSION		20150217UL
 #endif
