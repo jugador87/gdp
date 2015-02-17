@@ -38,8 +38,6 @@ all:	${ALL}
 machine-mon:	machine-mon.o
 	${CC} -o $@ machine-mon.o ${LDFLAGS}
 
-${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
-
 clean:
 	-rm -f ${ALL} *.o *.core
 
