@@ -26,14 +26,14 @@ sed -i "s/\"..\", \"..\", \"..\", \"libs\"/\"\/\", \"usr\", \"lib\"/g" $tmpdir/$
 # documentation and examples
 cp $topdir/README $tmpdir/$sharedir/
 cp -a $topdir/apps/*.py $tmpdir/$sharedir/
-sed -i "s/sys.path.append/# sys.path.append/g" $tmpdir/$sharedir/examples/*.py
+sed -i "s/sys.path.append/# sys.path.append/g" $tmpdir/$sharedir/*.py
 
 mkdir $tmpdir/DEBIAN
 echo "Package: python-gdp
 Version: 0.1-1
 Priority: optional
 Architecture: all
-Depends: python (<< 2.8), python (>= 2.7~), libgdp (>=0.1-1), libevent-dev (>2.0~), python-psutil (>= 1.2~)
+Depends: python (<< 2.8), python (>= 2.7~), libgdp (>=0.1-1), libevent-dev (>=2.0~), python-psutil (>= 1.2~)
 Maintainer: Nitesh Mor <mor@eecs.berkeley.edu>
 Description: A python interface for libGDP
  Some sample programs are located at $sharedir/examples
