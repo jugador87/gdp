@@ -123,7 +123,7 @@ get_param_path(void)
 			}
 		}
 		strlcat(pathbuf,
-			"/usr/local/etc/ep_adm_params:/etc/ep_app_params",
+			"/usr/local/etc/ep_adm_params:/etc/ep_adm_params",
 			sizeof pathbuf);
 	}
 	else
