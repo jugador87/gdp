@@ -1,9 +1,13 @@
 #!/usr/bin/python
 
+"""
+A simple prgoram that reads keyboard input from stdin and logs it
+in a log
+"""
+
 import sys
 sys.path.append("../")
-
-import wrapper as gdp
+import gdp
 
 
 def main(name_str):
@@ -17,8 +21,8 @@ def main(name_str):
     while True:
 
         line = sys.stdin.readline().strip()  # read from stdin
+        # Create a minimalist datum dictionary
         datum = {"data": line}
-            # Create a minimalist datum dictionary
         gcl_handle.append(datum)           # Write this datum to the GCL
 
 

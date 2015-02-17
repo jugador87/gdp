@@ -1,9 +1,12 @@
 #!/usr/bin/python
 
+"""
+A simple program to demonstrate subscriptions
+"""
+
 import sys
 sys.path.append("../")
-
-import wrapper as gdp
+import gdp
 
 
 def main(name_str):
