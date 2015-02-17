@@ -24,15 +24,15 @@ OBJS=	\
 
 PUBHFILES=	\
 	gdp.h \
+	gdp_buf.h \
+	gdp_stat.h \
+	gdp_version.h \
 
 PRIVHFILES=	\
-	gdp_buf.h \
 	gdp_event.h \
 	gdp_gclmd.h \
 	gdp_pdu.h \
 	gdp_priv.h \
-	gdp_stat.h \
-	gdp_version.h \
 
 HFILES=		${PUBHFILES} ${PRIVHFILES}
 
