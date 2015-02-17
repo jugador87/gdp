@@ -23,6 +23,7 @@ umask 0002
 
 [ -d bin ] || mkdir bin
 [ -d log ] || mkdir log
+[ -d etc ] || mkdir etc
 [ -d db ] || mkdir db
 [ -d .ep_adm_params ] || mkdir .ep_adm_params
 
