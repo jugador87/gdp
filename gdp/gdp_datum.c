@@ -151,7 +151,7 @@ gdp_datum_print(const gdp_datum_t *datum, FILE *fp, uint32_t flags)
 	if (l > 0)
 	{
 		if (EP_UT_BITSET(GDP_DATUM_PRTEXT, flags))
-			fprintf(fp, "%.*s", l, d);
+			fprintf(fp, "%.*s\n", l, d);
 		else
 			ep_hexdump(d, l, fp, EP_HEXDUMP_ASCII, 0);
 	}
