@@ -158,9 +158,9 @@ main(int argc, char **argv)
 		// fill it in with some potentially interesting information
 		json_object_set(json, "host", json_string(hostname));
 		json_object_set(json, "uptime", json_integer(si.uptime));
-		json_object_set(json, "load1", json_integer(si.loads[1]));
-		json_object_set(json, "load5", json_integer(si.loads[2]));
-		json_object_set(json, "load15", json_integer(si.loads[3]));
+		json_object_set(json, "load1", json_integer(si.loads[0]));
+		json_object_set(json, "load5", json_integer(si.loads[1]));
+		json_object_set(json, "load15", json_integer(si.loads[2]));
 		json_object_set(json, "freeram", json_integer(si.freeram));
 		json_object_set(json, "nproc", json_integer(si.procs));
 
