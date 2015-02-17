@@ -15,7 +15,7 @@ def main(name_str):
     gcl_handle = gdp.GDP_GCL(gcl_name, gdp.GDP_MODE_RO)
 
     # this is the actual subscribe call
-    gcl_handle.subscribe(0,0,None)
+    gcl_handle.subscribe(0, 0, None)
 
     while True:
 
@@ -25,10 +25,10 @@ def main(name_str):
         handle = event["gcl_handle"]
         print event
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
-    if len(sys.argv)<2:
+    if len(sys.argv) < 2:
         print "Usage: %s <gcl-name>" % sys.argv[0]
 
-    gdp.gdp_init("127.0.0.1",8007)
+    gdp.gdp_init("127.0.0.1", 8007)
     main(sys.argv[1])

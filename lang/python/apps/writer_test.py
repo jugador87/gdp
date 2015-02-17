@@ -16,16 +16,17 @@ def main(name_str):
 
     while True:
 
-        line = sys.stdin.readline().strip() # read from stdin
-        datum = {"data": line}              # Create a minimalist datum dictionary
+        line = sys.stdin.readline().strip()  # read from stdin
+        datum = {"data": line}
+            # Create a minimalist datum dictionary
         gcl_handle.append(datum)           # Write this datum to the GCL
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
-    if len(sys.argv)<2:
+    if len(sys.argv) < 2:
         print "Usage: %s <gcl_name>" % sys.argv[0]
         sys.exit(1)
 
-    gdp.gdp_init("127.0.0.1",8007)
+    gdp.gdp_init("127.0.0.1", 8007)
     main(sys.argv[1])
