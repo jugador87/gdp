@@ -12,14 +12,13 @@ A simple program that:
 """
 
 
-
 import sys
-sys.path.append("../")      # So that we can actually load the python_api module
+sys.path.append("../")
+                # So that we can actually load the python_api module
 
 import wrapper as gdp    # load the main package
 import random
-import string               
-
+import string
 
 
 def generate_random_data(N, count):
@@ -27,51 +26,47 @@ def generate_random_data(N, count):
 
     ret = []
     for idx in xrange(count):
-        ret.append(''.join(random.choice(string.ascii_letters + string.digits) for _ in range(N)))
+        ret.append(''.join(random.choice(string.ascii_letters + string.digits)
+                   for _ in range(N)))
 
     return ret
 
-def main(gcl_name):
 
+def main(name_str):
 
-    # this might fail with an exception if the file alread exists. 
-    # We'd like to test that, so not trying to catch the exception
-    gcl_handle = gdp.GDP_GCL(create=True, name=gcl_name)
+    gcl_name = gdp.GDP_NAME(name_str)
+
+    print "opening gcl", "".join(["%0.2x" % ord(x) for x in gcl_name.internal_name()])
+    gcl_handle = gdp.GDP_GCL(gcl_name, gdp.GDP_MODE_AO)
 
     # the data that will be written
-    data = generate_random_data(100,10)
+    data = generate_random_data(100, 10)
 
     # writing the data
-    for (idx,s) in enumerate(data):
+    for (idx, s) in enumerate(data):
 
         print "writing message number", idx
         datum = {"data": s}         # Create a minimalist datum object
-        gcl_handle.publish(datum)   # write this to the GCL
-
+        gcl_handle.append(datum)   # write this to the GCL
 
     # reading the data back
-
-
     read_data = []      # to store the data read back from the GCL
     for idx in xrange(len(data)):
 
         print "reading message number", idx
-        datum = gcl_handle.read(idx+1)          # record numbers start from 1
+        datum = gcl_handle.read(idx + 1)          # record numbers start from 1
         read_data.append(datum["data"])         # append the data to read_data
-
 
     # verifying the correctness
     for idx in xrange(len(data)):
         assert data[idx] == read_data[idx]
 
+if __name__ == "__main__":
 
+    if len(sys.argv) < 2:
+        print "Usage: %s <gcl_name>" % sys.argv[0]
+        sys.exit(1)
 
-if __name__=="__main__":
+    gdp.gdp_init("127.0.0.1", 8007)
 
-    if len(sys.argv)==1:    # No name given. Generate a new random GCL
-        main(None)
-    else:
-        # first create a GCL name object
-        gcl_name = gdp.GCL_NAME(sys.argv[1])
-
-        main(gcl_name)   # create a GCL with the given name
+    main(sys.argv[1])   # create a GCL with the given name

@@ -2,14 +2,16 @@
 
 from MISC import *
 
-class GDP_DATUM:
-    """
-    A class only for internal use. The C datum equivalent exposed to python 
-        users is of a dictionary. 
 
-    This is to avoid any side effects that the underlying buffer implementation 
-        may cause. 
-    """    
+class GDP_DATUM:
+
+    """
+    A class only for internal use. The C datum equivalent exposed to python
+        users is of a dictionary.
+
+    This is to avoid any side effects that the underlying buffer implementation
+        may cause.
+    """
 
     class gdp_datum_t(Structure):
         pass
@@ -18,54 +20,53 @@ class GDP_DATUM:
     class __EP_TIME_SPEC(Structure):
         pass
 
-    __EP_TIME_SPEC._fields_ = [ ("tv_sec", c_int64),
-                                ("tv_nsec", c_uint32),
-                                ("tv_accuracy", c_float)]
+    __EP_TIME_SPEC._fields_ = [("tv_sec", c_int64),
+                               ("tv_nsec", c_uint32),
+                               ("tv_accuracy", c_float)]
 
     def __init__(self, **kwargs):
         """
         Constructor: Two ways of creating a new pythong GDP datum object:
-            - Create a new object and allocate new memeory for it by calling 
+            - Create a new object and allocate new memeory for it by calling
               the C library function
             - Create a new object, but associate it with an existing memory
               location.
         """
-        if len(kwargs)==0:
-    
+        if len(kwargs) == 0:
+
             # We do need to create a corresponding C data structure.
             __func = gdp.gdp_datum_new
             __func.argtypes = []
             __func.restype = POINTER(self.gdp_datum_t)
-    
+
             self.gdp_datum = __func()
             self.did_i_create_it = True
 
-        else:   
+        else:
             # we probably got passed a C pointer to an existing datum.
             if "ptr" in kwargs:
                 self.gdp_datum = kwargs["ptr"]
                 self.did_i_create_it = False
             else:
                 raise Exception     # FIXME
-   
+
         return
 
     def __del__(self):
         """
-        Destructor: Does not get called if this GDP datum was created by
+        Destructor: Does nothing if this GDP datum was created by
             passing an exisiting datum pointer
         """
 
         if self.did_i_create_it:
 
-            __func = gdp.gdp_datum_free 
+            __func = gdp.gdp_datum_free
             __func.argtypes = [POINTER(self.gdp_datum_t)]
 
             __func(self.gdp_datum)
         return
 
-
-    def print_to_file(self,fh):
+    def print_to_file(self, fh):
         """
         Print the GDP datum C memory location contents to a file handle fh.
             fh could be sys.stdout, or any other open file handle.
@@ -82,7 +83,6 @@ class GDP_DATUM:
         __func(self.gdp_datum, __fh)
         return
 
-
     def getrecno(self):
         """
         Get the corresponding record number associated with this datum
@@ -95,63 +95,27 @@ class GDP_DATUM:
         ret = __func(self.gdp_datum)
         return int(ret)
 
-
-    def setrecno(self,recno):
-        """
-        Set the record number to a given value. (I don't think this is 
-            very useful for the python purpose, including it anyways)
-        """
-        __recno = gdp_recno_t(recno)
-        __func = gdp.gdp_datum_setrecno
-        __func.argtypes = [POINTER(self.gdp_datum_t), gdp_recno_t]
-        # ignore the return value
-
-        __func(self.gdp_datum, __recno)
-        return
-
-
     def getts(self):
         """
-        Return the timestamp associated with this GDP_DATUM in the form of a 
+        Return the timestamp associated with this GDP_DATUM in the form of a
             dictionary. The keys are: tv_sec, tv_nsec and tv_accuracy
         """
 
         ts = self.__EP_TIME_SPEC()
         __func = gdp.gdp_datum_getts
-        __func.argtypes = [POINTER(self.gdp_datum_t), POINTER(self.__EP_TIME_SPEC)]
+        __func.argtypes = [
+            POINTER(self.gdp_datum_t), POINTER(self.__EP_TIME_SPEC)]
         # ignore the return value
 
         __func(self.gdp_datum, byref(ts))
         # represent the time spec as a dictionary
 
         ret = {}
-        ret['tv_sec']       = ts.tv_sec
-        ret['tv_nsec']      = ts.tv_nsec
-        ret['tv_accuracy']  = ts.tv_accuracy
+        ret['tv_sec'] = ts.tv_sec
+        ret['tv_nsec'] = ts.tv_nsec
+        ret['tv_accuracy'] = ts.tv_accuracy
 
         return ret
-
-    def setts(self, ts):
-        """
-        Set the timestamp for this GDP_DATUM from the input dictionary provided.
-            It should have the following keys: tv_sec, tv_nsec and tv_accuracy
-            - tv_sec is internally represented by a 64 bit integer.
-            - tv_nsec is internally represented by a 32 bit integer.
-            - tv_accuracy is internally represented by a floating point.
-        """
-
-        __ts = self.__EP_TIME_SPEC()
-        __ts.tv_sec = c_int64(ts['tv_sec'])
-        __ts.tv_nsec = c_uint32(ts['tv_nsec'])
-        __ts.tv_accuracy = c_float(ts['tv_accuracy'])
-
-        __func = gdp.gdp_datum_setts
-        __func.argtypes = [POINTER(self.gdp_datum_t), POINTER(self.__EP_TIME_SPEC)]
-        # ignore the return value
-
-        __func(self.gdp_datum, byref(__ts))
-        return
-
 
     def getdlen(self):
         "Returns the length of the data associated with this GDP_DATUM"
@@ -162,7 +126,6 @@ class GDP_DATUM:
 
         ret = __func(self.gdp_datum)
         return ret
-
 
     def getbuf(self):
         """
@@ -190,7 +153,6 @@ class GDP_DATUM:
         readbytes = __func_read(gdp_buf_ptr, byref(tmp_buf), dlen)
         return string_at(tmp_buf, readbytes)
 
-
     def setbuf(self, data):
         "Set the buffer to the given data. data is a python string"
 
@@ -208,7 +170,7 @@ class GDP_DATUM:
         __func_write.restype = c_int
 
         size = c_size_t(len(data))
-        tmp_buf = create_string_buffer(data, len(data))     # XXX: should it be +1 for null?
+        tmp_buf = create_string_buffer(
+            data, len(data))     # XXX: should it be +1 for null?
         written_bytes = __func_write(gdp_buf_ptr, byref(tmp_buf), size)
         return
-
