@@ -33,5 +33,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Change this to point to a gdp_router
-    gdp.gdp_init("127.0.0.1", 8007)
+    gdp.gdp_init()
     main(sys.argv[1])

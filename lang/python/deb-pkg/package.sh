@@ -33,7 +33,7 @@ echo "Package: python-gdp
 Version: 0.1-1
 Priority: optional
 Architecture: all
-Depends: python (<< 2.8), python (>= 2.7~), libgdp (>=0.1-1), libevent-dev (>=2.0~), python-psutil (>= 1.2~)
+Depends: python (<< 2.8), python (>= 2.7~), libgdp (>=0.1-1), libevent-dev (>=2.0~), python-psutil (>= 0.5~)
 Maintainer: Nitesh Mor <mor@eecs.berkeley.edu>
 Description: A python interface for libGDP
  Some sample programs are located at $sharedir/examples

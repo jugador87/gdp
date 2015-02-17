@@ -28,7 +28,6 @@ def main(name_str):
 
         # Collect information that we are going to log
         d = {}
-        d['uptime'] = time.time() - psutil.get_boot_time()
         l = os.getloadavg()
         d['load1'], d['load5'], d['load15'] = l[0], l[1], l[2]
         d['freeram'] = psutil.phymem_usage().free
@@ -50,5 +49,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Change this to point to a gdp_router
-    gdp.gdp_init("127.0.0.1", 8007)
+    gdp.gdp_init()
     main(sys.argv[1])
