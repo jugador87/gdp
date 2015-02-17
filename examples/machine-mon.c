@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sysexits.h>
+#include <unistd.h>
 #include <sys/sysinfo.h>
 #include <sys/time.h>
 
@@ -33,6 +34,9 @@
 **	(5) you should see the reader-test window spit out JSON
 **	    records every 30 seconds showing a bunch of information
 **	    about the machine being monitored.
+**
+**	The -h flag is because on the beaglebone the name is always
+**	"beaglebone".
 */
 
 
@@ -44,8 +48,9 @@ void
 usage(void)
 {
 	fprintf(stderr,
-		"Usage: %s [-D dbgspec] [-s sec] logname\n"
+		"Usage: %s [-D dbgspec] [-h name] [-s sec] logname\n"
 		"    -D  turn on debugging\n"
+		"    -h  hostname (logging tag)\n"
 		"    -s  sample interval in seconds\n",
 		ep_app_getprogname());
 	exit(EX_USAGE);
@@ -60,13 +65,19 @@ main(int argc, char **argv)
 	char *gclpname;
 	bool show_usage = false;
 	int opt;
+	char *hostname = NULL;
+	char hostbuf[100];
 
-	while ((opt = getopt(argc, argv, "D:s:")) > 0)
+	while ((opt = getopt(argc, argv, "D:h:s:")) > 0)
 	{
 		switch (opt)
 		{
 		  case 'D':
 			ep_dbg_set(optarg);
+			break;
+
+		  case 'h':
+			hostname = optarg;
 			break;
 
 		  case 's':
@@ -85,6 +96,16 @@ main(int argc, char **argv)
 		usage();
 
 	gclpname = argv[0];
+
+	if (hostname == NULL)
+	{
+		if (gethostname(hostbuf, sizeof hostbuf) < 0)
+		{
+			ep_app_abort("gethostname failed");
+			exit(1);
+		}
+		hostname = hostbuf;
+	}
 
 	// initialize the GDP library
 	printf("Initializing GDP library:\n");
@@ -135,6 +156,7 @@ main(int argc, char **argv)
 		json = json_object();
 
 		// fill it in with some potentially interesting information
+		json_object_set(json, "host", json_string(hostname));
 		json_object_set(json, "uptime", json_integer(si.uptime));
 		json_object_set(json, "load1", json_integer(si.loads[1]));
 		json_object_set(json, "load5", json_integer(si.loads[2]));
