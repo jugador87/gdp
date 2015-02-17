@@ -34,7 +34,7 @@ Getting Started:
 	will choose a random name).  In any case, it will print its own
 	name when it starts up.
 
-   5.	Start the GDP routing daemon (routia).
+   5.	Start the GDP routing daemon (gdp_router).
 
    6.	Start the GDP log daemon (see above).  Make note of its "GDP
 	routing name" for use in the next step.
@@ -48,7 +48,7 @@ Getting Started:
    8.	Run apps/writer-test giving it the name of the log you just
 	created to add data to the log.  It will ask for lines of input
 	that are appended ot the log.  There is no need to give the
-	name of the log daemon; routia will find it for you.
+	name of the log daemon; gdp_router will find it for you.
 
    9.	Check success by running apps/reader-test giving it the
 	same name as you used in the previous step.
@@ -211,7 +211,7 @@ Start the GDP Routing Daemon:
 
 	Once you have the list of routers you'll need to start the
 	Python program "gdp-router.py".  It takes several parameters
-	which are described in detail in routia/README.md.  The most
+	which are described in detail in gdp_router/README.md.  The most
 	important flag is "-r", which takes the list of known
 	routers as the argument.  For example:
 
@@ -291,7 +291,7 @@ Running GDP-based Programs:
 
 	Note that both the routing and the log daemons must be running
 	before a GDP program can start up.  In many cases, GDP programs
-	will try to reconnect if a component (gdplogd, routia) goes
+	will try to reconnect if a component (gdplogd, gdp_router) goes
 	down, but they must all be up and running before they will start
 	in the first place.
 
@@ -483,7 +483,7 @@ Directory Structure:
 	gdplogd --- The GDP log daemon.  This implements physical
 		(on disk) logs for the GDP.  The implementation is
 		still fairly simplistic.  It depends on a routing
-		layer (currently routia, in a separate repository).
+		layer (currently gdp_router, in a separate repository).
 	scgilib --- An updated version of the SCGI code from
 		http://www.xamuel.com/scgilib/.  SCGI permits a
 		web server to access outside programs by opening
