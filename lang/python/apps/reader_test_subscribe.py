@@ -1,9 +1,12 @@
 #!/usr/bin/python
 
+"""
+A simple program to demonstrate subscriptions
+"""
+
 import sys
 sys.path.append("../")
-
-import wrapper as gdp
+import gdp
 
 
 def main(name_str):
@@ -30,5 +33,6 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print "Usage: %s <gcl-name>" % sys.argv[0]
 
+    # Change this to point to a gdp_router
     gdp.gdp_init("127.0.0.1", 8007)
     main(sys.argv[1])

@@ -2,10 +2,7 @@
 
 """
 A simple program that:
-- creates a new GCL with either a given human readable name on command line, or a random name
-  - if the GCL exists already, complains and dies miserably. You get a python exception from
-    the call to the function. It's your responsibility to catch the exception
-- writes a number of  random messages, each of size fixed bytes.
+- writes a number of random messages, each of size fixed bytes.
 - reads all the messages back
 - verifies that what was written is exactly what is read back
 
@@ -16,7 +13,7 @@ import sys
 sys.path.append("../")
                 # So that we can actually load the python_api module
 
-import wrapper as gdp    # load the main package
+import gdp    # load the main package
 import random
 import string
 
@@ -45,21 +42,24 @@ def main(name_str):
     # writing the data
     for (idx, s) in enumerate(data):
 
-        print "writing message number", idx
+        print "writing message", idx
         datum = {"data": s}         # Create a minimalist datum object
         gcl_handle.append(datum)   # write this to the GCL
 
     # reading the data back
-    read_data = []      # to store the data read back from the GCL
-    for idx in xrange(len(data)):
 
-        print "reading message number", idx
-        datum = gcl_handle.read(idx + 1)          # record numbers start from 1
+    # to store the data read back from the GCL
+    read_data = [] 
+    for idx in xrange(-1*len(data),0):
+
+        print "reading message", -1*idx, "from the end"
+        datum = gcl_handle.read(idx)            # -n => n-th record from end
         read_data.append(datum["data"])         # append the data to read_data
 
     # verifying the correctness
     for idx in xrange(len(data)):
-        assert data[idx] == read_data[idx]
+        if data[idx] == read_data[idx]:
+            print "message %d matches" % idx
 
 if __name__ == "__main__":
 
@@ -67,6 +67,7 @@ if __name__ == "__main__":
         print "Usage: %s <gcl_name>" % sys.argv[0]
         sys.exit(1)
 
+    # Change this to point to a gdp_router
     gdp.gdp_init("127.0.0.1", 8007)
 
     main(sys.argv[1])   # create a GCL with the given name

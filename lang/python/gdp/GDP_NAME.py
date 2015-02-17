@@ -6,11 +6,12 @@ from MISC import *
 class GDP_NAME:
 
     """
-    Represents name of a GCL. Each GCL has potentially up to three kind of names:
+    Represents name of a GCL. Each GCL has potentially up to three kind of 
+    names:
         - a 256 bit binary name
         - a Base-64(ish) representation
-        - (optional) a more memorable name, which potentially is hashed to get the
-          binary name
+        - (optional) a more memorable name, which potentially is hashed to 
+          get the binary name
     """
 
     # name_t, pname_t are ctypes types corresponding to gdp_name_t, gdp_pname_t
