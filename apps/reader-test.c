@@ -45,6 +45,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("reader-test", "GDP Reader Test Program");
 
 FILE	*LogFile;
 bool	TextData = false;		// set if data should be displayed as text
+int		NRead = 0;				// number of datums read
 
 void
 do_log(const char *tag)
@@ -70,6 +71,7 @@ printdatum(gdp_datum_t *datum, FILE *fp)
 	fprintf(fp, " >>> ");
 	gdp_datum_print(datum, fp, TextData ? GDP_DATUM_PRTEXT : 0);
 	funlockfile(fp);
+	NRead++;
 }
 
 
@@ -448,7 +450,7 @@ main(int argc, char **argv)
 
 fail0:
 	// might as well let the user know what's going on....
-	fprintf(stderr, "exiting with status %s\n",
-			ep_stat_tostr(estat, buf, sizeof buf));
+	fprintf(stderr, "exiting after %d records with status %s\n",
+			NRead, ep_stat_tostr(estat, buf, sizeof buf));
 	return !EP_STAT_ISOK(estat);
 }
