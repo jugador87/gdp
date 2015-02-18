@@ -15,8 +15,10 @@ fi
 if [ -x bin/run-gdp-rest ]
 then
 	bin/run-gdp-rest &
+	sleep 2
 fi
-if [ -x bin/run-machine-mon ]
+if [ -x bin/run-gdp-machine-mon ]
 then
-	bin/run-machine-mon &
+	bin/run-gdp-machine-mon &
+	sleep 2
 fi
