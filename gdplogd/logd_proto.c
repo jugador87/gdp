@@ -737,6 +737,13 @@ dispatch_cmd(gdp_req_t *req)
 			else
 				req->pdu->cmd = GDP_NAK_S_INTERNAL;
 		}
+
+		// log server errors
+		if (req->pdu->cmd >= GDP_NAK_S_MIN && req->pdu->cmd <= GDP_NAK_S_MAX)
+		{
+			ep_log(estat, "dispatch_cmd(%s): server failure",
+					_gdp_proto_cmd_name(cmd));
+		}
 	}
 
 	if (ep_dbg_test(Dbg, 18))

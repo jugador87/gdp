@@ -112,6 +112,12 @@ gdp_pdu_proc_thread(void *req_)
 //		else if (EP_STAT_ISERROR(estat))
 //			req->pdu->cmd = GDP_ACK_XXX;
 
+		if (req->pdu->cmd >= GDP_NAK_S_MIN && req->pdu->cmd <= GDP_NAK_S_MAX)
+		{
+			ep_log(estat, "_gdp_req_dispatch(%s): server error",
+					_gdp_proto_cmd_name(cmd));
+		}
+
 		// send response PDU if appropriate
 		if (GDP_CMD_NEEDS_ACK(cmd))
 		{
