@@ -42,7 +42,7 @@ ep_hexdump(const void *bufp, size_t buflen, FILE *fp,
 				if (isprint(b[i]))
 					fprintf(fp, " %c ", b[i]);
 				else
-					fprintf(fp, " %s ", EpChar->unprintable);
+					fprintf(fp, " %-2s", EpChar->unprintable);
 			}
 		}
 		fprintf(fp, "\n");
