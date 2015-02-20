@@ -223,7 +223,7 @@ do_multiread(gdp_gcl_t *gcl,
 	}
 
 	// this sleep will allow multiple results to appear before we start reading
-	if (ep_dbg_test(Dbg, 1))
+	if (ep_dbg_test(Dbg, 100))
 		ep_time_nanosleep(500000000);	//DEBUG: one half second
 
 	// now start reading the events that will be generated
@@ -450,7 +450,7 @@ main(int argc, char **argv)
 
 fail0:
 	// might as well let the user know what's going on....
-	fprintf(stderr, "exiting after %d records with status %s\n",
+	printf("exiting after %d records with status %s\n",
 			NRead, ep_stat_tostr(estat, buf, sizeof buf));
 	return !EP_STAT_ISOK(estat);
 }
