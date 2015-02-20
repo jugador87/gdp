@@ -137,13 +137,11 @@ _gdp_subscr_poke(gdp_chan_t *chan)
 			//XXX unclear what to do here
 			continue;
 		}
-		_gdp_req_lock(pokereq);
 		estat = _gdp_req_send(pokereq);
 		if (!EP_STAT_ISOK(estat))
 		{
 			//XXX also unclear
 		}
-		_gdp_req_unlock(pokereq);
 		_gdp_req_free(pokereq);
 	}
 }
