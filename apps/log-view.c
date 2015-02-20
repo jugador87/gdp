@@ -22,7 +22,8 @@ void
 usage(const char *msg)
 {
 	fprintf(stderr, "Usage error: %s\n", msg);
-	fprintf(stderr, "Usage: log-view [-l] [-r] [gcl_name]\n");
+	fprintf(stderr, "Usage: log-view [-d dir] [-l] [-r] [gcl_name]\n");
+	fprintf(stderr, "\t-d dir -- set log database root directory\n");
 	fprintf(stderr, "\t-l -- list all local GCLs\n");
 	fprintf(stderr, "\t-r -- don't print raw byte hex dumps\n");
 
@@ -116,16 +117,22 @@ main(int argc, char *argv[])
 	char *gcl_xname = NULL;
 	char *gcl_dir_name = GCL_DIR;
 
-	while ((opt = getopt(argc, argv, "lr")) > 0)
+	while ((opt = getopt(argc, argv, "d:lr")) > 0)
 	{
 		switch (opt)
 		{
+		case 'd':
+			gcl_dir_name = optarg;
+			break;
+
 		case 'l':
 			list_gcl = true;
 			break;
+
 		case 'r':
 			print_raw = false;
 			break;
+
 		default:
 			usage("unknown flag");
 		}
