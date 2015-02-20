@@ -53,6 +53,8 @@
 **	went for simplicity.
 */
 
+extern void	ep_thr_yield(void);
+
 typedef pthread_mutex_t		EP_THR_MUTEX;
 #  define	EP_THR_MUTEX_INITIALIZER	= PTHREAD_MUTEX_INITIALIZER
 extern int	ep_thr_mutex_init(EP_THR_MUTEX *mtx, int type);
@@ -101,6 +103,8 @@ void		ep_thr_pool_run(
 			void *arg);		// passed to func
 
 # else // ! EP_OSCF_USE_PTHREADS
+
+# define	ep_thr_yield()
 
 typedef int	EP_THR_MUTEX;
 #  define	EP_THR_MUTEX_INITIALIZER

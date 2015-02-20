@@ -84,6 +84,21 @@ _ep_thr_init(void)
 
 
 /*
+**  Basics
+*/
+
+void
+ep_thr_yield(void)
+{
+	TRACE(NULL, "yield");
+	if (!_EpThrUsePthreads)
+		return;
+	if (sched_yield() < 0)
+		diagnose_thr_err(errno, "yield");
+}
+
+
+/*
 **  Mutex implementation
 */
 
