@@ -58,9 +58,9 @@ _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 	gdp_print_name(pdu->dst, fp);
 	fprintf(fp, "\n\tsrc=");
 	gdp_print_name(pdu->src, fp);
-	fprintf(fp, "\n\trid=%u, sigalg=0x%x, siglen=%d, olen=%d"
+	fprintf(fp, "\n\trid=%u, sigalg=0x%x, siglen=%d, olen=%d, chan=%p"
 				"\n\tflags=",
-				pdu->rid, pdu->sigalg, pdu->siglen, pdu->olen);
+				pdu->rid, pdu->sigalg, pdu->siglen, pdu->olen, pdu->chan);
 	ep_prflags(pdu->flags, PduFlags, fp);
 	fprintf(fp, "\n\tdatum=%p", pdu->datum);
 	if (pdu->datum != NULL)
@@ -145,11 +145,19 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		memcpy(pdu->src, _GdpMyRoutingName, sizeof pdu->src);
 	}
 
-	if (ep_dbg_test(Dbg, 22))
+	if (ep_dbg_test(Dbg, 18))
 	{
-		ep_dbg_printf("_gdp_pdu_out (fd = %d):\n    ",
+		ep_dbg_printf("_gdp_pdu_out (fd = %d):",
 				bufferevent_getfd(chan->bev));
-		_gdp_pdu_dump(pdu, ep_dbg_getfile());
+		if (ep_dbg_test(Dbg, 22))
+		{
+			ep_dbg_printf("\n    ");
+			_gdp_pdu_dump(pdu, ep_dbg_getfile());
+		}
+		else
+		{
+			ep_dbg_printf(" %s\n", _gdp_proto_cmd_name(pdu->cmd));
+		}
 	}
 
 	// version number
@@ -353,6 +361,9 @@ _gdp_pdu_hdr_in(gdp_pdu_t *pdu,
 		return GDP_STAT_KEEP_READING;
 	}
 
+	// hack: store metadata
+	pdu->chan = chan;
+
 	// read the fixed part of the PDU header in
 	pbp = pbuf;
 	pdu->ver = *pbp++;
@@ -464,8 +475,10 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 
 	if (ep_dbg_test(Dbg, 32))
 	{
+		flockfile(ep_dbg_getfile());
 		ep_dbg_printf("_gdp_pdu_in: read PDU header:\n");
 		ep_hexdump(pbuf, sz, ep_dbg_getfile(), EP_HEXDUMP_HEX, 0);
+		funlockfile(ep_dbg_getfile());
 	}
 
 	// record number
@@ -518,13 +531,24 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		}
 	}
 
-	if (ep_dbg_test(Dbg, 22))
+	if (ep_dbg_test(Dbg, 18))
 	{
 		char ebuf[200];
 
-		ep_dbg_printf("_gdp_pdu_in => %s\n    ",
-				ep_stat_tostr(estat, ebuf, sizeof ebuf));
-		_gdp_pdu_dump(pdu, ep_dbg_getfile());
+		flockfile(ep_dbg_getfile());
+		if (ep_dbg_test(Dbg, 22))
+		{
+			ep_dbg_printf("_gdp_pdu_in => %s\n    ",
+					ep_stat_tostr(estat, ebuf, sizeof ebuf));
+			_gdp_pdu_dump(pdu, ep_dbg_getfile());
+		}
+		else
+		{
+			ep_dbg_printf("_gdp_pdu_in(%s) => %s\n",
+					_gdp_proto_cmd_name(pdu->cmd),
+					ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		}
+		funlockfile(ep_dbg_getfile());
 	}
 
 	return estat;

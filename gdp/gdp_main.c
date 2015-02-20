@@ -48,149 +48,18 @@ init_error(const char *datum, const char *where)
 **		This is the part of PDU processing that should be done in
 **		a thread if the command is heavy weight.  As a rule of
 **		thumb, commands are heavy, acks/naks are light.
-**
-**		On entry, the request will be locked.  If we are done with
-**		it, we have to either free it or unlock it.
 */
 
 static void
-gdp_pdu_proc_thread(void *req_)
+gdp_pdu_proc_thread(void *pdu_)
 {
-	gdp_req_t *req = req_;
-	int cmd = req->pdu->cmd;
-	bool pdu_is_command = GDP_CMD_IS_COMMAND(cmd);
+	gdp_pdu_t *pdu = pdu_;
+	int cmd = pdu->cmd;
 	EP_STAT estat;
-
-	ep_dbg_cprintf(Dbg, 40, "gdp_pdu_proc_thread >>> req=%p, iscmd=%d\n",
-			req, pdu_is_command);
-
-	//XXX dispatch command or ack/nak
-	estat = _gdp_req_dispatch(req);
-
-	if (pdu_is_command)
-	{
-		/*** We are processing a command ***/
-
-		// swap source and destination address for commands (now response)
-		{
-			gdp_name_t temp;
-
-			memcpy(temp, req->pdu->src, sizeof temp);
-			memcpy(req->pdu->src, req->pdu->dst, sizeof req->pdu->src);
-			memcpy(req->pdu->dst, temp, sizeof req->pdu->dst);
-		}
-
-		// decode return status as protocol status
-		req->pdu->cmd = GDP_NAK_S_INTERNAL;		// default to panic code
-		if (EP_STAT_REGISTRY(estat) == EP_REGISTRY_UCB &&
-			EP_STAT_MODULE(estat) == GDP_MODULE)
-		{
-			int d = EP_STAT_DETAIL(estat);
-
-			if (EP_STAT_ISOK(estat))
-			{
-				if (d >= 200 && d < (200 + GDP_ACK_MAX - GDP_ACK_MIN))
-					req->pdu->cmd = d - 200 + GDP_ACK_MIN;
-				else
-					req->pdu->cmd = GDP_ACK_SUCCESS;
-			}
-			else if (EP_STAT_ISERROR(estat))
-			{
-				if (d >= 400 && d < (400 + GDP_NAK_C_MAX - GDP_NAK_C_MIN))
-					req->pdu->cmd = d - 400 + GDP_NAK_C_MIN;
-//				else
-//					req->pdu->cmd = GDP_ACK_C_BADREQ;
-			}
-			else if (EP_STAT_ISSEVERE(estat))
-			{
-				if (d >= 500 && d < (500 + GDP_NAK_S_MAX - GDP_NAK_S_MIN))
-					req->pdu->cmd = d - 500 + GDP_NAK_S_MIN;
-			}
-		}
-		else if (EP_STAT_ISOK(estat))
-			req->pdu->cmd = GDP_ACK_SUCCESS;
-//		else if (EP_STAT_ISERROR(estat))
-//			req->pdu->cmd = GDP_ACK_XXX;
-
-		if (req->pdu->cmd >= GDP_NAK_S_MIN && req->pdu->cmd <= GDP_NAK_S_MAX)
-		{
-			ep_log(estat, "_gdp_req_dispatch(%s): server error",
-					_gdp_proto_cmd_name(cmd));
-		}
-
-		// send response PDU if appropriate
-		if (GDP_CMD_NEEDS_ACK(cmd))
-		{
-			ep_dbg_cprintf(Dbg, 41,
-					"gdp_pdu_proc_thread: sending %zd bytes\n",
-					evbuffer_get_length(req->pdu->datum->dbuf));
-			req->stat = _gdp_pdu_out(req->pdu, req->chan);
-			//XXX anything to do with estat here?
-		}
-
-		//XXX do command post processing
-		if (req->postproc)
-		{
-			(req->postproc)(req);
-			req->postproc = NULL;
-		}
-	}
-	else
-	{
-		/*** We are processing a response (ack/nak) ***/
-
-		// ASSERT(all data from chan has been consumed);
-
-		_gdp_req_lock(req);
-		if (EP_UT_BITSET(GDP_REQ_CLT_SUBSCR, req->flags))
-		{
-			// send the status as an event
-			estat = _gdp_subscr_event(req);
-		}
-		else
-		{
-			// return our status via the request
-			req->stat = estat;
-			req->flags |= GDP_REQ_DONE;
-			if (ep_dbg_test(Dbg, 44))
-			{
-				ep_dbg_printf("gdp_pdu_proc_thread: signalling ");
-				_gdp_req_dump(req, ep_dbg_getfile());
-			}
-
-			// wake up invoker, which will return the status
-			ep_thr_cond_signal(&req->cond);
-		}
-		_gdp_req_unlock(req);
-	}
-
-	// free up resources
-	if (EP_UT_BITSET(GDP_REQ_CORE, req->flags) &&
-		!EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
-	{
-		_gdp_req_free(req);
-	}
-
-	ep_dbg_cprintf(Dbg, 40, "gdp_pdu_proc_thread <<< done\n");
-}
-
-
-/*
-**  _GDP_PDU_PROCESS --- process a PDU
-**
-**		This is responsible for the lightweight stuff that can happen
-**		in the I/O thread, such as matching an ack/nak PDU with the
-**		corresponding req.  It should never block.  The heavy lifting
-**		is done in the routine above.
-*/
-
-void
-_gdp_pdu_process(gdp_pdu_t *pdu, gdp_chan_t *chan)
-{
-	bool pdu_is_command = GDP_CMD_IS_COMMAND(pdu->cmd);
+	bool pdu_is_command = GDP_CMD_IS_COMMAND(cmd);
 	gdp_gcl_t *gcl;
 	gdp_req_t *req = NULL;
-	EP_STAT estat;
+	int resp;
 
 	if (pdu_is_command)
 	{
@@ -211,7 +80,7 @@ _gdp_pdu_process(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		{
 			gdp_pname_t pbuf;
 
-			ep_dbg_printf("_gdp_pdu_process: GCL %s has no handle\n",
+			ep_dbg_printf("gdp_pdu_proc_thread: GCL %s has no handle\n",
 					gdp_printable_name(pdu->src, pbuf));
 		}
 	}
@@ -219,15 +88,17 @@ _gdp_pdu_process(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	if (req == NULL)
 	{
 		ep_dbg_cprintf(Dbg, 43,
-				"_gdp_pdu_process: allocating new req for GCL %p\n", gcl);
-		estat = _gdp_req_new(pdu->cmd, gcl, chan, pdu, GDP_REQ_CORE, &req);
+				"gdp_pdu_proc_thread: allocating new req for GCL %p\n", gcl);
+		estat = _gdp_req_new(cmd, gcl, pdu->chan, pdu, GDP_REQ_CORE, &req);
 		EP_STAT_CHECK(estat, goto fail0);
 	}
 	else if (ep_dbg_test(Dbg, 43))
 	{
-		ep_dbg_printf("_gdp_pdu_process: using existing ");
+		ep_dbg_printf("gdp_pdu_proc_thread: using existing ");
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
+
+	// request is locked
 
 	// we want to re-use caller's datum for (e.g.) read commands
 	if (req->pdu != pdu)
@@ -236,7 +107,7 @@ _gdp_pdu_process(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		{
 			if (ep_dbg_test(Dbg, 43))
 			{
-				ep_dbg_printf("_gdp_pdu_process: reusing old datum "
+				ep_dbg_printf("gdp_pdu_proc_thread: reusing old datum "
 						"for req %p\n   ",
 						req);
 				_gdp_datum_dump(req->pdu->datum, ep_dbg_getfile());
@@ -264,17 +135,155 @@ _gdp_pdu_process(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		pdu = NULL;
 	}
 
-	//XXX cmd: dispatch in thread; ack: dispatch directly
+	ep_dbg_cprintf(Dbg, 40, "gdp_pdu_proc_thread >>> req=%p, iscmd=%d\n",
+			req, pdu_is_command);
+
+	//XXX dispatch command or ack/nak
+	estat = _gdp_req_dispatch(req);
+
+	// figure out potential response code
+	// we compute even if unused so we can log server errors
+	resp = GDP_NAK_S_INTERNAL;		// default to panic code
+	if (EP_STAT_REGISTRY(estat) == EP_REGISTRY_UCB &&
+		EP_STAT_MODULE(estat) == GDP_MODULE)
+	{
+		int d = EP_STAT_DETAIL(estat);
+
+		if (EP_STAT_ISOK(estat))
+		{
+			if (d >= 200 && d < (200 + GDP_ACK_MAX - GDP_ACK_MIN))
+				resp = d - 200 + GDP_ACK_MIN;
+			else
+				resp = GDP_ACK_SUCCESS;
+		}
+		else if (EP_STAT_ISERROR(estat))
+		{
+			if (d >= 400 && d < (400 + GDP_NAK_C_MAX - GDP_NAK_C_MIN))
+				resp = d - 400 + GDP_NAK_C_MIN;
+//				else
+//					resp = GDP_ACK_C_BADREQ;
+		}
+		else if (EP_STAT_ISSEVERE(estat))
+		{
+			if (d >= 500 && d < (500 + GDP_NAK_S_MAX - GDP_NAK_S_MIN))
+				resp = d - 500 + GDP_NAK_S_MIN;
+		}
+	}
+	else if (EP_STAT_ISOK(estat))
+		resp = GDP_ACK_SUCCESS;
+//		else if (EP_STAT_ISERROR(estat))
+//			resp = GDP_ACK_XXX;
+
+	if (resp >= GDP_NAK_S_MIN && resp <= GDP_NAK_S_MAX)
+	{
+		ep_log(estat, "_gdp_req_dispatch(%s): server error",
+				_gdp_proto_cmd_name(cmd));
+	}
+
 	if (pdu_is_command)
-		ep_thr_pool_run(&gdp_pdu_proc_thread, req);
+	{
+		/*** We are processing a command ***/
+
+		// swap source and destination address for commands (now response)
+		{
+			gdp_name_t temp;
+
+			memcpy(temp, req->pdu->src, sizeof temp);
+			memcpy(req->pdu->src, req->pdu->dst, sizeof req->pdu->src);
+			memcpy(req->pdu->dst, temp, sizeof req->pdu->dst);
+		}
+
+		// send response PDU if appropriate
+		if (GDP_CMD_NEEDS_ACK(cmd))
+		{
+			ep_dbg_cprintf(Dbg, 41,
+					"gdp_pdu_proc_thread: sending %zd bytes\n",
+					evbuffer_get_length(req->pdu->datum->dbuf));
+			req->pdu->cmd = resp;
+			req->stat = _gdp_pdu_out(req->pdu, req->chan);
+			//XXX anything to do with estat here?
+		}
+
+		//XXX do command post processing
+		if (req->postproc)
+		{
+			(req->postproc)(req);
+			req->postproc = NULL;
+		}
+	}
 	else
-		gdp_pdu_proc_thread(req);
+	{
+		/*** We are processing a response (ack/nak) ***/
+
+		// ASSERT(all data from chan has been consumed);
+
+		if (req->state == GDP_REQ_WAITING)
+		{
+			// return our status via the request
+			req->stat = estat;
+			req->flags |= GDP_REQ_DONE;
+			if (ep_dbg_test(Dbg, 40))
+			{
+				ep_dbg_printf("gdp_pdu_proc_thread: signaling ");
+				_gdp_req_dump(req, ep_dbg_getfile());
+			}
+
+			// wake up invoker, which will return the status
+			ep_thr_cond_signal(&req->cond);
+
+			// give _gdp_invoke a chance to run; not necessary, but
+			// gives avoids having to wait on condition variables
+			ep_thr_yield();
+		}
+		else if (EP_UT_BITSET(GDP_REQ_CLT_SUBSCR, req->flags))
+		{
+			// send the status as an event
+			EP_ASSERT(req->state == GDP_REQ_IDLE);
+			estat = _gdp_subscr_event(req);
+		}
+	}
+
+
+	// free up resources
+	if (EP_UT_BITSET(GDP_REQ_CORE, req->flags) &&
+		!EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
+	{
+		_gdp_req_free(req);
+	}
+	else
+	{
+		_gdp_req_unlock(req);
+	}
+
+	ep_dbg_cprintf(Dbg, 40, "gdp_pdu_proc_thread <<< done\n");
 
 	return;
 
 fail0:
-	ep_log(estat, "_gdp_pdu_process: cannot allocate request; dropping PDU");
+	ep_log(estat, "gdp_pdu_proc_thread: cannot allocate request; dropping PDU");
 	_gdp_pdu_free(pdu);		//XXX ??? who owns the pdu?
+}
+
+
+/*
+**  _GDP_PDU_PROCESS --- process a PDU
+**
+**		This is responsible for the lightweight stuff that can happen
+**		in the I/O thread, such as matching an ack/nak PDU with the
+**		corresponding req.  It should never block.  The heavy lifting
+**		is done in the routine above.
+*/
+
+void
+_gdp_pdu_process(gdp_pdu_t *pdu, gdp_chan_t *chan)
+{
+	bool pdu_is_command = GDP_CMD_IS_COMMAND(pdu->cmd);
+
+	// cmd: dispatch in thread; ack: dispatch directly
+	if (pdu_is_command)
+		ep_thr_pool_run(&gdp_pdu_proc_thread, pdu);
+	else
+		gdp_pdu_proc_thread(pdu);
 }
 
 

@@ -82,7 +82,7 @@ typedef struct gdp_pdu
 {
 	// metadata
 	TAILQ_ENTRY(gdp_pdu)	list;		// work list
-//	gdp_chan_t				*chan;		// I/O channel for this PDU entry
+	gdp_chan_t				*chan;		// I/O channel for this PDU entry
 	bool					inuse:1;	// indicates that this is allocated
 
 	// PDU data

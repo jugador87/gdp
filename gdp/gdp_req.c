@@ -19,6 +19,37 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.req", "GDP request processing");
 static struct req_head	ReqFreeList = LIST_HEAD_INITIALIZER(ReqFreeList);
 static EP_THR_MUTEX		ReqFreeListMutex	EP_THR_MUTEX_INITIALIZER;
 
+static const char *ReqStates[] =
+{
+	"FREE",			// 0
+	"ACTIVE",		// 1
+	"WAITING",		// 2
+	"IDLE",			// 3
+};
+
+
+/*
+**  Show string version of state (for debugging output)
+**
+**		Not thread safe, but only for impossible states.
+*/
+
+static const char *
+statestr(int state)
+{
+	static char sbuf[20];
+
+	if (state >= 0 && state < sizeof ReqStates)
+	{
+		return ReqStates[state];
+	}
+	else
+	{
+		snprintf(sbuf, sizeof sbuf, "IMPOSSIBLE(%d)", state);
+		return sbuf;
+	}
+}
+
 /*
 **  _GDP_REQ_NEW --- allocate a new request
 **
@@ -35,6 +66,7 @@ static EP_THR_MUTEX		ReqFreeListMutex	EP_THR_MUTEX_INITIALIZER;
 **		The request has been allocated an id (possibly unique to gcl),
 **			but the request has not been linked onto the GCL's request list.
 **			This allows the caller to adjust the request without locking it.
+**		The request is always returned locked.
 */
 
 EP_STAT
@@ -64,11 +96,15 @@ _gdp_req_new(int cmd,
 		ep_thr_mutex_init(&req->mutex, EP_THR_MUTEX_DEFAULT);
 		ep_thr_cond_init(&req->cond);
 	}
+	else
+	{
+		// sanity checks
+		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
+		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags));
+		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
+	}
 
-	// sanity checks
-	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
-	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags));
-	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
+	_gdp_req_lock(req);
 
 	// initialize request
 	if (pdu != NULL)
@@ -77,7 +113,7 @@ _gdp_req_new(int cmd,
 		req->pdu = pdu = _gdp_pdu_new();
 	req->gcl = gcl;
 	req->stat = EP_STAT_OK;
-	req->flags = flags;
+	req->flags = flags | GDP_REQ_LOCKED;
 	req->chan = chan;
 
 	// keep track of all outstanding requests on a channel
@@ -110,6 +146,7 @@ _gdp_req_new(int cmd,
 	req->state = GDP_REQ_ACTIVE;
 	*reqp = req;
 	ep_dbg_cprintf(Dbg, 48, "gdp_req_new(gcl=%p) => %p\n", gcl, req);
+	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 	return estat;
 }
 
@@ -119,6 +156,8 @@ _gdp_req_new(int cmd,
 **
 **		Note that we grab the GCL linked list as the free list, since
 **		it's impossible for a free request to be attached to a GCL.
+**
+**		The request must be locked on entry.
 */
 
 void
@@ -127,8 +166,7 @@ _gdp_req_free(gdp_req_t *req)
 	ep_dbg_cprintf(Dbg, 48, "gdp_req_free(%p)  gcl=%p\n", req, req->gcl);
 
 	EP_ASSERT(req->state != GDP_REQ_FREE);
-	EP_ASSERT(!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
-	_gdp_req_lock(req);
+	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 
 	// remove the request from the channel subscription list
 	if (EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags))
@@ -153,12 +191,13 @@ _gdp_req_free(gdp_req_t *req)
 	}
 
 	req->state = GDP_REQ_FREE;
-	_gdp_req_unlock(req);
 
 	// add the empty request to the free list
 	ep_thr_mutex_lock(&ReqFreeListMutex);
 	LIST_INSERT_HEAD(&ReqFreeList, req, gcllist);
 	ep_thr_mutex_unlock(&ReqFreeListMutex);
+
+	_gdp_req_unlock(req);
 }
 
 
@@ -191,19 +230,39 @@ _gdp_req_freeall(struct req_head *reqlist, void (*shutdownfunc)(gdp_req_t *))
 void
 _gdp_req_lock(gdp_req_t *req)
 {
-	EP_ASSERT_INSIST(!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
+//	static EP_THR_MUTEX mtx EP_THR_MUTEX_INITIALIZER;
+//
+//	ep_thr_mutex_lock(&mtx);
+//
+	if (EP_UT_BITSET(GDP_REQ_LOCKED, req->flags))
+	{
+		ep_dbg_printf("WARNING: _gdp_req_lock: is locked: ");
+		_gdp_req_dump(req, ep_dbg_getfile());
+	}
+//	EP_ASSERT_INSIST(!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 	ep_dbg_cprintf(Dbg, 60, "_gdp_req_lock: req @ %p\n", req);
-	req->flags |= GDP_REQ_LOCKED;
 	ep_thr_mutex_lock(&req->mutex);
+	req->flags |= GDP_REQ_LOCKED;
+//	ep_thr_mutex_unlock(&mtx);
 }
 
 void
 _gdp_req_unlock(gdp_req_t *req)
 {
-	EP_ASSERT_INSIST(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
+//	static EP_THR_MUTEX mtx EP_THR_MUTEX_INITIALIZER;
+
+//	ep_thr_mutex_lock(&mtx);
+
+	if (!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags))
+	{
+		ep_dbg_printf("WARNING: _gdp_req_unlock: not locked: ");
+		_gdp_req_dump(req, ep_dbg_getfile());
+	}
+//	EP_ASSERT_INSIST(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 	ep_dbg_cprintf(Dbg, 60, "_gdp_req_unlock: req @ %p\n", req);
 	req->flags &= ~GDP_REQ_LOCKED;
 	ep_thr_mutex_unlock(&req->mutex);
+//	ep_thr_mutex_unlock(&mtx);
 }
 
 
@@ -218,6 +277,8 @@ _gdp_req_unlock(gdp_req_t *req)
 **		the corresponding request).  If it's already on a GCL list we
 **		work on the assumption that it is this one.  We might want to
 **		verify that for debugging purposes.
+**
+**		The request must be locked.
 */
 
 EP_STAT
@@ -228,9 +289,13 @@ _gdp_req_send(gdp_req_t *req)
 
 	if (ep_dbg_test(Dbg, 45))
 	{
+		flockfile(ep_dbg_getfile());
 		ep_dbg_printf("_gdp_req_send: ");
 		_gdp_req_dump(req, ep_dbg_getfile());
+		funlockfile(ep_dbg_getfile());
 	}
+
+	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 
 	req->flags &= ~GDP_REQ_DONE;
 	if (gcl != NULL && !EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
@@ -271,6 +336,8 @@ _gdp_req_unsend(gdp_req_t *req)
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
+	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
+
 	if (gcl == NULL)
 	{
 		ep_dbg_cprintf(Dbg, 4, "_gdp_req_unsend: req %p has NULL GCL\n",
@@ -301,7 +368,7 @@ _gdp_req_unsend(gdp_req_t *req)
 **		the req locked because that would require passing a lock between
 **		threads, which is a non-starter.  To get around that the req
 **		has a state; if it is currently in active use by another thread
-**		we have to wait.
+**		we have to wait.  However, this does return the req pre-locked.
 **
 **		This may be the wrong place to do this, since this blocks the
 **		I/O thread.  Arguably the I/O thread should read PDUs, put them
@@ -309,6 +376,8 @@ _gdp_req_unsend(gdp_req_t *req)
 **		more-or-less what gdplogd does now, so this problem only shows
 **		up in clients that may be working with many GCLs at the same
 **		time.  Tomorrow is another day.
+**
+**		XXX This interleaves the GCL mutex and the request mutex XXX
 */
 
 gdp_req_t *
@@ -319,10 +388,15 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 	ep_thr_mutex_lock(&gcl->mutex);
 	for (;;)
 	{
-		LIST_FOREACH(req, &gcl->reqs, gcllist)
+		req = LIST_FIRST(&gcl->reqs);
+		while (req != NULL)
 		{
+			_gdp_req_lock(req);
+			gdp_req_t *req2 = LIST_NEXT(req, gcllist);
 			if (req->pdu->rid == rid)
 				break;
+			_gdp_req_unlock(req);
+			req = req2;
 		}
 		if (req == NULL)
 			break;				// nothing to find
@@ -332,26 +406,25 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 			break;				// this is what we are looking for!
 
 		// it's in the wrong state; wait for a change and then try again
-		ep_dbg_cprintf(Dbg, 20, "_gdp_req_find: wrong state: %d\n",
-				req->state);
+		ep_dbg_cprintf(Dbg, 20, "_gdp_req_find: wrong state: %s\n",
+				statestr(req->state));
 		//XXX should have a timeout here
-		_gdp_req_lock(req);
 		ep_thr_cond_wait(&req->cond, &req->mutex, NULL);
-		_gdp_req_unlock(req);
 	}
-	if (req != NULL && !EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
+	if (req != NULL)
 	{
-		_gdp_req_lock(req);
-		EP_ASSERT(EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
-		LIST_REMOVE(req, gcllist);
-		req->flags &= ~GDP_REQ_ON_GCL_LIST;
-		_gdp_req_unlock(req);
+		if (!EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
+		{
+			EP_ASSERT(EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
+			LIST_REMOVE(req, gcllist);
+			req->flags &= ~GDP_REQ_ON_GCL_LIST;
+		}
 	}
 	ep_thr_mutex_unlock(&gcl->mutex);
 
 	ep_dbg_cprintf(Dbg, 48,
-			"gdp_req_find(gcl=%p, rid=%" PRIgdp_rid ", state=%d) => %p\n",
-			gcl, rid, req->state, req);
+			"gdp_req_find(gcl=%p, rid=%" PRIgdp_rid ", state=%s) => %p\n",
+			gcl, rid, statestr(req->state), req);
 	return req;
 }
 
@@ -371,41 +444,32 @@ static EP_PRFLAGS_DESC	ReqFlags[] =
 	{ 0,					0,						NULL			}
 };
 
-static const char *ReqStates[] =
-{
-	"FREE",			// 0
-	"ACTIVE",		// 1
-	"WAITING",		// 2
-	"IDLE",			// 3
-};
 
 void
 _gdp_req_dump(gdp_req_t *req, FILE *fp)
 {
 	char ebuf[200];
-	char sbuf[10];
-	const char *statestr;
 
-	if (req->state >= 0 && req->state < sizeof ReqStates)
-		statestr = ReqStates[req->state];
-	else
-	{
-		statestr = sbuf;
-		snprintf(sbuf, sizeof sbuf, "%d", req->state);
-	}
-
-	flockfile(fp);
-	fprintf(fp, "req@%p: ", req);
 	if (req == NULL)
 	{
-		fprintf(fp, "null\n");
-		goto done;
+		fprintf(fp, "req@%p: null\n", req);
+		return;
 	}
+	if (!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags))		//XXX
+		ep_thr_mutex_lock(&req->mutex);					//XXX
+
+	if (req == NULL)
+	{
+		fprintf(fp, "req@%p: null\n", req);
+		return;
+	}
+	flockfile(fp);
+	fprintf(fp, "req@%p: ", req);
 	fprintf(fp, "\n    numrecs=%" PRIu32
 			", chan=%p, postproc=%p, sub_cb=%p, udata=%p\n"
 			"    state=%s, stat=%s\n",
 			req->numrecs, req->chan, req->postproc,
-			req->sub_cb, req->udata, statestr,
+			req->sub_cb, req->udata, statestr(req->state),
 			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
 	fprintf(fp, "    flags=");
 	ep_prflags(req->flags, ReqFlags, fp);
@@ -413,8 +477,9 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 	gdp_gcl_print(req->gcl, fp, 1, 0);
 	fprintf(fp, "    ");
 	_gdp_pdu_dump(req->pdu, fp);
-done:
 	funlockfile(fp);
+	if (!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags))		//XXX
+		ep_thr_mutex_unlock(&req->mutex);				//XXX
 }
 
 

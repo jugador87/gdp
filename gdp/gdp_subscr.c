@@ -36,8 +36,17 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 
 	EP_ASSERT_POINTER_VALID(gcl);
 
-	estat = _gdp_req_new(cmd, gcl, chan, NULL, reqflags | GDP_REQ_PERSIST, &req);
+	estat = _gdp_req_new(cmd, gcl, chan, NULL,
+			reqflags | GDP_REQ_PERSIST | GDP_REQ_CLT_SUBSCR, &req);
 	EP_STAT_CHECK(estat, goto fail0);
+
+	// arrange for responses to appear as events or callbacks
+	req->sub_cb = cbfunc;
+	req->udata = cbarg;
+
+	// if using callbacks, make sure we have a callback thread running
+	if (cbfunc != NULL)
+		_gdp_event_start_cb_thread();
 
 	// add start and stop parameters to PDU
 	req->pdu->datum->recno = start;
@@ -53,20 +62,10 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 	}
 	else
 	{
-		_gdp_req_lock(req);
-
-		// now arrange for responses to appear as events or callbacks
-		req->flags |= GDP_REQ_CLT_SUBSCR;
-		req->sub_cb = cbfunc;
-		req->udata = cbarg;
-		req->state = GDP_REQ_IDLE;
-
 		// now waiting for other events; go ahead and unlock
+		req->state = GDP_REQ_IDLE;
+		ep_thr_cond_signal(&req->cond);		//XXX ???
 		_gdp_req_unlock(req);
-
-		// if using callbacks, make sure we have a callback thread running
-		if (cbfunc != NULL)
-			_gdp_event_start_cb_thread();
 	}
 
 fail0:
@@ -81,7 +80,7 @@ fail0:
 void
 _gdp_subscr_lost(gdp_req_t *req)
 {
-	//XXX IMPLEMENT ME!              
+	//TODO IMPLEMENT ME!
 }
 
 
@@ -138,11 +137,13 @@ _gdp_subscr_poke(gdp_chan_t *chan)
 			//XXX unclear what to do here
 			continue;
 		}
+		_gdp_req_lock(pokereq);
 		estat = _gdp_req_send(pokereq);
 		if (!EP_STAT_ISOK(estat))
 		{
 			//XXX also unclear
 		}
+		_gdp_req_unlock(pokereq);
 		_gdp_req_free(pokereq);
 	}
 }

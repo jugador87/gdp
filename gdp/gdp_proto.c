@@ -45,13 +45,16 @@ _gdp_invoke(gdp_req_t *req)
 	long delta_to = ep_adm_getlongparam("swarm.gdp.invoke.timeout", 10000L);
 	int retries = ep_adm_getintparam("swarm.gdp.invoke.retries", 3);
 	EP_TIME_SPEC delta_ts;
+	const char *cmdname;
 
 	EP_ASSERT_POINTER_VALID(req);
+	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
+	cmdname = _gdp_proto_cmd_name(req->pdu->cmd);
 	if (ep_dbg_test(Dbg, 22))
 	{
 		ep_dbg_printf("\n*** _gdp_invoke(%p): %s (%d), gcl@%p:\n\t",
 				req,
-				_gdp_proto_cmd_name(req->pdu->cmd),
+				cmdname,
 				req->pdu->cmd,
 				req->gcl);
 		_gdp_datum_dump(req->pdu->datum, ep_dbg_getfile());
@@ -83,7 +86,6 @@ _gdp_invoke(gdp_req_t *req)
 		// wait until we receive a result
 		ep_dbg_cprintf(Dbg, 37, "_gdp_invoke: waiting on %p\n", req);
 		ep_time_deltanow(&delta_ts, &abs_to);
-		_gdp_req_lock(req);
 		estat = EP_STAT_OK;
 		req->state = GDP_REQ_WAITING;
 		while (!EP_UT_BITSET(GDP_REQ_DONE, req->flags))
@@ -116,7 +118,6 @@ _gdp_invoke(gdp_req_t *req)
 			// if the invoke failed, we have to pull the req off the gcl list
 			_gdp_req_unsend(req);
 		}
-		_gdp_req_unlock(req);
 
 #if 0
 		//XXX what status will/should we return?
@@ -134,9 +135,11 @@ _gdp_invoke(gdp_req_t *req)
 	{
 		char ebuf[200];
 
-		ep_dbg_printf("gdp_invoke <<< %s\n  ",
-				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		flockfile(ep_dbg_getfile());
+		ep_dbg_printf("gdp_invoke(%s) <<< %s\n  ",
+				cmdname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		_gdp_req_dump(req, ep_dbg_getfile());
+		funlockfile(ep_dbg_getfile());
 	}
 	return estat;
 }
@@ -154,6 +157,16 @@ _gdp_invoke(gdp_req_t *req)
 **		layer that the whole PDU hasn't been read yet.
 **
 ***********************************************************************/
+
+
+/*
+**  Common code for ACKs and NAKs
+*/
+
+static void
+acknak(gdp_req_t *req)
+{
+}
 
 
 /*
@@ -176,6 +189,12 @@ ack_success(gdp_req_t *req)
 		estat = GDP_STAT_FROM_ACK(req->pdu->cmd);
 	EP_STAT_CHECK(estat, goto fail0);
 
+	// if this request is for a partially initialized subscription, wait
+	while (req->state == GDP_REQ_WAITING && req->pdu->cmd != GDP_ACK_SUCCESS)
+	{
+		ep_thr_cond_wait(&req->cond, &req->mutex, NULL);
+	}
+
 	gcl = req->gcl;
 
 	//	If we started with no gcl id, adopt from incoming PDU.
@@ -187,6 +206,7 @@ ack_success(gdp_req_t *req)
 	}
 
 fail0:
+	acknak(req);
 	return estat;
 }
 
@@ -199,6 +219,7 @@ static EP_STAT
 nak_client(gdp_req_t *req)
 {
 	ep_dbg_cprintf(Dbg, 8, "nak_client: received %d\n", req->pdu->cmd);
+	acknak(req);
 	return GDP_STAT_FROM_C_NAK(req->pdu->cmd);
 }
 
@@ -207,6 +228,7 @@ static EP_STAT
 nak_server(gdp_req_t *req)
 {
 	ep_dbg_cprintf(Dbg, 8, "nak_server: received %d\n", req->pdu->cmd);
+	acknak(req);
 	return GDP_STAT_FROM_S_NAK(req->pdu->cmd);
 }
 
@@ -215,6 +237,7 @@ static EP_STAT
 nak_router(gdp_req_t *req)
 {
 	ep_dbg_cprintf(Dbg, 8, "nak_router: received %d\n", req->pdu->cmd);
+	acknak(req);
 	return GDP_STAT_FROM_R_NAK(req->pdu->cmd);
 }
 
@@ -560,6 +583,8 @@ _gdp_req_dispatch(gdp_req_t *req)
 {
 	EP_STAT estat;
 	dispatch_ent_t *d;
+
+	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 
 	if (ep_dbg_test(Dbg, 18))
 	{
