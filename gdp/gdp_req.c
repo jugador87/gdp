@@ -101,7 +101,6 @@ _gdp_req_new(int cmd,
 		// sanity checks
 		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
 		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags));
-		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 	}
 
 	_gdp_req_lock(req);
@@ -113,7 +112,7 @@ _gdp_req_new(int cmd,
 		req->pdu = pdu = _gdp_pdu_new();
 	req->gcl = gcl;
 	req->stat = EP_STAT_OK;
-	req->flags = flags | GDP_REQ_LOCKED;
+	req->flags = flags;
 	req->chan = chan;
 
 	// keep track of all outstanding requests on a channel
@@ -146,7 +145,6 @@ _gdp_req_new(int cmd,
 	req->state = GDP_REQ_ACTIVE;
 	*reqp = req;
 	ep_dbg_cprintf(Dbg, 48, "gdp_req_new(gcl=%p) => %p\n", gcl, req);
-	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 	return estat;
 }
 
@@ -166,7 +164,6 @@ _gdp_req_free(gdp_req_t *req)
 	ep_dbg_cprintf(Dbg, 48, "gdp_req_free(%p)  gcl=%p\n", req, req->gcl);
 
 	EP_ASSERT(req->state != GDP_REQ_FREE);
-	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 
 	// remove the request from the channel subscription list
 	if (EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags))
@@ -230,39 +227,15 @@ _gdp_req_freeall(struct req_head *reqlist, void (*shutdownfunc)(gdp_req_t *))
 void
 _gdp_req_lock(gdp_req_t *req)
 {
-//	static EP_THR_MUTEX mtx EP_THR_MUTEX_INITIALIZER;
-//
-//	ep_thr_mutex_lock(&mtx);
-//
-	if (EP_UT_BITSET(GDP_REQ_LOCKED, req->flags))
-	{
-		ep_dbg_printf("WARNING: _gdp_req_lock: is locked: ");
-		_gdp_req_dump(req, ep_dbg_getfile());
-	}
-//	EP_ASSERT_INSIST(!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 	ep_dbg_cprintf(Dbg, 60, "_gdp_req_lock: req @ %p\n", req);
 	ep_thr_mutex_lock(&req->mutex);
-	req->flags |= GDP_REQ_LOCKED;
-//	ep_thr_mutex_unlock(&mtx);
 }
 
 void
 _gdp_req_unlock(gdp_req_t *req)
 {
-//	static EP_THR_MUTEX mtx EP_THR_MUTEX_INITIALIZER;
-
-//	ep_thr_mutex_lock(&mtx);
-
-	if (!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags))
-	{
-		ep_dbg_printf("WARNING: _gdp_req_unlock: not locked: ");
-		_gdp_req_dump(req, ep_dbg_getfile());
-	}
-//	EP_ASSERT_INSIST(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 	ep_dbg_cprintf(Dbg, 60, "_gdp_req_unlock: req @ %p\n", req);
-	req->flags &= ~GDP_REQ_LOCKED;
 	ep_thr_mutex_unlock(&req->mutex);
-//	ep_thr_mutex_unlock(&mtx);
 }
 
 
@@ -294,8 +267,6 @@ _gdp_req_send(gdp_req_t *req)
 		_gdp_req_dump(req, ep_dbg_getfile());
 		funlockfile(ep_dbg_getfile());
 	}
-
-	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 
 	req->flags &= ~GDP_REQ_DONE;
 	if (gcl != NULL && !EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
@@ -335,8 +306,6 @@ _gdp_req_unsend(gdp_req_t *req)
 		ep_dbg_printf("_gdp_req_unsend: ");
 		_gdp_req_dump(req, ep_dbg_getfile());
 	}
-
-	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 
 	if (gcl == NULL)
 	{
@@ -442,7 +411,6 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 
 static EP_PRFLAGS_DESC	ReqFlags[] =
 {
-	{ GDP_REQ_LOCKED,		GDP_REQ_LOCKED,			"LOCKED"		},
 	{ GDP_REQ_DONE,			GDP_REQ_DONE,			"DONE"			},
 	{ GDP_REQ_PERSIST,		GDP_REQ_PERSIST,		"PERSIST"		},
 	{ GDP_REQ_CLT_SUBSCR,	GDP_REQ_CLT_SUBSCR,		"CLT_SUBSCR"	},

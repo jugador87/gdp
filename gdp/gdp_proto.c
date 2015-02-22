@@ -48,7 +48,6 @@ _gdp_invoke(gdp_req_t *req)
 	const char *cmdname;
 
 	EP_ASSERT_POINTER_VALID(req);
-	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 	cmdname = _gdp_proto_cmd_name(req->pdu->cmd);
 	if (ep_dbg_test(Dbg, 22))
 	{
@@ -91,9 +90,7 @@ _gdp_invoke(gdp_req_t *req)
 		while (!EP_UT_BITSET(GDP_REQ_DONE, req->flags))
 		{
 			// cond_wait will unlock the mutex
-			req->flags &= ~GDP_REQ_LOCKED;
 			int e = ep_thr_cond_wait(&req->cond, &req->mutex, &abs_to);
-			req->flags |= GDP_REQ_LOCKED;
 
 			char ebuf[100];
 			ep_dbg_cprintf(Dbg, 52,
@@ -583,8 +580,6 @@ _gdp_req_dispatch(gdp_req_t *req)
 {
 	EP_STAT estat;
 	dispatch_ent_t *d;
-
-	EP_ASSERT(EP_UT_BITSET(GDP_REQ_LOCKED, req->flags));
 
 	if (ep_dbg_test(Dbg, 18))
 	{

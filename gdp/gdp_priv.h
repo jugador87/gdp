@@ -201,7 +201,6 @@ typedef struct gdp_req
 #define GDP_REQ_IDLE			3			// subscription waiting for data
 
 // flags
-#define GDP_REQ_LOCKED			0x00000001	// mutex is locked
 #define GDP_REQ_DONE			0x00000002	// operation complete
 #define GDP_REQ_CLT_SUBSCR		0x00000004	// client-side subscription
 #define GDP_REQ_SRV_SUBSCR		0x00000008	// server-side subscription
