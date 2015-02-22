@@ -377,7 +377,10 @@ _gdp_req_unsend(gdp_req_t *req)
 **		up in clients that may be working with many GCLs at the same
 **		time.  Tomorrow is another day.
 **
-**		XXX This interleaves the GCL mutex and the request mutex XXX
+**		XXX Race Condition: if the req is freed between the time
+**		XXX the GCL is unlocked and the req is locked we have a
+**		XXX problem.  But if we keep the GCL locked we have a lock
+**		XXX ordering problem.
 */
 
 gdp_req_t *
@@ -385,10 +388,11 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 {
 	gdp_req_t *req;
 
-	ep_thr_mutex_lock(&gcl->mutex);
 	for (;;)
 	{
+		ep_thr_mutex_lock(&gcl->mutex);
 		req = LIST_FIRST(&gcl->reqs);
+		ep_thr_mutex_unlock(&gcl->mutex);
 		while (req != NULL)
 		{
 			_gdp_req_lock(req);
@@ -420,7 +424,6 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 			req->flags &= ~GDP_REQ_ON_GCL_LIST;
 		}
 	}
-	ep_thr_mutex_unlock(&gcl->mutex);
 
 	ep_dbg_cprintf(Dbg, 48,
 			"gdp_req_find(gcl=%p, rid=%" PRIgdp_rid ", state=%s) => %p\n",
@@ -428,6 +431,14 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 	return req;
 }
 
+
+/*
+**  Print a request (for debugging)
+**
+**		This potentially references the req while it is unlocked,
+**		which isn't good, but since this is only for debugging and
+**		is read-only we'll take the risk.
+*/
 
 static EP_PRFLAGS_DESC	ReqFlags[] =
 {
@@ -444,7 +455,6 @@ static EP_PRFLAGS_DESC	ReqFlags[] =
 	{ 0,					0,						NULL			}
 };
 
-
 void
 _gdp_req_dump(gdp_req_t *req, FILE *fp)
 {
@@ -455,8 +465,6 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 		fprintf(fp, "req@%p: null\n", req);
 		return;
 	}
-	if (!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags))		//XXX
-		ep_thr_mutex_lock(&req->mutex);					//XXX
 
 	if (req == NULL)
 	{
@@ -478,8 +486,6 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 	fprintf(fp, "    ");
 	_gdp_pdu_dump(req->pdu, fp);
 	funlockfile(fp);
-	if (!EP_UT_BITSET(GDP_REQ_LOCKED, req->flags))		//XXX
-		ep_thr_mutex_unlock(&req->mutex);				//XXX
 }
 
 
