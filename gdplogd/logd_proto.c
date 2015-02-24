@@ -628,19 +628,11 @@ cmd_multiread(gdp_req_t *req)
 	}
 	else
 	{
-		// this is a pure "future" subscription
-		ep_dbg_cprintf(Dbg, 24, "cmd_multiread: enabling subscription\n");
-		req->flags |= GDP_REQ_SRV_SUBSCR;
-
-		// link this request into the GCL so the subscription can be found
-		ep_thr_mutex_lock(&req->gcl->mutex);
-		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
-		LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
-		req->flags |= GDP_REQ_ON_GCL_LIST;
-		ep_thr_mutex_unlock(&req->gcl->mutex);
+		// no data to read
+		estat = GDP_STAT_NAK_NOTFOUND;
 	}
 
-	return EP_STAT_OK;
+	return estat;
 }
 
 
