@@ -186,6 +186,8 @@ cmd_create(gdp_req_t *req)
 	return estat;
 
 fail1:
+	req->pdu->cmd = GDP_NAK_S_INTERNAL;
+	req->gcl = NULL;
 	_gdp_gcl_freehandle(gcl);
 
 fail0:
