@@ -208,7 +208,7 @@ main(int argc, char **argv)
 
 	// initialize connection
 	void _gdp_pdu_process(gdp_pdu_t *, gdp_chan_t *);
-	phase = "open connection";
+	phase = "connection to router";
 	_GdpChannel = NULL;
 	estat = _gdp_chan_open(router_addr, _gdp_pdu_process, &_GdpChannel);
 	EP_STAT_CHECK(estat, goto fail0);

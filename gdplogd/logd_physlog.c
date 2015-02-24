@@ -138,7 +138,7 @@ fail0:
 		else
 			estat = ep_stat_from_errno(errno);
 
-		ep_dbg_cprintf(Dbg, 8, "get_gcl_path(%s):\n\t%s\n",
+		ep_dbg_cprintf(Dbg, 1, "get_gcl_path(%s):\n\t%s\n",
 				pbuf, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		return estat;
 	}
