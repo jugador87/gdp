@@ -312,7 +312,7 @@ struct epCharSequences	EpCharASCII =
 	.divide =	"/",		// divide
 	.null =		"NULL",		// null
 	.notequal =	"!=",		// not equal
-	.unprintable =	"??",		// sub for unprintable
+	.unprintable =	"?",		// sub for unprintable
 	.paragraph =	"pp.",
 	.section =	"sec.",		// section
 	.notsign =	"(not)",	// "not" symbol
