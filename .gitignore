@@ -10,10 +10,12 @@ debian/libgdp*
 scgilib/helloworld
 tags
 */tags
+*.bak
+*~
 *.swp
 *.o
 *.a
 *.so.*
-*~
-
+!libs/*.a
+!libs/*.so*
 doc/*.pdf

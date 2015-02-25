@@ -7,7 +7,6 @@ DOCDIR=		${INSTALLROOT}/share/doc/gdp
 CTAGS=		ctags
 
 all:
-	-rm libs/*
 	(cd ep;		 make all)
 	(cd gdp;	 make all)
 	(cd scgilib;	 make all)
@@ -15,7 +14,6 @@ all:
 	(cd apps;	 make all)
 
 clean:
-	-rm libs/*
 	(cd ep;		 make clean)
 	(cd gdp;	 make clean)
 	(cd scgilib;	 make clean)
