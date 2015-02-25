@@ -50,7 +50,7 @@ class GDP_GCL:
         gcl_name_python = name.internal_name()
         # convert this to a string that ctypes understands. Some ctypes magic
         # ahead
-        buf = create_string_buffer(gcl_name_python, 32)
+        buf = create_string_buffer(gcl_name_python, 32+1)
         gcl_name_ctypes_ptr = cast(byref(buf), POINTER(GDP_NAME.name_t))
         gcl_name_ctypes = gcl_name_ctypes_ptr.contents
 
@@ -240,7 +240,7 @@ class GDP_GCL:
             generated instead.
         """
 
-        return self.__multiread(self, start, numrecs, None, None)
+        return self.__multiread(start, numrecs, None, None)
 
     def print_to_file(self, fh, detail, indent):
         """

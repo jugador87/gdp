@@ -111,7 +111,7 @@ def gdp_init(*args):
 
     if len(args) == 0:        # Use the default value
         estat = __func(None)
-    else:                   # Any issues with string formatting handled at C layer
+    else:   # Any issues with string formatting handled at C layer
         buf = create_string_buffer(args[0])
         estat = __func(buf)
 

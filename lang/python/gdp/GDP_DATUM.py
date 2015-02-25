@@ -170,7 +170,6 @@ class GDP_DATUM:
         __func_write.restype = c_int
 
         size = c_size_t(len(data))
-        tmp_buf = create_string_buffer(
-            data, len(data))     # XXX: should it be +1 for null?
+        tmp_buf = create_string_buffer(data, len(data))
         written_bytes = __func_write(gdp_buf_ptr, byref(tmp_buf), size)
         return
