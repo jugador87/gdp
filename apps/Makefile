@@ -1,6 +1,6 @@
 #ALL=	gcl-create writer-test reader-test gdp-rest rw-bench log-view
 BINALL=		gcl-create log-view reader-test writer-test
-SBINALL=	gdp-rest log-view
+SBINALL=	gdp-rest log-view gdp-name-xlate
 
 ALL=		${BINALL} ${SBINALL}
 
@@ -56,6 +56,9 @@ rw-bench:	rw-bench.o
 
 log-view:	log-view.o
 	$(CC) -o $@ log-view.o $(LDFLAGS)
+
+gdp-name-xlate:	gdp-name-xlate.o
+	$(CC) -o $@ gdp-name-xlate.o $(LDFLAGS)
 
 ${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 
