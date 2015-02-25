@@ -1,5 +1,16 @@
+gdp (0.2-1) UNRELEASED; urgency=low
+
+  * Make multiread startup reliable (was sometimes missing early
+    records due to a race condition).
+  * Don't hang on a multiread on an empty GCL (it was improperly
+    converted to a subscription).
+  * Fix a lock ordering problem.
+
+ -- Eric Allman <eric@cs.berkeley.edu>  Wed, 25 Feb 2015 14:15:59 -0800
+
 gdp (0.1-1) UNRELEASED; urgency=low
 
   * Initial release
 
  -- Eric Allman <eric@cs.berkeley.edu>  Wed, 11 Feb 2015 11:27:30 -0800
+
