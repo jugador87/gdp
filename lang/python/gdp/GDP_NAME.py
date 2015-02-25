@@ -31,7 +31,7 @@ class GDP_NAME:
         def __get_printable_name(internal_name):
 
             # ctypes magic to create an array representing gdp_name_t
-            buf1 = create_string_buffer(internal_name, 32)
+            buf1 = create_string_buffer(internal_name, 32+1)
             name_t_ptr = cast(byref(buf1), POINTER(self.name_t))
 
             # ctypes magic to create an array representing gdp_pname_t
@@ -49,8 +49,8 @@ class GDP_NAME:
 
         def __parse_name(name):
 
-            buf1 = create_string_buffer(name, len(name))
-            buf2 = create_string_buffer(32)
+            buf1 = create_string_buffer(name, len(name)+1)
+            buf2 = create_string_buffer(32+1)
             name_t_ptr = cast(byref(buf2), POINTER(self.name_t))
 
             __func = gdp.gdp_parse_name
@@ -62,7 +62,7 @@ class GDP_NAME:
             return string_at(name_t_ptr.contents, 32)
 
         if len(name) == 32:
-            # If the length of the name is exactly 32, we treat it as a gdp_name_t
+            # If length of name is exactly 32, treat it as a gdp_name_t
             #   This is in accordance with the libgdp
 
             self.name = name                                # Python string
@@ -80,7 +80,7 @@ class GDP_NAME:
         #   gdp_name_is_valid, but then we could theoretically reimplement
         #   everything in python too.
         # ctypes magic to create an array representing gdp_name_t
-        buf1 = create_string_buffer(self.name, 32)
+        buf1 = create_string_buffer(self.name, 32+1)
         name_t_ptr = cast(byref(buf1), POINTER(self.name_t))
 
         __func = gdp.gdp_name_is_valid
