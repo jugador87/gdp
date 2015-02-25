@@ -13,7 +13,6 @@ echo ''
 #      -  tests with multiple simultaneous subscriptions and appending
 #      -  tests of more reader-test options: -f, -n, and -m .
 #      Remove the dependency on knowing where the gcl directory is.
-#      Handle the gdpd already running issue better.
 #      Diagnose the text output ordering issue for reader-test.js -s .
 
 
@@ -88,10 +87,10 @@ cat << 'EOF2'
 # Here's a reminder of writer-test.js and reader-test.js command line interface
 #
 # Usage:
-# node ./writer-test.js [-a] [-D dbgspec] [-G gdpd_addr] <gcl_name>
+# node ./writer-test.js [-a] [-D dbgspec] [-G router_addr] <gcl_name>
 #
 # Usage:
-# node ./reader-test.js [-D dbgspec] [-f firstrec] [-G gdpd_addr] [-m] [-n nrecs] [-s] <gcl_name>
+# node ./reader-test.js [-D dbgspec] [-f firstrec] [-G router_addr] [-m] [-n nrecs] [-s] <gcl_name>
 EOF2
 fi
 
@@ -136,27 +135,7 @@ ls -ld ${GCL_DIR}
 echo ''
 
 # TBD: check for a GDP daemon instance running and do something reasonable
-echo -e 'We assume a GDP daemon (gdpd) is NOT currently running.'
-echo -e 'This program will generate gdp-related error output if one is running.\n'
-fi
-
-
-# Virtual Window A: -----------------------------------
-# (The reader is invited to extend this script to open these "virtual"
-# windows in separate real (e.g., Terminal or iTerm) windows -- without
-# the experience for the tester being a blur of window system activity.
-# And, of course, cleaning up and closing windows appropriately.)
-if [ $verbose = 1 ]; then
-echo 'First, we start a GDP daemon in the background'
-fi
-## You might want to add the -D debug option to monitor gdpd activity.
-## ( ../../../gdpd/gdpd -D'*=30' ) &
-../../../gdpd/gdpd &
-gdpd_PID=$!
-# stash gdpd's PID to be able to terminate it when we're done.
-if [ $verbose = 1 ]; then
-echo 'gdpd.PID = '${gdpd_PID}
-echo ''
+echo 'We assume GDP daemons (gdp_router, gdplogd) ARE running.'
 fi
 
 
@@ -210,20 +189,20 @@ rm -f ${TEST_01_WOUTPUT_FILE}; rm -f ${TEST_01_ROUTPUT_FILE}
 if [ $verbose = 1 ]; then
 echo "Running: node ../apps/writer-test.js ${TEST_01_GCL_NAME}"
 echo "cat ${TEST_01_WINPUT_FILE} | \\"
-echo "node ../apps/writer-test.js -D '*=40' -G '127.0.0.1:2468' ${TEST_01_GCL_NAME} \\"
+echo "node ../apps/writer-test.js -D '*=40' ${TEST_01_GCL_NAME} \\"
 echo "     > ${TEST_01_WOUTPUT_FILE} 2>&1"
 fi
 cat ${TEST_01_WINPUT_FILE} | \
-node ../apps/writer-test.js -D '*=40' -G '127.0.0.1:2468' ${TEST_01_GCL_NAME} \
+node ../apps/writer-test.js -D '*=40' ${TEST_01_GCL_NAME} \
      > ${TEST_01_WOUTPUT_FILE} 2>&1
 if [ $verbose = 1 ]; then
 echo ''
 
 echo "Running: node ../apps/reader-test.js ${TEST_01_GCL_NAME}"
-echo "node ../apps/reader-test.js -D '*=40' -G '127.0.0.1:2468' ${TEST_01_GCL_NAME} \\"
+echo "node ../apps/reader-test.js -D '*=40' ${TEST_01_GCL_NAME} \\"
 echo "     > ${TEST_01_ROUTPUT_FILE} 2>&1"
 fi
-node ../apps/reader-test.js -D '*=40' -G '127.0.0.1:2468' ${TEST_01_GCL_NAME} \
+node ../apps/reader-test.js -D '*=40' ${TEST_01_GCL_NAME} \
      > ${TEST_01_ROUTPUT_FILE} 2>&1
 if [ $verbose = 1 ]; then
 echo ''
@@ -485,25 +464,6 @@ echo 'These may be spurious differences because of stdout/stderr buffering oddit
 fi
 echo '====================================================================== }'
 echo ''
-
-
-# Virtual Window A: -----------------------------------
-if [ $verbose = 1 ]; then
-echo ''
-echo 'We now kill the GDP daemon, PID='${gdpd_PID}; echo ''
-fi
-## killall gdpd    # use this if we have trouble killing using gdpd_PID
-kill_gdpd_output="$( kill ${gdpd_PID} 2>&1 )"
-if [ -n "${kill_gdpd_output}" ]; then 
-   # some kind of a problem with the kill
-   echo -e "kill_gdpd_output=\"${kill_gdpd_output}\""
-   # TBD: even though kill_gdpd_output seems to be null, we still get output
-   # to stdout or stderr as this script stops:
-   #   {......
-   #   Tue Dec  2 00:16:33 PST 2014
-   #   ./writer_reader-test.js.sh: line 452: 10679 Terminated: 15          ../../../gdpd/gdpd
-   #   }
-fi
 
 TOTAL_ERRORS=$(( TEST_01_ERRORS + TEST_02_ERRORS ))
 echo ">>>>>>>> There were ${TOTAL_ERRORS} total errors found. <<<<<<<< "

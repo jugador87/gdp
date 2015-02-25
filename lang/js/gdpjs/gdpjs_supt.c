@@ -124,7 +124,7 @@ gdp_datum_print_stdout(
     const gdp_datum_t *datum // message to print
 )
 {
-    gdp_datum_print( datum, stdout );
+    gdp_datum_print( datum, stdout, 0 );
 }
 
 
@@ -153,22 +153,22 @@ gdp_get_pname_from_gclh( const gdp_gcl_t *gclh )
 //    gdp_gcl_getname(const gdp_gcl_t *gclh)  
 // and
 //    char *
-//    gdp_gcl_printable_name(const gcl_name_t internal, gcl_pname_t external)
+//    gdp_printable_name(const gcl_name_t internal, gcl_pname_t external)
 //    
 char *
 gdp_get_printable_name_from_gclh( const gdp_gcl_t *gclh )
 {
 	char               *rv = NULL;
 	// handstands to get types correct for the two calls below
-    const gcl_name_t    int_gcl_name;
-    const gcl_name_t   *int_gcl_name_p = &int_gcl_name;
-    static gcl_pname_t  ext_gcl_name;
+    const gdp_name_t    int_gcl_name;
+    const gdp_name_t   *int_gcl_name_p = &int_gcl_name;
+    static gdp_pname_t  ext_gcl_name;
 
 	// gcp_gcl_getname() has no check on gclh
     int_gcl_name_p = gdp_gcl_getname( gclh );
 	// gcp_gcl_printable_name() has no check on either argument
 	// assumes caller allocates ext_gcl_name. rv will point to ext_gcl_name.
-	rv = gdp_gcl_printable_name( int_gcl_name, ext_gcl_name );
+	rv = gdp_printable_name( int_gcl_name, ext_gcl_name );
 
 #if DEBUG
 	// Yes, atrocious debug output == TBD

@@ -85,11 +85,9 @@ writer_reader-test.js_tests.sh
 The test script (bash) itself.
 This script should be run in directory gdp/lang/js/tests/ .
 See file name and path constants defined in the script for other
-dependencies.  Note, a gdpd is started and stopped during each test run;
-another gdpd running when the test is started causes spurious errors.
+dependencies.  Note, a gdp_router and gdplogd MUST be running.
 
 Simple example:
-killall gdpd
 cd .......gdp/lang/js/tests/
 writer_reader-test.js_tests.sh
 [[ a screen and a half of output -- look for the diffs marked with

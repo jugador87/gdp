@@ -67,9 +67,10 @@ test:
 	(cd tests; make clean all run)
 
 # TBD: Tag file builders exist for JavaScript - find one and include it.
-tags:
-	ctags gdpjs/*.[ch] apps/*.[ch]
+tags: .FORCE
+	ctags `find . -name '*.[ch]' -o -name '*.js' -o -name '*.cc'`
 
+.FORCE:
 
 # Internal makefile targets
 
@@ -87,4 +88,3 @@ $(NMOD)/ref-struct:
 	$(NPM) install ref-struct
 $(NMOD)/sleep:
 	$(NPM) install sleep
-

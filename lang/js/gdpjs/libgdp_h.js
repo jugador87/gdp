@@ -21,19 +21,20 @@
 //
 // Path to the gdp/ directory.  Importantly, with a libs/ subdirectory
 // holding the gdp dynamic libraries:
-//    gdp/libs/libep.2.0,  gdp/libs/libgdp.1.0
+//    gdp/libs/libep,  gdp/libs/libgdp
 // Be aware of particular major and minor version numbers in these names.
 // See uses of ffi.Library( GDP_DIR +  ) below.
 // Note: Here we are using a relative path for our default value:
-if ( GDP_DIR == undefined) GDP_DIR  = "../../../";
+if ( GDP_DIR == undefined) GDP_DIR = process.env.GDP_DIR;
+if ( GDP_DIR == undefined) GDP_DIR  = "../../..";
 
 // Path to the gdp/lang/js/gdpjs/ directory where this file usually resides.
 // And which also has a libs/ subdirectory holding the gdpjs dynamic
-// library:  gdpjs/../libs/libgdpjs.1.0
+// library:  gdpjs/../libs/libgdpjs.0.1
 // See uses of ffi.Library( GDPJS_DIR +  ) below.
 // Note: Here we are using a relative path for our default value:
 // ?? OLD if ( GDPJS_DIR == undefined) GDPJS_DIR  = "./";
-if ( GDPJS_DIR == undefined) GDPJS_DIR  = GDP_DIR + "./lang/js/gdpjs";
+if ( GDPJS_DIR == undefined) GDPJS_DIR  = GDP_DIR + "/lang/js/gdpjs";
 
 // Path to a directory containing the proper node_modules/ directory.
 // See the require()'s below.
@@ -230,7 +231,7 @@ var EP_TIME_SPEC_struct_Ptr    = ref.refType(EP_TIME_SPEC_struct);
 var EP_TIME_SPEC_struct_PtrPtr = ref.refType(EP_TIME_SPEC_struct_Ptr);
 
 
-var libep = ffi.Library( GDP_DIR + '/libs/libep.2.0', {
+var libep = ffi.Library( GDP_DIR + '/libs/libep', {
 
 // From ep/ep_dbg.h
 //CJS // initialization
@@ -397,7 +398,7 @@ var GDP_EVENT_DATA = 1       // returned data
 var GDP_EVENT_EOS  = 2       // end of subscription
 
 
-var libgdp = ffi.Library( GDP_DIR + '/libs/libgdp.1.0', {
+var libgdp = ffi.Library( GDP_DIR + '/libs/libgdp', {
 
 // From gdp/gdp.h
 //CJS // free an event (required after gdp_event_next)
@@ -425,12 +426,12 @@ var libgdp = ffi.Library( GDP_DIR + '/libs/libgdp.1.0', {
 
 // From gdp/gdp_event.h
 //CJS // allocate an event
-//CJS extern EP_STAT                  gdp_event_new(gdp_event_t **gevp);
-   'gdp_event_new': [ EP_STAT, [ gdp_event_tPtrPtr ] ],
+//CJS extern EP_STAT                  _gdp_event_new(gdp_event_t **gevp);
+   '_gdp_event_new': [ EP_STAT, [ gdp_event_tPtrPtr ] ],
 
 //CJS // add an event to the active queue
-//CJS extern void                      gdp_event_trigger(gdp_event_t *gev);
-   'gdp_event_trigger': [ 'void', [ gdp_event_tPtr ] ],
+//CJS extern void                      _gdp_event_trigger(gdp_event_t *gev);
+   '_gdp_event_trigger': [ 'void', [ gdp_event_tPtr ] ],
 
 // From gdp/gdp.h
 //CJS // initialize the library
@@ -454,13 +455,13 @@ var libgdp = ffi.Library( GDP_DIR + '/libs/libgdp.1.0', {
 
 // From gdp/gdp.h
 //CJS // make a printable GCL name from a binary version
-//CJS char *gdp_gcl_printable_name( const gcl_name_t internal, gcl_pname_t external);
-  'gdp_gcl_printable_name': [ 'string', [ gcl_name_t, gcl_pname_t ] ],
+//CJS char *gdp_printable_name( const gcl_name_t internal, gcl_pname_t external);
+  'gdp_printable_name': [ 'string', [ gcl_name_t, gcl_pname_t ] ],
 
 // From gdp/gdp.h
 //CJS // parse a (possibly human-friendly) GCL name
-//CJS EP_STAT gdp_gcl_parse_name( const char *ext, gcl_name_t internal );
-  'gdp_gcl_parse_name': [ EP_STAT, [ 'string', gcl_name_t ] ],
+//CJS EP_STAT gdp_parse_name( const char *ext, gcl_name_t internal );
+  'gdp_parse_name': [ EP_STAT, [ 'string', gcl_name_t ] ],
 
 // From gdp/gdp.h
 //CJS // allocate a new message
@@ -493,8 +494,8 @@ var libgdp = ffi.Library( GDP_DIR + '/libs/libgdp.1.0', {
 
 // From gdp/gdp.h
 //CJS // append to a writable GCL
-//CJS extern EP_STAT  gdp_gcl_publish( gdp_gcl_t *gclh, gdp_datum_t *);
-   'gdp_gcl_publish': [ EP_STAT, [ gdp_gcl_tPtr, gdp_datum_tPtr ] ],
+//CJS extern EP_STAT  gdp_gcl_append( gdp_gcl_t *gclh, gdp_datum_t *);
+   'gdp_gcl_append': [ EP_STAT, [ gdp_gcl_tPtr, gdp_datum_tPtr ] ],
 
 // From gdp/gdp.h
 // subscribe to a readable GCL
@@ -542,13 +543,6 @@ var libgdp = ffi.Library( GDP_DIR + '/libs/libgdp.1.0', {
    'gdp_datum_getrecno': [ gdp_recno_t, [ gdp_datum_tPtr ] ],
 
 // From gdp/gdp.h
-//CJS // set a record number in a datum
-//CJS extern void             gdp_datum_setrecno(
-//CJS                                         gdp_datum_t *datum,
-//CJS                                         gdp_recno_t recno);
-   'gdp_datum_setrecno': [ 'void', [ gdp_datum_tPtr, gdp_recno_t ] ],
-
-// From gdp/gdp.h
 //CJS // get the timestamp from a datum
 //CJS extern void             gdp_datum_getts(
 //CJS                                         const gdp_datum_t *datum,
@@ -556,14 +550,6 @@ var libgdp = ffi.Library( GDP_DIR + '/libs/libgdp.1.0', {
 // TBD: awaits our setup and testing of Node.js FFI access to structs
 // For now use ep_time_as_string()    -- in gdpjs_supt.c
 //         or  ep_time_as_string_js() -- in gdpjs_supt.js
-
-// From gdp/gdp.h
-//CJS // set the timestamp in a datum
-//CJS extern void             gdp_datum_setts(
-//CJS                                         gdp_datum_t *datum,
-//CJS                                         EP_TIME_SPEC *ts);
-// TBD: awaits our setup and testing of Node.js FFI access to structs
-// Not sure if our users will need to create an EP_TIME_SPEC, though.
 
 // From gdp/gdp.h
 //CJS // get the data length from a datum
@@ -619,7 +605,7 @@ var libgdpjs = ffi.Library( GDPJS_DIR + '../libs/libgdpjs.1.0', {
 
 // From gdp/gdp.h
 // Get a printable (base64-encoded) GCL name from an open GCL handle
-// Uses gdp_gcl_getname() and gdp_gcl_printable_name()
+// Uses gdp_gcl_getname() and gdp_printable_name()
     'gdp_get_printable_name_from_gclh':  [ 'string', [ gdp_gcl_tPtr ] ],
 
 // Get a timestamp as a string from an EP_TIME_SPEC

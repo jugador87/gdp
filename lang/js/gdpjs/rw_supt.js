@@ -114,7 +114,7 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 	}
 	else
 	{
-		gdp_gcl_parse_name_js( xname, gcliname );
+		gdp_parse_name_js( xname, gcliname );
 
 		// TBD: especially check for gcliname already existing??!!
 	
@@ -345,10 +345,10 @@ function read_gcl_records( gdpd_addr, gcl_name,
 		sleep.sleep(1); // needed only for stdout and stderr
 	}
 
-	estat = gdp_gcl_parse_name_js( gcl_name, gclname );
+	estat = gdp_parse_name_js( gcl_name, gclname );
 	// TBD: check for errors:  if ( ! ep_stat_isok_js(estat) )
 
-	var rv_str = gdp_gcl_printable_name_js( gclname, gclpname );
+	var rv_str = gdp_printable_name_js( gclname, gclpname );
 	if ( conout == true )
 	{ console.log( "Reading GCL %s", array_to_String(gclpname) ); }
 

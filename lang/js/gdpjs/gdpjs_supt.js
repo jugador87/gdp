@@ -93,9 +93,9 @@ function gdp_gcl_create_js( /* gcl_name_t */ gcliname,
 }
 
 /* EP_STAT */
-function gdp_gcl_parse_name_js( /* String */ xname, /* gcl_name_t */ gcliname )
+function gdp_parse_name_js( /* String */ xname, /* gcl_name_t */ gcliname )
 {
-	return libgdp.gdp_gcl_parse_name( xname, gcliname );
+	return libgdp.gdp_parse_name( xname, gcliname );
 };
 
 /* { error_code: EP_STAT, gclH: gclHandle_t }; */
@@ -139,11 +139,11 @@ function ep_dbg_set_js( /* String */  ep_dbg_pattern )
 };
 
 /* String */
-function gdp_gcl_printable_name_js( /* gcl_name_t  */ gclname,
+function gdp_printable_name_js( /* gcl_name_t  */ gclname,
                                     /* gcl_pname_t */ gclpname )
 {
 	var rv_str;
-	rv_str = libgdp.gdp_gcl_printable_name( gclname, gclpname );
+	rv_str = libgdp.gdp_printable_name( gclname, gclpname );
 	return rv_str;
 }
 

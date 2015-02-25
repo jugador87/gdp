@@ -20,6 +20,12 @@
 //    sed  -e '/^\/\/C/d' <This file>.js
 
 
+// debugging:
+var fs = require('fs'),
+    path = require('path');
+var dirString = path.dirname(fs.realpathSync(__filename));
+console.log('working directory:', dirString);
+
 // Load Node.js modules for calling foreign functions -- C functions here.
 // See libgdp_h.js for details and assumptions about the directory
 // where Node.js modules must be placed.
@@ -27,8 +33,9 @@
 // Parameters needed for libgdp_h.js and gdpjs_supt.js
 // They MUST be adapted to the directory where this program will be run.
 // See libgdp_h.js for details.
-var GDP_DIR           = "../../../";
-var GDPJS_DIR         = GDP_DIR + "./lang/js/gdpjs/";
+var GDP_DIR = process.env.GDP_DIR;
+if (GDP_DIR == undefined) GDP_DIR = "../../..";
+var GDPJS_DIR         = GDP_DIR + "/lang/js/gdpjs/";
 var NODE_MODULES_DIR  = "";
 //
 var LIBGDP_H_DIR = GDPJS_DIR;
