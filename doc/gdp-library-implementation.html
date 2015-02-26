@@ -3,10 +3,22 @@
   <head>
     <meta content="text/html; charset=UTF-8" http-equiv="content-type">
     <title>GDP Library Implementation</title>
-  </head>
+    <style type="text/css">
+.metanotes {  
+  font-style: italic;  
+  font-weight: bold;  
+  background-color: #ffff66;  
+  color: red;
+}
+
+</style></head>
   <body>
     <h1>Global Data Plane Library Implementation</h1>
-    2014-10-04<br>
+    Eric Allman<br>
+    2015-02-26<br>
+    <br>
+    <p class="metanotes">This document is not yet complete.</p>
+    <p> </p>
     <p>This document describes the internals of the Global Data Plane (GDP)
       run-time library at a conceptual level.&nbsp; This library is linked into
       any client that wishes to participate in the Global Data Plane.&nbsp; The
@@ -16,18 +28,17 @@
       details of that interface.<br>
     </p>
     <h2>Overview</h2>
-    <p>To be completed.<br>
-      Main modules:<br>
-    </p>
+    <p class="metanotes">To be completed.</p>
+    <p> Main modules: </p>
     <ul>
       <li>API.</li>
-      <li>Packet assembly/disassembly.</li>
+      <li>Request management.</li>
       <li>Datum management.<br>
       </li>
       <li>I/O buffering.</li>
       <li>GCL associative cache.</li>
+      <li>Protocol Data Units (PDUs).</li>
       <li>GDP protocol.</li>
-      <li>Request management.</li>
       <li>Event loop.</li>
     </ul>
     <p>Generally speaking, the GDP library is structured as an event-driven
@@ -54,7 +65,9 @@
     <p>The API module (<code>gdp/gdp_api.c</code>) defines all the externally
       visible routines.&nbsp; Since these are already documented in the GDP
       Programmatic API document, suffice it to say that it does the
-      "translation" between the internal protocol and the external API.<br>
+      "translation" between the internal protocol and the external API.&nbsp;
+      Approximately speaking, it packages up parameters into a request, invokes
+      the request, and translates the updated request into any return codes.<br>
     </p>
     <h3>Request Management</h3>
     <p>Implemented in <code>gdp/gdp_req.c</code>.<br>
@@ -63,10 +76,10 @@
       In many cases there will be only one request active on a given GCL at a
       time, but this is not necessarily true, especially in the GDP daemon when
       handling subscriptions (each subscription is a separate request).&nbsp;
-      Requests (potentially) have a pointer to a GCL handle, a pointer to a data
-      packet (in internal form), the status code from the operation embodied in
-      the request, and special information for use when processing
-      subscriptions.<br>
+      Requests (potentially) have a pointer to a GCL handle, a pointer to a
+      protocol data unit (in internal form; essentially a packet), the status
+      code from the operation embodied in the request, and special information
+      for use when processing subscriptions.<br>
     </p>
     <p>The internal routines are:<br>
     </p>
@@ -139,21 +152,9 @@
           </td>
         </tr>
         <tr>
-          <td valign="top"><code>gdp_datum_setrecno</code><br>
-          </td>
-          <td valign="top">Set the record number.<br>
-          </td>
-        </tr>
-        <tr>
           <td valign="top"><code>gdp_datum_getts</code><br>
           </td>
           <td valign="top">Get the timestamp.<br>
-          </td>
-        </tr>
-        <tr>
-          <td valign="top"><code>gdp_datum_setts</code><br>
-          </td>
-          <td valign="top">Set the timestamp.<br>
           </td>
         </tr>
         <tr>
@@ -177,6 +178,11 @@
       </tbody>
     </table>
     <br>
+    When sending data to the GDP, the application has to create a datum, get the
+    buffer from that datum, and add the data to the buffer.&nbsp; When receiving
+    data from the GDP, the application creates a datum, hands it in to the
+    appropriate read API, and upon the return can access the data buffer with
+    return data, the record number, and the timestamp.<br>
     <h3>GCL Associative Cache</h3>
     <p>Implemented in <code>gdp/gdp_gcl.c</code>.<br>
     </p>
@@ -251,28 +257,37 @@
       </tbody>
     </table>
     <br>
-    <h3>Packets</h3>
-    Implemented in <code>gdp/gdp_pkt.c</code>.<br>
+    <h3>Protocol Data Units</h3>
+    Implemented in <code>gdp/gdp_pdu.c</code>.<br>
     <br>
-    Packets are marshalled and demarshalled in <code>gdp/gdp_pkt.c</code>.&nbsp;
+    Packets are marshalled and demarshalled in <code>gdp/gdp_pdu.c</code>.&nbsp;
     Each packet has the following fields (with the number of octets for the
     field):<br>
     <ul>
       <li>Protocol version (1).</li>
-      <li>Command or Ack/Nak (1).</li>
-      <li>Flags (1).&nbsp; These indicate the presence of the optional fields.</li>
+      <li>Time to live (in hops) (1).</li>
       <li>Reserved for future use (must be zero when sending, ignored on
         receive) (1).</li>
+      <li>Command or Ack/Nak (1).</li>
+      <li>Destination address (32).</li>
+      <li>Source address (32).</li>
+      <li>Request id (4).</li>
+      <li>Signature algorithm (1).</li>
+      <li>Signature length (in 32-bit words) (1).</li>
+      <li>Length of optional header fields (in 32-bit words) (1).&nbsp; This
+        indicates the number of 32-bit words between the data length and the
+        data (exclusive).</li>
+      <li>Flags (1).&nbsp; These indicate the presence of the optional fields.</li>
       <li>Length of data portion (4).</li>
-      <li>Request ID (4, optional).</li>
-      <li>GCL name (32, optional).</li>
       <li>Record number (8, optional).</li>
+      <li>Sequence number (8, optional).</li>
       <li>Commit timestamp (16, optional).</li>
-      <li>Data (as indicated by the length field).<br>
-      </li>
+      <li>possible future extensions (variable length).</li>
+      <li>Data (as indicated by the length field).</li>
+      <li>Signature (as indicated by the signature length field).</li>
     </ul>
     <p>One field is used to indicate both commands and acknowledgements/negative
-      acknowledgements.&nbsp; See the comments in <code>gdp/gdp_pkt.h</code>
+      acknowledgements.&nbsp; See the comments in <code>gdp/gdp_pdu.h</code>
       for the details of those values.&nbsp; This is worth emphasizing: the
       command field in the protocol encodes both imperative commands (e.g.,
       "write this data") and responses ("that data was written" or "could not
@@ -283,19 +298,19 @@
     <table border="1" cellpadding="2" cellspacing="2" width="100%">
       <tbody>
         <tr>
-          <td valign="top"><code>_gdp_pkt_new</code><br>
+          <td valign="top"><code>_gdp_pdu_new</code><br>
           </td>
           <td valign="top">Allocates a new (empty) packet.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top"><code>_gdp_pkt_free</code><br>
+          <td valign="top"><code>_gdp_pdu_free</code><br>
           </td>
           <td valign="top">Frees a packet.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top"><code>_gdp_pkt_out</code><br>
+          <td valign="top"><code>_gdp_pdu_out</code><br>
           </td>
           <td valign="top">Given a packet structure and an output buffer,
             converts that packet to external format and writes it to the
@@ -305,19 +320,19 @@
           </td>
         </tr>
         <tr>
-          <td valign="top"><code>_gdp_pkt_in</code><br>
+          <td valign="top"><code>_gdp_pdu_in</code><br>
           </td>
           <td valign="top">Reads a packet from an I/O buffer and converts it to
             internal format.&nbsp; It is possible that this routine can return
             without reading the entire packet with the special status code <code>GDP_STAT_KEEP_READING</code>.&nbsp;
             Under most cases it should be called in a loop until a successful
-            status is returned.&nbsp; As with <code>_gdp_pkt_out</code>, the
+            status is returned.&nbsp; As with <code>_gdp_pdu_out</code>, the
             I/O buffer is normally associated with an I/O channel.&nbsp; See the
             discussion of the event loop for more details.<br>
           </td>
         </tr>
         <tr>
-          <td valign="top"><code>_gdp_pkg_dump</code><br>
+          <td valign="top"><code>_gdp_pdu_dump</code><br>
           </td>
           <td valign="top">Prints a packet in a form suitable only for
             debugging.<br>
@@ -329,16 +344,18 @@
     <h3>GDP Protocol</h3>
     <p>Implemented in <code>gdp/gdp_proto.c</code>.<br>
     </p>
-    <p>The basic model is that clients create a request with <code>_gdp_req_new</code>
-      which contains a command (what they need to get done) and optionally a
-      pointer to a GCL handle on which to perform the operation, the connection
-      on which to operate, and some flag bits.&nbsp; They may fill in other
-      information associated with a request, such as the record number for a
-      read command.&nbsp; The client then calls <code>_gdp_invoke</code>,
+    <p>The basic model is that users (e.g., the API layer) create a request with
+      <code>_gdp_req_new</code> which contains a command (what operation needs
+      to be done), an optional PDU buffer, an optional pointer to a GCL handle
+      on which to perform the operation, the connection on which to operate, and
+      some flag bits.&nbsp; The PDU buffer in turn contains all the information
+      to be passed to or from the service, including data, timestamps, record
+      numbers, etc.&nbsp; For example, on read the PDU will contain the record
+      number to be read, and the response will fill in the rest of the
+      information.&nbsp; The client then calls <code>_gdp_invoke</code>,
       passing it the request.&nbsp; That routine in turn sends the request using
-      <code>_gdp_req_send</code>; assuming that works it waits on the condition
-      variable contained in the request to get the final return status and
-      returns that.<br>
+      <code>_gdp_req_send</code>, waits on the condition variable contained in
+      the request to get the final return status, and returns that.<br>
     </p>
     <p>The sending part, implemented by <code>_gdp_req_send</code>, links the
       request to the requesting GCL (so it can be found when the reply
@@ -349,33 +366,35 @@
       main I/O loop; that is handed to (another) thread for processing.&nbsp;
       This is done through the bufferevent interface, part of libevent2, which
       invokes callbacks when events happen on sockets (that is, it can be
-      considered as having a similar functionality to select, or more accurately
-      <code>kqueue</code> or <code>/dev/poll</code>).&nbsp; The primary
-      callback used is <code>gdp_read_cb</code>.&nbsp; That routine allocates a
-      new packet and reads a packet into that area.&nbsp; If the packet is
-      incomplete (i.e., it hasn't all been read in) the packet is freed and the
-      callback returns (it will be called again later when more of the packet is
-      read).&nbsp; If the entire packet is available, it calls <code>process_packet</code>
-      to interpret it.<br>
+      considered as having a similar functionality to <code>select</code>, or
+      more accurately <code>kqueue</code> or <code>/dev/poll</code>).&nbsp;
+      The primary callback used is <code>gdp_read_cb</code>.&nbsp; That routine
+      allocates a new packet and reads a packet into that area.&nbsp; If the
+      packet is incomplete (i.e., it hasn't all been read in) the packet is
+      freed and the callback returns (it will be called again later when more of
+      the packet is read).&nbsp; If the entire packet is available, it calls <code>_gdp_pdu_process</code>
+      (indirectly, via the <code>process</code> field in the channel) to
+      interpret it.<br>
     </p>
-    <p>[The code currently has a non-functional #ifdef for <code>GDP_PACKET_QUEUE</code>.&nbsp;
+    <p>[The code currently has a non-functional #ifdef for <code>GDP_PDU_QUEUE</code>.&nbsp;
       This is for a future extension allowing the packet to be dropped into
       another queue for interpretation from a process in the thread pool so that
       the read thread can focus entirely on reading and handing off
-      packets.&nbsp; This technique is already used in gdpd, and will only be
+      packets.&nbsp; This technique is already used in gdplogd, and will only be
       used in the client library if necessary for performance.]<br>
     </p>
-    <p>Packet processing in process_packet involves finding the associated GCL,
-      if available, and from that finding the associated request.&nbsp; If no
-      request is found a new request is created; this is the case with
-      spontaneous commands.&nbsp; There is some processing of datums to handle
-      the case where a request had an existing datum that needs to be replaced
-      with a new one (for example, a read request that passed in a datum with
-      the record number and returns a datum with the associated timestamp and
-      data; since the read API passes in the datum, there is some shuffling
-      necessary with the underlying data buffers so that the caller can actually
-      access the returned data).&nbsp; The request (now a response) is then
-      passed to <code>_gdp_req_dispatch</code> for processing.<br>
+    <p>PDU processing in <span style="font-family: monospace;">_gdp_pdu_process</span><code></code>
+      involves finding the associated GCL, if available, and from that finding
+      the associated request.&nbsp; If no request is found a new request is
+      created; this is the case with spontaneous commands.&nbsp; There is some
+      processing of datums to handle the case where a request had an existing
+      datum that needs to be replaced with a new one (for example, a read
+      request that passed in a datum with the record number and returns a datum
+      with the associated timestamp and data; since the read API passes in the
+      datum, there is some shuffling necessary with the underlying data buffers
+      so that the caller can actually access the returned data).&nbsp; The
+      request (now a response) is then passed to <code>_gdp_req_dispatch</code>
+      for processing.<br>
     </p>
     <p>Processing in <code>_gdp_req_dispatch</code> is done through a simple
       dispatch table indexed by command.&nbsp; Requests can be either commands
@@ -388,10 +407,10 @@
       on three routines (<code>ack_success</code>, <code>nak_client</code>, and
       <code>nak_server</code>), the latter two of which are essentially
       identical, doing nothing but passing the error on up the stack.&nbsp; The
-      ack_success routine checks for some nonsensical situations and passes the
-      (interpreted) status back up to process_packet.<br>
+      <code> ack_success</code> routine checks for some nonsensical situations
+      and passes the (interpreted) status back up to <span style="font-family: monospace;">_gdp_pdu_process</span><code></code>.<br>
     </p>
-    <p>The response from the command is then interpreted by <code>process_packet</code>.&nbsp;
+    <p>The response from the command is then interpreted by <code>_gdp_pdu_process</code>.&nbsp;
       There are two cases.&nbsp; The simpler one is when the command/response
       was a simple ack/nak, in which case the status is stored in the request
       and the thread waiting on that request is poked to wake up.&nbsp; The
@@ -411,8 +430,8 @@
       192&ndash;223, and codes 500&ndash;531 become commands 224&ndash;254.<br>
     </p>
     <p>Internally the GDP library uses the <code>EP_STAT</code> abstraction as
-      a lingua franca.&nbsp; <code>EP_STAT</code>s allow encoding of response
-      codes in a single integer (so they can be passed easily back from
+      a status lingua franca.&nbsp; <code>EP_STAT</code>s allow encoding of
+      response codes in a single integer (so they can be passed easily back from
       functions).&nbsp; Those integers encode a severity (most importantly,
       success or failure), a registry and a module identifier (which for this
       purpose can be treated as one piece), and detail information.&nbsp; The
@@ -439,5 +458,6 @@
       freeing them using <code>gdp_event_free</code>.<br>
     </p>
     <h3>Event Loop</h3>
+    <p class="metanotes">To be written.</p>
   </body>
 </html>
