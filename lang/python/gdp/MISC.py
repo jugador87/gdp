@@ -10,9 +10,9 @@ package_directory = os.path.dirname(os.path.abspath(__file__))
 
 # Load the DLLs. Make sure that the files actually exist ###
 gdp = CDLL(os.path.join(package_directory,
-           "..", "..", "..", "libs",  "libgdp.so.0.1"))
+           "..", "..", "..", "libs",  "libgdp.so"))
 ep = CDLL(os.path.join(package_directory,
-          "..", "..", "..", "libs", "libep.so.2.0"))
+          "..", "..", "..", "libs", "libep.so"))
 try:
     evb = CDLL("libevent.so")       # On linux
 except OSError:
