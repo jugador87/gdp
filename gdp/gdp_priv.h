@@ -25,6 +25,13 @@ gdp_name_t			_GdpMyRoutingName;	// source name for PDUs
 LIST_HEAD(req_head, gdp_req);
 
 
+/*
+**  GDP Channels
+**
+**		These represent a communications path to the routing layer.
+**		At the moment those are connections.
+*/
+
 struct gdp_chan
 {
 	EP_THR_MUTEX		mutex;			// lock before changes
@@ -32,7 +39,6 @@ struct gdp_chan
 	int16_t				state;			// current state of channel
 	struct bufferevent	*bev;			// associated bufferevent (socket)
 	struct req_head		reqs;			// reqs associated with this channel
-	gdp_name_t			serverid;		// the name of the server (random nonce)
 	void				(*close_cb)(	// called on channel close
 							gdp_chan_t *chan);
 	EP_STAT				(*advertise)(	// called to do our advertisements
@@ -54,21 +60,18 @@ struct gdp_chan
 **	 Datums
 **		These are the underlying data unit that is passed through a GCL.
 **
-**		XXX Is the timestamp the commit timestamp into the dataplane
-**			or the timestamp of the sample itself (if known)?  Do we
-**			need two timestamps?  The sample timestamp is really an
-**			application level concept, so arguably doesn't belong here.
-**			But that's true of the location as well.
+**		The timestamp here is the database commit timestamp; any sample
+**		timestamp must be added by the sensor itself as part of the data.
 */
 
 struct gdp_datum
 {
-	EP_THR_MUTEX		mutex;		// locking mutex (mostly for dbuf)
-	struct gdp_datum	*next;		// next in free list
-	bool				inuse:1;	// indicates that the datum is in use
-	gdp_recno_t			recno;		// the record number
-	EP_TIME_SPEC		ts;			// timestamp for this message
-	gdp_buf_t			*dbuf;		// data buffer
+	EP_THR_MUTEX		mutex;			// locking mutex (mostly for dbuf)
+	struct gdp_datum	*next;			// next in free list
+	bool				inuse:1;		// indicates that the datum is in use
+	gdp_recno_t			recno;			// the record number
+	EP_TIME_SPEC		ts;				// commit timestamp
+	gdp_buf_t			*dbuf;			// data buffer
 };
 
 
@@ -79,7 +82,6 @@ struct gdp_datum
 struct gdp_gcl
 {
 	EP_THR_MUTEX		mutex;			// lock on this data structure
-//	EP_THR_COND			cond;			// pthread wakeup signal
 	time_t				utime;			// last time used (seconds only)
 	LIST_ENTRY(gdp_gcl)	ulist;			// list sorted by use time
 	struct req_head		reqs;			// list of outstanding requests
