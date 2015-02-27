@@ -57,9 +57,9 @@ main(int argc, char **argv)
 	gdp_parse_name(argv[0], gdpiname);
 	gdp_printable_name(gdpiname, gdppname);
 	fprintf(stdout,
-			"external name: %s\n"
-			"internal name: %s\n"
-			"hex version:   ",
+			"external:  %s\n"
+			"printable: %s\n"
+			"hex:       ",
 			argv[0], gdppname);
 	for (i = 0; i < sizeof gdpiname; i++)
 		fprintf(stdout, "%02x", gdpiname[i]);
