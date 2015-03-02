@@ -90,10 +90,6 @@ done:
 **	GDP_PDU_OUT --- send a PDU to a network buffer
 **
 **		Outputs PDU, including all the data in the dbuf.
-**
-**	XXX need to enable buffer locking somewhere!!
-**		[evbuffer_enable_locking(buffer, void *lock)]
-**		[see also evthread_set_lock_creation_callback]
 */
 
 #define PUT32(v) \
@@ -266,7 +262,8 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		}
 	}
 
-	// XXX output signature here XXX
+	// TODO output signature here
+
 	evbuffer_unlock(obuf);
 
 	return estat;
@@ -556,41 +553,13 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 
 
 /*
-**  Active and Free PDU queues
-**
-**		When PDU come off the wire they are added to the Active
-**		queue; a separate consumer thread consumes them.  Normally it
-**		is the I/O thread adding to the queue and the main thread
-**		consuming, but this could be changed to have a thread pool
-**		doing the consumption.
-**
-**		The free list is just to avoid memory fragmentation.
-**
-**		Note that the Active queue is organized as a FIFO, unlike the
-**		free lists, which are managed as LIFOs in order to try to keep
-**		the hardware cache as hot as possible.
-**
-**		XXX	PDU queue is not implemented at the moment, implying
-**			that processing is single threaded.  This will be needed
-**			if we want to do processing out of a thread pool.
+**  _GDP_PDU_NEW --- allocate a PDU (from free list if possible)
+**  _GDP_PDU_FREE --- return a PDU to the free list
 */
 
 static EP_THR_MUTEX		PduFreeListMutex	EP_THR_MUTEX_INITIALIZER;
 static TAILQ_HEAD(pkt_head, gdp_pdu)
 						PduFreeList = TAILQ_HEAD_INITIALIZER (PduFreeList);
-
-#ifdef GDP_PDU_QUEUE
-static EP_THR_MUTEX		ActivePduMutex		EP_THR_MUTEX_INITIALIZER;
-static EP_THR_COND		ActivePduCond		EP_THR_COND_INITIALIZER;
-static TAILQ_HEAD(active_head, gdp_pdu)
-						ActivePduQueue = TAILQ_HEAD_INITIALIZER(ActivePduQueue);
-#endif
-
-
-/*
-**  _GDP_PDU_NEW --- allocate a PDU (from free list if possible)
-**  _GDP_PDU_FREE --- return a PDU to the free list
-*/
 
 gdp_pdu_t *
 _gdp_pdu_new(void)
@@ -632,38 +601,3 @@ _gdp_pdu_free(gdp_pdu_t *pdu)
 	TAILQ_INSERT_HEAD(&PduFreeList, pdu, list);
 	ep_thr_mutex_unlock(&PduFreeListMutex);
 }
-
-
-#ifdef GDP_PDU_QUEUE
-
-/*
-**  _GDP_PDU_ADD_TO_QUEUE --- add a PDU to the active queue
-**  _GDP_PDU_GET_ACTIVE --- get a PDU from the active queue
-*/
-
-void
-_gdp_pdu_add_to_queue(gdp_pdu_t *pdu)
-{
-	ep_thr_mutex_lock(&ActivePduMutex);
-	TAILQ_INSERT_TAIL(&ActivePduQueue, pdu, list);
-	ep_thr_cond_signal(&ActivePduCond);
-	ep_thr_mutex_unlock(&ActivePduMutex);
-}
-
-gdp_pdu_t *
-_gdp_pdu_get_active(void)
-{
-	gdp_pdu_t *pdu;
-
-	ep_thr_mutex_lock(&ActivePduMutex);
-	while (TAILQ_EMPTY(&ActivePduQueue))
-	{
-		ep_thr_cond_wait(&ActivePduCond, &ActivePduMutex, NULL);
-	}
-	pdu = TAILQ_FIRST(&ActivePduQueue);
-	TAILQ_REMOVE(&ActivePduQueue, pdu, list);
-	ep_thr_mutex_unlock(&ActivePduMutex);
-
-	return pdu;
-}
-#endif

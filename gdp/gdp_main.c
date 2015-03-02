@@ -138,7 +138,6 @@ gdp_pdu_proc_thread(void *pdu_)
 	ep_dbg_cprintf(Dbg, 40, "gdp_pdu_proc_thread >>> req=%p, iscmd=%d\n",
 			req, pdu_is_command);
 
-	//XXX dispatch command or ack/nak
 	estat = _gdp_req_dispatch(req);
 
 	// figure out potential response code
@@ -160,8 +159,8 @@ gdp_pdu_proc_thread(void *pdu_)
 		{
 			if (d >= 400 && d < (400 + GDP_NAK_C_MAX - GDP_NAK_C_MIN))
 				resp = d - 400 + GDP_NAK_C_MIN;
-//				else
-//					resp = GDP_ACK_C_BADREQ;
+//			else
+//				resp = GDP_ACK_C_BADREQ;
 		}
 		else if (EP_STAT_ISSEVERE(estat))
 		{
@@ -171,8 +170,8 @@ gdp_pdu_proc_thread(void *pdu_)
 	}
 	else if (EP_STAT_ISOK(estat))
 		resp = GDP_ACK_SUCCESS;
-//		else if (EP_STAT_ISERROR(estat))
-//			resp = GDP_ACK_XXX;
+//	else if (EP_STAT_ISERROR(estat))
+//		resp = GDP_ACK_C_BADREQ;
 
 	if (resp >= GDP_NAK_S_MIN && resp <= GDP_NAK_S_MAX)
 	{
@@ -204,7 +203,7 @@ gdp_pdu_proc_thread(void *pdu_)
 			//XXX anything to do with estat here?
 		}
 
-		//XXX do command post processing
+		// do command post processing
 		if (req->postproc)
 		{
 			(req->postproc)(req);
@@ -261,7 +260,8 @@ gdp_pdu_proc_thread(void *pdu_)
 
 fail0:
 	ep_log(estat, "gdp_pdu_proc_thread: cannot allocate request; dropping PDU");
-	_gdp_pdu_free(pdu);		//XXX ??? who owns the pdu?
+	if (pdu != NULL)
+		_gdp_pdu_free(pdu);
 }
 
 

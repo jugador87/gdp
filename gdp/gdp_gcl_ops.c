@@ -259,7 +259,7 @@ _gdp_gcl_close(gdp_gcl_t *gcl,
 	// tell the daemon to close it
 	estat = _gdp_invoke(req);
 
-	//XXX should probably check status
+	//XXX should probably check status (and do what with it?)
 
 	// release resources held by this handle
 	_gdp_req_free(req);		// also drops gcl reference

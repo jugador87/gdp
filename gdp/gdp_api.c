@@ -20,8 +20,11 @@
 /*
 **	This implements the GDP API for C-based applications.
 **
-**	In the future this may need to be extended to have knowledge of
-**	TSN/AVB, but for now we don't worry about that.
+**	These are all basically just translation routines; the hard
+**	work is done in gdp_gcl_ops.c and gdp_proto.c.
+**
+**	TODO In the future this may need to be extended to have knowledge
+**		 of TSN/AVB, but for now we don't worry about that.
 */
 
 
@@ -371,6 +374,8 @@ gdp_gcl_append(gdp_gcl_t *gcl, gdp_datum_t *datum)
 /*
 **	GDP_GCL_READ --- read a message from a GCL
 **
+**	The data is returned through the passed-in datum.
+**
 **		Parameters:
 **			gcl --- the gcl from which to read
 **			recno --- the record number to read
@@ -410,7 +415,7 @@ gdp_gcl_subscribe(gdp_gcl_t *gcl,
 **	GDP_GCL_MULTIREAD --- read multiple records from a GCL
 **
 **		Like gdp_gcl_subscribe, the data is returned through the event
-**		interface.
+**		interface or callbacks.
 */
 
 EP_STAT
@@ -424,7 +429,16 @@ gdp_gcl_multiread(gdp_gcl_t *gcl,
 					NULL, cbfunc, cbarg, _GdpChannel, 0);
 }
 
+
+/*
+**  GDP_GCL_UNSUBSCRIBE --- cancel a current subscription.
+**
+**		Unfortunately these parameters are not unique.  We have to
+**		figure out a better way to deal with this.
+*/
+
 #if 0
+
 EP_STAT
 gdp_gcl_unsubscribe(gdp_gcl_t *gcl,
 		void (*cbfunc)(gdp_gcl_t *, void *),
@@ -437,6 +451,10 @@ gdp_gcl_unsubscribe(gdp_gcl_t *gcl,
 }
 #endif
 
+
+/*
+**  GDP_GCL_GETMETADATA --- return the metadata associated with a GCL
+*/
 
 EP_STAT
 gdp_gcl_getmetadata(gdp_gcl_t *gcl,

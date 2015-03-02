@@ -64,7 +64,7 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 	{
 		// now waiting for other events; go ahead and unlock
 		req->state = GDP_REQ_IDLE;
-		ep_thr_cond_signal(&req->cond);		//XXX ???
+		ep_thr_cond_signal(&req->cond);
 		_gdp_req_unlock(req);
 	}
 

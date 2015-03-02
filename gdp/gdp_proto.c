@@ -580,16 +580,17 @@ _gdp_req_dispatch(gdp_req_t *req)
 {
 	EP_STAT estat;
 	dispatch_ent_t *d;
+	int cmd = req->pdu->cmd;
 
 	if (ep_dbg_test(Dbg, 18))
 	{
 		ep_dbg_printf("_gdp_req_dispatch >>> %s (%d), ",
-				_gdp_proto_cmd_name(req->pdu->cmd), req->pdu->cmd);
+				_gdp_proto_cmd_name(cmd), cmd);
 		if (ep_dbg_test(Dbg, 30))
 			_gdp_req_dump(req, ep_dbg_getfile());
 	}
 
-	d = &DispatchTable[req->pdu->cmd];
+	d = &DispatchTable[cmd];
 	if (d->func == NULL)
 		estat = cmd_not_implemented(req);
 	else
@@ -600,7 +601,7 @@ _gdp_req_dispatch(gdp_req_t *req)
 		char ebuf[200];
 
 		ep_dbg_printf("_gdp_req_dispatch <<< %s\n    %s\n",
-				_gdp_proto_cmd_name(req->pdu->cmd),
+				_gdp_proto_cmd_name(cmd),
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		if (ep_dbg_test(Dbg, 30))
 		{

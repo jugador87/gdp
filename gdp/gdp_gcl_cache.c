@@ -71,33 +71,42 @@ _gdp_gcl_cache_init(void)
 
 
 /*
-**  _GDP_GCL_TOUCH --- move GCL to the front of the LRU list
+**  Add a GCL to both the associative and the LRU caches.
 */
 
 void
-_gdp_gcl_touch(gdp_gcl_t *gcl)
+_gdp_gcl_cache_add(gdp_gcl_t *gcl, gdp_iomode_t mode)
 {
-	struct timeval tv;
-
+	// sanity checks
+	EP_ASSERT_POINTER_VALID(gcl);
+	EP_ASSERT_REQUIRE(gdp_name_is_valid(gcl->name));
 	EP_ASSERT_REQUIRE(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
 
-	if (!EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
+	if (EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
 	{
-		ep_dbg_cprintf(Dbg, 8, "_gcl_gcl_touch(%p): uncached!\n", gcl);
+		ep_dbg_cprintf(Dbg, 8, "_gdp_gcl_cache_add(%p): already cached\n", gcl);
 		return;
 	}
 
-	ep_dbg_cprintf(Dbg, 46, "_gdp_gcl_touch(%p)\n", gcl);
+	// save it in the associative cache
+	(void) ep_hash_insert(OpenGCLCache,
+						sizeof (gdp_name_t), gcl->name, gcl);
 
-	gettimeofday(&tv, NULL);
-	gcl->utime = tv.tv_sec;
+	// ... and the LRU list
+	{
+		struct timeval tv;
 
-	if (!EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
+		gettimeofday(&tv, NULL);
+		gcl->utime = tv.tv_sec;
+
 		ep_thr_mutex_lock(&GclCacheMutex);
-	LIST_REMOVE(gcl, ulist);
-	LIST_INSERT_HEAD(&GclsByUse, gcl, ulist);
-	if (!EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
+		LIST_INSERT_HEAD(&GclsByUse, gcl, ulist);
 		ep_thr_mutex_unlock(&GclCacheMutex);
+	}
+
+	gcl->flags |= GCLF_INCACHE;
+	ep_dbg_cprintf(Dbg, 42, "_gdp_gcl_cache_add: %s => %p\n",
+			gcl->pname, gcl);
 }
 
 
@@ -168,46 +177,6 @@ done:
 
 
 /*
-**  Add a GCL to both the associative and the LRU caches.
-*/
-
-void
-_gdp_gcl_cache_add(gdp_gcl_t *gcl, gdp_iomode_t mode)
-{
-	// sanity checks
-	EP_ASSERT_POINTER_VALID(gcl);
-	EP_ASSERT_REQUIRE(gdp_name_is_valid(gcl->name));
-	EP_ASSERT_REQUIRE(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
-
-	if (EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
-	{
-		ep_dbg_cprintf(Dbg, 8, "_gdp_gcl_cache_add(%p): already cached\n", gcl);
-		return;
-	}
-
-	// save it in the associative cache
-	(void) ep_hash_insert(OpenGCLCache,
-						sizeof (gdp_name_t), gcl->name, gcl);
-
-	// ... and the LRU list
-	{
-		struct timeval tv;
-
-		gettimeofday(&tv, NULL);
-		gcl->utime = tv.tv_sec;
-
-		ep_thr_mutex_lock(&GclCacheMutex);
-		LIST_INSERT_HEAD(&GclsByUse, gcl, ulist);
-		ep_thr_mutex_unlock(&GclCacheMutex);
-	}
-
-	gcl->flags |= GCLF_INCACHE;
-	ep_dbg_cprintf(Dbg, 42, "_gdp_gcl_cache_add: %s => %p\n",
-			gcl->pname, gcl);
-}
-
-
-/*
 ** Drop a GCL from both the associative and the LRU caches
 */
 
@@ -234,6 +203,37 @@ _gdp_gcl_cache_drop(gdp_gcl_t *gcl)
 	gcl->flags &= ~GCLF_INCACHE;
 	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_drop: dropping %s => %p\n",
 			gcl->pname, gcl);
+}
+
+
+/*
+**  _GDP_GCL_TOUCH --- move GCL to the front of the LRU list
+*/
+
+void
+_gdp_gcl_touch(gdp_gcl_t *gcl)
+{
+	struct timeval tv;
+
+	EP_ASSERT_REQUIRE(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
+
+	if (!EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
+	{
+		ep_dbg_cprintf(Dbg, 8, "_gcl_gcl_touch(%p): uncached!\n", gcl);
+		return;
+	}
+
+	ep_dbg_cprintf(Dbg, 46, "_gdp_gcl_touch(%p)\n", gcl);
+
+	gettimeofday(&tv, NULL);
+	gcl->utime = tv.tv_sec;
+
+	if (!EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
+		ep_thr_mutex_lock(&GclCacheMutex);
+	LIST_REMOVE(gcl, ulist);
+	LIST_INSERT_HEAD(&GclsByUse, gcl, ulist);
+	if (!EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
+		ep_thr_mutex_unlock(&GclCacheMutex);
 }
 
 
