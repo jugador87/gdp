@@ -24,13 +24,17 @@ fatal() {
 platform() {
     local  __resultvar=$1
     local result
-    if [ -f "/etc/redhat-release" ]; then
+    if [ -f "/etc/lsb-release" ]; then
+	source /etc/lsb-release
+	result="$DISTRIB_ID"
+    elif [ -f "/etc/redhat-release" ]; then
 	result="centos"
     else
-        result=`uname -s | tr '[A-Z]' '[a-z]'`
-	if [ "$result" = "linux" ]; then
-	    result=`cat /etc/issue | sed 's/ .*//' | tr '[A-Z]' '[a-z]'`
-	fi
+        result=`uname -s`
+    fi
+    result=`echo $release | tr '[A-Z]' '[a-z]'`
+    if [ "$result" = "linux" ]; then
+	result=`cat /etc/issue | sed 's/ .*//' | tr '[A-Z]' '[a-z]'`
     fi
     eval $__resultvar="$result"
 }
@@ -73,6 +77,13 @@ package() {
 		log "$1 is already installed. skipping."
 	    else
 		sudo pkg install $@
+	    fi
+	    ;;
+	"gentoo")
+	    if equery list $1 >& /dev/null; then
+		log "$1 is already installed. skipping."
+	    else
+		sudo emerge $1
 	    fi
 	    ;;
 	*)
@@ -118,6 +129,13 @@ case "$OS" in
 
     "freebsd")
 	package libevent2
+	package openssl
+	package lighttpd
+	package jansson
+	;;
+
+    "gentoo")
+	package libevent
 	package openssl
 	package lighttpd
 	package jansson

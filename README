@@ -95,8 +95,11 @@ Required Packages:
 		sudo pkg install libevent2 openssl lighttpd jansson
 	    On Ubuntu/Linux:
 		sudo apt-get install libevent-dev libssl-dev \
-			    lighttpd libjansson-dev
-	Or, use the helper script adm/gdp-setup.sh.
+			lighttpd libjansson-dev
+	    On Gentoo/Linux:
+		sudo emerge openssl libevent lighttpd jansson
+	Or, use the helper script adm/gdp-setup.sh, which should work
+	on all these platforms.
 
 Compiling the GDP Code:
 	First, install the prerequisite packages.
