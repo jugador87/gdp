@@ -94,9 +94,7 @@ sizeof_EP_STAT_in_bytes()
 // extern void
 // gdp_gcl_print(
 //     const gdp_gcl_t *gclh,  // GCL handle to print
-//     FILE *fp,               // file to print it to
-//     int detail,             // not used at this time
-//     int indent              // not used at this time
+//     FILE *fp);              // file to print it to
 // );
 //
 void
@@ -106,7 +104,7 @@ gdp_gcl_print_stdout(
     int indent              // not used at this time
 )
 {
-    gdp_gcl_print( gclh, stdout, detail, indent);
+    gdp_gcl_print( gclh, stdout);
 }
 
 

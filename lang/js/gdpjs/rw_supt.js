@@ -137,7 +137,7 @@ function write_gcl_records( gdpd_addr, gcl_name, gcl_append,
 
 	// don't always send gcl name to stdout
 	if ( conout == true )
-	{	gdp_gcl_print_stdout_js( gcl_Ptr, 0, 0 ); }
+	{	gdp_gcl_print_stdout_js( gcl_Ptr ); }
 
 	var datum;
 	datum = gdp_datum_new_js();

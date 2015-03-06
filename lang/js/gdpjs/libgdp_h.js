@@ -591,7 +591,7 @@ var libgdpjs = ffi.Library( GDPJS_DIR + '../libs/libgdpjs.1.0', {
 // From gdp/gdp.h
 // print a GCL (for debugging)
 // Forwards to gcp_gcl_print( const gdp_gcl_t *gclh, stdout, , , );
-    'gdp_gcl_print_stdout':  [ 'void', [ gdp_gcl_tPtr, 'int', 'int' ] ],
+    'gdp_gcl_print_stdout':  [ 'void', [ gdp_gcl_tPtr ] ],
 
 // From gdp/gdp.h
 // print a message (for debugging)

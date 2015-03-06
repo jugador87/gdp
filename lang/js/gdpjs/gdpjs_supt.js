@@ -148,10 +148,10 @@ function gdp_printable_name_js( /* gcl_name_t  */ gclname,
 }
 
 /* void */
-function gdp_gcl_print_stdout_js( gcl_Ptr, /* int */ detail, /* int */ indent )
+function gdp_gcl_print_stdout_js( gcl_Ptr )
 {
 	/* void */
-    libgdpjs.gdp_gcl_print_stdout( gcl_Ptr, detail, indent );
+    libgdpjs.gdp_gcl_print_stdout( gcl_Ptr );
 }
 
 /* String */
