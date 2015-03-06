@@ -128,8 +128,9 @@ Compiling the GDP Code:
 	clang).  I believe at least one person has it running on
 	MacOS 10.7 using gcc.
 
-        Note, the lang/js/ JavaScript system currently must be built
-        separately using the target all_JavaScript in gdp/Makefile:
+	NOTA BENE: JavaScript support in lang/js currently has no one
+	to support it, so it may require extra work to get it going.
+	It must be built separately using:
             make all_JavaScript
         To clean (including removing a rather extensive set of Node.js
         modules which are installed by all_JavaScript):
