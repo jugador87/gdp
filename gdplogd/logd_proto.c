@@ -488,7 +488,7 @@ cmd_subscribe(gdp_req_t *req)
 	{
 		ep_dbg_printf("cmd_subscribe: first = %" PRIgdp_recno ", numrecs = %d\n  ",
 				req->pdu->datum->recno, req->numrecs);
-		gdp_gcl_print(req->gcl, ep_dbg_getfile(), 1, 0);
+		_gdp_gcl_dump(req->gcl, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
 	// should have no more input data; ignore anything there
@@ -574,7 +574,7 @@ cmd_multiread(gdp_req_t *req)
 	{
 		ep_dbg_printf("cmd_multiread: first = %" PRIgdp_recno ", numrecs = %d\n  ",
 				req->pdu->datum->recno, req->numrecs);
-		gdp_gcl_print(req->gcl, ep_dbg_getfile(), 1, 0);
+		_gdp_gcl_dump(req->gcl, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
 	// should have no more input data; ignore anything there
@@ -701,7 +701,7 @@ dispatch_cmd(gdp_req_t *req)
 		ep_dbg_printf("dispatch_cmd: >>> command %d (%s)\n",
 				cmd, _gdp_proto_cmd_name(cmd));
 		if (ep_dbg_test(Dbg, 30))
-			_gdp_req_dump(req, ep_dbg_getfile());
+			_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
 	estat = _gdp_req_dispatch(req);

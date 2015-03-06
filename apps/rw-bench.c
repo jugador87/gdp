@@ -178,7 +178,7 @@ main(int argc, char *argv[])
 		estat = gdp_gcl_create(NULL, NULL, &gcl_write);
 
 		EP_STAT_CHECK(estat, goto fail0);
-		gdp_gcl_print(gcl_write, stdout, 0, 0);
+		gdp_gcl_print(gcl_write, stdout);
 
 		ep_time_now(&start_time);
 		fprintf(stdout, "Writing data (start_time = %" PRIu64 ":%u)\n",

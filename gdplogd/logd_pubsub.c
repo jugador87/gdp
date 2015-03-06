@@ -29,7 +29,7 @@ sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum, int cmd)
 	if (ep_dbg_test(Dbg, 33))
 	{
 		ep_dbg_printf("sub_send_message_notification(%d): ", cmd);
-		_gdp_req_dump(req, ep_dbg_getfile());
+		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
 	estat = _gdp_pdu_out(req->pdu, req->chan);
@@ -58,7 +58,7 @@ sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 	{
 		ep_dbg_printf("sub_notify_all_subscribers(%s):\n  ",
 				_gdp_proto_cmd_name(cmd));
-		_gdp_req_dump(pubreq, ep_dbg_getfile());
+		_gdp_req_dump(pubreq, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
 	LIST_FOREACH(req, &pubreq->gcl->reqs, gcllist)
@@ -69,7 +69,7 @@ sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 
 		if (ep_dbg_test(Dbg, 59))
 		{
-			_gdp_req_dump(req, ep_dbg_getfile());
+			_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 		}
 
 		// notify subscribers
@@ -104,7 +104,7 @@ sub_end_subscription(gdp_req_t *req)
 	if (ep_dbg_test(Dbg, 61))
 	{
 		ep_dbg_printf("sub_end_subscription req:\n  ");
-		_gdp_req_dump(req, ep_dbg_getfile());
+		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
 	(void) _gdp_pdu_out(req->pdu, req->chan);

@@ -120,6 +120,48 @@ _gdp_gcl_freehandle(gdp_gcl_t *gcl)
 	ep_mem_free(gcl);
 }
 
+/*
+**  _GDP_GCL_DUMP --- print a GCL (for debugging)
+*/
+
+void
+_gdp_gcl_dump(
+		const gdp_gcl_t *gcl,
+		FILE *fp,
+		int detail,
+		int indent)
+{
+	if (detail >= GDP_PR_BASIC)
+		fprintf(fp, "GCL@%p: ", gcl);
+	if (gcl == NULL)
+	{
+		fprintf(fp, "NULL\n");
+	}
+	else
+	{
+		if (!gdp_name_is_valid(gcl->name))
+		{
+			fprintf(fp, "no name\n");
+		}
+		else
+		{
+			EP_ASSERT_POINTER_VALID(gcl);
+			fprintf(fp, "%s\n", gcl->pname);
+		}
+
+		if (detail >= GDP_PR_BASIC)
+		{
+			fprintf(fp, "\tiomode = %d, refcnt = %d, reqs = %p\n",
+					gcl->iomode, gcl->refcnt, LIST_FIRST(&gcl->reqs));
+			if (detail >= GDP_PR_DETAILED)
+			{
+				fprintf(fp, "\tfreefunc = %p, x = %p\n",
+						gcl->freefunc, gcl->x);
+			}
+		}
+	}
+}
+
 
 /*
 **	_GDP_GCL_CREATE --- create a new GCL

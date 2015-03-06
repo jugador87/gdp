@@ -264,7 +264,7 @@ _gdp_gcl_cache_reclaim(time_t maxage)
 			if (ep_dbg_test(Dbg, 32))
 			{
 				ep_dbg_printf("_gdp_gcl_cache_reclaim: reclaiming:\n   ");
-				gdp_gcl_print(g1, ep_dbg_getfile(), 8, 0);
+				_gdp_gcl_dump(g1, ep_dbg_getfile(), GDP_PR_DETAILED, 0);
 			}
 			LIST_REMOVE(g1, ulist);
 			g1->flags |= GCLF_ISLOCKED;

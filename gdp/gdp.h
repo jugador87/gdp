@@ -212,9 +212,7 @@ extern bool		gdp_name_is_valid(
 // print a GCL (for debugging)
 extern void		gdp_gcl_print(
 					const gdp_gcl_t *gcl,	// GCL handle to print
-					FILE *fp,				// file to print it to
-					int detail,				// not used at this time
-					int indent);			// not used at this time
+					FILE *fp);
 
 // make a printable GDP object name from a binary version
 char			*gdp_printable_name(

@@ -20,23 +20,18 @@
 /*
 **	This implements the GDP API for C-based applications.
 **
-**	These are all basically just translation routines; the hard
-**	work is done in gdp_gcl_ops.c and gdp_proto.c.
+**  With the exception of the name manipulation (parsing,
+**  printing, etc.) most of these are basically just translation
+**  routines, converting the API calls into requests and handing
+**  them on; the hard work is done in gdp_gcl_ops.c and gdp_proto.c.
 **
 **	TODO In the future this may need to be extended to have knowledge
 **		 of TSN/AVB, but for now we don't worry about that.
 */
 
-
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.api", "C API for GDP");
 
 
-
-/***********************************************************************
-**
-**	Utility routines
-**
-***********************************************************************/
 
 /*
 **	GDP_GCL_GETNAME --- get the name of a GCL
@@ -72,11 +67,11 @@ gdp_printable_name(const gdp_name_t internal, gdp_pname_t external)
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		strcpy("(unknown)", external);
 	}
-	else if (EP_STAT_TO_INT(estat) != 43)
+	else if (EP_STAT_TO_INT(estat) != GDP_GCL_PNAME_LEN)
 	{
 		ep_dbg_cprintf(Dbg, 2,
-				"gdp_printable_name: ep_b64_encode length failure (%d != 43)\n",
-				EP_STAT_TO_INT(estat));
+				"gdp_printable_name: ep_b64_encode length failure (%d != %d)\n",
+				EP_STAT_TO_INT(estat), GDP_GCL_PNAME_LEN);
 	}
 	return external;
 }
@@ -186,39 +181,9 @@ gdp_name_is_valid(const gdp_name_t name)
 void
 gdp_gcl_print(
 		const gdp_gcl_t *gcl,
-		FILE *fp,
-		int detail,
-		int indent)
+		FILE *fp)
 {
-	if (detail > 0)
-		fprintf(fp, "GCL@%p: ", gcl);
-	if (gcl == NULL)
-	{
-		fprintf(fp, "NULL\n");
-	}
-	else
-	{
-		if (!gdp_name_is_valid(gcl->name))
-		{
-			fprintf(fp, "no name\n");
-		}
-		else
-		{
-			EP_ASSERT_POINTER_VALID(gcl);
-			fprintf(fp, "%s\n", gcl->pname);
-		}
-
-		if (detail > 0)
-		{
-			fprintf(fp, "\tiomode = %d, refcnt = %d, reqs = %p\n",
-					gcl->iomode, gcl->refcnt, LIST_FIRST(&gcl->reqs));
-			if (detail > 1)
-			{
-				fprintf(fp, "\tfreefunc = %p, x = %p\n",
-						gcl->freefunc, gcl->x);
-			}
-		}
-	}
+	_gdp_gcl_dump(gcl, fp, GDP_PR_PRETTY, 0);
 }
 
 

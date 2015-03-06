@@ -62,7 +62,7 @@ shutdown_req(gdp_req_t *req)
 	if (ep_dbg_test(Dbg, 59))
 	{
 		ep_dbg_printf("shutdown_req: ");
-		_gdp_req_dump(req, ep_dbg_getfile());
+		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
 	if (EP_UT_BITSET(GDP_REQ_SRV_SUBSCR, req->flags))

@@ -124,7 +124,7 @@ main(int argc, char **argv)
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// dump the internal version of the GCL to facilitate testing
-	gdp_gcl_print(gcl, stdout, 0, 0);
+	gdp_gcl_print(gcl, stdout);
 
 	// OK, ready to go!
 	fprintf(stdout, "\nStarting to read input\n");

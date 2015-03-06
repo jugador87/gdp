@@ -26,6 +26,18 @@ LIST_HEAD(req_head, gdp_req);
 
 
 /*
+**  Some generic constants
+*/
+
+// "dump" routine detail parameters
+#define GDP_PR_PRETTY		-1		// suitable for end users
+#define GDP_PR_BASIC		0		// basic information
+#define GDP_PR_DETAILED		16		// detailed information
+#define GDP_PR_RECURSE		32		// recurse into substructures
+									// add N to recurse N+1 levels deep
+
+
+/*
 **  GDP Channels
 **
 **		These represent a communications path to the routing layer.
@@ -297,6 +309,12 @@ void			_gdp_gcl_freehandle(		// free in-memory handle
 void			_gdp_gcl_newname(			// create a new name
 						gdp_gcl_t *gcl);
 
+void			_gdp_gcl_dump(				// dump for debugging
+						const gdp_gcl_t *gcl,	// GCL to print
+						FILE *fp,				// where to print it
+						int detail,				// how much to print
+						int indent);			// unused at this time
+
 EP_STAT			_gdp_gcl_create(			// create a new GCL
 						gdp_name_t gclname,
 						gdp_name_t logdname,
@@ -385,7 +403,9 @@ void			_gdp_req_freeall(			// free all requests in list
 
 void			_gdp_req_dump(				// print (debug) request
 						gdp_req_t *req,
-						FILE *fp);
+						FILE *fp,
+						int detail,
+						int indent);
 
 void			_gdp_chan_drain_input(		// drain all input from channel
 						gdp_chan_t *chan);
@@ -448,5 +468,6 @@ EP_STAT			_gdp_evloop_init(void);		// start event loop
 extern void		_gdp_datum_dump(
 					const gdp_datum_t *datum,	// message to print
 					FILE *fp);					// file to print it to
+
 
 #endif // _GDP_PRIV_H_

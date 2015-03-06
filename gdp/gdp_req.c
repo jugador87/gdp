@@ -264,7 +264,7 @@ _gdp_req_send(gdp_req_t *req)
 	{
 		flockfile(ep_dbg_getfile());
 		ep_dbg_printf("_gdp_req_send: ");
-		_gdp_req_dump(req, ep_dbg_getfile());
+		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 		funlockfile(ep_dbg_getfile());
 	}
 
@@ -304,7 +304,7 @@ _gdp_req_unsend(gdp_req_t *req)
 	if (ep_dbg_test(Dbg, 45))
 	{
 		ep_dbg_printf("_gdp_req_unsend: ");
-		_gdp_req_dump(req, ep_dbg_getfile());
+		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
 	if (gcl == NULL)
@@ -424,7 +424,7 @@ static EP_PRFLAGS_DESC	ReqFlags[] =
 };
 
 void
-_gdp_req_dump(gdp_req_t *req, FILE *fp)
+_gdp_req_dump(gdp_req_t *req, FILE *fp, int detail, int indent)
 {
 	char ebuf[200];
 
@@ -450,7 +450,7 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp)
 	fprintf(fp, "    flags=");
 	ep_prflags(req->flags, ReqFlags, fp);
 	fprintf(fp, "\n    ");
-	gdp_gcl_print(req->gcl, fp, 1, 0);
+	_gdp_gcl_dump(req->gcl, fp, GDP_PR_BASIC, 0);
 	fprintf(fp, "    ");
 	_gdp_pdu_dump(req->pdu, fp);
 	funlockfile(fp);

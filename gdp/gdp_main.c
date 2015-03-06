@@ -95,7 +95,7 @@ gdp_pdu_proc_thread(void *pdu_)
 	else if (ep_dbg_test(Dbg, 43))
 	{
 		ep_dbg_printf("gdp_pdu_proc_thread: using existing ");
-		_gdp_req_dump(req, ep_dbg_getfile());
+		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
 	// request is locked
@@ -224,7 +224,7 @@ gdp_pdu_proc_thread(void *pdu_)
 			if (ep_dbg_test(Dbg, 40))
 			{
 				ep_dbg_printf("gdp_pdu_proc_thread: signaling ");
-				_gdp_req_dump(req, ep_dbg_getfile());
+				_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 			}
 
 			// wake up invoker, which will return the status

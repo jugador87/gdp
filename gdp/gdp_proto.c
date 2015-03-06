@@ -135,7 +135,7 @@ _gdp_invoke(gdp_req_t *req)
 		flockfile(ep_dbg_getfile());
 		ep_dbg_printf("gdp_invoke(%s) <<< %s\n  ",
 				cmdname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
-		_gdp_req_dump(req, ep_dbg_getfile());
+		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 		funlockfile(ep_dbg_getfile());
 	}
 	return estat;
@@ -564,7 +564,7 @@ cmd_not_implemented(gdp_req_t *req)
 	if (ep_dbg_test(Dbg, 1))
 	{
 		ep_dbg_printf("gdp_req_dispatch: Unknown cmd, req:\n");
-		_gdp_req_dump(req, ep_dbg_getfile());
+		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
 	return GDP_STAT_NOT_IMPLEMENTED;
@@ -587,7 +587,7 @@ _gdp_req_dispatch(gdp_req_t *req)
 		ep_dbg_printf("_gdp_req_dispatch >>> %s (%d), ",
 				_gdp_proto_cmd_name(cmd), cmd);
 		if (ep_dbg_test(Dbg, 30))
-			_gdp_req_dump(req, ep_dbg_getfile());
+			_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
 	d = &DispatchTable[cmd];

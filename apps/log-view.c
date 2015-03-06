@@ -5,7 +5,7 @@
 #include <ep/ep_hexdump.h>
 #include <ep/ep_string.h>
 #include <ep/ep_time.h>
-#include <gdplogd/logd_physlog.h>
+#include <gdp/gdp.h>
 
 #include <dirent.h>
 #include <errno.h>
@@ -18,11 +18,16 @@
 #include <sysexits.h>
 #include <time.h>
 
+// following are actually private definitions
+#include <gdp/gdp_priv.h>
+#include <gdplogd/logd_physlog.h>
+
 
 /*
 **  LOG-VIEW --- display raw on-disk storage
 **
 **		Not for user consumption.
+**		This does peek into private header files.
 */
 
 static EP_DBG	Dbg = EP_DBG_INIT("log-view", "Dump GDP logs for debugging");
@@ -40,11 +45,6 @@ check_file_offset(FILE *fp, long offset)
 	}
 }
 
-
-/* print levels */
-#define PPRETTY		0		// pretty print (for "ls" equivalent)
-#define PBASIC		10		// print most data (standard)
-#define PRAW		20		// print raw data too
 
 int
 show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
@@ -82,7 +82,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 		return EX_DATAERR;
 	}
 
-	if (plev >= PBASIC)
+	if (plev >= GDP_PR_BASIC)
 	{
 		printf("Header: magic = 0x%016" PRIx32
 				", version = %" PRIi32
@@ -92,7 +92,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 				", metadata entries = %d\n",
 				header.header_size, header.header_size,
 				header.num_metadata_entries);
-		if (plev >= PRAW)
+		if (plev >= GDP_PR_DETAILED)
 		{
 			ep_hexdump(&header, sizeof header, stdout,
 					EP_HEXDUMP_HEX, file_offset);
@@ -125,7 +125,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 			return EX_DATAERR;
 		}
 
-		if (plev >= PRAW)
+		if (plev >= GDP_PR_DETAILED)
 		{
 			ep_hexdump(metadata_hdrs,
 					header.num_metadata_entries * sizeof *metadata_hdrs,
@@ -148,7 +148,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 				return EX_DATAERR;
 			}
 			metadata_string[metadata_hdrs[i].md_len] = '\0';
-			if (plev >= PBASIC)
+			if (plev >= GDP_PR_BASIC)
 			{
 				fprintf(stdout,
 						"\tMetadata entry %d: name = 0x%08" PRIx32
@@ -163,7 +163,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 			}
 			free(metadata_string);
 
-			if (plev >= PRAW)
+			if (plev >= GDP_PR_DETAILED)
 			{
 				fprintf(stdout, "\n");
 				fprintf(stdout, "Raw:\n");
@@ -174,12 +174,12 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 			CHECK_FILE_OFFSET(data_fp, file_offset);
 		}
 	}
-	else if (plev >= PBASIC)
+	else if (plev >= GDP_PR_BASIC)
 	{
 		fprintf(stdout, "\n<No metadata>\n");
 	}
 
-	if (plev < PBASIC)
+	if (plev < GDP_PR_BASIC)
 		return EX_OK;
 
 	fprintf(stdout, "\n");
@@ -198,7 +198,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 		fprintf(stdout, "Time accuracy (s): %8f\n", record.timestamp.tv_accuracy);
 		fprintf(stdout, "Data length: %" PRIi64 "\n", record.data_length);
 
-		if (plev >= PRAW)
+		if (plev >= GDP_PR_DETAILED)
 		{
 			fprintf(stdout, "\n");
 			fprintf(stdout, "Raw:\n");
@@ -281,7 +281,7 @@ list_gcls(const char *gcl_dir_name)
 			// print the name
 			fprintf(stdout, "%s\n", dent->d_name);
 			gdp_parse_name(dent->d_name, gcl_iname);
-			show_gcl(gcl_dir_name, gcl_iname, PPRETTY);
+			show_gcl(gcl_dir_name, gcl_iname, GDP_PR_PRETTY);
 		}
 		closedir(dir);
 	}
@@ -369,5 +369,6 @@ main(int argc, char *argv[])
 		usage("unparsable GCL name");
 	}
 
-	exit(show_gcl(gcl_dir_name, gcl_name, print_raw ? PRAW : PBASIC));
+	exit(show_gcl(gcl_dir_name, gcl_name,
+				print_raw ? GDP_PR_DETAILED : GDP_PR_BASIC));
 }
