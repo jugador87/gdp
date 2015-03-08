@@ -16,7 +16,7 @@
 #include <errno.h>
 #include <string.h>
 
-static EP_DBG	Dbg = EP_DBG_INIT("gdp.proto", "GDP protocol processing");
+static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdp_chan", "GDP protocol processing");
 
 
 /*
@@ -45,6 +45,7 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 		estat = _gdp_pdu_in(pdu, chan);
 		if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
 		{
+			// only have a partial PDU; wait for the rest of it
 			_gdp_pdu_free(pdu);
 			return;
 		}
@@ -54,7 +55,6 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 				GDP_CMD_IS_COMMAND(pdu->cmd) ? "command" : "ack/nak",
 				pdu->cmd, _gdp_proto_cmd_name(pdu->cmd),
 				bufferevent_getfd(bev));
-
 		(*chan->process)(pdu, chan);
 	}
 }
