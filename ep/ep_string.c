@@ -398,27 +398,20 @@ ep_str_char_set(
 			type = ++p;
 	}
 
-	if (strcasecmp(type, "ascii") == 0)
-	{
-		EpChar = &EpCharASCII;
-	}
 	else if (strcasecmp(type, "iso-8859-1") == 0 ||
 		 strcasecmp(type, "iso-latin-1") == 0)
 	{
 		EpChar = &EpCharISO_8859_1;
 	}
 	else if (strcasecmp(type, "utf-8") == 0 ||
+		 strcasecmp(type, "utf_8") == 0 ||
 		 strcasecmp(type, "utf8") == 0)
 	{
 		EpChar = &EpCharUTF_8;
 	}
 	else
 	{
-		char e1buf[64];
-
-		fprintf(stderr, "ep_str_char_set: character set type `%s' not valid\n",
-			ep_pcvt_str(e1buf, sizeof e1buf, type));
-		return EP_STAT_ERROR;
+		EpChar = &EpCharASCII;
 	}
 	return EP_STAT_OK;
 }
