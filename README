@@ -212,7 +212,7 @@ Start the GDP Routing Daemon:
 	already cloned it without getting gdp_router, you can still
 	get it using:
 	    cd gdp_router
-	    git submodule initialize
+	    git submodule init
 	    git submodule update
 
 	The current version of the routing daemon uses a simple
