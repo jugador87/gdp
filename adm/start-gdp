@@ -2,12 +2,6 @@
 export HOME=`echo ~gdp`
 cd $HOME
 
-if [ -x bin/run-gdp-router ]
-then
-	echo $0: starting gdp-router
-	bin/run-gdp-router &
-	sleep 4		# give router time to start & contact others
-fi
 if [ -x bin/run-gdplogd ]
 then
 	echo $0: starting gdplogd

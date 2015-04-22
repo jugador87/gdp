@@ -13,15 +13,21 @@ Getting Started:
     These are a "quick start" guide to running the GDP.  Details are
     all included below.
 
-   0.	Get the code using one of:
-	    git clone --recursive \
+   0.a)	Get the code for log server (gdplogd) using one of:
+	    git clone \
 		https://repo.eecs.berkeley.edu/git/projects/swarmlab/gdp.git
 	or
-	    git clone --recursive \
+	    git clone \
 		repoman@repo.eecs.berkeley.edu:projects/swarmlab/gdp.git
 	For the moment that repository is not open; contact Eric to get
-	access.  The --recursive flag is needed to get gdp_router, which
-	is a git submodule.
+	access.
+
+     b)	(Optional) Get the code for GDP router (gdp_router) using:
+	    git clone https://github.com/niteshmor/gdp_router.git
+	(This is a public repository.)
+	This step is required only if you intend to run a GDP router. For
+	the moment, it is highly recommended that you do not run your own
+	instance of gdp_router.
 
    1.	Install the prerequisite packages described below.  For the base
 	system all you'll need are libevent2-dev and libssl-dev, but the
@@ -44,7 +50,7 @@ Getting Started:
 	will choose a random name).  In any case, it will print its own
 	name when it starts up.
 
-   5.	Start the GDP routing daemon (gdp_router).
+   5.	(Optional) Start the GDP routing daemon (gdp_router).
 
    6.	Start the GDP log daemon (see above).  Make note of its "GDP
 	routing name" for use in the next step.
@@ -205,15 +211,12 @@ Adjust Administrative Parameters:
 
 Start the GDP Routing Daemon:
 	If you are using the routing daemons at Berkeley you can skip
-	this step.
+	this step. It is highly recommended that you do not run your
+	own gdp_router at the moment.
 
-	Note that gdp_router is a git submodule, which means you have
-	to use --recursive when you clone the GDP code.  If you've
-	already cloned it without getting gdp_router, you can still
-	get it using:
-	    cd gdp_router
-	    git submodule init
-	    git submodule update
+	Currently, gdp_router is in it's own separate repository at:
+	    https://github.com/niteshmor/gdp_router.git
+	This will be moved to some place else in near future.
 
 	The current version of the routing daemon uses a simple
 	"global knowledge" algorithm where every routing node knows

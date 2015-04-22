@@ -1,3 +1,0 @@
-gdp-01.eecs.berkeley.edu:8007
-gdp-02.eecs.berkeley.edu:8007
-gdp-03.eecs.berkeley.edu:8007

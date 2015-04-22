@@ -45,11 +45,9 @@ GDPALL=		adm/start-* \
 		apps/reader-test \
 		apps/writer-test \
 		gdplogd/gdplogd \
-		gdp_router/src/gdp_router.py \
 
 init-gdp:
 	sudo -u gdp adm/init-gdp.sh
-	sudo -u gdp cp etc/gdp-routers.txt ${GDPROOT}/etc/.
 	sudo -u gdp cp ${GDPALL} ${GDPROOT}/bin/.
 
 CSRCS=		ep/*.[ch] \
