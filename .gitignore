@@ -5,6 +5,7 @@ apps/log-view
 apps/reader-test
 apps/rw-bench
 apps/writer-test
+examples/machine-mon
 debian/libgdp*
 lang/js/apps/gdpREST_server/node_modules
 gdplogd/gdplogd

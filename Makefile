@@ -12,6 +12,7 @@ all:
 	(cd scgilib;	 make all)
 	(cd gdplogd;	 make all)
 	(cd apps;	 make all)
+	(cd examples;	 make all)
 
 clean:
 	(cd ep;		 make clean)
@@ -19,6 +20,7 @@ clean:
 	(cd scgilib;	 make clean)
 	(cd gdplogd;	 make clean)
 	(cd apps;	 make clean)
+	(cd examples;	 make clean)
 
 install: ${INSTALLROOT}/etc/ep_adm_params
 	(cd ep;		make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
