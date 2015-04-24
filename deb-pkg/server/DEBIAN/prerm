@@ -3,8 +3,7 @@
 set -e
 
 echo "Stopping the service"
-service gdp-machine-mon stop
-service gdp-rest stop
-service gdplogd stop
+service gdp-machine-mon stop    || true
+service gdplogd stop            || true
 
 exit 0

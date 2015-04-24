@@ -3,7 +3,7 @@
 set -e
 
 LOGDIR="/var/log/gdp"
-GCLDIR="/var/swarm/gcls"
+GCLDIR="/var/gdp/gcls"
 ETCDIR="/etc/ep_adm_params"
 
 echo "Creating the 'gdp' user..."
@@ -12,12 +12,13 @@ adduser --system gdp
 echo "Creating appropriate directories..."
 [ -d $ETCDIR ] || mkdir $ETCDIR
 [ -d $GCLDIR ] || mkdir -p $GCLDIR
-[ -d $LOGDIR/ ] || mkdir $LOGDIR
+[ -d $LOGDIR ] || mkdir $LOGDIR
 
 # Make sure the ownerships are set up properly
-# XXX: Do we need to worry about the permissions?
-chown gdp:adm $LOGDIR
-chown gdp:adm $GCLDIR
+touch $LOGDIR/gdplogd.log 
+touch $LOGDIR/gdp-machine-mon.log 
+chown -R gdp:root $LOGDIR
+chown -R gdp:root $GCLDIR
 
 # Get list of routers <hardcoded for now>
 echo "Figuring out router information..."
@@ -34,6 +35,8 @@ then
     done
 else
     routers="gdp-01.eecs.berkeley.edu; gdp-02.eecs.berkeley.edu; gdp-03.eecs.berkeley.edu"
+    t=`echo $routers | sed "s/; /\n/g" | shuf | tr -s '\n' ';' | sed "s/;/; /g"`
+    routers=$t
 fi
 
 # Set up GDP params for, say gdp-machine-mon
@@ -63,5 +66,4 @@ fi
 # finally start the service
 echo "Starting the service..."
 service gdplogd restart
-service gdp-rest restart
 service gdp-machine-mon restart
