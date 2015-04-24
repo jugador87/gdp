@@ -5,10 +5,17 @@
 # - Ideal if installed in default python path
 # - depends on location of libgdp and libep etc
 
+if [ $# -gt 0 ]; then
+    VER=$1
+else
+    echo "Usage: $0 <version (format: X.Y-Z)>"
+    exit 1
+fi
 
+PACKAGE="python-gdp"
 curdir=`dirname $0`
-topdir="$curdir/../"
-tmpdir="/tmp/python-gdp_0.2-1"
+topdir="`( cd $curdir/../ && pwd )`"
+tmpdir="/tmp/"$PACKAGE"_"$VER
 pydir="/usr/lib/python2.7/dist-packages/"
 sharedir="/usr/share/doc/gdp/python-gdp"
 
@@ -29,8 +36,8 @@ cp -a $topdir/apps/*.py $tmpdir/$sharedir/
 sed -i "s/sys.path.append/# sys.path.append/g" $tmpdir/$sharedir/*.py
 
 mkdir $tmpdir/DEBIAN
-echo "Package: python-gdp
-Version: 0.2-1
+echo "Package: $PACKAGE
+Version: $VER
 Priority: optional
 Architecture: all
 Depends: python (<< 2.8), python (>= 2.7~), libgdp (>=0.2-1), libevent-dev (>=2.0~), python-psutil (>= 0.5~)
@@ -39,6 +46,6 @@ Description: A python interface for libGDP
  Some sample programs are located at $sharedir/examples
  Enjoy!" >> $tmpdir/DEBIAN/control
 
-cd /tmp && dpkg-deb --build python-gdp_0.2-1
+dpkg-deb --build $tmpdir .
 
 rm -rf $tmpdir
