@@ -1,4 +1,4 @@
-Package: gdp
+Package: PACKAGE
 Version: VERSION
 Priority: optional
 Architecture: amd64

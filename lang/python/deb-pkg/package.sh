@@ -40,7 +40,7 @@ echo "Package: $PACKAGE
 Version: $VER
 Priority: optional
 Architecture: all
-Depends: python (<< 2.8), python (>= 2.7~), libgdp (>=0.2-1), libevent-dev (>=2.0~), python-psutil (>= 0.5~)
+Depends: python (<< 2.8), python (>= 2.7~), gdp-client (>=$VER), libevent-dev (>=2.0~), python-psutil (>= 0.5~)
 Maintainer: Nitesh Mor <mor@eecs.berkeley.edu>
 Description: A python interface for libGDP
  Some sample programs are located at $sharedir/examples
