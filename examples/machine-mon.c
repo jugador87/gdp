@@ -9,16 +9,12 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include <sys/sysinfo.h>
 #include <sys/time.h>
 
 /*
 **  MACHINE-MON --- monitor information on the hardware
 **
 **	This is just a sample program to demonstrate the interface.
-**
-**	This example is Linux-specific, but only because of the use
-**	of the sysinfo(2) syscall.
 **
 **	To use this program:
 **
@@ -42,6 +38,87 @@
 
 gdp_gcl_t	*MonGcl;
 unsigned int	SampleIntvl	= 60;
+
+
+#if __linux__
+
+/*
+**  Linux version of data collection
+*/
+
+#include <sys/sysinfo.h>
+
+void
+populate_info(json_t *json)
+{
+	struct sysinfo si;
+
+	if (sysinfo(&si) < 0)
+	{
+		// how can sysinfo fail?
+		ep_app_abort("Sysinfo failed: %s\n",
+				strerror(errno));
+	}
+
+	// fill it in with some potentially interesting information
+	json_object_set(json, "uptime", json_integer(si.uptime));
+	json_object_set(json, "load1", json_integer(si.loads[0]));
+	json_object_set(json, "load5", json_integer(si.loads[1]));
+	json_object_set(json, "load15", json_integer(si.loads[2]));
+	json_object_set(json, "freeram", json_integer(si.freeram));
+	json_object_set(json, "nproc", json_integer(si.procs));
+}
+
+#else
+
+/*
+**  BSD/MacOS version of data collection
+*/
+
+#include <sys/sysctl.h>
+
+void
+do_sysctl(int mib0,
+	int mib1,
+	int mib2,
+	unsigned int miblen,
+	void *buf,
+	size_t buflen)
+{
+	int mib[3];
+	size_t blen = buflen;
+
+	mib[0] = mib0;
+	mib[1] = mib1;
+	mib[2] = mib2;
+	if (sysctl(mib, miblen, buf, &blen, NULL, 0) < 0)
+	{
+		// how can sysctl fail?
+		ep_app_abort("Sysctl failed: %s\n",
+				strerror(errno));
+	}
+}
+
+void
+populate_info(json_t *json)
+{
+	//json_object_set(json, "uptime", json_integer(si.uptime));
+
+	// load average
+	{
+		struct loadavg la;
+		do_sysctl(CTL_VM, VM_LOADAVG, 0, 2, &la, sizeof la);
+		json_object_set(json, "load1", json_integer(la.ldavg[0]));
+		json_object_set(json, "load5", json_integer(la.ldavg[1]));
+		json_object_set(json, "load15", json_integer(la.ldavg[2]));
+	}
+
+	// should do others here
+	//json_object_set(json, "freeram", json_integer(si.freeram));
+	//json_object_set(json, "nproc", json_integer(si.procs));
+}
+
+#endif
 
 
 void
@@ -142,27 +219,14 @@ main(int argc, char **argv)
 
 	for (;;)
 	{
-		struct sysinfo si;
-		json_t *json;
+		// create the top-level option
+		json_t *json = json_object();
 
-		if (sysinfo(&si) < 0)
-		{
-			// how can sysinfo fail?
-			ep_app_abort("Sysinfo failed: %s\n",
-					strerror(errno));
-		}
-
-		// get the top-level option
-		json = json_object();
-
-		// fill it in with some potentially interesting information
+		// fixed part
 		json_object_set(json, "host", json_string(hostname));
-		json_object_set(json, "uptime", json_integer(si.uptime));
-		json_object_set(json, "load1", json_integer(si.loads[0]));
-		json_object_set(json, "load5", json_integer(si.loads[1]));
-		json_object_set(json, "load15", json_integer(si.loads[2]));
-		json_object_set(json, "freeram", json_integer(si.freeram));
-		json_object_set(json, "nproc", json_integer(si.procs));
+
+		// do the os-dependent part
+		populate_info(json);
 
 		// write it out... get a datum and the I/O buffer...
 		gdp_datum_t *datum = gdp_datum_new();
