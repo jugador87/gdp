@@ -312,7 +312,9 @@ main(int argc, char *argv[])
 	bool list_gcl = false;
 	bool print_raw = false;
 	char *gcl_xname = NULL;
-	char *gcl_dir_name = GCL_DIR;
+	const char *gcl_dir_name = NULL;
+
+	ep_lib_init(0);
 
 	while ((opt = getopt(argc, argv, "d:D:lr")) > 0)
 	{
@@ -340,6 +342,14 @@ main(int argc, char *argv[])
 	}
 	argc -= optind;
 	argv += optind;
+
+	// arrange to get runtime parameters
+	ep_adm_readparams("gdp");
+	ep_adm_readparams("gdplogd");
+
+	// set up GCL directory path
+	if (gcl_dir_name == NULL)
+		gcl_dir_name = ep_adm_getstrparam("swarm.gdplogd.gcl.dir", GCL_DIR);
 
 	if (list_gcl)
 	{
