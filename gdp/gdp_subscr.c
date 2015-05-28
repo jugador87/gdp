@@ -24,7 +24,7 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 		gdp_recno_t start,
 		int32_t numrecs,
 		EP_TIME_SPEC *timeout,
-		gdp_gcl_sub_cbfunc_t cbfunc,
+		gdp_event_cbfunc_t cbfunc,
 		void *cbarg,
 		gdp_chan_t *chan,
 		uint32_t reqflags)

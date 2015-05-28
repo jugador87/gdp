@@ -382,7 +382,7 @@ gdp_gcl_subscribe(gdp_gcl_t *gcl,
 		gdp_recno_t start,
 		int32_t numrecs,
 		EP_TIME_SPEC *timeout,
-		gdp_gcl_sub_cbfunc_t cbfunc,
+		gdp_event_cbfunc_t cbfunc,
 		void *cbarg)
 {
 	return _gdp_gcl_subscribe(gcl, GDP_CMD_SUBSCRIBE, start, numrecs,
@@ -401,7 +401,7 @@ EP_STAT
 gdp_gcl_multiread(gdp_gcl_t *gcl,
 		gdp_recno_t start,
 		int32_t numrecs,
-		gdp_gcl_sub_cbfunc_t cbfunc,
+		gdp_event_cbfunc_t cbfunc,
 		void *cbarg)
 {
 	return _gdp_gcl_subscribe(gcl, GDP_CMD_MULTIREAD, start, numrecs,

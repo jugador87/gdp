@@ -354,9 +354,9 @@
     </ul>
     <hr>
     <h4>Name</h4>
-    <p>gdp_gcl_cbfunc_t &mdash; event callback function type</p>
+    <p>gdp_event_cbfunc_t &mdash; event callback function type</p>
     <h4>Synopsis</h4>
-    <p><code>typedef void (*gdp_gcl_cbfunc_t)(gdp_event_t *gev);</code></p>
+    <p><code>typedef void (*gdp_event_cbfunc_t)(gdp_event_t *gev);</code></p>
     <h4>Notes</h4>
     <ul>
       <li>This is the type of callback function as passed into the asynchronous
@@ -371,7 +371,7 @@
     <h4> Name</h4>
     <p>gdp_gcl_append_async &mdash; Asynchronously append to a writable GCL</p>
     <h4>Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_append_async(<br>		gdp_gcl_t *gcl,<br>		gdp_datum_t *datum,<br>		gdp_gcl_cbfunc_t *cbfunc,<br>		void *udata)</pre>
+    <pre>EP_STAT gdp_gcl_append_async(<br>		gdp_gcl_t *gcl,<br>		gdp_datum_t *datum,<br>		gdp_event_cbfunc_t *cbfunc,<br>		void *udata)</pre>
     <h4>Notes</h4>
     <ul>
       <li>Appends the indicated <code>datum</code> to the GCL.</li>
@@ -391,7 +391,7 @@
     gdp_gcl_subscribe &mdash; Subscribe to a readable GCL<br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_subscribe(<br>		gdp_gcl_t *gcl,
-		gdp_recno_t start,<br>		int32_t numrecs,<br>		EP_TIME_SPEC *timeout;<br>		gdp_gcl_cbfunc_t *cbfunc,<br>		void *udata)
+		gdp_recno_t start,<br>		int32_t numrecs,<br>		EP_TIME_SPEC *timeout;<br>		gdp_event_cbfunc_t *cbfunc,<br>		void *udata)
 </pre>
     <h4> Notes</h4>
     <ul>
@@ -524,7 +524,7 @@
     gdp_gcl_multiread&mdash; Read multiple records from a readable GCL<br>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_multiread(<br>		gdp_gcl_t *gcl,
-		gdp_recno_t start,<br>		int32_t numrecs,<br>		gdp_gcl_sub_cbfunc_t cbfunc,<br>		void *udata)
+		gdp_recno_t start,<br>		int32_t numrecs,<br>		gdp_event_cbfunc_t cbfunc,<br>		void *udata)
 
 void (*cbfunc)(gdp_event_t *gev)
 </pre>
@@ -657,7 +657,7 @@ void (*cbfunc)(gdp_event_t *gev)
     </span>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_unsubscribe(gdp_gcl_t *gcl,
-		gdp_gcl_cbfunc_t *cbfunc,
+		gdp_event_cbfunc_t *cbfunc,
 		void *udata)
 </pre>
     <h4> Notes</h4>
