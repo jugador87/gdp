@@ -43,11 +43,51 @@ do_log(const char *tag)
 #define LOG(tag)	{ if (LogFile != NULL) do_log(tag); }
 
 
+static char	*EventTypes[] =
+{
+	"Free (internal use)",
+	"Data",
+	"End of Subscription",
+	"Shutdown",
+	"Asynchronous Status",
+};
+
+void
+showstat(gdp_event_t *gev)
+{
+	int evtype = gdp_event_gettype(gev);
+	EP_STAT estat = gdp_event_getstat(gev);
+	gdp_datum_t *d = gdp_event_getdatum(gev);
+	char ebuf[100];
+	char tbuf[20];
+	char *evname;
+
+	if (evtype < 0 || evtype >= sizeof EventTypes / sizeof EventTypes[0])
+	{
+		snprintf(tbuf, sizeof tbuf, "%d", evtype);
+		evname = tbuf;
+	}
+	else
+	{
+		evname = EventTypes[evtype];
+	}
+
+	printf("Asynchronous event type %s:\n"
+			"\trecno %" PRIgdp_recno ", stat %s\n",
+			evname,
+			gdp_datum_getrecno(d),
+			ep_stat_tostr(estat, ebuf, sizeof ebuf));
+
+	gdp_event_free(gev);
+}
+
+
 void
 usage(void)
 {
 	fprintf(stderr,
-			"Usage: %s [-D dbgspec] [-G router_addr] [-L log_file] log_name\n"
+			"Usage: %s [-a] [-D dbgspec] [-G router_addr] [-L log_file] log_name\n"
+			"    -a  use asynchronous I/O\n"
 			"    -D  set debugging flags\n"
 			"    -G  IP host to contact for gdp_router\n"
 			"    -L  set logging file name (for debugging)\n",
@@ -67,12 +107,17 @@ main(int argc, char **argv)
 	char buf[200];
 	bool show_usage = false;
 	char *log_file_name = NULL;
+	bool async_io = false;
 
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "D:G:L:")) > 0)
+	while ((opt = getopt(argc, argv, "aD:G:L:")) > 0)
 	{
 		switch (opt)
 		{
+		 case 'a':
+			 async_io = true;
+			 break;
+
 		 case 'D':
 			ep_dbg_set(optarg);
 			break;
@@ -149,17 +194,31 @@ main(int argc, char **argv)
 
 		// then send the buffer to the GDP
 		LOG("W");
-		estat = gdp_gcl_append(gcl, datum);
-		EP_STAT_CHECK(estat, goto fail2);
+		if (async_io)
+		{
+			estat = gdp_gcl_append_async(gcl, datum, showstat, NULL);
+			EP_STAT_CHECK(estat, goto fail2);
 
-		// print the return value (shows the record number assigned)
-		gdp_datum_print(datum, stdout, 0);
+			// return value will be printed asynchronously
+		}
+		else
+		{
+			estat = gdp_gcl_append(gcl, datum);
+			EP_STAT_CHECK(estat, goto fail2);
+
+			// print the return value (shows the record number assigned)
+			gdp_datum_print(datum, stdout, 0);
+		}
 	}
 
 	// OK, all done.  Free our resources and exit
 	gdp_datum_free(datum);
 
 fail2:
+	// give a chance to collect async results
+	if (async_io)
+		sleep(1);
+
 	// tell the GDP that we are done
 	gdp_gcl_close(gcl);
 

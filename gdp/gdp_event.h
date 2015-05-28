@@ -18,8 +18,9 @@ struct gdp_event
 	int						type;		// event type
 	gdp_gcl_t				*gcl;		// GCL handle for event
 	gdp_datum_t				*datum;		// datum for event
-	gdp_gcl_sub_cbfunc_t	cb;			// callback for event
+	gdp_event_cbfunc_t		cb;			// callback for event
 	void					*udata;		// user data
+	EP_STAT					stat;		// detailed status code
 };
 
 // allocate an event
@@ -28,7 +29,10 @@ extern EP_STAT			_gdp_event_new(gdp_event_t **gevp);
 // add an event to the active queue
 extern void				_gdp_event_trigger(gdp_event_t *gev);
 
-// start up an event callback thread (if not already running)
-extern EP_STAT			_gdp_event_start_cb_thread(void);
+// set up request to deliver events or callbacks
+extern void				_gdp_event_setcb(
+								gdp_req_t *req,
+								gdp_event_cbfunc_t cbfunc,
+								void *cbarg);
 
 #endif // _GDP_EVENT_H_

@@ -61,6 +61,9 @@ gdp_pdu_proc_thread(void *pdu_)
 	gdp_req_t *req = NULL;
 	int resp;
 
+	ep_dbg_cprintf(Dbg, 50,
+			"gdp_pdu_proc_thread(%s)\n",
+			_gdp_proto_cmd_name(cmd));
 	if (pdu_is_command)
 	{
 		// is a command: dst is the GCL
@@ -169,7 +172,7 @@ gdp_pdu_proc_thread(void *pdu_)
 		}
 	}
 	else if (EP_STAT_ISOK(estat))
-		resp = GDP_ACK_SUCCESS;
+		resp = req->pdu->cmd;
 //	else if (EP_STAT_ISERROR(estat))
 //		resp = GDP_ACK_C_BADREQ;
 
@@ -234,11 +237,16 @@ gdp_pdu_proc_thread(void *pdu_)
 			// gives avoids having to wait on condition variables
 			ep_thr_yield();
 		}
-		else if (EP_UT_BITSET(GDP_REQ_CLT_SUBSCR, req->flags))
+		else if (EP_UT_BITSET(GDP_REQ_CLT_SUBSCR | GDP_REQ_ASYNCIO, req->flags))
 		{
 			// send the status as an event
 			EP_ASSERT(req->state == GDP_REQ_IDLE);
 			estat = _gdp_subscr_event(req);
+		}
+		else if (ep_dbg_test(Dbg, 1))
+		{
+			ep_dbg_printf("gdp_pdu_proc_thread: discarding response ");
+			_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 		}
 	}
 

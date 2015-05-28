@@ -6,6 +6,7 @@
 
 #include <ep/ep_thr.h>
 #include <ep/ep_dbg.h>
+#include <ep/ep_log.h>
 
 #include "gdp.h"
 #include "gdp_priv.h"
@@ -188,20 +189,30 @@ _gdp_event_thread(void *ctx)
 }
 
 
-EP_STAT
-_gdp_event_start_cb_thread(void)
+/*
+**  _GDP_EVENT_SETCB --- set the callback function & start thread if needed
+*/
+
+void
+_gdp_event_setcb(
+			gdp_req_t *req,
+			gdp_event_cbfunc_t cbfunc,
+			void *cbarg)
 {
-	if (!CallbackThreadStarted)
+	req->sub_cb = cbfunc;
+	req->udata = cbarg;
+
+	// if using callbacks, make sure we have a callback thread running
+	if (cbfunc != NULL && !CallbackThreadStarted)
 	{
 		int err = pthread_create(&CallbackThread, NULL,
 						&_gdp_event_thread, NULL);
-			if (err != 0)
-				return ep_stat_from_errno(err);
+		if (err != 0 && ep_dbg_test(Dbg, 1))
+			ep_log(ep_stat_from_errno(err),
+					"_gdp_gcl_setcb: cannot start callback thread");
 		CallbackThreadStarted = true;
 	}
-	return EP_STAT_OK;
 }
-
 
 
 int
@@ -233,4 +244,12 @@ gdp_event_getudata(gdp_event_t *gev)
 {
 	EP_ASSERT_POINTER_VALID(gev);
 	return gev->udata;
+}
+
+
+EP_STAT
+gdp_event_getstat(gdp_event_t *gev)
+{
+	EP_ASSERT_POINTER_VALID(gev);
+	return gev->stat;
 }

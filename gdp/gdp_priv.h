@@ -204,7 +204,7 @@ typedef struct gdp_req
 	EP_TIME_SPEC		sub_ts;		// timestamp of last subscription activity
 	void				(*postproc)(struct gdp_req *);
 									// do post processing after ack sent
-	gdp_gcl_sub_cbfunc_t sub_cb;	// subscription callback
+	gdp_event_cbfunc_t	sub_cb;		// callback function (subscribe & async I/O)
 	void				*udata;		// user-supplied opaque data to cb
 } gdp_req_t;
 
@@ -215,6 +215,7 @@ typedef struct gdp_req
 #define GDP_REQ_IDLE			3			// subscription waiting for data
 
 // flags
+#define GDP_REQ_ASYNCIO			0x00000001	// async I/O operation
 #define GDP_REQ_DONE			0x00000002	// operation complete
 #define GDP_REQ_CLT_SUBSCR		0x00000004	// client-side subscription
 #define GDP_REQ_SRV_SUBSCR		0x00000008	// server-side subscription
@@ -340,9 +341,25 @@ EP_STAT			_gdp_gcl_read(				// read a GCL record (gdpd shared)
 						gdp_chan_t *chan,
 						uint32_t reqflags);
 
+EP_STAT			_gdp_gcl_read_async(		// read asynchronously
+						gdp_gcl_t *gcl,
+						gdp_datum_t *datum,
+						gdp_event_cbfunc_t cbfunc,
+						void *cbarg,
+						gdp_chan_t *chan,
+						uint32_t reqflags);
+
 EP_STAT			_gdp_gcl_append(			// append a record (gdpd shared)
 						gdp_gcl_t *gcl,
 						gdp_datum_t *datum,
+						gdp_chan_t *chan,
+						uint32_t reqflags);
+
+EP_STAT			_gdp_gcl_append_async(		// append asynchronously
+						gdp_gcl_t *gcl,
+						gdp_datum_t *datum,
+						gdp_event_cbfunc_t cbfunc,
+						void *cbarg,
 						gdp_chan_t *chan,
 						uint32_t reqflags);
 
@@ -352,7 +369,7 @@ EP_STAT			_gdp_gcl_subscribe(			// subscribe to data
 						gdp_recno_t start,
 						int32_t numrecs,
 						EP_TIME_SPEC *timeout,
-						gdp_gcl_sub_cbfunc_t cbfunc,
+						gdp_event_cbfunc_t cbfunc,
 						void *cbarg,
 						gdp_chan_t *chan,
 						uint32_t reqflags);

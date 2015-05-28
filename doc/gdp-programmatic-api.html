@@ -324,7 +324,8 @@
     <ul>
     </ul>
     <hr size="2" width="100%"><br>
-    <h2>4&nbsp; GCL Asynchronous Operation (Subscriptions and Events)<br>
+    <h2>4&nbsp; GCL Asynchronous Operation (Asynchronous I/O, Subscriptions, and
+      Events)<br>
     </h2>
     <p>Asynchronous operations allow an application to subscribe to one or more
       GCLs and receive events as those GCLs see activity.&nbsp; The event
@@ -332,19 +333,65 @@
     </p>
     <p>Every event has a type, a pointer to the GCL handle, and a pointer to a
       datum.&nbsp; Applications could in principle define their own event types,
-      but at the moment this functionality is not exposed.<br>
+      but at the moment this functionality is not exposed.</p>
+    <p>All asynchronous operations return status and/or data via either a
+      callback function or the event interface.&nbsp; Callback functions may not
+      be called in the same thread as the operation initiation.&nbsp; If no
+      callback function is given then the event interface is used; this has the
+      effect of serializing the event stream.&nbsp; In either case, it is the
+      responsibility of the caller to free the event after use using <code>gdp_event_free</code>.</p>
+    <p>Note that asynchronous calls do not do retransmissions.</p>
+    <p><br>
     </p>
-    <p>It is important that applications free any events after they have
-      completed using them.<br>
-    </p>
+    <hr>
+    <h4>Name</h4>
+    <p>gdp_event_t &mdash; event structure</p>
+    <h4>Synopsis</h4>
+    <p><code>typedef struct _gdp_event&nbsp;&nbsp;&nbsp; gdp_event_t;</code></p>
+    <h4>Notes</h4>
+    <ul>
+      <li>This is an opaque type.</li>
+    </ul>
+    <hr>
+    <h4>Name</h4>
+    <p>gdp_gcl_cbfunc_t &mdash; event callback function type</p>
+    <h4>Synopsis</h4>
+    <p><code>typedef void (*gdp_gcl_cbfunc_t)(gdp_event_t *gev);</code></p>
+    <h4>Notes</h4>
+    <ul>
+      <li>This is the type of callback function as passed into the asynchronous
+        interfaces.</li>
+      <li>All the interesting data is encoded into the event.&nbsp; This is
+        exactly the same data structure as returned by <code>gdp_event_next</code>.</li>
+      <li>In all cases, if the callback function is not specified the
+        information will be returned through the event interface.&nbsp; The two
+        interfaces are related but mutually exclusive.</li>
+    </ul>
     <hr size="2" width="100%">
     <h4> Name</h4>
+    <p>gdp_gcl_append_async &mdash; Asynchronously append to a writable GCL</p>
+    <h4>Synopsis</h4>
+    <pre>EP_STAT gdp_gcl_append_async(<br>		gdp_gcl_t *gcl,<br>		gdp_datum_t *datum,<br>		gdp_gcl_cbfunc_t *cbfunc,<br>		void *udata)</pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>Appends the indicated <code>datum</code> to the GCL.</li>
+      <li>This function returns before any result is read and thus does not
+        include the final status information.</li>
+      <li>The return status will be <code>GDP_STAT_OK</code> if the append
+        command is successfully sent, and a later callback or event will give
+        the actual status; otherwise no callback or event will occur.</li>
+      <li><em>Should a warning status be returned to make it clear that a status
+          will be returned later?</em></li>
+      <li>Status is returned through the event interface (if <code>cbfunc</code>
+        is <code>NULL</code>) or through <code>cbfunc</code> with an event
+        type of <code>GDP_EVENT_ASTAT</code>.</li>
+    </ul>
+    <hr>
+    <h4>Name</h4>
     gdp_gcl_subscribe &mdash; Subscribe to a readable GCL<br>
     <h4> Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_subscribe(gdp_gcl_t *gcl,
-		gdp_recno_t start,<br>		int32_t numrecs,<br>		EP_TIME_SPEC *timeout;<br>		gdp_gcl_sub_cbfunc_t cbfunc,<br>		void *udata)
-
-void (*cbfunc)(gdp_event_t *gev)
+    <pre>EP_STAT gdp_gcl_subscribe(<br>		gdp_gcl_t *gcl,
+		gdp_recno_t start,<br>		int32_t numrecs,<br>		EP_TIME_SPEC *timeout;<br>		gdp_gcl_cbfunc_t *cbfunc,<br>		void *udata)
 </pre>
     <h4> Notes</h4>
     <ul>
@@ -476,7 +523,7 @@ void (*cbfunc)(gdp_event_t *gev)
     <h4> Name</h4>
     gdp_gcl_multiread&mdash; Read multiple records from a readable GCL<br>
     <h4> Synopsis</h4>
-    <pre>EP_STAT gdp_gcl_multiread(gdp_gcl_t *gcl,
+    <pre>EP_STAT gdp_gcl_multiread(<br>		gdp_gcl_t *gcl,
 		gdp_recno_t start,<br>		int32_t numrecs,<br>		gdp_gcl_sub_cbfunc_t cbfunc,<br>		void *udata)
 
 void (*cbfunc)(gdp_event_t *gev)
@@ -484,7 +531,8 @@ void (*cbfunc)(gdp_event_t *gev)
     <h4> Notes</h4>
     <ul>
       <li>Similar to a subscription, except data in the future is never read
-        (i.e., this is only for reading historic data).</li>
+        (i.e., this is only for reading historic data).&nbsp; This is the
+        interface to use for asynchronous reads.</li>
       <li>If a <code>cbfunc</code> is specified, arranges to call callback when
         a message is generated on the <code>gcl</code>.&nbsp; See below for the
         definition of gdp_event_t.<br>
@@ -609,12 +657,12 @@ void (*cbfunc)(gdp_event_t *gev)
     </span>
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_unsubscribe(gdp_gcl_t *gcl,
-		cbfunc,
-		void *cbdata)
+		gdp_gcl_cbfunc_t *cbfunc,
+		void *udata)
 </pre>
     <h4> Notes</h4>
     <ul>
-      <li> Unsubscribes to the given {gcl, cbfunc, cbdata} tuple.</li>
+      <li> Unsubscribes to the given {gcl, cbfunc, udata} tuple.</li>
       <li><em>(Should subscribe/multiread return a handle to be passed to this
           function rather than this interface?)</em></li>
     </ul>
@@ -623,7 +671,7 @@ void (*cbfunc)(gdp_event_t *gev)
     <h4> Name</h4>
     gdp_event_next &mdash; get next asynchronous event<br>
     <h4> Synopsis</h4>
-    <pre>gdp_event_t *gdp_event_next(gdp_gcl_t *gcl,<br>		EP_TIME_SPEC *timeout)</pre>
+    <pre>gdp_event_t *gdp_event_next(<br>		gdp_gcl_t *gcl,<br>		EP_TIME_SPEC *timeout)</pre>
     <h4> Notes</h4>
     <ul>
       <li> Returns the next asynchronous event on the specified GCL.&nbsp; If
@@ -657,7 +705,7 @@ void (*cbfunc)(gdp_event_t *gev)
           <td valign="top"><code>GDP_EVENT_DATA</code><br>
           </td>
           <td valign="top">Data is returned in the event from a previous
-            subscription.<br>
+            subscription or asynchronous read.<br>
           </td>
         </tr>
         <tr>
@@ -673,6 +721,10 @@ void (*cbfunc)(gdp_event_t *gev)
             shut down.<br>
           </td>
         </tr>
+        <tr>
+          <td><code>GDP_EVENT_ASTAT</code></td>
+          <td>Status is returned from an asynchronous append operation.</td>
+        </tr>
       </tbody>
     </table>
     <ul>
@@ -682,6 +734,18 @@ void (*cbfunc)(gdp_event_t *gev)
     <ul>
     </ul>
     <hr size="2" width="100%">
+    <h4>Name</h4>
+    <p>gdp_event_getstat &mdash; extract the detailed result status from the
+      event</p>
+    <h4>Synopsis</h4>
+    <p><code>EP_STAT gdp_event_getstat(gdp_event_t *gev)</code></p>
+    <h4>Notes</h4>
+    <ul>
+      <li>Returns the status code from the event.&nbsp; In most cases this will
+        be <code>EP_STAT_OK</code>, but may be otherwise in some event types
+        such as <code>GDP_EVENT_ASTAT</code>.</li>
+    </ul>
+    <hr>
     <h4>Name</h4>
     gdp_event_getgcl &mdash; extract the GCL handle from the event<br>
     <h4>Synopsis</h4>
@@ -709,7 +773,7 @@ void (*cbfunc)(gdp_event_t *gev)
     <h4>Notes</h4>
     <ul>
       <li>Returns user data associated with the event.&nbsp; The user data is
-        from the gdp_gcl_subscribe call.<br>
+        from the call that initiated the asynchronous operation.<br>
       </li>
     </ul>
     <p><br>

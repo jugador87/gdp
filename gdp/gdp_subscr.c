@@ -41,12 +41,7 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// arrange for responses to appear as events or callbacks
-	req->sub_cb = cbfunc;
-	req->udata = cbarg;
-
-	// if using callbacks, make sure we have a callback thread running
-	if (cbfunc != NULL)
-		_gdp_event_start_cb_thread();
+	_gdp_event_setcb(req, cbfunc, cbarg);
 
 	// add start and stop parameters to PDU
 	req->pdu->datum->recno = start;
@@ -147,12 +142,14 @@ _gdp_subscr_poke(gdp_chan_t *chan)
 }
 
 
+/*
+**  Create an event and link it into the queue.
+*/
+
 EP_STAT
 _gdp_subscr_event(gdp_req_t *req)
 {
 	EP_STAT estat = EP_STAT_OK;
-
-	// link the request onto the event queue
 	gdp_event_t *gev;
 	int evtype;
 
@@ -175,6 +172,11 @@ _gdp_subscr_event(gdp_req_t *req)
 		evtype = GDP_EVENT_EOS;
 		break;
 
+	case GDP_ACK_CREATED:
+		// response to APPEND
+		evtype = GDP_EVENT_ASTAT;
+		break;
+
 	case GDP_NAK_S_LOSTSUB:
 		evtype = GDP_EVENT_SHUTDOWN;
 		break;
@@ -192,10 +194,11 @@ _gdp_subscr_event(gdp_req_t *req)
 
 	gev->type = evtype;
 	gev->gcl = req->gcl;
-	gev->datum = req->pdu->datum;
-	req->pdu->datum = NULL;
+	gev->stat = req->stat;
 	gev->udata = req->udata;
 	gev->cb = req->sub_cb;
+	gev->datum = req->pdu->datum;
+	req->pdu->datum = NULL;
 
 	// schedule the event for delivery
 	_gdp_event_trigger(gev);

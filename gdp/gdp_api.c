@@ -337,6 +337,20 @@ gdp_gcl_append(gdp_gcl_t *gcl, gdp_datum_t *datum)
 
 
 /*
+**  GDP_GCL_APPEND_ASYNC --- asynchronously append to a writable GCL
+*/
+
+EP_STAT
+gdp_gcl_append_async(gdp_gcl_t *gcl,
+			gdp_datum_t *datum,
+			gdp_event_cbfunc_t cbfunc,
+			void *udata)
+{
+	return _gdp_gcl_append_async(gcl, datum, cbfunc, udata, _GdpChannel, 0);
+}
+
+
+/*
 **	GDP_GCL_READ --- read a message from a GCL
 **
 **	The data is returned through the passed-in datum.

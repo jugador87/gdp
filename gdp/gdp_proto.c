@@ -186,16 +186,9 @@ ack_success(gdp_req_t *req)
 		estat = GDP_STAT_FROM_ACK(req->pdu->cmd);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	// if this request is for a partially initialized subscription, wait
-	while (req->state == GDP_REQ_WAITING && req->pdu->cmd != GDP_ACK_SUCCESS)
-	{
-		ep_thr_cond_wait(&req->cond, &req->mutex, NULL);
-	}
-
-	gcl = req->gcl;
-
 	//	If we started with no gcl id, adopt from incoming PDU.
 	//	This can happen when creating a GCL.
+	gcl = req->gcl;
 	if (gcl != NULL && !gdp_name_is_valid(gcl->name))
 	{
 		memcpy(gcl->name, req->pdu->src, sizeof gcl->name);

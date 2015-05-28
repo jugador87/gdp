@@ -109,25 +109,32 @@ typedef struct gdp_event	gdp_event_t;
 #define GDP_EVENT_DATA		1	// returned data
 #define GDP_EVENT_EOS		2	// normal end of subscription
 #define GDP_EVENT_SHUTDOWN	3	// subscription terminating because of shutdown
+#define GDP_EVENT_ASTAT		4	// asynchronous status
 
-extern gdp_event_t		*gdp_event_next(	// get event (caller must free!)
-							gdp_gcl_t *gcl,		// if set wait for this GCL only
+extern gdp_event_t		*gdp_event_next(		// get event (caller must free!)
+							gdp_gcl_t *gcl,			// if set wait for this GCL only
 							EP_TIME_SPEC *timeout);
 
-extern EP_STAT			gdp_event_free(		// free event from gdp_event_next
-							gdp_event_t *gev);	// event to free
+extern EP_STAT			gdp_event_free(			// free event from gdp_event_next
+							gdp_event_t *gev);		// event to free
 
-extern int				gdp_event_gettype(	// get the type of the event
+extern int				gdp_event_gettype(		// get the type of the event
 							gdp_event_t *gev);
 
-extern gdp_gcl_t		*gdp_event_getgcl(	// get the GCL of the event
+extern EP_STAT			gdp_event_getstat(		// get status code
 							gdp_event_t *gev);
 
-extern gdp_datum_t		*gdp_event_getdatum( // get the datum of the event
+extern gdp_gcl_t		*gdp_event_getgcl(		// get the GCL of the event
 							gdp_event_t *gev);
 
-extern void				*gdp_event_getudata( // get user data (callback only)
+extern gdp_datum_t		*gdp_event_getdatum(	// get the datum of the event
 							gdp_event_t *gev);
+
+extern void				*gdp_event_getudata(	// get user data (callback only)
+							gdp_event_t *gev);
+
+typedef void			(*gdp_event_cbfunc_t)(	// the callback function
+							gdp_event_t *ev);		// the event triggering the call
 
 /**********************************************************************
 **	Public globals and functions
@@ -166,6 +173,13 @@ extern EP_STAT	gdp_gcl_append(
 					gdp_gcl_t *gcl,			// writable GCL handle
 					gdp_datum_t *);			// message to write
 
+// async version
+extern EP_STAT gdp_gcl_append_async(
+					gdp_gcl_t *gcl,			// writable GCL handle
+					gdp_datum_t *,			// message to write
+					gdp_event_cbfunc_t,		// callback function
+					void *udata);
+
 // read from a readable GCL
 extern EP_STAT	gdp_gcl_read(
 					gdp_gcl_t *gcl,			// readable GCL handle
@@ -174,15 +188,14 @@ extern EP_STAT	gdp_gcl_read(
 
 // subscribe to a readable GCL
 //	If you don't specific cbfunc, events are generated instead
-typedef void	(*gdp_gcl_sub_cbfunc_t)(  // the callback function
-					gdp_event_t *ev);		// the event triggering the call
+typedef gdp_event_cbfunc_t	gdp_gcl_sub_cbfunc_t;	// back compat
 
 extern EP_STAT	gdp_gcl_subscribe(
 					gdp_gcl_t *gcl,			// readable GCL handle
 					gdp_recno_t start,		// first record to retrieve
 					int32_t numrecs,		// number of records to retrieve
 					EP_TIME_SPEC *timeout,	// timeout
-					gdp_gcl_sub_cbfunc_t cbfunc,
+					gdp_event_cbfunc_t cbfunc,
 											// callback function for next datum
 					void *cbarg);			// argument passed to callback
 
@@ -191,7 +204,7 @@ extern EP_STAT	gdp_gcl_multiread(
 					gdp_gcl_t *gcl,			// readable GCL handle
 					gdp_recno_t start,		// first record to retrieve
 					int32_t numrecs,		// number of records to retrieve
-					gdp_gcl_sub_cbfunc_t cbfunc,
+					gdp_event_cbfunc_t cbfunc,
 											// callback function for next datum
 					void *cbarg);			// argument passed to callback
 

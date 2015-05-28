@@ -347,6 +347,73 @@ fail0:
 
 
 /*
+**  _GDP_GCL_APPEND_ASYNC --- asynchronous append
+*/
+
+#ifndef SIZE_MAX
+# define SIZE_MAX ((size_t) -1)
+#endif
+
+EP_STAT
+_gdp_gcl_append_async(
+			gdp_gcl_t *gcl,
+			gdp_datum_t *datum,
+			gdp_event_cbfunc_t cbfunc,
+			void *cbarg,
+			gdp_chan_t *chan,
+			uint32_t reqflags)
+{
+	EP_STAT estat;
+	gdp_req_t *req = NULL;
+	int i;
+
+	errno = 0;				// avoid spurious messages
+
+	EP_ASSERT_POINTER_VALID(gcl);
+	EP_ASSERT_POINTER_VALID(datum);
+
+	reqflags |= GDP_REQ_ASYNCIO;
+	estat = _gdp_req_new(GDP_CMD_APPEND, gcl, chan, NULL, reqflags, &req);
+	EP_STAT_CHECK(estat, goto fail0);
+	gdp_datum_free(req->pdu->datum);
+	(void) ep_time_now(&datum->ts);
+	req->pdu->datum = datum;
+	EP_ASSERT(datum->inuse);
+
+	// arrange for responses to appear as events or callbacks
+	_gdp_event_setcb(req, cbfunc, cbarg);
+
+	estat = _gdp_req_send(req);
+
+	// synchronous calls clear the data in the datum, so be consistent
+	i = gdp_buf_drain(req->pdu->datum->dbuf, SIZE_MAX);
+	if (i < 0 && ep_dbg_test(Dbg, 1))
+		ep_dbg_printf("_gdp_gcl_append_async: gdp_buf_drain failure\n");
+
+	// cleanup and return
+	req->pdu->datum = NULL;			// owned by caller
+	if (!EP_STAT_ISOK(estat))
+	{
+		_gdp_req_free(req);
+	}
+	else
+	{
+		req->state = GDP_REQ_IDLE;
+		ep_thr_cond_signal(&req->cond);
+		_gdp_req_unlock(req);
+	}
+fail0:
+	if (ep_dbg_test(Dbg, 10))
+	{
+		char ebuf[100];
+		ep_dbg_printf("_gdp_gcl_append_async => %s\n",
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
+	return estat;
+}
+
+
+/*
 **  _GDP_GCL_READ --- shared operation for reading a message from a GCL
 **
 **		Used both in GDP client library and gdpd.

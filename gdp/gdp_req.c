@@ -357,6 +357,9 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 {
 	gdp_req_t *req;
 
+	ep_dbg_cprintf(Dbg, 50, "_gdp_req_find(gcl=%p, rid=%" PRIgdp_rid")\n",
+			gcl, rid);
+
 	for (;;)
 	{
 		ep_thr_mutex_lock(&gcl->mutex);
@@ -395,8 +398,8 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 	}
 
 	ep_dbg_cprintf(Dbg, 48,
-			"gdp_req_find(gcl=%p, rid=%" PRIgdp_rid ", state=%s) => %p\n",
-			gcl, rid, statestr(req->state), req);
+			"gdp_req_find(gcl=%p, rid=%" PRIgdp_rid ") => %p, state %s\n",
+			gcl, rid, req, statestr(req->state));
 	return req;
 }
 
@@ -420,6 +423,7 @@ static EP_PRFLAGS_DESC	ReqFlags[] =
 	{ GDP_REQ_ON_GCL_LIST,	GDP_REQ_ON_GCL_LIST,	"ON_GCL_LIST"	},
 	{ GDP_REQ_ON_CHAN_LIST,	GDP_REQ_ON_CHAN_LIST,	"ON_CHAN_LIST"	},
 	{ GDP_REQ_CORE,			GDP_REQ_CORE,			"CORE"			},
+	{ GDP_REQ_ASYNCIO,		GDP_REQ_ASYNCIO,		"ASYNCIO"		},
 	{ 0,					0,						NULL			}
 };
 
