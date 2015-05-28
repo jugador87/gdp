@@ -398,7 +398,7 @@ ep_str_char_set(
 			type = ++p;
 	}
 
-	else if (strcasecmp(type, "iso-8859-1") == 0 ||
+	if (strcasecmp(type, "iso-8859-1") == 0 ||
 		 strcasecmp(type, "iso-latin-1") == 0)
 	{
 		EpChar = &EpCharISO_8859_1;
