@@ -60,23 +60,34 @@ void
 ep_dbg_set(const char *fspec)
 {
 	const char *f = fspec;
-	int i = 0;
-	char pbuf[200];
 
 	ep_dbg_init();
 
 	if (f == NULL)
 		return;
-	while (*f != '\0' && *f != '=')
+	while (*f != '\0')
 	{
-		if (i <= sizeof pbuf - 1)
-			pbuf[i++] = *f;
-		f++;
+		int i = 0;
+		char pbuf[200];
+
+		if (strchr(",; ", *f) != NULL)
+		{
+			f++;
+			continue;
+		}
+
+		while (*f != '\0' && *f != '=')
+		{
+			if (i <= sizeof pbuf - 1)
+				pbuf[i++] = *f;
+			f++;
+		}
+		pbuf[i] = '\0';
+		if (*f == '=')
+			f++;
+		ep_dbg_setto(pbuf, strtol(f, NULL, 10));
+		f += strcspn(f, ",;");
 	}
-	pbuf[i] = '\0';
-	if (*f == '=')
-		f++;
-	ep_dbg_setto(pbuf, strtol(f, NULL, 10));
 }
 
 /*
