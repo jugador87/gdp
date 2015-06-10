@@ -1,0 +1,7 @@
+*.jar
+_*
+*.class
+*.java
+!ReaderTest.java
+!WriterTest.java
+!GdpUtilities.java
