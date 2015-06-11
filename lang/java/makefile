@@ -53,7 +53,7 @@ $(JNAERATOR_RUNTIME_JAR):
 
 ## Header files that we need to interpret the compiled library
 
-ROOT = ../../
+ROOT = ../..
 GDP_SRC = $(ROOT)
 PWD = $(ROOT)/lang/java/
 
@@ -66,15 +66,29 @@ GDP_H_FILES = \
 	$(GDP_SRC)/ep/ep_dbg.h \
 	$(GDP_SRC)/ep/ep_thr.h
 
-LIBEVENT_H_FILES = \
-	/usr/include/event2/buffer.h
+
+## Apparently -I has no effect on JNA, and it fails to find event2/buffer.h 
+##   from the system default paths
+
+if [ -a /usr/include/event2/buffer.h ] ; \
+then \
+	LIBEVENT_H_FILES = /usr/include/event2/buffer.h \
+elif [ -a /usr/local/include/event2/buffer.h ] ; \
+then \
+	LIBEVENT_H_FILES = /usr/local/include/event2/buffer.h \
+elif [ -a /opt/local/include/event2/buffer.h ] ; \
+then \
+	LIBEVENT_H_FILES = /opt/local/include/event2/buffer.h \
+fi
+
 
 ### Auto-generating java files
 
 # We define gdp_datum_t and gdp_datum as void * so that JNAerator does not generate gdp_datum.java, which would refer to pthreads.
-jna: clean $(JNAERATOR_JAR) $(JNAERATOR_RUNTIME_JAR) $(GDP_H_FILES) $(LIBEVENT_H_FILES)
+jna: clean $(JNAERATOR_JAR) $(JNAERATOR_RUNTIME_JAR) $(GDP_H_FILES) 
 	java -jar $(JNAERATOR_JAR) -runtime JNA \
 		-Dgdp_datum_t="void *" -Dgdp_datum="void *" \
+	    -I /usr/include -I /usr/local/include \
 		-library gdp.0.2 $(GDP_H_FILES) \
 		-library event2 $(LIBEVENT_H_FILES) \
 		-package org.terraswarm.gdp  -v -o . -noJar -noComp
