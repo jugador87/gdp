@@ -65,9 +65,8 @@ GDP_H_FILES = \
 	$(GDP_SRC)/gdp/gdp.h \
 	$(GDP_SRC)/gdp/gdp_buf.h \
 	$(GDP_SRC)/ep/ep.h \
-    $(GDP_SRC)/ep/ep_stat.h \
-    $(GDP_SRC)/ep/ep_time.h \
-	$(GDP_SRC)/ep/ep_dbg.h
+	$(GDP_SRC)/ep/ep_dbg.h \
+	$(GDP_SRC)/ep/ep_thr.h
 
 LIBEVENT_H_FILES = \
     $(EVENT_HDRS)/event2/buffer.h
@@ -83,10 +82,10 @@ jna: clean $(JNAERATOR_JAR) $(JNAERATOR_RUNTIME_JAR) $(GDP_H_FILES)
 	echo $(EVENT_HDRS) 
 	java -jar $(JNAERATOR_JAR) -runtime JNA \
 		-Dgdp_datum_t="void *" -Dgdp_datum="void *" \
-		-I/usr/include -I/usr/local/include \
-		-library event2 $(LIBEVENT_H_FILES) \
-		-library gdp.0.2 $(GDP_H_FILES) \
-		-package org.terraswarm.gdp  -v -o . -noJar -noComp
+		-library gdp.0.2 -I ../../gdp -I ../.. \
+		$(GDP_H_FILES) $(LIBEVENT_H_FILES) \
+		-o . -library event2 -I/usr/include -I/usr/local/include \
+                -package org.terraswarm.gdp  -v  -noJar -noComp
 	# Fix up some issues:
 	for file in org/terraswarm/gdp/*.java; do \
 	echo "Fixing $$file"; \
