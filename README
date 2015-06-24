@@ -460,6 +460,12 @@ Full List of Administrative Parameters:
 		Generally speaking, you will want to set this parameter;
 		I recommend reverse-dns addresses, e.g.,
 		swarm.gdplogd.gdpname=edu.berkeley.eecs.gdp-01.gdplogd.
+	swarm.gdplogd.runasuser --- the name of the UNIX account to
+		switch to if gdplogd is started as root.  Generally
+		it is better if gdplogd is *not* run as root; this
+		parameter avoids mistakes.  If the named account does
+		not exist it defaults to 1:1 (user daemon on most
+		systems).
 	swarm.rest.kv.gclname --- the name of the GCL to use for the
 		key-value store.  Defaults to "swarm.rest.kv.gcl".
 	swarm.rest.prefix --- the REST prefix (e.g., /gdp/v1/).

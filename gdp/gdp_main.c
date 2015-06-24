@@ -13,6 +13,7 @@
 #include <event2/thread.h>
 
 #include <errno.h>
+#include <pwd.h>
 #include <signal.h>
 #include <string.h>
 
@@ -444,6 +445,9 @@ _gdp_lib_init(void)
 	if (progname != NULL)
 		ep_adm_readparams(progname);
 
+	// clear out spurious errors
+	errno = 0;
+
 	// we can now re-adjust debugging
 	ep_dbg_setfile(NULL);
 
@@ -472,6 +476,31 @@ _gdp_lib_init(void)
 			ep_dbg_cprintf(Dbg, 19, "Setting my name:\n\t%s\n\t%s\n",
 					myname, gdp_printable_name(_GdpMyRoutingName, pname));
 			EP_STAT_CHECK(estat, myname = NULL);
+		}
+
+		// avoid running as root if possible (and another user specified)
+		if (getuid() == 0)
+		{
+			const char *runasuser;
+
+			snprintf(argname, sizeof argname, "swarm.%s.runasuser", progname);
+			runasuser = ep_adm_getstrparam(argname, NULL);
+			if (runasuser != NULL && *runasuser != '\0')
+			{
+				struct passwd *pw = getpwnam(runasuser);
+				if (pw == NULL)
+				{
+					ep_app_warn("User %s unknown; running as 1:1 (daemon)",
+							runasuser);
+					setgid(1);
+					setuid(1);
+				}
+				else
+				{
+					setgid(pw->pw_gid);
+					setuid(pw->pw_uid);
+				}
+			}
 		}
 
 		// allow log facilities on a per-app basis

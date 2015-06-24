@@ -57,6 +57,7 @@ if [ ! -f .ep_adm_params/gdplogd ]
 then (
 	echo "swarm.gdplogd.gdpname=edu.berkeley.eecs.$hostname.gdplogd"
 	echo "swarm.gdplogd.gcl.dir=$home/db/gcl"
+	echo "swarm.gdplogd.runasuser=gdp"
 	) > .ep_adm_params/gdplogd
 else
 	echo "Warning: .ep_adm_params/gdplogd already exists; check consistency" 2>&1

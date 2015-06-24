@@ -1,4 +1,10 @@
 #!/bin/sh 
+if [ `whoami` = "root" ]
+then
+	echo "$0: cannot run as root (FATAL)"
+	exit 1;
+fi
+
 export HOME=`echo ~gdp`
 cd $HOME
 
