@@ -61,9 +61,14 @@ class GDP_NAME:
             check_EP_STAT(estat)
             return string_at(name_t_ptr.contents, 32)
 
-        if len(name) == 32:
+        def __is_binary_string(s):
+            textchars = bytearray([7,8,9,10,12,13,27]) + bytearray(range(0x20, 0x100))
+            return bool(s.translate(None, textchars))
+
+
+        if len(name) == 33 and __is_binary_string(name)==True:
             # If length of name is exactly 32, treat it as a gdp_name_t
-            #   This is in accordance with the libgdp
+            # This is bit guesswork
 
             self.name = name                                # Python string
             self.pname = __get_printable_name(self.name)    # Python string
