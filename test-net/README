@@ -19,6 +19,15 @@ To get started, adjust parameters 'NUM_ROUTERS' and 'NUM_LOGDS_PER_ROUTER' in
 makefile, run `make images && make`. To shut down the circus, use `make clean`.
 If you want to get rid of the docker images, use `make clean-images`.
 
+You can also pass additional commandline arguments by adjusting appropriate
+*_CMDLINE_ARGS parameter in the Makefile. But before modifying it, first check
+what are the current parameters being passed. The way arguments works is that 
+docker executes the executable specified in Dockerfile under ENTRYPOINT with 
+the specified arguments. Any addition to the actual `docker run ...` command 
+after the image name are passed to the executable on container startup. Treat
+*_CMDLINE_ARGS as an easy way to specify additional parameters, but make sure
+you don't cause conflicts with what is already being passed.
+
 Some basic docker commands:
 $ docker images
 ==> shows the images available locally. You should be able to see 'gdp-router'
