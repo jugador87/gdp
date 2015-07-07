@@ -504,10 +504,10 @@ _gdp_lib_init(void)
 		}
 
 		// allow log facilities on a per-app basis
-		snprintf(argname, sizeof argname, "swarm.%s.log.facility", progname);
+		snprintf(argname, sizeof argname, "swarm.%s.syslog.facility", progname);
 		logfac = ep_adm_getstrparam(argname, NULL);
 		if (logfac == NULL)
-			logfac = ep_adm_getstrparam("swarm.gdp.log.facility", "local4");
+			logfac = ep_adm_getstrparam("swarm.gdp.syslog.facility", "local4");
 		ep_log_init(progname, ep_syslog_fac_from_name(logfac), stderr, NULL);
 	}
 

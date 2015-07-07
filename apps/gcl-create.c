@@ -26,6 +26,11 @@
 */
 
 
+// minimum secure key length
+#ifndef GDP_MIN_KEY_LEN
+# define GDP_MIN_KEY_LEN		1024
+#endif // GDP_MIN_KEY_LEN
+
 void
 usage(void)
 {
@@ -54,6 +59,8 @@ main(int argc, char **argv)
 	char buf[200];
 	bool show_usage = false;
 	bool make_new_key = false;
+	int keylen = 0;
+	int exponent = 3;
 	char *keyfile = NULL;
 	RSA *key = NULL;
 	char *p;
@@ -73,6 +80,8 @@ main(int argc, char **argv)
 
 		 case 'k':
 			make_new_key = true;
+			keylen = ep_adm_getintparam("swarm.gdp.log.keylen", 2048);
+			exponent = ep_adm_getintparam("swarm.gdp.log.keyexp", 3);
 			break;
 
 		 case 'K':
@@ -172,7 +181,13 @@ main(int argc, char **argv)
 	// if creating new key, go ahead and do it
 	if (make_new_key)
 	{
-		key = RSA_generate_key(2048, 3, NULL, NULL);
+		if (keylen < GDP_MIN_KEY_LEN)
+		{
+			ep_app_error("Insecure key length %d; %d min",
+					keylen, GDP_MIN_KEY_LEN);
+			exit(EX_UNAVAILABLE);
+		}
+		key = RSA_generate_key(keylen, exponent, NULL, NULL);
 		if (key == NULL)
 		{
 			ep_app_error("Could not create new key");

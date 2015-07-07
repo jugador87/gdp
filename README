@@ -441,7 +441,11 @@ Full List of Administrative Parameters:
 		request when no response is received.  Defaults to 3
 		(meaning that the request may be sent up to 4 times
 		total).
-	swarm.gdp.log.facility --- the name of the log facility to use
+	swarm.gdp.log.keylen --- the default size of a signature key
+		in bits.  Defaults to 2048.
+	swarm.gdp.log.keyexp --- the exponent for a signature key.
+		Defaults to 3.
+	swarm.gdp.syslog.facility --- the name of the log facility to use
 		(see syslog(3) for details).  The "gdp" in the name
 		can be replaced by an individual program name to set a
 		value that applies only to that program, e.g.,
