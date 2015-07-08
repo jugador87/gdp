@@ -61,7 +61,7 @@ Notes:
           bridge.
 
 - The convention used for IP address allocation is: 
-  - Host has IP address 172.30.0.0
+  - Host has IP address 172.30.0.255
   - GDP routers have IP addresses: 172.30.0.x (x=> 1-255)
   - GDP log servers attached to 172.30.0.x have IP addresses of the form
     172.30.y.x (y=> 1-15). This can be increased, if needed.

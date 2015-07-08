@@ -9,7 +9,7 @@
 # We use pipework (https://github.com/jpetazzo/pipework) to assign 
 #   static IP addresses to docker instances. The convention is to use
 #   172.30.0.1-255 for Routers, 172.30.1.1-255 for log-servers and 
-#   172.30.0.0 for the host
+#   172.30.0.255 for the host
 # XXX: Double check the parameters below to confirm is this is true
 
 .DEFAULT_GOAL = gdp-logds
@@ -25,7 +25,7 @@ GDP_ROUTER_VERSION = 0.3-1
 
 PIPEWORK = ./pipework/pipework
 
-HOST_IP = 172.30.0.0
+HOST_IP = 172.30.0.255
 SUBNET = 20
 
 NUM_ROUTERS = 2
@@ -34,7 +34,7 @@ ROUTER_PORT = 8007
 
 NUM_LOGDS_PER_ROUTER = 2    # max 15. Change subnet if you want more
 LOGD_IP_PREFIX = 172.30.
-LOGD_CMDLINE_ARGS =         # this is in addition to '-G <router>'
+LOGD_CMDLINE_ARGS = -D *=40       # this is in addition to '-G <router>'
 
 ROUTER_IPS = $(foreach num,$(shell seq 1 $(NUM_ROUTERS)),$(ROUTER_IP_PREFIX)$(num))
 ROUTER_CMDLINE_ARGS_ROUTERS = $(shell echo "$(foreach router,$(ROUTER_IPS),$(router):$(ROUTER_PORT))" | sed -e 's/ /,/g')
@@ -85,7 +85,7 @@ gdp-logds: $(PIPEWORK) gdp-routers
 	    for i in `seq 1 $(NUM_LOGDS_PER_ROUTER)` ; do \
 			this_logd_ip=`echo $$ROUTER_IP | sed -e "s/$(ROUTER_IP_PREFIX)/$(LOGD_IP_PREFIX)$$i./g"` ; \
 			echo "Launching a docker container running logd ($$this_logd_ip) to connect to $$ROUTER_IP" ; \
-			tmp=`docker run -d --name=gdp-logd_$$this_logd_ip gdplogd -G $$ROUTER_IP $(LOGD_CMDLINE_ARGS)` ; \
+			tmp=`docker run -d --name=gdp-logd_$$this_logd_ip gdplogd gdp-logd_$$this_logd_ip -G $$ROUTER_IP $(LOGD_CMDLINE_ARGS)` ; \
 			echo "Setting up networking..."; \
 			sudo $(PIPEWORK) br1 $$tmp $$this_logd_ip/$(SUBNET) ; \
 		done ; \

@@ -20,10 +20,13 @@ RUN dpkg -i /gdp-server*.deb || true
 # fix the dependencies
 RUN apt-get -f install -y || true
 
+# Make sure we can overwrite /etc/ep_adm_params/gdplogd as user gdp later on
+RUN chmod -R a+w /etc/ep_adm_params
+
 # This uses /bin/sh's echo, that doesn't take '-e' and interprets backlash by default
-RUN echo '#!/bin/bash\n/bin/sleep 120\n/usr/bin/gdplogd $*' > /wrapper.sh && chmod a+x /wrapper.sh
+RUN echo '#!/bin/bash\necho "Replacing gdpname with $1"\n/bin/sed -i "s/swarm.gdplogd.gdpname=.*/swarm.gdplogd.gdpname=$1/g" /etc/ep_adm_params/gdplogd\n/bin/sleep 120\n/usr/bin/gdplogd ${*:2}' > /wrapper.sh && chmod a+x /wrapper.sh
 
 USER gdp
 
-# CMD ["/etc/init.d/gdp-server", "start"]
-ENTRYPOINT ["/bin/bash", "/wrapper.sh", "-D", "*=40"]
+# The first argument is the logd's name. Be careful
+ENTRYPOINT ["/bin/bash", "/wrapper.sh"]
