@@ -33,6 +33,7 @@ class GDP_GCL:
         "Corresponds to gdp_event_t structure exported by C library"
         pass
 
+
     def __init__(self, name, iomode):
         """
         Open a GCL with given name and io-mode
@@ -86,6 +87,35 @@ class GDP_GCL:
         estat = __func(self.ptr)
         check_EP_STAT(estat)
         return
+
+    @classmethod
+    def create(cls, logd_name, name):
+        "create a new GCL with 'name' on 'logdname'"
+
+        # we do need an internal represenation of the names.
+        gcl_name_python = name.internal_name()
+        logd_name_python = logd_name.internal_name()
+        # convert this to a string that ctypes understands. Some ctypes magic
+        # ahead
+        buf1 = create_string_buffer(gcl_name_python, 32+1)
+        gcl_name_ctypes_ptr = cast(byref(buf1), POINTER(GDP_NAME.name_t))
+        gcl_name_ctypes = gcl_name_ctypes_ptr.contents
+
+        buf2 = create_string_buffer(logd_name_python, 32+1)
+        logd_name_ctypes_ptr = cast(byref(buf2), POINTER(GDP_NAME.name_t))
+        logd_name_ctypes = logd_name_ctypes_ptr.contents
+
+        throwaway_ptr = POINTER(cls.gdp_gcl_t)()
+
+        __func = gdp.gdp_gcl_create
+        __func.argtypes = [GDP_NAME.name_t, GDP_NAME.name_t,
+                                c_void_p, POINTER(POINTER(cls.gdp_gcl_t))]
+        __func.restype = EP_STAT
+
+        estat = __func(gcl_name_ctypes, logd_name_ctypes, None, throwaway_ptr)
+        check_EP_STAT(estat)
+        return
+
 
     def read(self, recno):
         """
