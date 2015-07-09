@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="US-ASCII"?>
 <!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.3//EN"
 "http://www.oasis-open.org/docbook/xml/4.3/docbookx.dtd">
 <article class="techreport">
@@ -12,7 +12,7 @@
     </author>
 
     <copyright>
-      <year>2008, 2014–2015 Eric P. Allman. All rights reserved.</year>
+      <year>2008, 2014&ndash;2015 Eric P. Allman. All rights reserved.</year>
     </copyright>
 
     <date>2015-02-15</date>
@@ -199,9 +199,9 @@
           <term><errortype>EP_STAT_SEV_ABORT</errortype></term>
 
           <listitem>
-            <para>A critical error occured — you should clean up and exit as
-            soon as possible; the program cannot be expected to operate
-            correctly.</para>
+            <para>A critical error occured &mdash; you should clean up and
+            exit as soon as possible; the program cannot be expected to
+            operate correctly.</para>
           </listitem>
         </varlistentry>
       </variablelist>
@@ -448,10 +448,10 @@ ep_lib_init(uint32_t flags)</programlisting>
       <remark>XXX TBD</remark>.</para>
 
       <para>In all allocation schemes, the function returns a pointer to the
-      allocated data — they cannot normally return <constant>NULL</constant>
-      (but see below). If they cannot allocate the memory, they <remark>do
-      error recovery (XXX describe)</remark>. If recovery fails, the
-      allocation system will abort the process. However,
+      allocated data &mdash; they cannot normally return
+      <constant>NULL</constant> (but see below). If they cannot allocate the
+      memory, they <remark>do error recovery (XXX describe)</remark>. If
+      recovery fails, the allocation system will abort the process. However,
       <function>ep_mem_ealloc</function> can return <constant>NULL</constant>
       on memory allocation failure, as can <function>ep_mem_falloc</function>
       if the <constant>EP_MEM_F_FAILOK</constant> flag bit is set (see
@@ -735,8 +735,8 @@ EP_TIME_INVALIDATE(                  // invalidate a timestamp
       For example, looking in the "configuration" property list for
       "<varname>mailer.local.timeout.connect</varname>" would return the
       connect timeout for the local mailer. <remark>[[How does this deal with
-      nested defaults — e.g., looking for timeout.connect if the full path
-      cannot be found?]]</remark></para>
+      nested defaults &mdash; e.g., looking for timeout.connect if the full
+      path cannot be found?]]</remark></para>
 
       <programlisting>    EP_PLIST *
     ep_plist_new(
@@ -1487,17 +1487,17 @@ ep_log(
                 const char *name,       // name of the parameter
                 int default)            // value if parameter not set
 
-    EP_STAT
+    long
     ep_adm_getlongparam(
                 const char *name,       // name of the parameter
                 long default)           // value if parameter not set
 
-    EP_STAT
+    bool
     ep_adm_getboolparam(
                 const char *name,       // name of the parameter
                 bool default)           // value if parameter not set
 
-    char *
+    const char *
     ep_adm_getstrparam(
                 const char *name,       // name of the parameter
                 char *default)          // value if parameter not set</programlisting>
@@ -1607,7 +1607,7 @@ ep_log(
 
             <td align="center">`</td>
 
-            <td align="center">«</td>
+            <td align="center">&laquo;</td>
           </tr>
 
           <tr>
@@ -1615,7 +1615,7 @@ ep_log(
 
             <td align="center">'</td>
 
-            <td align="center">»</td>
+            <td align="center">&raquo;</td>
           </tr>
 
           <tr>
@@ -1623,7 +1623,7 @@ ep_log(
 
             <td align="center">(c)</td>
 
-            <td align="center">©</td>
+            <td align="center">&copy;</td>
           </tr>
 
           <tr>
@@ -1631,7 +1631,7 @@ ep_log(
 
             <td align="center">deg</td>
 
-            <td align="center">º</td>
+            <td align="center">&ordm;</td>
           </tr>
 
           <tr>
@@ -1639,7 +1639,7 @@ ep_log(
 
             <td align="center">u</td>
 
-            <td align="center">µ</td>
+            <td align="center">&micro;</td>
           </tr>
 
           <tr>
@@ -1647,7 +1647,7 @@ ep_log(
 
             <td align="center">+/-</td>
 
-            <td align="center">±</td>
+            <td align="center">&plusmn;</td>
           </tr>
 
           <tr>
@@ -1655,7 +1655,7 @@ ep_log(
 
             <td align="center">*</td>
 
-            <td align="center">×</td>
+            <td align="center">&times;</td>
           </tr>
 
           <tr>
@@ -1663,7 +1663,7 @@ ep_log(
 
             <td align="center">/</td>
 
-            <td align="center">÷</td>
+            <td align="center">&divide;</td>
           </tr>
 
           <tr>
@@ -1671,7 +1671,7 @@ ep_log(
 
             <td align="center">NULL</td>
 
-            <td align="center">Ø</td>
+            <td align="center">&Oslash;</td>
           </tr>
 
           <tr>
@@ -1679,7 +1679,7 @@ ep_log(
 
             <td align="center">!=</td>
 
-            <td align="center">≠</td>
+            <td align="center">&ne;</td>
           </tr>
 
           <tr>
@@ -1687,7 +1687,7 @@ ep_log(
 
             <td align="center">?</td>
 
-            <td align="center">⌧</td>
+            <td align="center">&#8999;</td>
           </tr>
 
           <tr>
@@ -1695,7 +1695,7 @@ ep_log(
 
             <td align="center">pp.</td>
 
-            <td align="center">¶</td>
+            <td align="center">&para;</td>
           </tr>
 
           <tr>
@@ -1703,7 +1703,7 @@ ep_log(
 
             <td align="center">sec.</td>
 
-            <td align="center">§</td>
+            <td align="center">&sect;</td>
           </tr>
 
           <tr>
@@ -1711,7 +1711,7 @@ ep_log(
 
             <td align="center">(not)</td>
 
-            <td align="center">¬</td>
+            <td align="center">&not;</td>
           </tr>
 
           <tr>
@@ -1719,7 +1719,7 @@ ep_log(
 
             <td align="center">(inf)</td>
 
-            <td align="center">∞</td>
+            <td align="center">&infin;</td>
           </tr>
         </tbody>
       </informaltable>
