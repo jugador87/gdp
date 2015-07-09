@@ -260,6 +260,9 @@ Start the GDP Log Daemon:
 		daemon.  Defaults to localhost:8007.  Can also be set
 		with the "swarm.gdp.ip_addr" administrative parameter.
 		See "Changing Parameters" below for more information.
+	   -N<routing_name>
+		Sets the GDP routing name, overriding the
+		swarm.gdplogd.gdpname configuration value.
 	   -n<workers>
 		Start up <workers> worker threads.  Defaults to a
 		minimum of one thread which can expand up to twice

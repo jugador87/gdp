@@ -422,13 +422,13 @@ exit_on_signal(int sig)
 */
 
 EP_STAT
-_gdp_lib_init(void)
+_gdp_lib_init(const char *myname)
 {
 	EP_STAT estat = EP_STAT_OK;
 	const char *progname;
-	const char *myname = NULL;
 
-	ep_dbg_cprintf(Dbg, 4, "_gdp_lib_init:\n");
+	ep_dbg_cprintf(Dbg, 4, "_gdp_lib_init(%s):\n",
+			myname == NULL ? "NULL" : myname);
 
 	if (ep_dbg_test(EvlibDbg, 80))
 	{
@@ -460,25 +460,34 @@ _gdp_lib_init(void)
 	// register status strings
 	_gdp_stat_init();
 
+	// figure out or generate our name (for routing)
+	if (myname == NULL && progname != NULL)
+	{
+		char argname[100];
+
+		snprintf(argname, sizeof argname, "swarm.%s.gdpname", progname);
+		myname = ep_adm_getstrparam(argname, NULL);
+	}
+
+	if (myname != NULL)
+	{
+		gdp_pname_t pname;
+
+		estat = gdp_parse_name(myname, _GdpMyRoutingName);
+		ep_dbg_cprintf(Dbg, 19, "Setting my name:\n\t%s\n\t%s\n",
+				myname, gdp_printable_name(_GdpMyRoutingName, pname));
+		EP_STAT_CHECK(estat, myname = NULL);
+	}
+
+	if (!gdp_name_is_valid(_GdpMyRoutingName))
+		_gdp_newname(_GdpMyRoutingName);
+
+	// avoid running as root if possible (and another user specified)
 	if (progname != NULL)
 	{
 		char argname[100];
 		const char *logfac;
 
-		// figure out or generate our name
-		snprintf(argname, sizeof argname, "swarm.%s.gdpname", progname);
-		myname = ep_adm_getstrparam(argname, NULL);
-		if (myname != NULL)
-		{
-			gdp_pname_t pname;
-
-			estat = gdp_parse_name(myname, _GdpMyRoutingName);
-			ep_dbg_cprintf(Dbg, 19, "Setting my name:\n\t%s\n\t%s\n",
-					myname, gdp_printable_name(_GdpMyRoutingName, pname));
-			EP_STAT_CHECK(estat, myname = NULL);
-		}
-
-		// avoid running as root if possible (and another user specified)
 		if (getuid() == 0)
 		{
 			const char *runasuser;
@@ -510,9 +519,6 @@ _gdp_lib_init(void)
 			logfac = ep_adm_getstrparam("swarm.gdp.syslog.facility", "local4");
 		ep_log_init(progname, ep_syslog_fac_from_name(logfac), stderr, NULL);
 	}
-
-	if (!gdp_name_is_valid(_GdpMyRoutingName))
-		_gdp_newname(_GdpMyRoutingName);
 
 	if (ep_dbg_test(Dbg, 1))
 	{
