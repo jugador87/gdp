@@ -52,6 +52,8 @@ void	ep_mem_free(void *);
 
 extern void		ep_adm_readparams(	// search for parameter files
 				const char *name);	// name to search for
+extern void		ep_adm_setparamfromstr(	// set a parameter from string
+				const char *decl);	// "name=value"
 extern int		ep_adm_getintparam(	// get integer param value
 				const char *name,	// name of param
 				int def);		// default value

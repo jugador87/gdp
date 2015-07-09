@@ -1482,6 +1482,10 @@ ep_log(
     ep_adm_readparams(
                 const char *name)       // basename of the parameter file
 
+    void
+    ep_adm_setparamfromstr(
+                const char *decl)       // parameter declaration
+
     int
     ep_adm_getintparam(
                 const char *name,       // name of the parameter

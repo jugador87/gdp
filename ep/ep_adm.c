@@ -53,37 +53,7 @@ read_param_file(char *path)
 		return;
 
 	while (fgets(lbuf, sizeof lbuf, fp) != NULL)
-	{
-		char *p;
-		char *np;		// pointer to name
-		char *vp;		// pointer to value
-
-		p = lbuf;
-		if (*p == '#')
-			continue;	// comment
-		p += strspn(p, " \t\n");	// trim leading wsp
-		np = p;
-		p += strcspn(p, " \t\n=");	// find end of name
-		if (*p == '\0')
-			continue;		// syntax: no value
-		else if (*p == '=')
-			*p++ = '\0';	// no wsp at end of name
-		else
-		{
-			// trim white space from end of name
-			*p++ = '\0';
-			p += strspn(p, " \t\n");
-			if (*p++ != '=')
-				continue;	// syntax: bad name
-		}
-		p += strspn(p, " \t\n");	// skip wsp before val
-		vp = p;
-		p += strcspn(p, "\n");
-		*p = '\0';
-
-		// store it into the hash table
-		ep_hash_insert(ParamHash, strlen(np), np, ep_mem_strdup(vp));
-	}
+		ep_adm_setparamfromstr(lbuf);
 
 	fclose(fp);
 }
@@ -155,6 +125,53 @@ get_param_path(void)
 	}
 	path = pathbuf;
 	return path;
+}
+
+
+/*
+**  EP_ADM_SETPARAMFROMSTR --- set a single parameter from a string declaration
+**
+**	String must be "name=value", exactly like a line in the
+**	configuration file.  This can be used to set parameters from
+**	the command line.
+**
+**	WARNING: this will modify the string parameter.
+*/
+
+void
+ep_adm_setparamfromstr(const char *decl)
+{
+	char *p;
+	char *np;		// pointer to name
+	char *vp;		// pointer to value
+	char lbuf[1024];
+
+	strlcpy(lbuf, decl, sizeof lbuf);
+	p = lbuf;
+	if (*p == '#')
+		return;			// comment
+	p += strspn(p, " \t\n");	// trim leading wsp
+	np = p;
+	p += strcspn(p, " \t\n=");	// find end of name
+	if (*p == '\0')
+		return;			// syntax: no value
+	else if (*p == '=')
+		*p++ = '\0';		// no wsp at end of name
+	else
+	{
+		// trim white space from end of name
+		*p++ = '\0';
+		p += strspn(p, " \t\n");
+		if (*p++ != '=')
+			return;		// syntax: bad name
+	}
+	p += strspn(p, " \t\n");	// skip wsp before val
+	vp = p;
+	p += strcspn(p, "\n");
+	*p = '\0';
+
+	// store it into the hash table
+	ep_hash_insert(ParamHash, strlen(np), np, ep_mem_strdup(vp));
 }
 
 

@@ -119,10 +119,14 @@ main(int argc, char **argv)
 	char *router_addr = NULL;
 	char *phase;
 
-	while ((opt = getopt(argc, argv, "D:FG:n:")) > 0)
+	while ((opt = getopt(argc, argv, "A:D:FG:n:")) > 0)
 	{
 		switch (opt)
 		{
+		case 'A':
+			ep_adm_setparamfromstr(optarg);
+			break;
+
 		case 'D':
 			run_in_foreground = true;
 			ep_dbg_set(optarg);

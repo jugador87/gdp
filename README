@@ -249,6 +249,10 @@ Start the GDP Log Daemon:
 	The program gdplogd implements physical on-disk logs.  It must
 	be started after the routing layer.  Located in gdplogd/gdplogd,
 	it takes these parameters:
+	   -A<name>=<value>
+		Set an administrative parameter from the command line.
+		This is the same syntax as used in administrative
+		configuration files.
 	   -D<debug-spec>
 		Turn on debugging.  See "Setting Debug Flags" below
 		for more information.  Implies -F.
