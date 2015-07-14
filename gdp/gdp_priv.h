@@ -391,7 +391,7 @@ EP_STAT			_gdp_start_event_loop_thread(
 
 void			_gdp_newname(gdp_name_t gname);
 
-EP_STAT			_gdp_lib_init(void);
+EP_STAT			_gdp_lib_init(const char *my_routing_name);
 
 /*
 **  Request handling.

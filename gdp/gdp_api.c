@@ -208,7 +208,7 @@ gdp_init(const char *router_addr)
 
 	// pass it on to the internal module
 	// set up global state, event loop, etc.
-	estat = _gdp_lib_init();
+	estat = _gdp_lib_init(NULL);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// initialize connection

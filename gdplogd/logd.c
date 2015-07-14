@@ -116,10 +116,11 @@ main(int argc, char **argv)
 	bool run_in_foreground = false;
 	EP_STAT estat;
 	int nworkers = -1;
-	char *router_addr = NULL;
-	char *phase;
+	const char *router_addr = NULL;
+	const char *phase;
+	const char *myname = NULL;
 
-	while ((opt = getopt(argc, argv, "D:FG:n:")) > 0)
+	while ((opt = getopt(argc, argv, "D:FG:n:N:")) > 0)
 	{
 		switch (opt)
 		{
@@ -139,6 +140,10 @@ main(int argc, char **argv)
 		case 'n':
 			nworkers = atoi(optarg);
 			break;
+
+		case 'N':
+			myname = optarg;
+			break;
 		}
 	}
 	argc -= optind;
@@ -150,7 +155,7 @@ main(int argc, char **argv)
 
 	// initialize GDP and the EVENT library
 	phase = "gdp library";
-	estat = _gdp_lib_init();
+	estat = _gdp_lib_init(myname);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// initialize physical logs
@@ -164,10 +169,9 @@ main(int argc, char **argv)
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// print our name as a reminder
+	if (myname == NULL)
 	{
-		gdp_pname_t pname;
 		const char *progname;
-		const char *myname = NULL;
 
 		progname = ep_app_getprogname();
 		if (progname != NULL)
@@ -177,6 +181,10 @@ main(int argc, char **argv)
 			snprintf(argname, sizeof argname, "swarm.%s.gdpname", progname);
 			myname = ep_adm_getstrparam(argname, NULL);
 		}
+	}
+
+	{
+		gdp_pname_t pname;
 
 		if (myname == NULL)
 			myname = gdp_printable_name(_GdpMyRoutingName, pname);
