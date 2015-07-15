@@ -68,6 +68,11 @@ class GDP_GCL:
         # XXX: See if there is a cleaner way of dealing with this?
         self.object_dir[addressof(self.ptr.contents)] = self
 
+        # A hack to make sure we can make get_next_event both a class method
+        #   to listen for ALL events, as well as an instance method to listen
+        #   to this particular instance's events
+        self.get_next_event = self.__get_next_event
+
     def __del__(self):
         "close this GCL handle, and free the allocated resources"
 
@@ -299,9 +304,10 @@ class GDP_GCL:
         return GDP_NAME(gcl_name)
 
     @classmethod
-    def get_next_event(cls, timeout):
+    def _helper_get_next_event(cls, __gcl_handle, timeout):
         """
-        Get the events for any open GCL.
+        Get the events for GCL __gcl_handle. If __gcl_handle is None, then get
+            events for any open GCL
         """
 
         # we get timeout as a dictionary, that we then translate to a C
@@ -315,22 +321,29 @@ class GDP_GCL:
 
         __func1 = gdp.gdp_event_next
 
+        # Find the 'type' we need to pass to argtypes
+        if __gcl_handle == None:
+            __func1_arg1_type = c_void_p
+        else:
+            __func1_arg1_type = POINTER(cls.gdp_gcl_t)
+
         # if timeout is None, then we just skip this
         if timeout == None:
             __timeout = None
-            __func1.argtypes = [c_void_p, c_void_p]
+            __func1_arg2_type = c_void_p
         else:
             __timeout = __EP_TIME_SPEC()
             __timeout.tv_sec = c_int64(timeout['tv_sec'])
             __timeout.tv_nsec = c_uint32(timeout['tv_nsec'])
             __timeout.tv_accuracy = c_float(timeout['tv_accuracy'])
+            __func1_arg2_type = POINTER(__EP_TIME_SPEC)
 
-            __func1.argtypes = [c_void_p, POINTER(__EP_TIME_SPEC)]
+        # Enable some type checking
 
+        __func1.argtypes = [__func1_arg1_type, __func1_arg2_type]
         __func1.restype = POINTER(cls.gdp_event_t)
 
-        # Don't set this for a particular GCL.
-        event_ptr = __func1(None, __timeout)
+        event_ptr = __func1(__gcl_handle, __timeout)
         if bool(event_ptr) == False:  # Null pointers have a false boolean value
             return None
 
@@ -377,3 +390,14 @@ class GDP_GCL:
         gdp_event["type"] = event_type
 
         return gdp_event
+
+    @classmethod
+    def get_next_event(cls, timeout):
+        """ Get events for ANY open gcl """
+        return cls._helper_get_next_event(None, timeout)
+
+    def __get_next_event(self, timeout):
+        """ Get events for this particular GCL """
+        event = self._helper_get_next_event(self.ptr, timeout)
+        if event is not None: assert event["gcl_handle"] == self
+        return event
