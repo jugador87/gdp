@@ -171,6 +171,26 @@ class GDP_GCL:
 
         return
 
+    def append_async(self, datum_dict):
+        """
+        XXX: This is still work in progress. Async version of append
+        """
+        datum = GDP_DATUM()
+
+        if "data" in datum_dict.keys():
+            datum.setbuf(datum_dict["data"])
+
+        __func = gdp.gdp_gcl_append_async
+        __func.argtypes = [ POINTER(self.gdp_gcl_t), 
+                            POINTER(GDP_DATUM.gdp_datum_t),
+                            c_void_p, c_void_p ]
+        __func.restype = EP_STAT
+
+        estat = __func(self.ptr, datum.gdp_datum, None, None)
+        check_EP_STAT(estat)
+
+
+
     # XXX: Check if this works.
     # More details here: http://python.net/crew/theller/ctypes/tutorial.html#callback-functions
     # The first argument, I believe, is the return type, which I think is void*
@@ -189,20 +209,11 @@ class GDP_GCL:
         # casting numrecs to ctypes
         __numrecs = c_int32(numrecs)
 
-        # we get timeout as a dictionary, that we then translate to a C
-        # structure
-        class __EP_TIME_SPEC(Structure):
-            pass
-
-        __EP_TIME_SPEC._fields_ = [("tv_sec", c_int64),
-                                   ("tv_nsec", c_uint32),
-                                   ("tv_accuracy", c_float)]
-
         # if timeout is None, then we just skip this
         if timeout == None:
             __timeout = None
         else:
-            __timeout = __EP_TIME_SPEC()
+            __timeout = GDP_DATUM.EP_TIME_SPEC()
             __timeout.tv_sec = c_int64(timeout['tv_sec'])
             __timeout.tv_nsec = c_uint32(timeout['tv_nsec'])
             __timeout.tv_accuracy = c_float(timeout['tv_accuracy'])
@@ -216,11 +227,11 @@ class GDP_GCL:
         __func = gdp.gdp_gcl_subscribe
         if cbfunc == None:
             __func.argtypes = [POINTER(
-                self.gdp_gcl_t), gdp_recno_t, c_int32, POINTER(__EP_TIME_SPEC),
+                self.gdp_gcl_t), gdp_recno_t, c_int32, POINTER(GDP_DATUM.EP_TIME_SPEC),
                 c_void_p, c_void_p]
         else:
             __func.argtypes = [POINTER(
-                self.gdp_gcl_t), gdp_recno_t, c_int32, POINTER(__EP_TIME_SPEC),
+                self.gdp_gcl_t), gdp_recno_t, c_int32, POINTER(GDP_DATUM.EP_TIME_SPEC),
                 self.gdp_gcl_sub_cbfunc_t, c_void_p]
 
         __func.restype = EP_STAT
@@ -310,15 +321,6 @@ class GDP_GCL:
             events for any open GCL
         """
 
-        # we get timeout as a dictionary, that we then translate to a C
-        # structure
-        class __EP_TIME_SPEC(Structure):
-            pass
-
-        __EP_TIME_SPEC._fields_ = [("tv_sec", c_int64),
-                                   ("tv_nsec", c_uint32),
-                                   ("tv_accuracy", c_float)]
-
         __func1 = gdp.gdp_event_next
 
         # Find the 'type' we need to pass to argtypes
@@ -332,11 +334,11 @@ class GDP_GCL:
             __timeout = None
             __func1_arg2_type = c_void_p
         else:
-            __timeout = __EP_TIME_SPEC()
+            __timeout = GDP_DATUM.EP_TIME_SPEC()
             __timeout.tv_sec = c_int64(timeout['tv_sec'])
             __timeout.tv_nsec = c_uint32(timeout['tv_nsec'])
             __timeout.tv_accuracy = c_float(timeout['tv_accuracy'])
-            __func1_arg2_type = POINTER(__EP_TIME_SPEC)
+            __func1_arg2_type = POINTER(GDP_DATUM.EP_TIME_SPEC)
 
         # Enable some type checking
 
