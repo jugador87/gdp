@@ -61,7 +61,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	snprintf(data_filename, filename_size,
 			"%s/_%02x/%s%s",
 			gcl_dir_name, gcl_name[0], gcl_pname, GCL_DATA_SUFFIX);
-	fprintf(stdout, "GCL name: %s\n", gcl_pname);
+	fprintf(stdout, "%s\n", gcl_pname);
 	ep_dbg_cprintf(Dbg, 6, "Reading %s\n\n", data_filename);
 
 	FILE *data_fp = fopen(data_filename, "r");
@@ -187,21 +187,18 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 	while (fread(&record, sizeof record, 1, data_fp) == 1)
 	{
-		fprintf(stdout, "\n");
-		fprintf(stdout, "Offset = %zd (0x%zx)\n", file_offset, file_offset);
-		fprintf(stdout, "Record number: %" PRIgdp_recno "\n", record.recno);
-		fprintf(stdout, "Human readable timestamp: ");
+		fprintf(stdout, "\nRecord number: %" PRIgdp_recno "\n", record.recno);
+		fprintf(stdout, "\tOffset = %zd (0x%zx)\n", file_offset, file_offset);
+		fprintf(stdout, "\tHuman readable timestamp: ");
 		ep_time_print(&record.timestamp, stdout, true);
-		fprintf(stdout, "\n");
-		fprintf(stdout, "Raw timestamp seconds: %" PRIi64 "\n", record.timestamp.tv_sec);
-		fprintf(stdout, "Raw Timestamp ns: %" PRIi32 "\n", record.timestamp.tv_nsec);
-		fprintf(stdout, "Time accuracy (s): %8f\n", record.timestamp.tv_accuracy);
-		fprintf(stdout, "Data length: %" PRIi64 "\n", record.data_length);
+		fprintf(stdout, "\n\tRaw timestamp seconds: %" PRIi64 "\n", record.timestamp.tv_sec);
+		fprintf(stdout, "\tRaw Timestamp ns: %" PRIi32 "\n", record.timestamp.tv_nsec);
+		fprintf(stdout, "\tTime accuracy (s): %8f\n", record.timestamp.tv_accuracy);
+		fprintf(stdout, "\tData length: %" PRIi64 "\n", record.data_length);
 
 		if (plev >= GDP_PR_DETAILED)
 		{
-			fprintf(stdout, "\n");
-			fprintf(stdout, "Raw:\n");
+			fprintf(stdout, "\tRaw:\n");
 			ep_hexdump(&record, sizeof record, stdout,
 					EP_HEXDUMP_HEX, file_offset);
 		}
@@ -215,10 +212,13 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 			return EX_DATAERR;
 		}
 
-		fprintf(stdout, "\n");
-		fprintf(stdout, "Data:\n");
-		ep_hexdump(data_buffer, record.data_length,
-				stdout, EP_HEXDUMP_ASCII, file_offset);
+		if (plev >= GDP_PR_BASIC + 1)
+		{
+			fprintf(stdout, "\tData:\n");
+			ep_hexdump(data_buffer, record.data_length,
+					stdout, EP_HEXDUMP_ASCII,
+					plev < GDP_PR_DETAILED ? 0 : file_offset);
+		}
 		file_offset += record.data_length;
 		CHECK_FILE_OFFSET(data_fp, file_offset);
 
@@ -279,7 +279,6 @@ list_gcls(const char *gcl_dir_name)
 			*p = '\0';
 
 			// print the name
-			fprintf(stdout, "%s\n", dent->d_name);
 			gdp_parse_name(dent->d_name, gcl_iname);
 			show_gcl(gcl_dir_name, gcl_iname, GDP_PR_PRETTY);
 		}
@@ -299,7 +298,8 @@ usage(const char *msg)
 			"\t-d dir -- set log database root directory\n"
 			"\t-D spec -- set debug flags\n"
 			"\t-l -- list all local GCLs\n"
-			"\t-r -- don't print raw byte hex dumps\n",
+			"\t-r -- print raw byte hex dumps\n"
+			"\t-v -- print verbose information\n",
 				msg);
 
 	exit(EX_USAGE);
@@ -309,14 +309,14 @@ int
 main(int argc, char *argv[])
 {
 	int opt;
+	int plev = GDP_PR_BASIC;
 	bool list_gcl = false;
-	bool print_raw = false;
 	char *gcl_xname = NULL;
 	const char *gcl_dir_name = NULL;
 
 	ep_lib_init(0);
 
-	while ((opt = getopt(argc, argv, "d:D:lr")) > 0)
+	while ((opt = getopt(argc, argv, "d:D:lrv")) > 0)
 	{
 		switch (opt)
 		{
@@ -333,7 +333,11 @@ main(int argc, char *argv[])
 			break;
 
 		case 'r':
-			print_raw = true;
+			plev = GDP_PR_DETAILED;
+			break;
+
+		case 'v':
+			plev = GDP_PR_BASIC + 1;
 			break;
 
 		default:
@@ -379,6 +383,5 @@ main(int argc, char *argv[])
 		usage("unparsable GCL name");
 	}
 
-	exit(show_gcl(gcl_dir_name, gcl_name,
-				print_raw ? GDP_PR_DETAILED : GDP_PR_BASIC));
+	exit(show_gcl(gcl_dir_name, gcl_name, plev));
 }
