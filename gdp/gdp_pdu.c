@@ -28,7 +28,7 @@
 #include <string.h>
 #include <sys/errno.h>
 
-EP_DBG	Dbg = EP_DBG_INIT("gdp.pdu", "GDP PDU traffic");
+static EP_DBG	Dbg = EP_DBG_INIT("gdp.pdu", "GDP PDU traffic");
 
 
 static EP_PRFLAGS_DESC	PduFlags[] =
@@ -58,9 +58,9 @@ _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 	gdp_print_name(pdu->dst, fp);
 	fprintf(fp, "\n\tsrc=");
 	gdp_print_name(pdu->src, fp);
-	fprintf(fp, "\n\trid=%u, sigalg=0x%x, siglen=%d, olen=%d, chan=%p"
+	fprintf(fp, "\n\trid=%u, sigmdalg=0x%x, siglen=%d, olen=%d, chan=%p"
 				"\n\tflags=",
-				pdu->rid, pdu->sigalg, pdu->siglen, pdu->olen, pdu->chan);
+				pdu->rid, pdu->sigmdalg, pdu->siglen, pdu->olen, pdu->chan);
 	ep_prflags(pdu->flags, PduFlags, fp);
 	fprintf(fp, "\n\tdatum=%p", pdu->datum);
 	if (pdu->datum != NULL)
@@ -87,11 +87,46 @@ done:
 
 
 /*
+**  Helper routine to send data with diagnostics and debugging.
+*/
+
+static EP_STAT
+send_data(struct evbuffer *obuf,
+		void *data, size_t len,
+		const char *where, int offset, int dbgmode)
+{
+	if (ep_dbg_test(Dbg, 33))
+	{
+		ep_hexdump(data, len, ep_dbg_getfile(), dbgmode, offset);
+	}
+
+	if (data == NULL || evbuffer_add(obuf, data, len) < 0)
+	{
+		char nbuf[40];
+
+		// couldn't write output
+		strerror_r(errno, nbuf, sizeof nbuf);
+		ep_dbg_cprintf(Dbg, 1, "_gdp_pdu_out: %s write failure: %s\n",
+				where, nbuf);
+		return GDP_STAT_PDU_WRITE_FAIL;
+	}
+
+	return EP_STAT_OK;
+}
+
+
+
+/*
 **	GDP_PDU_OUT --- send a PDU to a network buffer
 **
 **		Outputs PDU, including all the data in the dbuf.
 */
 
+#define PUT16(v) \
+		{ \
+			*pbp++ = ((v) >> 8) & 0xff; \
+			*pbp++ = ((v) & 0xff); \
+		}
 #define PUT32(v) \
 		{ \
 			*pbp++ = ((v) >> 24) & 0xff; \
@@ -124,14 +159,16 @@ done:
 #define FOFF		75		// offet of flags from beginning of pdu
 
 EP_STAT
-_gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
+_gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *basemd)
 {
 	EP_STAT estat = EP_STAT_OK;
 	uint8_t pbuf[_GDP_PDU_MAXHDRSZ];
 	uint8_t *pbp = pbuf;
 	size_t dlen;
 	size_t hdrlen;
+	size_t offset;
 	struct evbuffer *obuf = bufferevent_get_output(chan->bev);
+	uint8_t sigbuf[EP_CRYPTO_MAX_SIG];
 
 	EP_ASSERT_POINTER_VALID(pdu);
 
@@ -154,6 +191,26 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		{
 			ep_dbg_printf(" %s\n", _gdp_proto_cmd_name(pdu->cmd));
 		}
+	}
+
+	if (basemd != NULL)
+	{
+		// compute the signature
+		uint8_t recnobuf[8];		// 64 bits
+		uint8_t *pbp = recnobuf;
+		size_t reclen;
+		EP_CRYPTO_MD *md = ep_crypto_md_clone(basemd);
+		gdp_datum_t *datum = pdu->datum;
+		size_t siglen = sizeof sigbuf;
+
+		PUT64(pdu->datum->recno);
+		ep_crypto_sign_update(md, &recnobuf, sizeof recnobuf);
+		reclen = gdp_buf_getlength(datum->dbuf);
+		ep_crypto_sign_update(md, gdp_buf_getptr(datum->dbuf, reclen), reclen);
+		ep_crypto_sign_final(md, &sigbuf, &siglen);
+		pdu->siglen = siglen;
+		pdu->sigmdalg = ep_crypto_md_type(md);
+		ep_crypto_sign_free(md);
 	}
 
 	// version number
@@ -179,9 +236,12 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	// request id
 	PUT32(pdu->rid);
 
-	// signature algorithm and size
-	*pbp++ = pdu->sigalg;
-	*pbp++ = pdu->siglen;
+	// signature digest algorithm and size
+	{
+		uint16_t sigtmp;
+		sigtmp = (pdu->siglen & 0x0fff) | ((pdu->sigmdalg & 0x0f) << 12);
+		PUT16(sigtmp);
+	}
 
 	// length of options (filled in later)
 	*pbp++ = 0;
@@ -223,6 +283,7 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	}
 
 	hdrlen = pbp - pbuf;
+	offset = 0;
 	pbuf[OOFF] = ((hdrlen - _GDP_PDU_FIXEDHDRSZ) + 3) / 4;
 
 	if (ep_dbg_test(Dbg, 32))
@@ -231,39 +292,40 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 		ep_hexdump(pbuf, hdrlen, ep_dbg_getfile(), EP_HEXDUMP_HEX, 0);
 	}
 
+	// send header
 	evbuffer_lock(obuf);
-	if (evbuffer_add(obuf, pbuf, pbp - pbuf) < 0)
-	{
-		char nbuf[40];
+	estat = send_data(obuf, pbuf, hdrlen,
+					"header", offset, EP_HEXDUMP_HEX);
+	offset += pbp - pbuf;
+	EP_STAT_CHECK(estat, goto fail0);
 
-		// couldn't write, bad juju
-		strerror_r(errno, nbuf, sizeof nbuf);
-		ep_dbg_cprintf(Dbg, 1, "_gdp_pdu_out: header write failure: %s", nbuf);
-		estat = GDP_STAT_PDU_WRITE_FAIL;
-	}
-	else if (dlen > 0)
+	// send data
+	if (dlen > 0)
 	{
 		uint8_t *bp;
 
 		bp = evbuffer_pullup(pdu->datum->dbuf, dlen);
-		if (bp == NULL || evbuffer_add(obuf, bp, dlen) < 0)
-		{
-			char nbuf[40];
-
-			// couldn't write data
-			strerror_r(errno, nbuf, sizeof nbuf);
-			ep_dbg_cprintf(Dbg, 1, "_gdp_pdu_out: data write failure: %s\n", nbuf);
-			estat = GDP_STAT_PDU_WRITE_FAIL;
-		}
-		else if (ep_dbg_test(Dbg, 33))
-		{
-			ep_hexdump(bp, dlen, ep_dbg_getfile(), EP_HEXDUMP_ASCII,
-					pbp - pbuf);
-		}
+		estat = send_data(obuf, bp, dlen,
+						"data", offset, EP_HEXDUMP_ASCII);
+		offset += dlen;
+		EP_STAT_CHECK(estat, goto fail0);
 	}
 
-	// TODO output signature here
+	// send signature
+	if (pdu->siglen > 0)
+	{
+		estat = send_data(obuf, sigbuf, pdu->siglen,
+						"signature", offset, EP_HEXDUMP_HEX);
+		offset += pdu->siglen;
+		EP_STAT_CHECK(estat, goto fail0);
+	}
 
+fail0:
+	if (!EP_STAT_ISOK(estat))
+	{
+		// flush buffer so we send nothing
+		evbuffer_drain(obuf, evbuffer_get_length(obuf));
+	}
 	evbuffer_unlock(obuf);
 
 	return estat;
@@ -275,9 +337,9 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan)
 */
 
 void
-_gdp_pdu_out_hard(gdp_pdu_t *pdu, gdp_chan_t *chan)
+_gdp_pdu_out_hard(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *md)
 {
-	EP_STAT estat = _gdp_pdu_out(pdu, chan);
+	EP_STAT estat = _gdp_pdu_out(pdu, chan, md);
 
 	if (!EP_STAT_ISOK(estat))
 	{
@@ -296,6 +358,11 @@ _gdp_pdu_out_hard(gdp_pdu_t *pdu, gdp_chan_t *chan)
 **	XXX This can probably done more efficiently using evbuffer_peek.
 */
 
+#define GET16(v) \
+		{ \
+				v  = *pbp++ << 8; \
+				v |= *pbp++; \
+		}
 #define GET32(v) \
 		{ \
 				v  = *pbp++ << 24; \
@@ -382,8 +449,10 @@ _gdp_pdu_hdr_in(gdp_pdu_t *pdu,
 	memcpy(pdu->src, pbp, sizeof pdu->src);
 	pbp += sizeof pdu->src;
 	GET32(pdu->rid);
-	pdu->sigalg = *pbp++;
-	pdu->siglen = *pbp++ * 4;
+	uint16_t sigtmp;
+	GET16(sigtmp);
+	pdu->sigmdalg = (sigtmp >> 12) & 0x0f;
+	pdu->siglen = sigtmp & 0x0fff;
 	pdu->olen = *pbp++ * 4;
 	pdu->flags = *pbp++;
 	GET32(dlen);

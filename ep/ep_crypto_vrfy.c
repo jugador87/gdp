@@ -1,0 +1,68 @@
+/* vim: set ai sw=8 sts=8 ts=8 : */
+
+#include <ep/ep.h>
+#include <ep_crypto.h>
+
+EP_CRYPTO_MD *
+ep_crypto_vrfy_new(EP_CRYPTO_KEY *pkey, const char *md_alg_name)
+{
+	EP_CRYPTO_MD *md;
+	EP_CRYPTO_MD_ALG *md_alg;
+	int istat;
+
+	md_alg = ep_crypto_md_getalg(md_alg_name);
+	if (md_alg == NULL)
+		return _ep_crypto_error("unknown digest algorithm %s",
+				md_alg_name);
+	md = EVP_MD_CTX_create();
+	if (md == NULL)
+		return _ep_crypto_error("cannot create message digest for verification");
+	istat = EVP_DigestVerifyInit(md, NULL, md_alg, NULL, pkey);
+	if (istat != 1)
+	{
+		ep_crypto_md_free(md);
+		return _ep_crypto_error("cannot initialize digest for verification");
+	}
+	return md;
+}
+
+
+EP_STAT
+ep_crypto_vrfy_update(EP_CRYPTO_MD *md, void *dbuf, size_t dbufsize)
+{
+	int istat;
+
+	istat = EVP_DigestVerifyUpdate(md, dbuf, dbufsize);
+	if (istat != 1)
+	{
+		(void) _ep_crypto_error("cannot update verify digest");
+		return EP_STAT_CRYPTO_VRFY;
+	}
+	return EP_STAT_OK;
+}
+
+
+EP_STAT
+ep_crypto_vrfy_final(EP_CRYPTO_MD *md, void *obuf, size_t obufsize)
+{
+	int istat;
+
+	istat = EVP_DigestVerifyFinal(md, obuf, obufsize);
+	if (istat == 1)
+	{
+		// success
+		return EP_STAT_OK;
+	}
+	else if (istat == 0)
+	{
+		// signature verification failure
+		(void) _ep_crypto_error("signature invalid");
+		return EP_STAT_CRYPTO_BADSIG;
+	}
+	else
+	{
+		// more serious error
+		(void) _ep_crypto_error("cannot finalize verify digest");
+		return EP_STAT_CRYPTO_VRFY;
+	}
+}

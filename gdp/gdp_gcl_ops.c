@@ -245,22 +245,73 @@ fail0:
 EP_STAT
 _gdp_gcl_open(gdp_gcl_t *gcl,
 			int cmd,
+			EP_CRYPTO_KEY *secretkey,
 			gdp_chan_t *chan,
 			uint32_t reqflags)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gdp_req_t *req = NULL;
+	size_t pklen;
+	const void *pkey;
 
+	// send the request across to the log daemon
 	errno = 0;				// avoid spurious messages
-
 	estat = _gdp_req_new(cmd, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
-
 	estat = _gdp_invoke(req);
+	EP_STAT_CHECK(estat, goto fail0);
+	// success
 
-	_gdp_req_free(req);
+	// save the number of records
+	gcl->nrecs = req->pdu->datum->recno;
+
+	// read in the metadata to internal format
+	gcl->gclmd = _gdp_gclmd_deserialize(req->pdu->datum->dbuf);
+
+	// if read-only, we're done
+	if (cmd != GDP_CMD_OPEN_AO)
+		goto finis;
+
+	// see if we have a public key; if not we're done
+	estat = gdp_gclmd_find(gcl->gclmd, GDP_GCLMD_PUBKEY, &pklen, &pkey);
+	EP_STAT_CHECK(estat, goto finis);
+
+	if (secretkey == NULL)
+	{
+		// OK, now we have a problem --- we can't sign
+		estat = GDP_STAT_SKEY_REQUIRED;
+		goto fail0;
+	}
+
+	// set up the message digest context
+	const char *md_alg = ep_adm_getstrparam("swarm.gdp.crypto.mdalg", "sha256");
+	gcl->digest = ep_crypto_sign_new(secretkey, md_alg);
+	if (gcl->digest == NULL)
+	{
+		estat = EP_STAT_CRYPTO_DIGEST;
+		goto fail0;
+	}
+
+	// add the GCL name to the hashed message digest
+	ep_crypto_sign_update(gcl->digest, gcl->name, sizeof gcl->name);
+
+	// re-serialize the metadata and include it
+	struct evbuffer *evb = evbuffer_new();
+	_gdp_gclmd_serialize(gcl->gclmd, evb);
+	size_t evblen = evbuffer_get_length(evb);
+	ep_crypto_sign_update(gcl->digest, evbuffer_pullup(evb, evblen), evblen);
+	//evbuffer_drain(evb, evblen);
+	evbuffer_free(evb);
+
+	// the GCL hash structure now has the fixed part of the hash
+
+finis:
+	estat = EP_STAT_OK;
 
 fail0:
+	if (req != NULL)
+		_gdp_req_free(req);
+
 	// log failure
 	if (EP_STAT_ISOK(estat))
 	{
@@ -333,11 +384,15 @@ _gdp_gcl_append(gdp_gcl_t *gcl,
 	estat = _gdp_req_new(GDP_CMD_APPEND, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 	gdp_datum_free(req->pdu->datum);
-	(void) ep_time_now(&datum->ts);
+	//(void) ep_time_now(&datum->ts);
 	req->pdu->datum = datum;
 	EP_ASSERT(datum->inuse);
+	req->md = gcl->digest;
+	datum->recno = gcl->nrecs + 1;
 
 	estat = _gdp_invoke(req);
+	if (EP_STAT_ISOK(estat))
+		gcl->nrecs++;
 
 	req->pdu->datum = NULL;			// owned by caller
 	_gdp_req_free(req);

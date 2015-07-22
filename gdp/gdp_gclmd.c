@@ -110,7 +110,7 @@ gdp_gclmd_add(gdp_gclmd_t *gmd,
 
 
 /*
-**  GDP_GCLMD_GET --- get metadata from an existing GCL
+**  GDP_GCLMD_GET --- get metadata from a metadata list by index
 */
 
 EP_STAT
@@ -139,21 +139,52 @@ gdp_gclmd_get(gdp_gclmd_t *gmd,
 
 
 /*
-**  _GDP_GCLMD_SERIALIZE --- serialize metadata into network order
+**  GDP_GCLMD_FIND --- get metadata from a metadata list by name
 */
 
-void
+EP_STAT
+gdp_gclmd_find(gdp_gclmd_t *gmd,
+		gdp_gclmd_id_t id,
+		size_t *len,
+		const void **data)
+{
+	int indx;
+
+	if (gmd == NULL)
+		return GDP_STAT_NOTFOUND;
+
+	for (indx = 0; indx < gmd->nused; indx++)
+	{
+		if (id != gmd->mds[indx].md_id)
+			continue;
+		if (len != NULL)
+			*len = gmd->mds[indx].md_len;
+		if (data != NULL)
+			*data = gmd->mds[indx].md_data;
+		return EP_STAT_OK;
+	}
+	return GDP_STAT_NOTFOUND;
+}
+
+
+/*
+**  _GDP_GCLMD_SERIALIZE --- serialize metadata list into network order
+*/
+
+size_t
 _gdp_gclmd_serialize(gdp_gclmd_t *gmd, struct evbuffer *evb)
 {
 	int i;
+	size_t slen = 0;
 
 	if (gmd == NULL)
-		return;
+		return 0;
 
 	// write the number of entries
 	{
 		uint16_t t16 = htons(gmd->nused);
 		evbuffer_add(evb, &t16, sizeof t16);
+		slen += sizeof t16;
 	}
 
 	// for each metadata item, write the header
@@ -165,14 +196,19 @@ _gdp_gclmd_serialize(gdp_gclmd_t *gmd, struct evbuffer *evb)
 		evbuffer_add(evb, &t32, sizeof t32);
 		t32 = htonl(gmd->mds[i].md_len);
 		evbuffer_add(evb, &t32, sizeof t32);
+		slen = 2 * sizeof t32;
 	}
 
 	// now write out all the data
 	for (i = 0; i < gmd->nused; i++)
 	{
 		if (gmd->mds[i].md_len > 0)
+		{
 			evbuffer_add(evb, gmd->mds[i].md_data, gmd->mds[i].md_len);
+			slen += gmd->mds[i].md_len;
+		}
 	}
+	return slen;
 }
 
 

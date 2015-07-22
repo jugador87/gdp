@@ -283,7 +283,7 @@ _gdp_req_send(gdp_req_t *req)
 	}
 
 	// write the message out
-	estat = _gdp_pdu_out(req->pdu, req->chan);
+	estat = _gdp_pdu_out(req->pdu, req->chan, req->md);
 
 	// done
 	return estat;

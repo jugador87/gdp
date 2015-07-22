@@ -300,7 +300,7 @@ gdp_gcl_open(gdp_name_t name,
 	EP_STAT_CHECK(estat, goto fail0);
 	gcl->iomode = mode;
 
-	estat = _gdp_gcl_open(gcl, cmd, _GdpChannel, GDP_REQ_ALLOC_RID);
+	estat = _gdp_gcl_open(gcl, cmd, NULL, _GdpChannel, GDP_REQ_ALLOC_RID);
 	if (EP_STAT_ISOK(estat))
 	{
 		*pgcl = gcl;

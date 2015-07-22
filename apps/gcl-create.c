@@ -80,8 +80,8 @@ main(int argc, char **argv)
 
 		 case 'k':
 			make_new_key = true;
-			keylen = ep_adm_getintparam("swarm.gdp.log.keylen", 2048);
-			exponent = ep_adm_getintparam("swarm.gdp.log.keyexp", 3);
+			keylen = ep_adm_getintparam("swarm.gdp.crypto.rsa.keylen", 2048);
+			exponent = ep_adm_getintparam("swarm.gdp.crypto.rsa.keyexp", 3);
 			break;
 
 		 case 'K':

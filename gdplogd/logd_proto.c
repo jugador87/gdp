@@ -395,7 +395,7 @@ post_subscribe(gdp_req_t *req)
 		if (EP_STAT_ISOK(estat))
 		{
 			// OK, the next record exists: send it
-			req->stat = estat = _gdp_pdu_out(req->pdu, req->chan);
+			req->stat = estat = _gdp_pdu_out(req->pdu, req->chan, NULL);
 
 			// have to clear the old data
 			evbuffer_drain(req->pdu->datum->dbuf,

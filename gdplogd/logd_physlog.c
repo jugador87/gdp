@@ -460,6 +460,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 
 	// XXX: read metadata entries
 
+	// open the index file
 	fd = open(index_pbuf, O_RDWR | O_APPEND);
 	if (fd < 0 || flock(fd, LOCK_SH) < 0 ||
 			(index_fp = fdopen(fd, "a+")) == NULL)

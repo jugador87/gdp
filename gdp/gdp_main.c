@@ -203,7 +203,7 @@ gdp_pdu_proc_thread(void *pdu_)
 					"gdp_pdu_proc_thread: sending %zd bytes\n",
 					evbuffer_get_length(req->pdu->datum->dbuf));
 			req->pdu->cmd = resp;
-			req->stat = _gdp_pdu_out(req->pdu, req->chan);
+			req->stat = _gdp_pdu_out(req->pdu, req->chan, NULL);
 			//XXX anything to do with estat here?
 		}
 

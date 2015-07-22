@@ -7,6 +7,7 @@
 #ifndef _GDP_PRIV_H_
 #define _GDP_PRIV_H_
 
+#include <ep/ep_crypto.h>
 #include <ep/ep_thr.h>
 
 #include <event2/buffer.h>
@@ -104,6 +105,9 @@ struct gdp_gcl
 	int					refcnt;			// reference counter
 	void				(*freefunc)(struct gdp_gcl *);
 										// called when this is freed
+	gdp_recno_t			nrecs;			// number of records (= last recno)
+	gdp_gclmd_t			*gclmd;			// metadata
+	EP_CRYPTO_MD		*digest;		// base crypto digest
 	struct gdp_gcl_xtra	*x;				// for use by gdpd, gdp-rest
 };
 
@@ -206,6 +210,7 @@ typedef struct gdp_req
 									// do post processing after ack sent
 	gdp_event_cbfunc_t	sub_cb;		// callback function (subscribe & async I/O)
 	void				*udata;		// user-supplied opaque data to cb
+	EP_CRYPTO_MD		*md;		// message digest context
 } gdp_req_t;
 
 // states
@@ -327,6 +332,7 @@ EP_STAT			_gdp_gcl_create(			// create a new GCL
 EP_STAT			_gdp_gcl_open(				// open a GCL
 						gdp_gcl_t *gcl,
 						int cmd,
+						EP_CRYPTO_KEY *skey,
 						gdp_chan_t *chan,
 						uint32_t reqflags);
 
@@ -463,6 +469,13 @@ EP_STAT			_gdp_chan_open(				// open channel to routing layer
 						gdp_chan_t **pchan);
 void			_gdp_chan_close(			// close channel
 						gdp_chan_t **pchan);
+
+/*
+**  Cryptography support
+*/
+
+void			_gdp_sign_md(				// sign the metadata
+						gdp_gcl_t *gcl);
 
 /*
 **  Libevent support

@@ -42,7 +42,7 @@ typedef struct gdp_qos_req	gdp_qos_req_t;
 **	Other data types
 */
 
-// the internal name of a GCL
+// the internal name of a GCL (256 bits)
 typedef uint8_t				gdp_name_t[32];
 
 #define GDP_NAME_SAME(a, b)	(memcmp((a), (b), sizeof (gdp_name_t)) == 0)
@@ -260,11 +260,18 @@ EP_STAT			gdp_gclmd_add(
 					size_t len,
 					const void *data);
 
-// get an entry from a metadata set
+// get an entry from a metadata set by index
 EP_STAT			gdp_gclmd_get(
 					gdp_gclmd_t *gmd,
 					int indx,
 					gdp_gclmd_id_t *id,
+					size_t *len,
+					const void **data);
+
+// get an entry from a metadata set by id
+EP_STAT			gdp_gclmd_find(
+					gdp_gclmd_t *gmd,
+					gdp_gclmd_id_t id,
 					size_t *len,
 					const void **data);
 

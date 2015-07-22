@@ -133,6 +133,7 @@ extern EP_STAT	ep_stat_from_errno(int uerrno);
 #include <ep/ep_registry.h>
 
 #define EP_STAT_MOD_GENERIC	0	// basic multi-use errors
+#define EP_STAT_MOD_CRYPTO	1	// cryptographic primitives
 #define EP_STAT_MOD_ERRNO	0x0FE	// corresponds to errno codes
 
 // common status code definitions

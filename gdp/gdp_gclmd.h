@@ -46,7 +46,7 @@ struct gdp_gclmd
 #define GDP_GCLMD_EOLIST	0			// id: end of metadata list
 
 // serialize an internal data structure to a network buffer
-void			_gdp_gclmd_serialize(
+size_t			_gdp_gclmd_serialize(
 					gdp_gclmd_t *gmd,
 					struct evbuffer *evb);
 

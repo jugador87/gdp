@@ -92,8 +92,8 @@ typedef struct gdp_pdu
 	uint8_t				cmd;		// command or ack/nak
 	gdp_name_t			dst;		// destination address
 	gdp_name_t			src;		// source address
-	uint8_t				sigalg;		// signature algorithm
-	uint8_t				siglen;		// signature length (in octets)
+	short				sigmdalg;	// signature digest algorithm
+	short				siglen;		// signature length (in octets)
 	uint16_t			olen;		// optionals length (in octets)
 	uint8_t				flags;		// see below
 	gdp_rid_t			rid;		// request id (GDP_PDU_NO_RID => none)
@@ -208,11 +208,13 @@ void		_gdp_pdu_free(gdp_pdu_t *);	// free a PDU
 
 EP_STAT		_gdp_pdu_out(				// send a PDU to a network buffer
 				gdp_pdu_t *,			// the PDU information
-				gdp_chan_t *);			// the network channel
+				gdp_chan_t *,			// the network channel
+				EP_CRYPTO_MD *);		// the crypto context for signing
 
 void		_gdp_pdu_out_hard(			// send a PDU to a network buffer
 				gdp_pdu_t *,			// the PDU information
-				gdp_chan_t *);			// the network channel
+				gdp_chan_t *,			// the network channel
+				EP_CRYPTO_MD *);		// the crypto context for signing
 
 EP_STAT		_gdp_pdu_hdr_in(			// read a PDU from a network buffer
 				gdp_pdu_t *,			// the buffer to store the result

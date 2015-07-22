@@ -32,7 +32,7 @@ sub_send_message_notification(gdp_req_t *req, gdp_datum_t *datum, int cmd)
 		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
-	estat = _gdp_pdu_out(req->pdu, req->chan);
+	estat = _gdp_pdu_out(req->pdu, req->chan, NULL);
 	if (!EP_STAT_ISOK(estat))
 	{
 		ep_dbg_cprintf(Dbg, 1,
@@ -107,5 +107,5 @@ sub_end_subscription(gdp_req_t *req)
 		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
-	(void) _gdp_pdu_out(req->pdu, req->chan);
+	(void) _gdp_pdu_out(req->pdu, req->chan, NULL);
 }

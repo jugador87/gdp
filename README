@@ -444,10 +444,16 @@ Full List of Administrative Parameters:
 		request when no response is received.  Defaults to 3
 		(meaning that the request may be sent up to 4 times
 		total).
-	swarm.gdp.log.keylen --- the default size of a signature key
-		in bits.  Defaults to 2048.
-	swarm.gdp.log.keyexp --- the exponent for a signature key.
-		Defaults to 3.
+	swarm.gdp.crypto.sign.alg --- the signing algorithm.  Defaults
+		to "rsa".
+		[[Currently ignored]]
+	swarm.gdp.crypto.sign.mdalg --- the name of the message digest
+		algorithm used for signing.  Defaults to "sha256".
+		[[Currently ignored]]
+	swarm.gdp.crypto.rsa.keylen --- the default size of an RSA
+		signature key in bits.  Defaults to 2048.
+	swarm.gdp.crypto.rsa.keyexp --- the exponent for an RSA signature
+		key.  Defaults to 3.
 	swarm.gdp.syslog.facility --- the name of the log facility to use
 		(see syslog(3) for details).  The "gdp" in the name
 		can be replaced by an individual program name to set a
