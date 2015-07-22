@@ -298,8 +298,7 @@ usage(const char *msg)
 			"\t-d dir -- set log database root directory\n"
 			"\t-D spec -- set debug flags\n"
 			"\t-l -- list all local GCLs\n"
-			"\t-r -- print raw byte hex dumps\n"
-			"\t-v -- print verbose information\n",
+			"\t-v -- print verbose information (-vv for more detail)\n",
 				msg);
 
 	exit(EX_USAGE);
@@ -309,14 +308,14 @@ int
 main(int argc, char *argv[])
 {
 	int opt;
-	int plev = GDP_PR_BASIC;
+	int verbosity = 0;
 	bool list_gcl = false;
 	char *gcl_xname = NULL;
 	const char *gcl_dir_name = NULL;
 
 	ep_lib_init(0);
 
-	while ((opt = getopt(argc, argv, "d:D:lrv")) > 0)
+	while ((opt = getopt(argc, argv, "d:D:lv")) > 0)
 	{
 		switch (opt)
 		{
@@ -332,12 +331,8 @@ main(int argc, char *argv[])
 			list_gcl = true;
 			break;
 
-		case 'r':
-			plev = GDP_PR_DETAILED;
-			break;
-
 		case 'v':
-			plev = GDP_PR_BASIC + 1;
+			verbosity++;
 			break;
 
 		default:
@@ -383,5 +378,20 @@ main(int argc, char *argv[])
 		usage("unparsable GCL name");
 	}
 
+	int plev;
+	switch (verbosity)
+	{
+	case 0:
+		plev = GDP_PR_BASIC;
+		break;
+
+	case 1:
+		plev = GDP_PR_BASIC + 1;
+		break;
+
+	default:
+		plev = GDP_PR_DETAILED;
+		break;
+	}
 	exit(show_gcl(gcl_dir_name, gcl_name, plev));
 }
