@@ -187,14 +187,14 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 	while (fread(&record, sizeof record, 1, data_fp) == 1)
 	{
-		fprintf(stdout, "\nRecord number: %" PRIgdp_recno "\n", record.recno);
-		fprintf(stdout, "\tOffset = %zd (0x%zx)\n", file_offset, file_offset);
-		fprintf(stdout, "\tHuman readable timestamp: ");
+		fprintf(stdout, "\nRecord number: %" PRIgdp_recno
+				", offset = %zd (0x%zx), dlen = %" PRIi64 "\n",
+				record.recno, file_offset, file_offset, record.data_length);
+		fprintf(stdout, "\tTimestamp: ");
 		ep_time_print(&record.timestamp, stdout, true);
-		fprintf(stdout, "\n\tRaw timestamp seconds: %" PRIi64 "\n", record.timestamp.tv_sec);
-		fprintf(stdout, "\tRaw Timestamp ns: %" PRIi32 "\n", record.timestamp.tv_nsec);
+		fprintf(stdout, " (%" PRIi64 ".%09d)\n",
+				record.timestamp.tv_sec, record.timestamp.tv_nsec);
 		fprintf(stdout, "\tTime accuracy (s): %8f\n", record.timestamp.tv_accuracy);
-		fprintf(stdout, "\tData length: %" PRIi64 "\n", record.data_length);
 
 		if (plev >= GDP_PR_DETAILED)
 		{
