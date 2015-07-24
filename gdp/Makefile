@@ -9,6 +9,7 @@ OBJS=	\
 	gdp_api.o \
 	gdp_buf.o \
 	gdp_chan.o \
+	gdp_crypto.o \
 	gdp_event.o \
 	gdp_gcl_cache.o \
 	gdp_gcl_ops.o \

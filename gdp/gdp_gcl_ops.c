@@ -103,6 +103,13 @@ _gdp_gcl_freehandle(gdp_gcl_t *gcl)
 	// free any additional per-GCL resources
 	if (gcl->freefunc != NULL)
 		(*gcl->freefunc)(gcl);
+	gcl->freefunc = NULL;
+	if (gcl->gclmd != NULL)
+		gdp_gclmd_free(gcl->gclmd);
+	gcl->gclmd = NULL;
+	if (gcl->digest != NULL)
+		ep_crypto_md_free(gcl->digest);
+	gcl->digest = NULL;
 
 	// release the locks and cache entry
 	ep_thr_mutex_destroy(&gcl->mutex);
@@ -151,12 +158,14 @@ _gdp_gcl_dump(
 
 		if (detail >= GDP_PR_BASIC)
 		{
-			fprintf(fp, "\tiomode = %d, refcnt = %d, reqs = %p\n",
-					gcl->iomode, gcl->refcnt, LIST_FIRST(&gcl->reqs));
+			fprintf(fp, "\tiomode = %d, refcnt = %d, reqs = %p, nrecs = %"
+					PRIgdp_recno "\n",
+					gcl->iomode, gcl->refcnt, LIST_FIRST(&gcl->reqs),
+					gcl->nrecs);
 			if (detail >= GDP_PR_DETAILED)
 			{
-				fprintf(fp, "\tfreefunc = %p, x = %p\n",
-						gcl->freefunc, gcl->x);
+				fprintf(fp, "\tfreefunc = %p, gclmd = %p, digest = %p, x = %p\n",
+						gcl->freefunc, gcl->gclmd, gcl->digest, gcl->x);
 			}
 		}
 	}
@@ -274,13 +283,23 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 
 	// see if we have a public key; if not we're done
 	estat = gdp_gclmd_find(gcl->gclmd, GDP_GCLMD_PUBKEY, &pklen, &pkey);
-	EP_STAT_CHECK(estat, goto finis);
+	if (!EP_STAT_ISOK(estat))
+	{
+		ep_dbg_cprintf(Dbg, 30, "_gdp_gcl_open: no public key\n");
+		goto finis;
+	}
 
 	if (secretkey == NULL)
 	{
-		// OK, now we have a problem --- we can't sign
-		estat = GDP_STAT_SKEY_REQUIRED;
-		goto fail0;
+		secretkey = _gdp_crypto_skey_read(gcl->pname, "pem");
+
+		if (secretkey == NULL)
+		{
+			// OK, now we have a problem --- we can't sign
+			estat = GDP_STAT_SKEY_REQUIRED;
+			ep_dbg_cprintf(Dbg, 30, "_gdp_gcl_open: no secret key\n");
+			goto fail0;
+		}
 	}
 
 	// set up the message digest context
@@ -316,7 +335,15 @@ fail0:
 	if (EP_STAT_ISOK(estat))
 	{
 		// success!
-		ep_dbg_cprintf(Dbg, 10, "Opened GCL %s\n", gcl->pname);
+		if (ep_dbg_test(Dbg, 30))
+		{
+			ep_dbg_printf("Opened ");
+			_gdp_gcl_dump(gcl, ep_dbg_getfile(), GDP_PR_DETAILED, 0);
+		}
+		else
+		{
+			ep_dbg_cprintf(Dbg, 10, "Opened GCL %s\n", gcl->pname);
+		}
 	}
 	else
 	{

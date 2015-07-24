@@ -12,6 +12,27 @@
 
 # include <openssl/evp.h>
 
+
+/*
+**  Configuration
+*/
+
+# ifndef EP_CRYPTO_INCLUDE_RSA
+#  define EP_CRYPTO_INCLUDE_RSA		1
+# endif
+# ifndef EP_CRYPTO_INCLUDE_DSA
+#  define EP_CRYPTO_INCLUDE_DSA		0
+# endif
+# ifndef EP_CRYPTO_INCLUDE_EC
+#  define EP_CRYPTO_INCLUDE_EC		0
+# endif
+# ifndef EP_CRYPTO_INCLUDE_DH
+#  define EP_CRYPTO_INCLUDE_DH		0
+# endif
+# ifndef EP_CRYPTO_INCLUDE_DER
+#  define EP_CRYPTO_INCLUDE_DER		0	// ASN.1
+# endif
+
 /*
 **  General defines
 */
@@ -19,12 +40,56 @@
 # define EP_CRYPTO_MAX_PUB_KEY	(1024 * 8)
 # define EP_CRYPTO_MAX_SEC_KEY	(1024 * 8)
 # define EP_CRYPTO_MAX_DIGEST	(512 / 8)
+# define EP_CRYPTO_DER_MAXLEN	(1024 * 8)	//XXX should add a slop factor
+
+# define EP_CRYPTO_KEY		EVP_PKEY
+
+
+/*
+**  Key Management
+*/
+
+// on-disk key formats
+# define EP_CRYPTO_KEYFORM_PEM	1	// PEM (text)
+# define EP_CRYPTO_KEYFORM_DER	2	// DER (binary ASN.1)
+
+// key types
+# define EP_CRYPTO_KEYTYPE_RSA	1	// RSA
+# define EP_CRYPTO_KEYTYPE_DSA	2	// DSA
+# define EP_CRYPTO_KEYTYPE_EC	3	// Elliptic curve
+# define EP_CRYPTO_KEYTYPE_DH	4	// Diffie-Hellman
+
+// flag bits
+# define EP_CRYPTO_F_PUBLIC	0x0000	// public key (no flags set)
+# define EP_CRYPTO_F_SECRET	0x0001	// secret key
+
+// limits
+# define EP_CRYPTO_KEY_MINLEN_RSA	1024
+
+EP_CRYPTO_KEY		*ep_crypto_key_create(
+				unsigned int keytype,
+				unsigned int keylen);
+EP_CRYPTO_KEY		*ep_crypto_key_read_file(
+				const char *filename,
+				int keytype,
+				int keyform,
+				uint32_t flags);
+EP_CRYPTO_KEY		*ep_crypto_key_read_fp(
+				FILE *fp,
+				const char *filename,
+				int keytype,
+				int keyform,
+				uint32_t flags);
+void			ep_crypto_key_free(
+				EP_CRYPTO_KEY *key);
+int			ep_crypto_keyform_fromstring(
+				const char *fmt);
+
 
 /*
 **  Message Digests
 */
 
-# define EP_CRYPTO_KEY		EVP_PKEY
 # define EP_CRYPTO_MD		EVP_MD_CTX
 # define EP_CRYPTO_MD_ALG	const EVP_MD
 

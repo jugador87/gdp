@@ -53,3 +53,8 @@ size_t			_gdp_gclmd_serialize(
 // deserialize a network buffer to an internal data structure
 gdp_gclmd_t		*_gdp_gclmd_deserialize(
 					struct evbuffer *evb);
+
+// bulk load data into a metadata structure using existing names & lengths
+void			_gdp_gclmd_adddata(
+					gdp_gclmd_t *gmd,
+					void *data);

@@ -112,10 +112,11 @@ struct gdp_gcl
 };
 
 /* flags for GCL handles */
-#define GCLF_DROPPING	0x0001		// handle is being deallocated
-#define GCLF_INCACHE	0x0002		// handle is in cache
-#define GCLF_ISLOCKED	0x0004		// GclCacheMutex already locked
-#define GCLF_INUSE		0x0008		// handle is allocated
+#define GCLF_DROPPING		0x0001		// handle is being deallocated
+#define GCLF_INCACHE		0x0002		// handle is in cache
+#define GCLF_ISLOCKED		0x0004		// GclCacheMutex already locked
+#define GCLF_INUSE			0x0008		// handle is allocated
+#define GCLF_DEFER_FREE		0x0010		// defer actual free until reclaim
 
 
 /*
@@ -401,6 +402,8 @@ EP_STAT			_gdp_lib_init(const char *my_routing_name);
 
 /*
 **  Request handling.
+**
+**  Implemented in gdp/gdp_req.c.
 */
 
 EP_STAT			_gdp_req_new(				// create new request
@@ -474,6 +477,9 @@ void			_gdp_chan_close(			// close channel
 **  Cryptography support
 */
 
+EP_CRYPTO_KEY	*_gdp_crypto_skey_read(		// read a secret key
+						const char *basename,
+						const char *ext);
 void			_gdp_sign_md(				// sign the metadata
 						gdp_gcl_t *gcl);
 

@@ -2,6 +2,7 @@
 
 #include <ep/ep.h>
 #include <ep/ep_app.h>
+#include <ep/ep_crypto.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_string.h>
 #include <gdp/gdp.h>
@@ -109,7 +110,7 @@ main(int argc, char **argv)
 		int i;
 
 		if (gmd == NULL)
-			gmd = gdp_gclmd_new();
+			gmd = gdp_gclmd_new(0);
 
 		p++;
 		for (i = 0; i < 4; i++)
@@ -199,11 +200,11 @@ main(int argc, char **argv)
 	if (key != NULL)
 	{
 		// add the public key to the metadata
-		uint8_t der_buf[_GDP_MAX_DER_LEN];
+		uint8_t der_buf[EP_CRYPTO_DER_MAXLEN];
 		uint8_t *derp = der_buf;
 
 		if (gmd == NULL)
-			gmd = gdp_gclmd_new();
+			gmd = gdp_gclmd_new(0);
 		if (i2d_RSAPublicKey(key, &derp) < 0)
 		{
 			ep_app_error("Could not create DER format public key");
@@ -245,7 +246,7 @@ main(int argc, char **argv)
 
 		// save the external name as metadata
 		if (gmd == NULL)
-			gmd = gdp_gclmd_new();
+			gmd = gdp_gclmd_new(0);
 		gdp_gclmd_add(gmd, GDP_GCLMD_XID, strlen(gclxname), gclxname);
 
 		// make sure it doesn't already exist

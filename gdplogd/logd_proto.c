@@ -218,6 +218,12 @@ cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 	}
 
 	req->pdu->datum->recno = gcl_max_recno(req->gcl);
+	req->gcl->flags |= GCLF_DEFER_FREE;
+	if (req->gcl->gclmd != NULL)
+	{
+		// send metadata as payload
+		_gdp_gclmd_serialize(req->gcl->gclmd, req->pdu->datum->dbuf);
+	}
 	_gdp_gcl_decref(req->gcl);
 	req->gcl = NULL;
 	return estat;

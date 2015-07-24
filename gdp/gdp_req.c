@@ -111,6 +111,8 @@ _gdp_req_new(int cmd,
 	else
 		req->pdu = pdu = _gdp_pdu_new();
 	req->gcl = gcl;
+	if (gcl != NULL)
+		_gdp_gcl_incref(gcl);
 	req->stat = EP_STAT_OK;
 	req->flags = flags;
 	req->chan = chan;
@@ -182,10 +184,8 @@ _gdp_req_free(gdp_req_t *req)
 
 	// dereference the gcl
 	if (req->gcl != NULL)
-	{
 		_gdp_gcl_decref(req->gcl);
-		req->gcl = NULL;
-	}
+	req->gcl = NULL;
 
 	req->state = GDP_REQ_FREE;
 

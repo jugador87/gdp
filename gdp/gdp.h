@@ -59,9 +59,6 @@ typedef uint32_t			gdp_rid_t;
 typedef int64_t				gdp_recno_t;
 #define PRIgdp_recno		PRId64
 
-// the size of a DER crypto buffer
-#define _GDP_MAX_DER_LEN	1024
-
 /*
 **	I/O modes
 **
@@ -248,7 +245,8 @@ EP_STAT			gdp_parse_name(
 					gdp_name_t internal);
 
 // create a new metadata set
-gdp_gclmd_t		*gdp_gclmd_new(void);
+gdp_gclmd_t		*gdp_gclmd_new(
+					int entries);
 
 // free a metadata set
 void			gdp_gclmd_free(gdp_gclmd_t *gmd);

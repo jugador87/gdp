@@ -78,6 +78,8 @@
 
 typedef uint64_t		gdp_seqno_t;	// protocol sequence number
 
+#define	PRIgdp_seqno	PRId64
+
 typedef struct gdp_pdu
 {
 	// metadata
@@ -101,6 +103,7 @@ typedef struct gdp_pdu
 
 	// data length, record number, timestamp, and data are in the datum
 	gdp_datum_t			*datum;		// pointer to data record
+	gdp_buf_t			*sig;		// signature (may be NULL)
 } gdp_pdu_t;
 
 
