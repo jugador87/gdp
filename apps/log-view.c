@@ -5,6 +5,7 @@
 #include <ep/ep_hexdump.h>
 #include <ep/ep_string.h>
 #include <ep/ep_time.h>
+#include <ep/ep_xlate.h>
 #include <gdp/gdp.h>
 
 #include <dirent.h>
@@ -151,10 +152,13 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 			if (plev >= GDP_PR_BASIC)
 			{
 				fprintf(stdout,
-						"\tMetadata entry %d: name = 0x%08" PRIx32
-						", len = %" PRId32 "\n\t\t%s\n",
+						"\n\tMetadata entry %d: name = 0x%08" PRIx32
+						", len = %" PRId32 "\n\t\t%s",
 						i, metadata_hdrs[i].md_id, metadata_hdrs[i].md_len,
-						metadata_string);
+						EpChar->lquote);
+				ep_xlate_out(metadata_string, metadata_hdrs[i].md_len,
+						stdout, "", EP_XLATE_PLUS | EP_XLATE_NPRINT);
+				fprintf(stdout, "%s\n", EpChar->rquote);
 			}
 			else if (metadata_hdrs[i].md_id == GDP_GCLMD_XID)
 			{
@@ -165,7 +169,6 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 			if (plev >= GDP_PR_DETAILED)
 			{
-				fprintf(stdout, "\n");
 				fprintf(stdout, "Raw:\n");
 				ep_hexdump(metadata_string, metadata_hdrs[i].md_len,
 						stdout, EP_HEXDUMP_ASCII, file_offset);
@@ -183,7 +186,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 		return EX_OK;
 
 	fprintf(stdout, "\n");
-	fprintf(stdout, "Data records\n");
+	fprintf(stdout, "Data records:\n");
 
 	while (fread(&record, sizeof record, 1, data_fp) == 1)
 	{
