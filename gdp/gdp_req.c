@@ -111,8 +111,6 @@ _gdp_req_new(int cmd,
 	else
 		req->pdu = pdu = _gdp_pdu_new();
 	req->gcl = gcl;
-	if (gcl != NULL)
-		_gdp_gcl_incref(gcl);
 	req->stat = EP_STAT_OK;
 	req->flags = flags;
 	req->chan = chan;
@@ -146,7 +144,7 @@ _gdp_req_new(int cmd,
 	// success
 	req->state = GDP_REQ_ACTIVE;
 	*reqp = req;
-	ep_dbg_cprintf(Dbg, 48, "gdp_req_new(gcl=%p) => %p\n", gcl, req);
+	ep_dbg_cprintf(Dbg, 48, "_gdp_req_new(gcl=%p) => %p\n", gcl, req);
 	return estat;
 }
 
@@ -163,7 +161,7 @@ _gdp_req_new(int cmd,
 void
 _gdp_req_free(gdp_req_t *req)
 {
-	ep_dbg_cprintf(Dbg, 48, "gdp_req_free(%p)  gcl=%p\n", req, req->gcl);
+	ep_dbg_cprintf(Dbg, 48, "_gdp_req_free(%p)  gcl=%p\n", req, req->gcl);
 
 	EP_ASSERT(req->state != GDP_REQ_FREE);
 

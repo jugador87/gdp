@@ -46,6 +46,7 @@ extern void		_gdp_stat_init(void);
 #define GDP_STAT_PDU_CORRUPT			GDP_STAT_NEW(ABORT, 24)
 #define GDP_STAT_SKEY_REQUIRED			GDP_STAT_NEW(ERROR, 25)
 #define GDP_STAT_GCL_READ_ERROR			GDP_STAT_NEW(ERROR, 26)
+#define GDP_STAT_RECNO_SEQ_ERROR		GDP_STAT_NEW(ERROR, 27)
 
 // create EP_STAT from GDP protocol command codes for acks and naks
 //		values from 200 up are reserved for this

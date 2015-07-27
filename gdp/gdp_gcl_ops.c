@@ -260,8 +260,8 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 {
 	EP_STAT estat = EP_STAT_OK;
 	gdp_req_t *req = NULL;
-	size_t pklen;
-	const void *pkey;
+	size_t pkbuflen;
+	const uint8_t *pkbuf;
 
 	// send the request across to the log daemon
 	errno = 0;				// avoid spurious messages
@@ -282,7 +282,8 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 		goto finis;
 
 	// see if we have a public key; if not we're done
-	estat = gdp_gclmd_find(gcl->gclmd, GDP_GCLMD_PUBKEY, &pklen, &pkey);
+	estat = gdp_gclmd_find(gcl->gclmd, GDP_GCLMD_PUBKEY,
+				&pkbuflen, (const void **) &pkbuf);
 	if (!EP_STAT_ISOK(estat))
 	{
 		ep_dbg_cprintf(Dbg, 30, "_gdp_gcl_open: no public key\n");
@@ -302,14 +303,24 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 		}
 	}
 
-	// set up the message digest context
-	const char *md_alg = ep_adm_getstrparam("swarm.gdp.crypto.mdalg", "sha256");
-	gcl->digest = ep_crypto_sign_new(secretkey, md_alg);
-	if (gcl->digest == NULL)
+	// validate the compatibility of the public and private keys
 	{
-		estat = EP_STAT_CRYPTO_DIGEST;
-		goto fail0;
+		int sktype = ep_crypto_key_id_fromkey(secretkey);
+		if (sktype != pkbuf[1])
+		{
+			(void) _ep_crypto_error("public & secret keys are not compatible");
+			goto fail1;
+		}
 	}
+	//pklen = (pkbuf[2] << 8) | pkbuf[3];
+
+	// set up the message digest context
+	const char *md_alg_name =
+			ep_adm_getstrparam("swarm.gdp.crypto.mdalg", "sha256");
+	gcl->digest = ep_crypto_sign_new(secretkey,
+						ep_crypto_md_alg_byname(md_alg_name));
+	if (gcl->digest == NULL)
+		goto fail1;
 
 	// add the GCL name to the hashed message digest
 	ep_crypto_sign_update(gcl->digest, gcl->name, sizeof gcl->name);
@@ -326,6 +337,12 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 
 finis:
 	estat = EP_STAT_OK;
+
+	if (false)
+	{
+fail1:
+		estat = EP_STAT_CRYPTO_DIGEST;
+	}
 
 fail0:
 	if (req != NULL)

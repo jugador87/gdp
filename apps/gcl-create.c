@@ -60,10 +60,13 @@ main(int argc, char **argv)
 	char buf[200];
 	bool show_usage = false;
 	bool make_new_key = false;
+	int md_alg_id = EP_CRYPTO_MD_SHA256;
+	int keytype = EP_CRYPTO_KEYTYPE_RSA;
 	int keylen = 0;
 	int exponent = 3;
 	char *keyfile = NULL;
-	RSA *key = NULL;
+	int keyform = EP_CRYPTO_KEYFORM_PEM;
+	EP_CRYPTO_KEY *key = NULL;
 	char *p;
 
 	// collect command-line arguments
@@ -165,10 +168,11 @@ main(int argc, char **argv)
 		}
 		else
 		{
-			key = PEM_read_RSAPrivateKey(key_fp, NULL, NULL, NULL);
+			key = ep_crypto_key_read_fp(key_fp, keyfile, keytype,
+						keyform, EP_CRYPTO_F_SECRET);
 			if (key == NULL)
 			{
-				ep_app_error("Could not read private key %s", keyfile);
+				ep_app_error("Could not read secret key %s", keyfile);
 				exit(EX_DATAERR);
 			}
 			else
@@ -188,7 +192,7 @@ main(int argc, char **argv)
 					keylen, GDP_MIN_KEY_LEN);
 			exit(EX_UNAVAILABLE);
 		}
-		key = RSA_generate_key(keylen, exponent, NULL, NULL);
+		key = ep_crypto_key_create(keytype, keylen, exponent, NULL);
 		if (key == NULL)
 		{
 			ep_app_error("Could not create new key");
@@ -200,22 +204,26 @@ main(int argc, char **argv)
 	if (key != NULL)
 	{
 		// add the public key to the metadata
-		uint8_t der_buf[EP_CRYPTO_DER_MAXLEN];
-		uint8_t *derp = der_buf;
+		uint8_t der_buf[EP_CRYPTO_MAX_DER + 4];
+		uint8_t *derp = der_buf + 4;
 
 		if (gmd == NULL)
 			gmd = gdp_gclmd_new(0);
-		if (i2d_RSAPublicKey(key, &derp) < 0)
+		der_buf[0] = md_alg_id;
+		der_buf[1] = keytype;
+		der_buf[2] = (keylen >> 8) & 0xff;
+		der_buf[3] = keylen & 0xff;
+		estat = ep_crypto_key_write_mem(key, derp, EP_CRYPTO_MAX_DER,
+						EP_CRYPTO_KEYFORM_DER, EP_CRYPTO_CIPHER_NONE,
+						EP_CRYPTO_F_PUBLIC);
+		if (!EP_STAT_ISOK(estat))
 		{
 			ep_app_error("Could not create DER format public key");
 			exit(EX_SOFTWARE);
 		}
 
-		// already too late to test for this
-		if ((derp - der_buf) > sizeof der_buf)
-			ep_app_fatal("DANGER: i2d_RSAPublicKey overflowed buffer");
-
-		gdp_gclmd_add(gmd, GDP_GCLMD_PUBKEY, derp - der_buf, der_buf);
+		gdp_gclmd_add(gmd, GDP_GCLMD_PUBKEY,
+				EP_STAT_TO_INT(estat) + 4, der_buf);
 	}
 
 	// initialize the GDP library
@@ -300,7 +308,8 @@ main(int argc, char **argv)
 		}
 
 		// third arg is cipher, which should be settable
-		PEM_write_RSAPrivateKey(fp, key, NULL, NULL, 0, NULL, NULL);
+		estat = ep_crypto_key_write_fp(key, fp, EP_CRYPTO_KEYFORM_PEM,
+						EP_CRYPTO_CIPHER_NONE, EP_CRYPTO_F_SECRET);
 		fclose(fp);
 
 		// abandon keyfilebuf; we may need the string later

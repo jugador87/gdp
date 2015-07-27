@@ -75,7 +75,7 @@ _gdp_crypto_skey_read(const char *basename, const char *ext)
 			if (ext == NULL)
 				fmt = "%s/%s";
 			else
-				fmt = "%s/%s%s";
+				fmt = "%s/%s.%s";
 			snprintf(fnbuf, sizeof fnbuf, fmt, dir, basename, ext);
 		}
 

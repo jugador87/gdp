@@ -4,16 +4,16 @@
 #include <ep_crypto.h>
 
 EP_CRYPTO_MD *
-ep_crypto_vrfy_new(EP_CRYPTO_KEY *pkey, const char *md_alg_name)
+ep_crypto_vrfy_new(EP_CRYPTO_KEY *pkey, int md_alg_id)
 {
 	EP_CRYPTO_MD *md;
-	EP_CRYPTO_MD_ALG *md_alg;
+	const EVP_MD *md_alg;
 	int istat;
 
-	md_alg = ep_crypto_md_getalg(md_alg_name);
+	md_alg = _ep_crypto_md_getalg_byid(md_alg_id);
 	if (md_alg == NULL)
-		return _ep_crypto_error("unknown digest algorithm %s",
-				md_alg_name);
+		return _ep_crypto_error("unknown digest algorithm %d",
+				md_alg_id);
 	md = EVP_MD_CTX_create();
 	if (md == NULL)
 		return _ep_crypto_error("cannot create message digest for verification");

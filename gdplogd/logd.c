@@ -12,6 +12,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <sysexits.h>
 #include <arpa/inet.h>
 
 
@@ -77,6 +78,19 @@ logd_shutdown(void)
 
 	ep_dbg_cprintf(Dbg, 1, "\n\n*** Withdrawing all advertisements ***\n");
 	logd_advertise_all(GDP_CMD_WITHDRAW);
+}
+
+
+/*
+**  SIGTERM --- called on interrupt or kill to do clean shutdown
+*/
+
+void
+sigterm(int sig)
+{
+	ep_log(EP_STAT_ABORT, "Terminating on signal %d", sig);
+	signal(sig, SIG_DFL);
+	exit(EX_UNAVAILABLE);		// this will do cleanup
 }
 
 
@@ -203,6 +217,10 @@ main(int argc, char **argv)
 
 	// add a debugging signal to print out some internal data structures
 	event_add(evsignal_new(GdpIoEventBase, SIGINFO, siginfo, NULL), NULL);
+
+	// do cleanup on termination
+	signal(SIGINT, sigterm);
+	signal(SIGTERM, sigterm);
 
 	// arrange to clean up resources periodically
 	{

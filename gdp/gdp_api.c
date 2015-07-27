@@ -321,7 +321,11 @@ fail0:
 EP_STAT
 gdp_gcl_close(gdp_gcl_t *gcl)
 {
-	return _gdp_gcl_close(gcl, _GdpChannel, 0);
+	EP_STAT estat;
+
+	estat = _gdp_gcl_close(gcl, _GdpChannel, 0);
+	_gdp_gcl_freehandle(gcl);
+	return estat;
 }
 
 

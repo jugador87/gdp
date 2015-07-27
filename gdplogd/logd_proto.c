@@ -23,6 +23,10 @@ gdpd_gcl_error(gdp_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
 		// server error (rather than client error)
 		ep_log(logstat, "%s: %s", msg, pname);
 	}
+	else
+	{
+		ep_dbg_cprintf(Dbg, 1, "%s: %s", msg, pname);
+	}
 	return logstat;
 }
 
@@ -217,28 +221,75 @@ cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 							estat, GDP_NAK_C_BADREQ);
 	}
 
-	req->pdu->datum->recno = gcl_max_recno(req->gcl);
+	req->gcl->nrecs = req->pdu->datum->recno = gcl_max_recno(req->gcl);
 	req->gcl->flags |= GCLF_DEFER_FREE;
 	if (req->gcl->gclmd != NULL)
 	{
 		// send metadata as payload
 		_gdp_gclmd_serialize(req->gcl->gclmd, req->pdu->datum->dbuf);
 	}
-	_gdp_gcl_decref(req->gcl);
-	req->gcl = NULL;
 	return estat;
 }
 
 EP_STAT
 cmd_open_ao(gdp_req_t *req)
 {
-	return cmd_open_xx(req, GDP_MODE_AO);
+	EP_STAT estat;
+	size_t pklen;
+	uint8_t *pkbuf;
+	int pktype;
+	int mdtype;
+	gdp_gcl_t *gcl;
+	EP_CRYPTO_KEY *key;
+
+	estat = cmd_open_xx(req, GDP_MODE_AO);
+	EP_STAT_CHECK(estat, return estat);
+	gcl = req->gcl;
+
+	// assuming we have a public key, set up the message digest context
+	if (gcl->gclmd == NULL)
+		goto nopubkey;
+	estat = gdp_gclmd_find(gcl->gclmd, GDP_GCLMD_PUBKEY, &pklen,
+					(const void **) &pkbuf);
+	if (!EP_STAT_ISOK(estat) || pklen < 5)
+		goto nopubkey;
+
+	mdtype = pkbuf[0];
+	pktype = pkbuf[1];
+	pklen = (pkbuf[2] << 8) | pkbuf[3];
+	key = ep_crypto_key_read_mem(pkbuf + 4, pklen - 4, pktype,
+			EP_CRYPTO_KEYFORM_DER, EP_CRYPTO_F_PUBLIC);
+	if (key == NULL)
+		goto nopubkey;
+
+	gcl->digest = ep_crypto_vrfy_new(key, mdtype);
+
+	// include the GCL name
+	ep_crypto_vrfy_update(gcl->digest, gcl->name, sizeof gcl->name);
+
+	// and the metadata (re-serialized)
+	struct evbuffer *evb = evbuffer_new();
+	_gdp_gclmd_serialize(gcl->gclmd, evb);
+	size_t evblen = evbuffer_get_length(evb);
+	ep_crypto_vrfy_update(gcl->digest, evbuffer_pullup(evb, evblen), evblen);
+	evbuffer_free(evb);
+
+nopubkey:
+	ep_dbg_cprintf(Dbg, 1, "WARNING: no public key for %s\n",
+				gcl->pname);
+
+	_gdp_gcl_decref(req->gcl);
+	req->gcl = NULL;
+	return EP_STAT_OK;
 }
 
 EP_STAT
 cmd_open_ro(gdp_req_t *req)
 {
-	return cmd_open_xx(req, GDP_MODE_RO);
+	EP_STAT estat = cmd_open_xx(req, GDP_MODE_RO);
+	_gdp_gcl_decref(req->gcl);
+	req->gcl = NULL;
+	return estat;
 }
 
 
@@ -330,6 +381,18 @@ cmd_read(gdp_req_t *req)
 **		This will have side effects if there are subscriptions pending.
 */
 
+#define PUT64(v) \
+		{ \
+			*pbp++ = ((v) >> 56) & 0xff; \
+			*pbp++ = ((v) >> 48) & 0xff; \
+			*pbp++ = ((v) >> 40) & 0xff; \
+			*pbp++ = ((v) >> 32) & 0xff; \
+			*pbp++ = ((v) >> 24) & 0xff; \
+			*pbp++ = ((v) >> 16) & 0xff; \
+			*pbp++ = ((v) >> 8) & 0xff; \
+			*pbp++ = ((v) & 0xff); \
+		}
+
 EP_STAT
 cmd_append(gdp_req_t *req)
 {
@@ -344,16 +407,68 @@ cmd_append(gdp_req_t *req)
 							estat, GDP_NAK_C_BADREQ);
 	}
 
+	// validate sequence number and signature
+	if (req->pdu->datum->recno != req->gcl->nrecs + 1)
+	{
+		// replay or missing a record
+		ep_dbg_cprintf(Dbg, 1, "cmd_append: record sequence error: got %"
+						PRIgdp_recno ", wanted %" PRIgdp_recno "\n",
+						req->pdu->datum->recno, req->gcl->nrecs + 1);
+		return gdpd_gcl_error(req->pdu->dst, "cmd_append: record sequence error",
+						GDP_STAT_RECNO_SEQ_ERROR, GDP_NAK_C_FORBIDDEN);
+	}
+
+	// check the signature in the PDU
+	if (req->gcl->digest != NULL)
+	{
+		if (req->pdu->sig == NULL)
+		{
+			// error: signature required
+			ep_dbg_cprintf(Dbg, 1, "cmd_append: signature required\n");
+			estat = EP_STAT_CRYPTO_BADSIG;
+			//XXX goto fail0;
+		}
+		else
+		{
+			uint8_t recnobuf[8];		// 64 bits
+			uint8_t *pbp = recnobuf;
+			size_t len;
+			gdp_datum_t *datum = req->pdu->datum;
+			EP_CRYPTO_MD *md = ep_crypto_md_clone(req->gcl->digest);
+
+			PUT64(req->pdu->datum->recno);
+			ep_crypto_vrfy_update(md, &recnobuf, sizeof recnobuf);
+			len = gdp_buf_getlength(datum->dbuf);
+			ep_crypto_vrfy_update(md, gdp_buf_getptr(datum->dbuf, len), len);
+			len = gdp_buf_getlength(req->pdu->sig);
+			estat = ep_crypto_vrfy_final(md,
+							gdp_buf_getptr(req->pdu->sig, len), len);
+			ep_crypto_md_free(md);
+			if (!EP_STAT_ISOK(estat))
+			{
+				// error: signature failure
+				ep_dbg_cprintf(Dbg, 1, "cmd_append: signature failure\n");
+				//XXX goto fail0
+			}
+			else
+			{
+				ep_dbg_cprintf(Dbg, 20, "cmd_append: good signature\n");
+			}
+		}
+	}
+
 	// make sure the timestamp is current
 	estat = ep_time_now(&req->pdu->datum->ts);
 
 	// create the message
 	estat = gcl_physappend(req->gcl, req->pdu->datum);
+	req->gcl->nrecs = req->pdu->datum->recno;
 
 	// send the new data to any subscribers
 	if (EP_STAT_ISOK(estat))
 		sub_notify_all_subscribers(req, GDP_ACK_CONTENT);
 
+fail0:
 	// we can now let the data in the request go
 	evbuffer_drain(req->pdu->datum->dbuf,
 			evbuffer_get_length(req->pdu->datum->dbuf));
@@ -688,6 +803,7 @@ fail0:
 /**************** END OF COMMAND IMPLEMENTATIONS ****************/
 
 
+#if 0
 /*
 **	DISPATCH_CMD --- dispatch a command via the DispatchTable
 **
@@ -758,6 +874,7 @@ dispatch_cmd(gdp_req_t *req)
 	}
 	return estat;
 }
+#endif // 0
 
 
 /*

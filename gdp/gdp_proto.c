@@ -596,7 +596,7 @@ _gdp_req_dispatch(gdp_req_t *req)
 		ep_dbg_printf("_gdp_req_dispatch <<< %s\n    %s\n",
 				_gdp_proto_cmd_name(cmd),
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
-		if (ep_dbg_test(Dbg, 30))
+		if (ep_dbg_test(Dbg, 70))
 		{
 			ep_dbg_printf("    ");
 			_gdp_pdu_dump(req->pdu, ep_dbg_getfile());

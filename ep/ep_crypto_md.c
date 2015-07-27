@@ -4,26 +4,47 @@
 #include <ep_crypto.h>
 #include <ep_dbg.h>
 
+#include <strings.h>
+
 static EP_DBG	Dbg = EP_DBG_INIT("libep.crypto.md", "message digests");
 
-EP_CRYPTO_MD_ALG *
-ep_crypto_md_getalg(const char *md_alg_name)
+
+const EVP_MD *
+_ep_crypto_md_getalg_byid(int md_alg_id)
 {
-	// for now just use SHA-256
-	return EVP_sha256();
+	switch (md_alg_id)
+	{
+	  case EP_CRYPTO_MD_SHA1:
+		return EVP_sha1();
+
+	  case EP_CRYPTO_MD_SHA224:
+		return EVP_sha224();
+
+	  case EP_CRYPTO_MD_SHA256:
+		return EVP_sha256();
+
+	  case EP_CRYPTO_MD_SHA384:
+		return EVP_sha384();
+
+	  case EP_CRYPTO_MD_SHA512:
+		return EVP_sha512();
+
+	  default:
+		return _ep_crypto_error("unknown digest algorithm %d", md_alg_id);
+	}
 }
 
+
 EP_CRYPTO_MD *
-ep_crypto_md_new(const char *md_alg_name)
+ep_crypto_md_new(int md_alg_id)
 {
-	EP_CRYPTO_MD_ALG *md_alg;
+	const EVP_MD *md_alg;
 	EP_CRYPTO_MD *md = EVP_MD_CTX_create();
 	int istat;
 
-	md_alg = ep_crypto_md_getalg(md_alg_name);
+	md_alg = _ep_crypto_md_getalg_byid(md_alg_id);
 	if (md_alg == NULL)
-		return _ep_crypto_error("unknown digest algorithm %s",
-					md_alg_name);
+		return NULL;		// error already given
 	md = EVP_MD_CTX_create();
 	if (md == NULL)
 		return _ep_crypto_error("cannot create new message digest");
@@ -127,4 +148,34 @@ ep_crypto_md_type(EP_CRYPTO_MD *md)
 	}
 
 	return mdtype;
+}
+
+
+struct name_to_format
+{
+	const char	*str;		// string name of format/algorithm
+	int		form;		// internal name
+};
+
+static struct name_to_format	MdAlgStrings[] =
+{
+	{ "sha1",		EP_CRYPTO_MD_SHA1,		},
+	{ "sha224",		EP_CRYPTO_MD_SHA224,		},
+	{ "sha256",		EP_CRYPTO_MD_SHA256,		},
+	{ "sha384",		EP_CRYPTO_MD_SHA384,		},
+	{ "sha512",		EP_CRYPTO_MD_SHA512,		},
+	{ NULL,			0				}
+};
+
+int
+ep_crypto_md_alg_byname(const char *fmt)
+{
+	struct name_to_format *kf;
+
+	for (kf = MdAlgStrings; kf->str != NULL; kf++)
+	{
+		if (strcasecmp(kf->str, fmt) == 0)
+			break;
+	}
+	return kf->form;
 }
