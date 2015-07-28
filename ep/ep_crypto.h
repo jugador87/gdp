@@ -28,7 +28,7 @@
 #  define _EP_CRYPTO_INCLUDE_RSA	1
 # endif
 # ifndef _EP_CRYPTO_INCLUDE_DSA
-#  define _EP_CRYPTO_INCLUDE_DSA	0
+#  define _EP_CRYPTO_INCLUDE_DSA	1
 # endif
 # ifndef _EP_CRYPTO_INCLUDE_EC
 #  define _EP_CRYPTO_INCLUDE_EC		0

@@ -32,10 +32,102 @@
 **	If these are 0/NULL then a default is used.
 */
 
+#if _EP_CRYPTO_INCLUDE_RSA
+static EP_STAT
+generate_rsa_key(EP_CRYPTO_KEY *key, int keylen, int keyexp)
+{
+	RSA *rsakey;
+
+	if (keyexp <= 0)
+		keyexp = ep_adm_getintparam("libep.crypto.rsa.key.exponent",
+					3);
+	if (keylen < EP_CRYPTO_KEY_MINLEN_RSA)
+	{
+		_ep_crypto_error("insecure RSA key length %d; %d min",
+				keylen, EP_CRYPTO_KEY_MINLEN_RSA);
+		goto fail0;
+	}
+	rsakey = RSA_generate_key(keylen, keyexp, NULL, NULL);
+	if (rsakey == NULL)
+	{
+		_ep_crypto_error("cannot generate RSA key");
+		goto fail0;
+	}
+	if (EVP_PKEY_assign_RSA(key, rsakey) != 1)
+	{
+		_ep_crypto_error("cannot save RSA key");
+		goto fail0;
+	}
+
+	return EP_STAT_OK;
+
+fail0:
+	return EP_STAT_CRYPTO_KEYCREAT;
+}
+#endif
+
+#if _EP_CRYPTO_INCLUDE_DSA
+static EP_STAT
+generate_dsa_key(EP_CRYPTO_KEY *key, int keylen)
+{
+	DSA *dsakey;
+
+	// generate new parameter block
+	dsakey = DSA_new();
+	if (DSA_generate_parameters_ex(dsakey, keylen,
+			NULL, 0, NULL, NULL, NULL) != 1)
+	{
+		_ep_crypto_error("cannot initialize DSA parameters");
+		goto fail0;
+	}
+
+	if (DSA_generate_key(dsakey) != 1)
+	{
+		_ep_crypto_error("cannot generate DSA key");
+		goto fail0;
+	}
+	if (EVP_PKEY_assign_DSA(key, dsakey) != 1)
+	{
+		_ep_crypto_error("cannot save DSA key");
+		goto fail0;
+	}
+
+	return EP_STAT_OK;
+
+fail0:
+	return EP_STAT_CRYPTO_KEYCREAT;
+}
+#endif
+
+#if _EP_CRYPTO_INCLUDE_DH
+static EP_STAT
+generate_dh_key(EP_CRYPTO_KEY *key, ...)
+{
+	DH *dhkey = DH_generate_key(keylen, XXX);
+	if (dhkey == NULL)
+		return _ep_crypto_error("cannot generate DH key");
+	if (EVP_PKEY_assign_DH(key, dhkey) != 1)
+		return _ep_crypto_error("cannot save DH key");
+}
+#endif
+
+#if _EP_CRYPTO_INCLUDE_EC
+static EP_STAT
+generate_ec_key(EP_CRYPTO_KEY *key, const char *curve)
+{
+	EC *eckey = EC_KEY_new_by_curve_name(NID_xyzzy_curve);
+	if (eckey == NULL || !EC_KEY_generate_key(eckey))
+		return _ep_crypto_error("cannot generate EC key");
+	if (EVP_PKEY_assign_EC(key, eckey) != 1)
+		return _ep_crypto_error("cannot save EC key");
+}
+#endif
+
 EP_CRYPTO_KEY *
 ep_crypto_key_create(int keytype, int keylen, int keyexp, const char *curve)
 {
 	EVP_PKEY *key;
+	EP_STAT estat;
 
 	key = EVP_PKEY_new();
 	if (key == NULL)
@@ -45,54 +137,35 @@ ep_crypto_key_create(int keytype, int keylen, int keyexp, const char *curve)
 	{
 #if _EP_CRYPTO_INCLUDE_RSA
 	  case EP_CRYPTO_KEYTYPE_RSA:
-		if (keyexp <= 0)
-			keyexp = ep_adm_getintparam("libep.crypto.rsa.key.exponent",
-						3);
-		if (keylen < EP_CRYPTO_KEY_MINLEN_RSA)
-			return _ep_crypto_error("insecure RSA key length %d; %d min",
-					keylen, EP_CRYPTO_KEY_MINLEN_RSA);
-		RSA *rsakey = RSA_generate_key(keylen, keyexp, NULL, NULL);
-		if (rsakey == NULL)
-			return _ep_crypto_error("cannot generate RSA key");
-		if (EVP_PKEY_assign_RSA(key, rsakey) != 1)
-			return _ep_crypto_error("cannot save RSA key");
+		estat = generate_rsa_key(key, keylen, keyexp);
 		break;
 #endif
 
 #if _EP_CRYPTO_INCLUDE_DSA
 	  case EP_CRYPTO_KEYTYPE_DSA:
-		DSA *dsakey = DSA_generate_key(keylen, XXX);
-		if (dsakey == NULL)
-			return _ep_crypto_error("cannot generate DSA key");
-		if (EVP_PKEY_assign_DSA(key, dsakey) != 1)
-			return _ep_crypto_error("cannot save DSA key");
+		estat = generate_dsa_key(key, keylen);
 		break;
 #endif
 
 #if _EP_CRYPTO_INCLUDE_DH
 	  case EP_CRYPTO_KEYTYPE_DH:
-		DH *dhkey = DH_generate_key(keylen, XXX);
-		if (dhkey == NULL)
-			return _ep_crypto_error("cannot generate DH key");
-		if (EVP_PKEY_assign_DH(key, dhkey) != 1)
-			return _ep_crypto_error("cannot save DH key");
+		estat = generate_dh_key(key, ...);
 		break;
 #endif
 
 #if _EP_CRYPTO_INCLUDE_EC
 	  case EP_CRYPTO_KEYTYPE_EC:
-		EC *eckey = EC_generate_key(keylen, XXX);
-		if (eckey == NULL)
-			return _ep_crypto_error("cannot generate EC key");
-		if (EVP_PKEY_assign_EC(key, eckey) != 1)
-			return _ep_crypto_error("cannot save EC key");
+		estat = generate_ec_key(key, curve);
 		break;
 #endif
 
 	  default:
 		return _ep_crypto_error("unrecognized key type %d", keytype);
 	}
-	return key;
+	if (EP_STAT_ISOK(estat))
+		return key;
+	EVP_PKEY_free(key);
+	return NULL;
 }
 
 
@@ -383,51 +456,54 @@ key_write_bio(EP_CRYPTO_KEY *key,
 	{
 # if _EP_CRYPTO_INCLUDE_RSA
 	  case EP_CRYPTO_KEYTYPE_RSA:
-		;					// compiler glitch
+		type = "RSA";
 		RSA *rsakey = EVP_PKEY_get1_RSA(key);
 
-		type = "RSA";
 		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
 			istat = i2d_RSAPrivateKey_bio(bio, rsakey);
 		else
 			istat = i2d_RSA_PUBKEY_bio(bio, rsakey);
 		if (istat != 1)
 			goto fail1;
-
-
-		if (i2d_RSAPublicKey_bio(bio, rsakey) < 0)
-		{
-			(void) _ep_crypto_error("cannot convert RSA pub key to DER");
-			return EP_STAT_CRYPTO_KEYTYPE;
-		}
 		break;
 # endif
 
 # if _EP_CRYPTO_INCLUDE_DSA
 	  case EP_CRYPTO_KEYTYPE_DSA:
-		;					// compiler glitch
+		type = "DSA";
 		DSA *dsakey = EVP_PKEY_get1_DSA(key);
-		if (i2d_DSAPublicKey(bio, dsakey) < 0)
-		{
-			(void) _ep_crypto_error("cannot convert DSA pub key to DER");
-			return EP_STAT_CRYPTO_KEYTYPE;
-		}
+
+		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
+			istat = i2d_DSAPrivateKey_bio(bio, dsakey);
+		else
+			istat = i2d_DSA_PUBKEY_bio(bio, dsakey);
+		if (istat != 1)
+			goto fail1;
 		break;
 # endif
 
 # if _EP_CRYPTO_INCLUDE_ECDSA
 	  case EP_CRYPTO_KEYTYPE_ECDSA:
-		;					// compiler glitch
+		type = "ECDSA";
 		EC_KEY *eckey = EVP_PKEY_get1_EC_KEY(key);
-		do what is needed
+
+		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flaga))
+			istat = i2d_XXX();
+		else
+			istat = i2d_XXX();
+		if (istat != 1)
+			goto fail1;
 		break;
 # endif
 
 # if _EP_CRYPTO_INCLUDE_DH
 	  case EP_CRYPTO_KEYTYPE_DH:
+		type = "DH";
 		;					// compiler glitch
 		DH *dhkey = EVP_PKEY_get1_DH(key);
 		do what is needed
+		if (istat != 1)
+			goto fail1;
 		break;
 # endif
 

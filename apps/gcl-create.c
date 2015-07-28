@@ -36,7 +36,7 @@ void
 usage(void)
 {
 	fprintf(stderr, "Usage: %s [-D dbgspec] [-G gdpd_addr]\n"
-			"\t[-k] [-K keyfile] [logd_name]\n"
+			"\t[-k keytype] [-K keyfile] [logd_name]\n"
 			"\t[<mdid>=<metadata>...] [gcl_name]\n"
 			"  * if -K specifies a directory, a .pem file is written there\n"
 			"    with the name of the GCL\n",
@@ -61,16 +61,16 @@ main(int argc, char **argv)
 	bool show_usage = false;
 	bool make_new_key = false;
 	int md_alg_id = EP_CRYPTO_MD_SHA256;
-	int keytype = EP_CRYPTO_KEYTYPE_RSA;
+	int keytype = EP_CRYPTO_KEYTYPE_UNKNOWN;
 	int keylen = 0;
-	int exponent = 3;
+	int exponent = 0;
 	char *keyfile = NULL;
 	int keyform = EP_CRYPTO_KEYFORM_PEM;
 	EP_CRYPTO_KEY *key = NULL;
 	char *p;
 
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "D:G:kK:")) > 0)
+	while ((opt = getopt(argc, argv, "D:G:k:K:")) > 0)
 	{
 		switch (opt)
 		{
@@ -84,8 +84,15 @@ main(int argc, char **argv)
 
 		 case 'k':
 			make_new_key = true;
-			keylen = ep_adm_getintparam("swarm.gdp.crypto.rsa.keylen", 2048);
-			exponent = ep_adm_getintparam("swarm.gdp.crypto.rsa.keyexp", 3);
+			if (strcasecmp(optarg, "rsa") == 0)
+				keytype = EP_CRYPTO_KEYTYPE_RSA;
+			else if (strcasecmp(optarg, "dsa") == 0)
+				keytype = EP_CRYPTO_KEYTYPE_DSA;
+			else
+			{
+				ep_app_error("unknown key type %s", optarg);
+				usage();
+			}
 			break;
 
 		 case 'K':
@@ -135,6 +142,18 @@ main(int argc, char **argv)
 
 	if (show_usage || argc > 0)
 		usage();
+
+	switch (keytype)
+	{
+	case EP_CRYPTO_KEYTYPE_RSA:
+		keylen = ep_adm_getintparam("swarm.gdp.crypto.rsa.keylen", 2048);
+		exponent = ep_adm_getintparam("swarm.gdp.crypto.rsa.keyexp", 3);
+		break;
+
+	case EP_CRYPTO_KEYTYPE_DSA:
+		keylen = ep_adm_getintparam("swarm.gdp.crypto.dsa.keylen", 2048);
+		break;
+	}
 
 	// see if we have an existing key
 	bool keyfile_is_directory = false;
