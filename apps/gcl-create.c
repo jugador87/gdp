@@ -36,10 +36,11 @@ void
 usage(void)
 {
 	fprintf(stderr, "Usage: %s [-D dbgspec] [-G gdpd_addr]\n"
-			"\t[-k keytype] [-K keyfile] [logd_name]\n"
+			"\t[-k] [-K keyfile] [-t keytype] [-b keybits] [logd_name]\n"
 			"\t[<mdid>=<metadata>...] [gcl_name]\n"
-			"  * if -K specifies a directory, a .pem file is written there\n"
-			"    with the name of the GCL\n",
+			"  * If -K specifies a directory, a .pem file is written there\n"
+			"    with the name of the GCL (defaults to \"KEYS\" or \".\")\n"
+			"  * Valid key types are \"rsa\" and \"dsa\"\n",
 			ep_app_getprogname());
 	exit(EX_USAGE);
 }
@@ -60,20 +61,24 @@ main(int argc, char **argv)
 	char buf[200];
 	bool show_usage = false;
 	bool make_new_key = false;
-	int md_alg_id = EP_CRYPTO_MD_SHA256;
+	int md_alg_id = -1;
 	int keytype = EP_CRYPTO_KEYTYPE_UNKNOWN;
 	int keylen = 0;
 	int exponent = 0;
-	char *keyfile = NULL;
+	const char *keyfile = NULL;
 	int keyform = EP_CRYPTO_KEYFORM_PEM;
 	EP_CRYPTO_KEY *key = NULL;
 	char *p;
 
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "D:G:k:K:")) > 0)
+	while ((opt = getopt(argc, argv, "b:D:G:h:kK:t:")) > 0)
 	{
 		switch (opt)
 		{
+		 case 'b':
+			keylen = atoi(optarg);
+			break;
+
 		 case 'D':
 			ep_dbg_set(optarg);
 			break;
@@ -82,21 +87,31 @@ main(int argc, char **argv)
 			gdpd_addr = optarg;
 			break;
 
+		 case 'h':
+			md_alg_id = ep_crypto_md_alg_byname(optarg);
+			if (md_alg_id < 0)
+			{
+				ep_app_error("unknown digest hash algorithm %s", optarg);
+				show_usage = true;
+			}
+			break;
+
 		 case 'k':
 			make_new_key = true;
-			if (strcasecmp(optarg, "rsa") == 0)
-				keytype = EP_CRYPTO_KEYTYPE_RSA;
-			else if (strcasecmp(optarg, "dsa") == 0)
-				keytype = EP_CRYPTO_KEYTYPE_DSA;
-			else
-			{
-				ep_app_error("unknown key type %s", optarg);
-				usage();
-			}
 			break;
 
 		 case 'K':
 			keyfile = optarg;
+			break;
+
+		 case 't':
+			make_new_key = true;
+			keytype = ep_crypto_key_id_byname(optarg);
+			if (keytype == EP_CRYPTO_KEYTYPE_UNKNOWN)
+			{
+				ep_app_error("unknown key type %s", optarg);
+				show_usage = true;
+			}
 			break;
 
 		 default:
@@ -143,15 +158,38 @@ main(int argc, char **argv)
 	if (show_usage || argc > 0)
 		usage();
 
+	if (md_alg_id < 0)
+	{
+		const char *p = ep_adm_getstrparam("swarm.gdp.crypto.hash.alg",
+								"sha256");
+		md_alg_id = ep_crypto_md_alg_byname(p);
+		if (md_alg_id < 0)
+		{
+			ep_app_error("unknown digest hash algorithm %s", p);
+			exit(EX_CONFIG);
+		}
+	}
+	if (keytype <= 0)
+	{
+		const char *p = ep_adm_getstrparam("swarm.gdp.crypto.sign.alg", "rsa");
+		keytype = ep_crypto_key_id_byname(p);
+		if (keytype <= 0)
+		{
+			ep_app_error("unknown keytype %s", p);
+			exit(EX_CONFIG);
+		}
+	}
 	switch (keytype)
 	{
 	case EP_CRYPTO_KEYTYPE_RSA:
-		keylen = ep_adm_getintparam("swarm.gdp.crypto.rsa.keylen", 2048);
+		if (keylen <= 0)
+			keylen = ep_adm_getintparam("swarm.gdp.crypto.rsa.keylen", 2048);
 		exponent = ep_adm_getintparam("swarm.gdp.crypto.rsa.keyexp", 3);
 		break;
 
 	case EP_CRYPTO_KEYTYPE_DSA:
-		keylen = ep_adm_getintparam("swarm.gdp.crypto.dsa.keylen", 2048);
+		if (keylen <= 0)
+			keylen = ep_adm_getintparam("swarm.gdp.crypto.dsa.keylen", 2048);
 		break;
 	}
 
@@ -162,8 +200,12 @@ main(int argc, char **argv)
 		// nope -- create a key in current directory if requested
 		if (make_new_key)
 		{
+			struct stat st;
+
 			keyfile_is_directory = true;
-			keyfile = ".";
+			keyfile = ep_adm_getstrparam("swarm.gdp.crypto.keydir", "KEYS");
+			if (stat(keyfile, &st) != 0 || (st.st_mode & S_IFMT) != S_IFDIR)
+				keyfile = ".";
 		}
 	}
 	else

@@ -129,7 +129,7 @@ int			ep_crypto_keyform_byname(
 				const char *fmt);
 int			ep_crypto_key_id_fromkey(
 				EP_CRYPTO_KEY *key);
-int			ep_crypto_keytype_byname(
+int			ep_crypto_key_id_byname(
 				const char *alg_name);
 
 

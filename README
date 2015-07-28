@@ -300,11 +300,13 @@ Create a GCL:
 	would be reasonable choices.  To actually create the log on
 	a given server, use
 
-		gcl-create <server> <logname>
+		gcl-create [-k] <server> <logname>
 
+	The -k flag asks to create a keypair for the new log (the
+	parameters can be tuned with other command line flags).
 	For example:
 
-		gcl-create edu.berkeley.eecs.gdp-01.gdplogd \
+		gcl-create -k edu.berkeley.eecs.gdp-01.gdplogd \
 			berkeley/swarmlab/sensor/23
 
 	The good news is that this the only time you'll need to know
@@ -444,14 +446,21 @@ Full List of Administrative Parameters:
 		request when no response is received.  Defaults to 3
 		(meaning that the request may be sent up to 4 times
 		total).
-	swarm.gdp.crypto.sign.alg --- the signing algorithm.  Defaults
-		to "rsa".
-		[[Currently ignored]]
-	swarm.gdp.crypto.sign.mdalg --- the name of the message digest
-		algorithm used for signing.  Defaults to "sha256".
-		[[Currently ignored]]
+	swarm.gdp.crypto.keydir --- the directory in which to store the
+		secret keys when creating a GCL.  Defaults to "KEYS".
+		Can be overridden by gcl-create -K flag.
+	swarm.gdp.crypto.hash.alg --- the default hashing algorithm.
+		Defaults to "sha256".  Can be overridden by gcl-create
+		-h <alg> flag.
+	swarm.gdp.crypto.sign.alg --- the default signing algorithm.
+		Defaults to "rsa".  Can be overridden by gcl-create
+		-t flag.
+	swarm.gdp.crypto.dsa.keylen --- the default size of an RSA
+		signature key in bits.  Defaults to 2048.  Can be
+		overridden by gcl-create -b flag.
 	swarm.gdp.crypto.rsa.keylen --- the default size of an RSA
-		signature key in bits.  Defaults to 2048.
+		signature key in bits.  Defaults to 2048.  Can be
+		overridden by gcl-create -b flag.
 	swarm.gdp.crypto.rsa.keyexp --- the exponent for an RSA signature
 		key.  Defaults to 3.
 	swarm.gdp.syslog.facility --- the name of the log facility to use

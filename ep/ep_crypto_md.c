@@ -164,7 +164,7 @@ static struct name_to_format	MdAlgStrings[] =
 	{ "sha256",		EP_CRYPTO_MD_SHA256,		},
 	{ "sha384",		EP_CRYPTO_MD_SHA384,		},
 	{ "sha512",		EP_CRYPTO_MD_SHA512,		},
-	{ NULL,			0				}
+	{ NULL,			-1				}
 };
 
 int

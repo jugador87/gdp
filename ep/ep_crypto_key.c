@@ -616,7 +616,7 @@ static struct name_to_format	KeyTypeStrings[] =
 	{ "dsa",		EP_CRYPTO_KEYTYPE_DSA,		},
 	{ "ec",			EP_CRYPTO_KEYTYPE_EC,		},
 	{ "dh",			EP_CRYPTO_KEYTYPE_DH,		},
-	{ NULL,			0				}
+	{ NULL,			EP_CRYPTO_KEYTYPE_UNKNOWN,	}
 };
 
 int
