@@ -286,11 +286,13 @@ cmd_open_ao(gdp_req_t *req)
 nopubkey:
 		ep_dbg_cprintf(Dbg, 1, "WARNING: no public key for %s\n",
 					gcl->pname);
+		if (EP_UT_BITSET(GDP_SIG_PUBKEYREQ, GdpSignatureStrictness))
+			estat = GDP_STAT_CRYPTO_SIGFAIL;
 	}
 
 	_gdp_gcl_decref(req->gcl);
 	req->gcl = NULL;
-	return EP_STAT_OK;
+	return estat;
 }
 
 EP_STAT
@@ -429,14 +431,20 @@ cmd_append(gdp_req_t *req)
 	}
 
 	// check the signature in the PDU
-	if (req->gcl->digest != NULL)
+	if (req->gcl->digest == NULL)
+	{
+		ep_dbg_cprintf(Dbg, 1, "cmd_append: no public key\n");
+		if (EP_UT_BITSET(GDP_SIG_PUBKEYREQ, GdpSignatureStrictness))
+			goto fail1;
+	}
+	else
 	{
 		if (req->pdu->sig == NULL)
 		{
 			// error: signature required
-			ep_dbg_cprintf(Dbg, 1, "cmd_append: signature required\n");
-			estat = EP_STAT_CRYPTO_BADSIG;
-			//XXX goto fail0;
+			ep_dbg_cprintf(Dbg, 1, "cmd_append: missing signature\n");
+			if (EP_UT_BITSET(GDP_SIG_REQUIRED, GdpSignatureStrictness))
+				goto fail1;
 		}
 		else
 		{
@@ -458,7 +466,8 @@ cmd_append(gdp_req_t *req)
 			{
 				// error: signature failure
 				ep_dbg_cprintf(Dbg, 1, "cmd_append: signature failure\n");
-				//XXX goto fail0
+				if (EP_UT_BITSET(GDP_SIG_MUSTVERIFY, GdpSignatureStrictness))
+					goto fail0;
 			}
 			else
 			{
@@ -477,6 +486,12 @@ cmd_append(gdp_req_t *req)
 	// send the new data to any subscribers
 	if (EP_STAT_ISOK(estat))
 		sub_notify_all_subscribers(req, GDP_ACK_CONTENT);
+
+	if (false)
+	{
+fail1:
+		estat = EP_STAT_CRYPTO_BADSIG;
+	}
 
 fail0:
 	// we can now let the data in the request go

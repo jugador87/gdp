@@ -10,6 +10,7 @@
 #include <event2/listener.h>
 #include <event2/thread.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <signal.h>
 #include <sysexits.h>
@@ -114,6 +115,41 @@ siginfo(int sig, short what, void *arg)
 }
 
 
+static uint32_t
+sig_strictness(const char *s)
+{
+	uint32_t strictness = 0;
+
+	while (*s != '\0')
+	{
+		while (isspace(*s) || ispunct(*s))
+			s++;
+		switch (*s)
+		{
+			case 'v':
+			case 'V':
+				strictness |= GDP_SIG_MUSTVERIFY;
+				break;
+
+			case 'r':
+			case 'R':
+				strictness |= GDP_SIG_REQUIRED;
+				break;
+
+			case 'p':
+			case 'P':
+				strictness |= GDP_SIG_PUBKEYREQ;
+				break;
+		}
+
+		while (isalnum(*++s))
+			continue;
+	}
+
+	return strictness;
+}
+
+
 /*
 **  MAIN!
 **
@@ -133,8 +169,9 @@ main(int argc, char **argv)
 	const char *router_addr = NULL;
 	const char *phase;
 	const char *myname = NULL;
+	const char *progname;
 
-	while ((opt = getopt(argc, argv, "D:FG:n:N:")) > 0)
+	while ((opt = getopt(argc, argv, "D:FG:n:N:s:")) > 0)
 	{
 		switch (opt)
 		{
@@ -157,6 +194,10 @@ main(int argc, char **argv)
 
 		case 'N':
 			myname = optarg;
+			break;
+
+		case 's':
+			GdpSignatureStrictness |= sig_strictness(optarg);
 			break;
 		}
 	}
@@ -182,12 +223,11 @@ main(int argc, char **argv)
 	estat = gdpd_proto_init();
 	EP_STAT_CHECK(estat, goto fail0);
 
+	progname = ep_app_getprogname();
+
 	// print our name as a reminder
 	if (myname == NULL)
 	{
-		const char *progname;
-
-		progname = ep_app_getprogname();
 		if (progname != NULL)
 		{
 			char argname[100];
@@ -205,6 +245,20 @@ main(int argc, char **argv)
 
 		fprintf(stdout, "My GDP routing name = %s\n", myname);
 	}
+
+	// set up signature strictness
+	{
+		char argname[100];
+		const char *p;
+
+		snprintf(argname, sizeof argname, "swarm.%s.crypto.strictness",
+				progname);
+		p = ep_adm_getstrparam(argname, "v");
+		GdpSignatureStrictness |= sig_strictness(p);
+	}
+	ep_dbg_cprintf(Dbg, 8, "Signature strictness = 0x%x\n",
+			GdpSignatureStrictness);
+
 
 	// go into background mode (before creating any threads!)
 	if (!run_in_foreground)

@@ -492,6 +492,13 @@ Full List of Administrative Parameters:
 		parameter avoids mistakes.  If the named account does
 		not exist it defaults to 1:1 (user daemon on most
 		systems).
+	swarm.gdplogd.crypto.strictness --- how strictly signatures
+		are enforced.  This is a sequence of comma-separated
+		words where only the first letter is significant.
+		Values are "verify" (signature must verify if it
+		exists), "required" (signature must be present if the
+		GCL has a public key), and/or "pubkeyreq" (public
+		key is required).  For now, defaults to "verify".
 	swarm.rest.kv.gclname --- the name of the GCL to use for the
 		key-value store.  Defaults to "swarm.rest.kv.gcl".
 	swarm.rest.prefix --- the REST prefix (e.g., /gdp/v1/).
