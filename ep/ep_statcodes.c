@@ -5,7 +5,7 @@
 static struct ep_stat_to_string	Stats[] =
 {
     // generic status codes
-    { _EP_STAT_INTERNAL(OK, EP_STAT_MOD_GENERIC, 0), "EPlib:generic"	},
+    { _EP_STAT_INTERNAL(OK, EP_STAT_MOD_GENERIC, 0), "generic"	},
 
     // individual codes
     { EP_STAT_WARN,		"generic warning",		},
@@ -19,7 +19,7 @@ static struct ep_stat_to_string	Stats[] =
     { EP_STAT_TIME_BADFORMAT,	"bad time format",		},
 
     // cryptographic status codes
-    { _EP_STAT_INTERNAL(OK, EP_STAT_MOD_GENERIC, 0), "EPlib:crypto"	},
+    { _EP_STAT_INTERNAL(OK, EP_STAT_MOD_CRYPTO, 0), "crypto"		},
 
     { EP_STAT_CRYPTO_DIGEST,	"cryptographic digest failure",		},
     { EP_STAT_CRYPTO_SIGN,	"cryptographic signing failure",	},
