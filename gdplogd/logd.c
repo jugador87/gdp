@@ -150,6 +150,27 @@ sig_strictness(const char *s)
 }
 
 
+static void
+usage(const char *err)
+{
+	fprintf(stderr,
+			"Usage error: %s\n"
+			"Usage: %s [-D dbgspec] [-F] [-G router_addr] [-n nworkers]\n"
+			"\t[-N myname] [-s strictness]\n"
+			"    -D  set debugging flags\n"
+			"    -F  run in foreground\n"
+			"    -G  IP host to contact for gdp router\n"
+			"    -n  number of worker threads\n"
+			"    -N  set my GDP name (address)\n"
+			"    -s  set signature strictness; comma-separated subflags are:\n"
+			"\t    verify (if present, signature must verify)\n"
+			"\t    required (signature must be included)\n"
+			"\t    pubkey (public key must be present)\n",
+			err, ep_app_getprogname());
+	exit(EX_USAGE);
+}
+
+
 /*
 **  MAIN!
 **
@@ -199,10 +220,16 @@ main(int argc, char **argv)
 		case 's':
 			GdpSignatureStrictness |= sig_strictness(optarg);
 			break;
+
+		default:
+			usage("unknown flag");
 		}
 	}
 	argc -= optind;
 	argv += optind;
+
+	if (argc != 0)
+		usage("no positional arguments allowed");
 
 	/*
 	**  Do initialization.  This is very order-sensitive

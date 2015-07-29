@@ -38,9 +38,17 @@ usage(void)
 	fprintf(stderr, "Usage: %s [-D dbgspec] [-G gdpd_addr]\n"
 			"\t[-k] [-K keyfile] [-t keytype] [-b keybits] [logd_name]\n"
 			"\t[<mdid>=<metadata>...] [gcl_name]\n"
-			"  * If -K specifies a directory, a .pem file is written there\n"
-			"    with the name of the GCL (defaults to \"KEYS\" or \".\")\n"
-			"  * Valid key types are \"rsa\" and \"dsa\"\n",
+			"    -D  set debugging flags\n"
+			"    -G  IP host to contact for GDP router\n"
+			"    -k  create a public/secret key pair\n"
+			"    -K  use indicated public key/place to write secret key\n"
+			"\tIf -K specifies a directory, a .pem file is written there\n"
+			"\twith the name of the GCL (defaults to \"KEYS\" or \".\")\n"
+			"    -t  type of key; valid key types are \"rsa\" and \"dsa\"\n"
+			"    -b  set size of key in bits\n"
+			"    logd_name is the name of the log server to host this log\n"
+			"    gcl_name is the name of the log to create\n"
+			"    metadata ids are (by convention) four letters or digits\n",
 			ep_app_getprogname());
 	exit(EX_USAGE);
 }
