@@ -274,9 +274,12 @@ cmd_open_ao(gdp_req_t *req)
 	ep_crypto_vrfy_update(gcl->digest, evbuffer_pullup(evb, evblen), evblen);
 	evbuffer_free(evb);
 
+	if (false)
+	{
 nopubkey:
-	ep_dbg_cprintf(Dbg, 1, "WARNING: no public key for %s\n",
-				gcl->pname);
+		ep_dbg_cprintf(Dbg, 1, "WARNING: no public key for %s\n",
+					gcl->pname);
+	}
 
 	_gdp_gcl_decref(req->gcl);
 	req->gcl = NULL;

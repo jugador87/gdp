@@ -84,7 +84,7 @@ gdp_gclmd_add(gdp_gclmd_t *gmd,
 
 	if (ep_dbg_test(Dbg, 36))
 	{
-		ep_dbg_printf("gdp_gclmd_add(%04x, %zd, %p)\n", id, len, data);
+		ep_dbg_printf("gdp_gclmd_add(%08x, %zd, %p)\n", id, len, data);
 		if (data != NULL)
 			ep_hexdump(data, len, ep_dbg_getfile(), EP_HEXDUMP_ASCII, 0);
 	}
@@ -139,6 +139,13 @@ _gdp_gclmd_adddata(gdp_gclmd_t *gmd,
 	gmd->databuf = data;
 	for (i = 0; i < gmd->nused; i++)
 	{
+		if (ep_dbg_test(Dbg, 37))
+		{
+			ep_dbg_printf("metadata[%d] = %p\n", i, data);
+			if (ep_dbg_test(Dbg, 40))
+				ep_hexdump(data, gmd->mds[i].md_len, ep_dbg_getfile(),
+						EP_HEXDUMP_ASCII, 0);
+		}
 		gmd->mds[i].md_data = data;
 		data += gmd->mds[i].md_len;
 	}
@@ -187,6 +194,7 @@ gdp_gclmd_find(gdp_gclmd_t *gmd,
 {
 	int indx;
 
+	ep_dbg_cprintf(Dbg, 40, "gdp_gclmd_find, gmd = %p, id = %08x\n", gmd, id);
 	if (gmd == NULL)
 		return GDP_STAT_NOTFOUND;
 
@@ -200,6 +208,7 @@ gdp_gclmd_find(gdp_gclmd_t *gmd,
 			*data = gmd->mds[indx].md_data;
 		return EP_STAT_OK;
 	}
+	ep_dbg_cprintf(Dbg, 41, "  ... not found\n");
 	return GDP_STAT_NOTFOUND;
 }
 

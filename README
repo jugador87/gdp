@@ -446,6 +446,10 @@ Full List of Administrative Parameters:
 		request when no response is received.  Defaults to 3
 		(meaning that the request may be sent up to 4 times
 		total).
+	swarm.gdp.crypto.key.path --- path name to search for secret
+		keys when writing a log.  Defaults to ".:KEYS:
+		~/.swarm/gdp/keys:/usr/local/etc/swarm/gdp/keys:
+		/etc/swarm/gdp/keys".
 	swarm.gdp.crypto.keydir --- the directory in which to store the
 		secret keys when creating a GCL.  Defaults to "KEYS".
 		Can be overridden by gcl-create -K flag.

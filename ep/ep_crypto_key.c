@@ -2,6 +2,7 @@
 
 #include "ep.h"
 #include "ep_crypto.h"
+#include "ep_dbg.h"
 
 #include <openssl/pem.h>
 #if _EP_CRYPTO_INCLUDE_RSA
@@ -18,6 +19,9 @@
 #endif
 
 #include <string.h>
+
+
+static EP_DBG	Dbg = EP_DBG_INIT("libep.crypto.key", "Cryptographic key utilities");
 
 // unclear in what version BIO_s_secmem appears....
 #define BIO_s_secmem	BIO_s_mem
@@ -62,7 +66,7 @@ generate_rsa_key(EP_CRYPTO_KEY *key, int keylen, int keyexp)
 	return EP_STAT_OK;
 
 fail0:
-	return EP_STAT_CRYPTO_KEYCREAT;
+	return EP_STAT_CRYPTO_KEYCREATE;
 }
 #endif
 
@@ -95,7 +99,7 @@ generate_dsa_key(EP_CRYPTO_KEY *key, int keylen)
 	return EP_STAT_OK;
 
 fail0:
-	return EP_STAT_CRYPTO_KEYCREAT;
+	return EP_STAT_CRYPTO_KEYCREATE;
 }
 #endif
 
@@ -214,10 +218,11 @@ key_read_bio(BIO *bio,
 	const char *pubsec = EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags) ?
 		"secret" : "public";
 
+	ep_dbg_cprintf(Dbg, 20, "key_read_bio: name %s, type %d, form %d\n",
+			filename, keytype, keyform);
 	EP_ASSERT(bio != NULL);
 	if (keyform <= 0)
 		return _ep_crypto_error("keyform must be specified");
-
 
 	if (keyform == EP_CRYPTO_KEYFORM_PEM)
 	{
@@ -319,12 +324,10 @@ key_read_bio(BIO *bio,
 	return _ep_crypto_error("DER format not (yet) supported");
 #endif // _EP_CRYPTO_INCLUDE_DER
 
-
 finis:
 	if (key == NULL)
 		return _ep_crypto_error("cannot read %s key from %s",
-				EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags) ? "secret" : "public",
-				filename);
+				pubsec, filename);
 	return key;
 }
 
@@ -378,14 +381,14 @@ ep_crypto_key_read_file(
 
 EP_CRYPTO_KEY *
 ep_crypto_key_read_mem(
-		void *buf,
+		const void *buf,
 		size_t buflen,
 		int keytype,
 		int keyform,
 		uint32_t flags)
 {
 	EP_CRYPTO_KEY *key;
-	BIO *bio = BIO_new_mem_buf(buf, buflen);
+	BIO *bio = BIO_new_mem_buf((void *) buf, buflen);
 
 	key = key_read_bio(bio, "memory", keytype, keyform, flags);
 	BIO_free(bio);
@@ -499,7 +502,6 @@ key_write_bio(EP_CRYPTO_KEY *key,
 # if _EP_CRYPTO_INCLUDE_DH
 	  case EP_CRYPTO_KEYTYPE_DH:
 		type = "DH";
-		;					// compiler glitch
 		DH *dhkey = EVP_PKEY_get1_DH(key);
 		do what is needed
 		if (istat != 1)
@@ -631,3 +633,15 @@ ep_crypto_key_id_byname(const char *fmt)
 	}
 	return kt->form;
 }
+
+
+EP_STAT
+ep_crypto_key_compat(const EP_CRYPTO_KEY *pubkey, const EP_CRYPTO_KEY *seckey)
+{
+	int istat = EVP_PKEY_cmp(pubkey, seckey);
+
+	if (istat == 1)
+		return EP_STAT_OK;
+	return EP_STAT_CRYPTO_KEYCOMPAT;
+}
+

@@ -99,7 +99,7 @@ EP_CRYPTO_KEY		*ep_crypto_key_read_fp(
 				int keyform,
 				uint32_t flags);
 EP_CRYPTO_KEY		*ep_crypto_key_read_mem(
-				void *buf,
+				const void *buf,
 				size_t buflen,
 				int keytype,
 				int keyform,
@@ -125,6 +125,9 @@ EP_STAT			ep_crypto_key_write_mem(
 				uint32_t flags);
 void			ep_crypto_key_free(
 				EP_CRYPTO_KEY *key);
+EP_STAT			ep_crypto_key_compat(
+				const EP_CRYPTO_KEY *pubkey,
+				const EP_CRYPTO_KEY *seckey);
 int			ep_crypto_keyform_byname(
 				const char *fmt);
 int			ep_crypto_key_id_fromkey(

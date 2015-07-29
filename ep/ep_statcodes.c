@@ -25,10 +25,11 @@ static struct ep_stat_to_string	Stats[] =
     { EP_STAT_CRYPTO_SIGN,	"cryptographic signing failure",	},
     { EP_STAT_CRYPTO_VRFY,	"cryptographic verification failure",	},
     { EP_STAT_CRYPTO_BADSIG,	"cryptographic signature doesn't match",},
-    { EP_STAT_CRYPTO_KEYTYPE,	"unknown key type",			},
-    { EP_STAT_CRYPTO_KEYFORM,	"unknown key format",			},
-    { EP_STAT_CRYPTO_CONVERT,	"cannot encode/decode key",		},
-    { EP_STAT_CRYPTO_KEYCREAT,	"cannot create new key",		},
+    { EP_STAT_CRYPTO_KEYTYPE,	"unknown cryptographic key type",	},
+    { EP_STAT_CRYPTO_KEYFORM,	"unknown cryptographic key format",	},
+    { EP_STAT_CRYPTO_CONVERT,	"cannot encode/decode cryptographic key", },
+    { EP_STAT_CRYPTO_KEYCREATE,	"cannot create new cryptographic key",	},
+    { EP_STAT_CRYPTO_KEYCOMPAT,	"incompatible cryptographic keys",	},
 
     { EP_STAT_OK,		NULL,				}
 };
