@@ -158,6 +158,17 @@ main(int argc, char **argv)
 	if (show_usage || argc > 0)
 		usage();
 
+	// initialize the GDP library
+	estat = gdp_init(gdpd_addr);
+	if (!EP_STAT_ISOK(estat))
+	{
+		ep_app_error("GDP Initialization failed");
+		goto fail0;
+	}
+
+	// allow thread to settle to avoid interspersed debug output
+	ep_time_nanosleep(INT64_C(100000000));
+
 	if (md_alg_id < 0)
 	{
 		const char *p = ep_adm_getstrparam("swarm.gdp.crypto.hash.alg",
@@ -286,17 +297,6 @@ main(int argc, char **argv)
 		gdp_gclmd_add(gmd, GDP_GCLMD_PUBKEY,
 				EP_STAT_TO_INT(estat) + 4, der_buf);
 	}
-
-	// initialize the GDP library
-	estat = gdp_init(gdpd_addr);
-	if (!EP_STAT_ISOK(estat))
-	{
-		ep_app_error("GDP Initialization failed");
-		goto fail0;
-	}
-
-	// allow thread to settle to avoid interspersed debug output
-	ep_time_nanosleep(INT64_C(100000000));
 
 	gdp_parse_name(logdxname, logdiname);
 
