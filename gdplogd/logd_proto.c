@@ -138,6 +138,13 @@ cmd_create(gdp_req_t *req)
 	gdp_name_t gclname;
 	int i;
 
+	if (memcmp(req->pdu->dst, _GdpMyRoutingName, sizeof _GdpMyRoutingName) != 0)
+	{
+		// this is directed to a GCL, not to the daemon
+		req->pdu->cmd = GDP_NAK_C_BADREQ;
+		return GDP_STAT_NAK_BADREQ;
+	}
+
 	req->pdu->cmd = GDP_ACK_CREATED;
 
 	// get the name of the new GCL
