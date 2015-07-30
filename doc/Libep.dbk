@@ -878,13 +878,18 @@ ep_time_format(                      // format a time string into a buffer
         EP_TIME_SPEC *tv,
         char *buf,
         size_t bufsize,
-        bool human);
+        uint32_t flags);
 
 void
 ep_time_print(                       // format a time string to a file
         EP_TIME_SPEC *tv,
         FILE *fp,
-        bool human);
+        uint32_t flags);
+
+// values for ep_time_format and ep_time_print flags
+#define EP_TIME_FMT_DEFAULT     0               // pseudo-flag
+#define EP_TIME_FMT_HUMAN       0x00000001      // format for humans
+#define EP_TIME_FMT_NOFUZZ      0x00000002      // suppress accuracy printing
 
 EP_STAT
 ep_time_parse(                       // parse a time string

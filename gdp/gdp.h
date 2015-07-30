@@ -77,11 +77,13 @@ typedef enum
 
 
 /*
-**  GCL Metadata
+**  GCL Metadata keys
 */
 
-#define GDP_GCLMD_XID		0x00584944	// XID
-#define GDP_GCLMD_PUBKEY	0x00505542	// PUB
+#define GDP_GCLMD_XID		0x00584944	// XID (external id)
+#define GDP_GCLMD_PUBKEY	0x00505542	// PUB (public key)
+#define GDP_GCLMD_CTIME		0x0043544D	// CTM (creation time)
+#define GDP_GCLMD_CID		0x00434944	// CID (creator id)
 
 
 /*

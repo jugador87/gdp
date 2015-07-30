@@ -51,12 +51,17 @@ extern void	ep_time_setaccuracy(float acc);
 extern void	ep_time_format(const EP_TIME_SPEC *tv,
 				char *buf,
 				size_t bz,
-				bool human);
+				uint32_t flags);
 
 // format a time string to a file
 extern void	ep_time_print(const EP_TIME_SPEC *tv,
 				FILE *fp,
-				bool human);
+				uint32_t);
+
+// values for ep_time_format and ep_time_print flags
+#define EP_TIME_FMT_DEFAULT	0		// pseudo-flag
+#define EP_TIME_FMT_HUMAN	0x00000001	// format for humans
+#define EP_TIME_FMT_NOFUZZ	0x00000002	// suppress accuracy printing
 
 // parse a time string
 extern EP_STAT	ep_time_parse(const char *timestr,

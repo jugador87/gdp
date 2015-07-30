@@ -194,7 +194,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 				", offset = %zd (0x%zx), dlen = %" PRIi64 "\n",
 				record.recno, file_offset, file_offset, record.data_length);
 		fprintf(stdout, "\tTimestamp: ");
-		ep_time_print(&record.timestamp, stdout, true);
+		ep_time_print(&record.timestamp, stdout, EP_TIME_FMT_HUMAN);
 		fprintf(stdout, " (%" PRIi64 ".%09d)\n",
 				record.timestamp.tv_sec, record.timestamp.tv_nsec);
 		fprintf(stdout, "\tTime accuracy (s): %8f\n", record.timestamp.tv_accuracy);

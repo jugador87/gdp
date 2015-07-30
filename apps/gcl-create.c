@@ -19,11 +19,11 @@
 #include <sys/stat.h>
 
 /*
-**  WRITER-TEST --- writes records to a GCL
+**  LOG-CREATE --- create a new log
 **
-**		This reads the records one line at a time from standard input
-**		and assumes they are text, but there is no text requirement
-**		implied by the GDP.
+**		This is a temporary interface.  Ultimately we need a log
+**		creation service that does reasonable log placement rather
+**		than having to name a specific log server.
 */
 
 
@@ -135,15 +135,14 @@ main(int argc, char **argv)
 
 	argc--;
 	logdxname = *argv++;
+	gdp_parse_name(logdxname, logdiname);
 
 	// collect any metadata
+	gmd = gdp_gclmd_new(0);
 	while (argc > 0 && (p = strchr(argv[0], '=')) != NULL)
 	{
 		gdp_gclmd_id_t mdid = 0;
 		int i;
-
-		if (gmd == NULL)
-			gmd = gdp_gclmd_new(0);
 
 		p++;
 		for (i = 0; i < 4; i++)
@@ -176,6 +175,27 @@ main(int argc, char **argv)
 
 	// allow thread to settle to avoid interspersed debug output
 	ep_time_nanosleep(INT64_C(100000000));
+
+	/**************************************************************
+	**  Set up other automatic metadata
+	*/
+
+	// creation time
+	{
+		EP_TIME_SPEC tv;
+		char timestring[40];
+
+		ep_time_now(&tv);
+		ep_time_format(&tv, timestring, sizeof timestring, EP_TIME_FMT_DEFAULT);
+		gdp_gclmd_add(gmd, GDP_GCLMD_CTIME, strlen(timestring), timestring);
+	}
+
+	// should create GDP_GCLMD_CID here (creator id)
+
+
+	/**************************************************************
+	**  Do cryptographic setup (e.g., generating keys)
+	*/
 
 	if (md_alg_id < 0)
 	{
@@ -287,8 +307,6 @@ main(int argc, char **argv)
 		uint8_t der_buf[EP_CRYPTO_MAX_DER + 4];
 		uint8_t *derp = der_buf + 4;
 
-		if (gmd == NULL)
-			gmd = gdp_gclmd_new(0);
 		der_buf[0] = md_alg_id;
 		der_buf[1] = keytype;
 		der_buf[2] = (keylen >> 8) & 0xff;
@@ -306,11 +324,10 @@ main(int argc, char **argv)
 				EP_STAT_TO_INT(estat) + 4, der_buf);
 	}
 
-	gdp_parse_name(logdxname, logdiname);
-
 	/**************************************************************
 	**  Hello sailor, this is where the actual creation happens  **
 	**************************************************************/
+
 	if (gclxname == NULL)
 	{
 		// create a new GCL handle with a new name

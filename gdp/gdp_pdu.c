@@ -76,7 +76,7 @@ _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 		fprintf(fp, ", dbuf=%p, dlen=%zu", pdu->datum->dbuf,
 				pdu->datum->dbuf == NULL ? 0 : gdp_buf_getlength(pdu->datum->dbuf));
 		fprintf(fp, "\n\t\tts=");
-		ep_time_print(&pdu->datum->ts, fp, true);
+		ep_time_print(&pdu->datum->ts, fp, EP_TIME_FMT_HUMAN);
 		if (EP_TIME_ISVALID(&pdu->datum->ts))
 			len += sizeof pdu->datum->ts;
 	}
