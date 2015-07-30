@@ -130,9 +130,9 @@ EP_STAT			ep_crypto_key_compat(
 				const EP_CRYPTO_KEY *seckey);
 int			ep_crypto_keyform_byname(
 				const char *fmt);
-int			ep_crypto_key_id_fromkey(
+int			ep_crypto_keytype_fromkey(
 				EP_CRYPTO_KEY *key);
-int			ep_crypto_key_id_byname(
+int			ep_crypto_keytype_byname(
 				const char *alg_name);
 
 
@@ -209,7 +209,7 @@ EP_STAT			ep_crypto_vrfy_final(
 
 
 /*
-**  Error Handling
+**  Error Handling (private)
 */
 
 void	*_ep_crypto_error(const char *msg, ...);

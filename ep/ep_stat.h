@@ -142,17 +142,6 @@ extern EP_STAT	ep_stat_from_errno(int uerrno);
 
 #include <ep/ep_statcodes.h>
 
-
-// handle on status handler -- to release later
-typedef struct EP_STAT_HANDLE	EP_STAT_HANDLE;
-
-// status handling function
-typedef EP_STAT	(*EP_STAT_HANDLER_FUNCP)
-			(EP_STAT estat,		// status code
-			//char *module,		// calling module
-			const char *defmsg,	// default message
-			va_list av);		// string arguments
-
 struct ep_stat_to_string
 {
 	EP_STAT		estat;		// status code
@@ -172,6 +161,22 @@ char		*ep_stat_tostr(
 // return string representation of severity (in natural language)
 const char	*ep_stat_sev_tostr(
 			int sev);
+
+// print and abort (never returns)
+void		ep_stat_abort(
+			EP_STAT c);
+
+#if 0
+
+// handle on status handler -- to release later
+typedef struct EP_STAT_HANDLE	EP_STAT_HANDLE;
+
+// status handling function
+typedef EP_STAT	(*EP_STAT_HANDLER_FUNCP)
+			(EP_STAT estat,		// status code
+			//char *module,		// calling module
+			const char *defmsg,	// default message
+			va_list av);		// string arguments
 
 // register/deregister a status handler
 EP_STAT_HANDLE	*ep_stat_register(
@@ -200,8 +205,6 @@ void		ep_stat_vprint(
 			const char *defmsg,
 			FILE *fp,
 			va_list av);
+#endif // 0
 
-// print and abort (never returns)
-void		ep_stat_abort(
-			EP_STAT c);
 #endif // _EP_STAT_H

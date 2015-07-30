@@ -305,9 +305,8 @@
       Occassionally you might want to convert a status to or from a long
       int:</para>
 
-      <programlisting>    EP_STAT_TO_LONG(EP_STAT stat)           // convert status to unsigned long
-
-    EP_STAT_FROM_LONG(unsigned long istat)  // convert unsigned integer to status</programlisting>
+      <programlisting>int      EP_STAT_TO_INT(EP_STAT stat)          // convert status to unsigned int
+EP_STAT  EP_STAT_FROM_INT(unsigned int istat)  // convert unsigned integer to status</programlisting>
 
       <para>The constituent parts of the status code can also be
       extracted:</para>
@@ -351,8 +350,195 @@
 
       <para>As a special case, if the severity is
       <errortype>EP_STAT_SEV_OK</errortype> the rest of the word is ignored;
-      this can be used to pass small integers (no more than 63 bits) of
+      this can be used to pass small integers (no more than 31 bits) of
       information.</para>
+    </section>
+
+    <section>
+      <title>Predefined Status Codes</title>
+
+      <para>All status codes from this library are in the
+      <constant>EP_REGISTRY_EPLIB</constant> registery. There are several
+      predefined status codes for generic use, all using module
+      <constant>EP_STAT_MOD_GENERIC</constant>:</para>
+
+      <informaltable border="1">
+        <tr>
+          <td>EP_STAT_OK</td>
+
+          <td>No error (also integer 0)</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_WARN</td>
+
+          <td>Generic warning status</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_ERROR</td>
+
+          <td>Generic error status</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_SEVERE</td>
+
+          <td>Generic severe error status</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_ABORT</td>
+
+          <td>Generic abortive status</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_OUT_OF_MEMORY</td>
+
+          <td>Out of memory</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_ARG_OUT_OF_RANGE</td>
+
+          <td>An argument was out of range</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_END_OF_FILE</td>
+
+          <td>End of input</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_TIME_BADFORMAT</td>
+
+          <td>Couldn't parse a date/time string</td>
+        </tr>
+      </informaltable>
+
+      <para>There is also a special module
+      <constant>EP_STAT_MOD_ERRNO</constant> that encodes Posix-style
+      errnos.</para>
+    </section>
+
+    <section>
+      <title>Manipulating Status Codes</title>
+
+      <para>There are several routines to print error codes or create them on
+      the fly. Note that <function>ep_stat_tostr</function> returns the buffer
+      itself.</para>
+
+      <programlisting>// create status code from UNIX errno
+extern EP_STAT  ep_stat_from_errno(
+                        int uerrno);
+
+// return string representation of status
+char            *ep_stat_tostr(
+                        EP_STAT estat,
+                        char *buf,
+                        size_t bsize);
+
+// return string representation of severity (in natural language)
+const char      *ep_stat_sev_tostr(
+                        int sev);
+
+// print a status code and abort (never returns)
+void            ep_stat_abort(
+                        EP_STAT estat);</programlisting>
+    </section>
+
+    <section>
+      <title>Creating New Status Codes</title>
+
+      <para>Libraries and applications can create their own specific error
+      codes. There are four steps to do this:</para>
+
+      <orderedlist>
+        <listitem>
+          <para>Determine the registry. The registry name space is divided as
+          follows:</para>
+
+          <informaltable border="1">
+            <tr>
+              <td>0x000 (<constant>EP_REGISTRY_GENERIC</constant>)</td>
+
+              <td>reserved for generic status codes</td>
+            </tr>
+
+            <tr>
+              <td>0x001 (<constant>EP_REGISTRY_USER</constant>)</td>
+
+              <td>available for internal use to an application</td>
+            </tr>
+
+            <tr>
+              <td>0x002&ndash;0x07F</td>
+
+              <td>available for local, unregistered use, such as separate
+              applications within an application suite</td>
+            </tr>
+
+            <tr>
+              <td>0x080&ndash;0x0FF</td>
+
+              <td>available for internal corporate registry, but not
+              registered globally; conflicts may occur between organizations
+              but not within an organization</td>
+            </tr>
+
+            <tr>
+              <td>0x100 (<constant>EP_REGISTRY_EPLIB</constant>)</td>
+
+              <td>reserved for libep</td>
+            </tr>
+
+            <tr>
+              <td>0x101&ndash;0x6FF</td>
+
+              <td>available for centrally managed global registry &mdash;
+              contact the libep maintainers for an allocation</td>
+            </tr>
+
+            <tr>
+              <td>0x700&ndash;0x7FF</td>
+
+              <td>reserved</td>
+            </tr>
+          </informaltable>
+        </listitem>
+
+        <listitem>
+          <para>Determine the module(s) in which the error code should exist.
+          These must be unique within a registry and in the range
+          0x00&ndash;0xFF.</para>
+        </listitem>
+
+        <listitem>
+          <para>Define the error codes you want to use using
+          <function>EP_STAT_NEW</function>, e.g.,</para>
+
+          <programlisting>#define FOO_STAT_ELEPHANT    EP_STAT_NEW(ERROR, EP_REGISTRY_FOO, MOD_BAR, 1)
+#define FOO_STAT_GIRAFFE     EP_STAT_NEW(SEVERE, EP_REGISTRY_FOO, MOD_BAR, 2)</programlisting>
+        </listitem>
+
+        <listitem>
+          <para>(Optional step) Define the strings associated with the error
+          codes when they are printed. These are done by populating a table
+          and then calling <function>ep_stat_register_strings</function>. For
+          example:</para>
+
+          <programlisting>struct ep_stat_reg_strings  FooStatusCodes[] =
+{
+    FOO_STAT_ELEPHANT,    "elephant in the room",        },
+    FOO_STAT_GIRAFFE,     "too tall",                    },
+    EP_STAT_OK,           NULL,                          }
+}
+
+ep_stat_reg_strings(FooStatusCodes);</programlisting>
+        </listitem>
+      </orderedlist>
     </section>
   </section>
 
@@ -370,9 +556,7 @@ ep_lib_init(uint32_t flags)</programlisting>
 
     <para>Flags can be:</para>
 
-    <table>
-      <title></title>
-
+    <informaltable>
       <tgroup cols="2">
         <tbody>
           <row>
@@ -382,7 +566,7 @@ ep_lib_init(uint32_t flags)</programlisting>
           </row>
         </tbody>
       </tgroup>
-    </table>
+    </informaltable>
   </section>
 
   <section>
@@ -862,6 +1046,287 @@ EP_TIME_INVALIDATE(                  // invalidate a timestamp
 
     void
     ep_funclist_invoke(EP_FUNCLIST *fp) // invoke all functions in list</programlisting>
+    </section>
+  </section>
+
+  <section>
+    <title>CRYPTOGRAPHIC SUPPORT</title>
+
+    <para>The current implementation wraps the OpenSSL library, but it could
+    be retargeted.</para>
+
+    <section>
+      <title>Key Management</title>
+
+      <para>Internally all keys are represented as <type>EP_CRYPTO_KEY</type>
+      variables, defined in <filename>ep_crypto.h</filename>. External
+      representations for keys may be either PEM (Privacy Enhanced Mail,
+      represented as text) or DER (Distinguished Encoding Rules, represented
+      in binary). PEM self identifies the type of key, but DER does not, so in
+      some cases the key type needs to be pre-arranged.</para>
+
+      <programlisting>// on-disk key formats
+# define EP_CRYPTO_KEYFORM_UNKNOWN      0       // error
+# define EP_CRYPTO_KEYFORM_PEM          1       // PEM (text)
+# define EP_CRYPTO_KEYFORM_DER          2       // DER (binary ASN.1)</programlisting>
+
+      <para>Internally, algorithms (e.g., for keys and hash/digest functions)
+      are represented by a scalar value. Keys also have to be identified as
+      public or secret.</para>
+
+      <remark>[[Note: EC and DH are not supported at this time.]]</remark>
+
+      <programlisting>// key types
+# define EP_CRYPTO_KEYTYPE_UNKNOWN      0       // error
+# define EP_CRYPTO_KEYTYPE_RSA          1       // RSA
+# define EP_CRYPTO_KEYTYPE_DSA          2       // DSA
+# define EP_CRYPTO_KEYTYPE_EC           3       // Elliptic curve
+# define EP_CRYPTO_KEYTYPE_DH           4       // Diffie-Hellman
+
+// flag bits
+# define EP_CRYPTO_F_PUBLIC             0x0000  // public key (no flags set)
+# define EP_CRYPTO_F_SECRET             0x0001  // secret key</programlisting>
+
+      <para>Keys are represented as an <type>EP_CRYPTO_KEY</type>. New keys
+      can be created by giving the type of the key desired, the length of the
+      key in bits, and two other values that are interpreted by the key type.
+      The first is primarily for RSA and gives the exponent, and the second is
+      primarily for EC and gives the curve name.</para>
+
+      <programlisting>EP_CRYPTO_KEY           *ep_crypto_key_create(
+                                int keytype,
+                                int keylen,
+                                int keyexp,
+                                const char *curve);</programlisting>
+
+      <para>Keys can be read from or written to named files, open files, or
+      memory. All the read routines create and return a new key data
+      structure. If the <varname>keyform</varname> is
+      <constant>EP_CRYPTO_KEYFORM_PEM</constant> then the
+      <varname>keytype</varname> need not be specified.</para>
+
+      <programlisting>EP_CRYPTO_KEY           *ep_crypto_key_read_file(
+                                const char *filename,
+                                int keytype,
+                                int keyform,
+                                uint32_t flags);
+EP_CRYPTO_KEY           *ep_crypto_key_read_fp(
+                                FILE *fp,
+                                const char *filename,
+                                int keytype,
+                                int keyform,
+                                uint32_t flags);
+EP_CRYPTO_KEY           *ep_crypto_key_read_mem(
+                                const void *buf,
+                                size_t buflen,
+                                int keytype,
+                                int keyform,
+                                uint32_t flags);
+EP_STAT                 ep_crypto_key_write_file(
+                                EP_CRYPTO_KEY *key,
+                                const char *filename,
+                                int keyform,
+                                int cipher,
+                                uint32_t flags);
+EP_STAT                 ep_crypto_key_write_fp(
+                                EP_CRYPTO_KEY *key,
+                                FILE *fp,
+                                int keyform,
+                                int cipher,
+                                uint32_t flags);
+EP_STAT                 ep_crypto_key_write_mem(
+                                EP_CRYPTO_KEY *key,
+                                void *buf,
+                                size_t bufsize,
+                                int keyform,
+                                int cipher,
+                                uint32_t flags);</programlisting>
+
+      <para>When finished with a key it must be freed.</para>
+
+      <programlisting>void                    ep_crypto_key_free(
+                                EP_CRYPTO_KEY *key);</programlisting>
+
+      <para>There are also some utility routines. A public and a secret key
+      can be compared to see if they match each other (same algorithm,
+      keysize, etc.) using <function>ep_crypto_key_compat</function>. Various
+      conversions are also included:
+      <function>ep_crypto_keyform_byname</function> converts a text string
+      (e.g., "pem") to an internal code,
+      <function>ep_crypto_keytype_fromkey</function> returns the type of a
+      key, and <function>ep_crypto_keytype_byname</function> converts a text
+      string to a type.</para>
+
+      <programlisting>EP_STAT                 ep_crypto_key_compat(
+                                const EP_CRYPTO_KEY *pubkey,
+                                const EP_CRYPTO_KEY *seckey);
+int                     ep_crypto_keyform_byname(
+                                const char *fmt);
+int                     ep_crypto_keytype_fromkey(
+                                EP_CRYPTO_KEY *key);
+int                     ep_crypto_keytype_byname(
+                                const char *alg_name);</programlisting>
+    </section>
+
+    <section>
+      <title>Message Digests (Hashes)</title>
+
+      <para>Several message digest (cryptographic hash) algorithms are
+      supported. Text can be converted to one of these values, and the
+      algorithm type can be extracted from the internal form.</para>
+
+      <programlisting>// digest algorithms (no more than 4 bits)
+# define EP_CRYPTO_MD_NULL      0
+# define EP_CRYPTO_MD_SHA1      1
+# define EP_CRYPTO_MD_SHA224    2
+# define EP_CRYPTO_MD_SHA256    3
+# define EP_CRYPTO_MD_SHA384    4
+# define EP_CRYPTO_MD_SHA512    5
+
+int                     ep_crypto_md_alg_byname(
+                                const char *algname);
+int                     ep_crypto_md_type(
+                                EP_CRYPTO_MD *md);</programlisting>
+
+      <para>Digests (type <type>EP_CRYPTO_MD</type>) can be created, freed,
+      and cloned. Cloning lets an application compute the a fixed part of a
+      digest (perhaps an unchanging header) and then produce separate digests
+      for individual records.</para>
+
+      <programlisting>EP_CRYPTO_MD            *ep_crypto_md_new(
+                                int md_alg_id);
+EP_CRYPTO_MD            *ep_crypto_md_clone(
+                                EP_CRYPTO_MD *base_md);
+void                    ep_crypto_md_free(
+                                EP_CRYPTO_MD *md);</programlisting>
+
+      <para>The typical lifetime of a digest is to be created (as above),
+      updated with additional data, possibly multiple times, and then
+      finalized to give the output hash.</para>
+
+      <programlisting>EP_STAT                 ep_crypto_md_update(
+                                EP_CRYPTO_MD *md,
+                                void *data,
+                                size_t dsize);
+EP_STAT                 ep_crypto_md_final(
+                                EP_CRYPTO_MD *md,
+                                void *dbuf,
+                                size_t *dbufsize);</programlisting>
+    </section>
+
+    <section>
+      <title>Signing and Verification</title>
+
+      <para>Signing and verification are quite similar. A new internal
+      structure is created, using the same type as a message digest, data is
+      added to the existing hash, possibly multiple times, the signature is
+      created or verified, and finally the structure is freed.</para>
+
+      <programlisting># define EP_CRYPTO_MAX_SIG      (1024 * 8)
+
+EP_CRYPTO_MD            *ep_crypto_sign_new(
+                                EP_CRYPTO_KEY *skey,
+                                int md_alg_id);
+void                    ep_crypto_sign_free(
+                                EP_CRYPTO_MD *md);
+EP_STAT                 ep_crypto_sign_update(
+                                EP_CRYPTO_MD *md,
+                                void *dbuf,
+                                size_t dbufsize);
+EP_STAT                 ep_crypto_sign_final(
+                                EP_CRYPTO_MD *md,
+                                void *sbuf,
+                                size_t *sbufsize);
+
+EP_CRYPTO_MD            *ep_crypto_vrfy_new(
+                                EP_CRYPTO_KEY *pkey,
+                                int md_alg_id);
+void                    ep_crypto_vrfy_free(
+                                EP_CRYPTO_MD *md);
+EP_STAT                 ep_crypto_vrfy_update(
+                                EP_CRYPTO_MD *md,
+                                void *dbuf,
+                                size_t dbufsize);
+EP_STAT                 ep_crypto_vrfy_final(
+                                EP_CRYPTO_MD *md,
+                                void *obuf,
+                                size_t obufsize);</programlisting>
+    </section>
+
+    <section>
+      <title>Encryption and Decryption (Asymmetric)</title>
+
+      <para>To be supplied.</para>
+    </section>
+
+    <section>
+      <title>Encryption and Decryption (Symmetric Ciphers)</title>
+
+      <para>To be supplied.</para>
+    </section>
+
+    <section>
+      <title>Cryptography-specific Error Codes</title>
+
+      <para>There are several status codes that may be returned from the
+      cryptography routines. These are all in module
+      EP_STAT_MOD_CRYPTO.</para>
+
+      <informaltable border="1">
+        <tr>
+          <td>EP_STAT_CRYPTO_DIGEST</td>
+
+          <td>Failed to update or finalize a digest (hash)</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_CRYPTO_SIGN</td>
+
+          <td>Failed to update or finalize a digest for signing</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_CRYPTO_VRFY</td>
+
+          <td>Failed to update or finalize a digest for verification</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_CRYPTO_BADSIG</td>
+
+          <td>Signature did not match</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_CRYPTO_KEYTYPE</td>
+
+          <td>Unknown key type</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_CRYPTO_KEYFORM</td>
+
+          <td>Unknown key format</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_CRYPTO_CONVERT</td>
+
+          <td>Couldn't read or write a key</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_CRYPTO_KEYCREATE</td>
+
+          <td>Couldn't create a new key</td>
+        </tr>
+
+        <tr>
+          <td>EP_STAT_CRYPTO_KEYCOMPAT</td>
+
+          <td>Public and private keys are incompatible</td>
+        </tr>
+      </informaltable>
     </section>
   </section>
 
@@ -1631,7 +2096,7 @@ ep_log(
 
             <td align="center">deg</td>
 
-            <td align="center">&ordm;</td>
+            <td align="center">&deg;</td>
           </tr>
 
           <tr>
@@ -1671,7 +2136,7 @@ ep_log(
 
             <td align="center">NULL</td>
 
-            <td align="center">&Oslash;</td>
+            <td align="center">&empty;</td>
           </tr>
 
           <tr>
