@@ -203,19 +203,16 @@ _gdp_gcl_create(gdp_name_t gclname,
 				gdp_printable_name(logdname, dxname));
 	}
 
-	// create a new GCL so we can correlate the results
-	estat = _gdp_gcl_newhandle(gclname, &gcl);
+	// create a new pseudo-GCL for the daemon so we can correlate the results
+	estat = _gdp_gcl_newhandle(logdname, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// create the request
 	estat = _gdp_req_new(GDP_CMD_CREATE, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	// set the target address to be the log daemon
-	memcpy(req->pdu->dst, logdname, sizeof req->pdu->dst);
-
 	// send the name of the log to be created in the payload
-	gdp_buf_write(req->pdu->datum->dbuf, gcl->name, sizeof (gdp_name_t));
+	gdp_buf_write(req->pdu->datum->dbuf, gclname, sizeof (gdp_name_t));
 
 	// add the metadata to the output stream
 	_gdp_gclmd_serialize(gmd, req->pdu->datum->dbuf);
@@ -223,7 +220,10 @@ _gdp_gcl_create(gdp_name_t gclname,
 	estat = _gdp_invoke(req);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	// success
+	// success --- change the GCL name to the true name
+	memcpy(gcl->name, gclname, sizeof gcl->name);
+
+	// free resources and return results
 	_gdp_req_free(req);
 	*pgcl = gcl;
 	return estat;

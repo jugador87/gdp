@@ -162,9 +162,6 @@ cmd_create(gdp_req_t *req)
 				gdp_printable_name(gclname, pbuf));
 	}
 
-	// change the request to seem to come from this GCL
-	memcpy(req->pdu->dst, gclname, sizeof req->pdu->dst);
-
 	// get the memory space for the GCL itself
 	estat = gcl_alloc(gclname, GDP_MODE_AO, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -288,6 +285,8 @@ nopubkey:
 					gcl->pname);
 		if (EP_UT_BITSET(GDP_SIG_PUBKEYREQ, GdpSignatureStrictness))
 			estat = GDP_STAT_CRYPTO_SIGFAIL;
+		else
+			estat = EP_STAT_OK;
 	}
 
 	_gdp_gcl_decref(req->gcl);
