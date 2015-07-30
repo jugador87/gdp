@@ -418,7 +418,7 @@ key_write_bio(EP_CRYPTO_KEY *key,
 		int cipher,
 		uint32_t flags)
 {
-	int keytype = ep_crypto_key_id_fromkey(key);
+	int keytype = ep_crypto_keytype_fromkey(key);
 	const char *pubsec = EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags) ?
 		"secret" : "public";
 	int istat;
@@ -589,7 +589,7 @@ ep_crypto_key_write_mem(EP_CRYPTO_KEY *key,
 
 
 int
-ep_crypto_key_id_fromkey(EP_CRYPTO_KEY *key)
+ep_crypto_keytype_fromkey(EP_CRYPTO_KEY *key)
 {
 	int i = EVP_PKEY_type(key->type);
 
@@ -622,7 +622,7 @@ static struct name_to_format	KeyTypeStrings[] =
 };
 
 int
-ep_crypto_key_id_byname(const char *fmt)
+ep_crypto_keytype_byname(const char *fmt)
 {
 	struct name_to_format *kt;
 

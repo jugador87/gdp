@@ -22,6 +22,8 @@
 
 EP_SRC_ID("@(#)$Id: ep_stat.c 289 2014-05-11 04:50:04Z eric $");
 
+#if 0
+
 /**************************  BEGIN PRIVATE  **************************/
 
 struct EP_STAT_HANDLE
@@ -33,15 +35,14 @@ struct EP_STAT_HANDLE
 };
 
 
-//static EP_STAT_HANDLE	*StatFuncList;
-//static EP_THR_MUTEX		StatMutex	EP_MUTEX_INITIALIZER;
+static EP_STAT_HANDLE	*StatFuncList;
+static EP_THR_MUTEX	StatMutex	EP_MUTEX_INITIALIZER;
 
-//static EP_DBG	Dbg = EP_DBG_INIT("libep.stat", "Status handling");
+static EP_DBG	Dbg = EP_DBG_INIT("libep.stat", "Status handling");
 
 /***************************  END PRIVATE  ***************************/
 
 
-#if 0
 
 /***********************************************************************
 **

@@ -114,7 +114,7 @@ main(int argc, char **argv)
 
 		 case 't':
 			make_new_key = true;
-			keytype = ep_crypto_key_id_byname(optarg);
+			keytype = ep_crypto_keytype_byname(optarg);
 			if (keytype == EP_CRYPTO_KEYTYPE_UNKNOWN)
 			{
 				ep_app_error("unknown key type %s", optarg);
@@ -191,7 +191,7 @@ main(int argc, char **argv)
 	if (keytype <= 0)
 	{
 		const char *p = ep_adm_getstrparam("swarm.gdp.crypto.sign.alg", "rsa");
-		keytype = ep_crypto_key_id_byname(p);
+		keytype = ep_crypto_keytype_byname(p);
 		if (keytype <= 0)
 		{
 			ep_app_error("unknown keytype %s", p);
