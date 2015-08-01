@@ -194,22 +194,30 @@ gdp_gclmd_find(gdp_gclmd_t *gmd,
 {
 	int indx;
 
-	ep_dbg_cprintf(Dbg, 40, "gdp_gclmd_find, gmd = %p, id = %08x\n", gmd, id);
-	if (gmd == NULL)
-		return GDP_STAT_NOTFOUND;
-
-	for (indx = 0; indx < gmd->nused; indx++)
+	ep_dbg_cprintf(Dbg, 40, "gdp_gclmd_find, gmd = %p, id = %08x... ", gmd, id);
+	if (gmd != NULL)
 	{
-		if (id != gmd->mds[indx].md_id)
-			continue;
-		if (len != NULL)
-			*len = gmd->mds[indx].md_len;
-		if (data != NULL)
-			*data = gmd->mds[indx].md_data;
+		for (indx = 0; indx < gmd->nused; indx++)
+		{
+			if (id != gmd->mds[indx].md_id)
+				continue;
+			if (len != NULL)
+				*len = gmd->mds[indx].md_len;
+			if (data != NULL)
+				*data = gmd->mds[indx].md_data;
+			break;
+		}
+	}
+	if (gmd == NULL)
+	{
+		ep_dbg_cprintf(Dbg, 40, "not found\n");
+		return GDP_STAT_NOTFOUND;
+	}
+	else
+	{
+		ep_dbg_cprintf(Dbg, 40, "len %zd\n", gmd->mds[indx].md_len);
 		return EP_STAT_OK;
 	}
-	ep_dbg_cprintf(Dbg, 41, "  ... not found\n");
-	return GDP_STAT_NOTFOUND;
 }
 
 

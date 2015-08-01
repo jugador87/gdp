@@ -17,6 +17,14 @@ _ep_crypto_error(const char *msg, ...)
 {
 	va_list ap;
 	FILE *fp = ep_dbg_getfile();
+	static bool initialized = false;
+
+	// load openssl error strings if not already done
+	if (!initialized)
+	{
+		ERR_load_crypto_strings();
+		initialized = true;
+	}
 
 	//XXX should be on some flag (don't print unconditionally)
 	va_start(ap, msg);

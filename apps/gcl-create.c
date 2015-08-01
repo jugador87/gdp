@@ -36,16 +36,17 @@ void
 usage(void)
 {
 	fprintf(stderr, "Usage: %s [-D dbgspec] [-G gdpd_addr]\n"
-			"\t[-k] [-K keyfile] [-t keytype] [-b keybits] [logd_name]\n"
-			"\t[<mdid>=<metadata>...] [gcl_name]\n"
+			"\t[-k] [-K keyfile] [-t keytype] [-b keybits] [-c curve]\n"
+			"\t[logd_name] [<mdid>=<metadata>...] [gcl_name]\n"
 			"    -D  set debugging flags\n"
 			"    -G  IP host to contact for GDP router\n"
 			"    -k  create a public/secret key pair\n"
 			"    -K  use indicated public key/place to write secret key\n"
 			"\tIf -K specifies a directory, a .pem file is written there\n"
 			"\twith the name of the GCL (defaults to \"KEYS\" or \".\")\n"
-			"    -t  type of key; valid key types are \"rsa\" and \"dsa\"\n"
-			"    -b  set size of key in bits\n"
+			"    -t  type of key; valid key types are \"rsa\", \"dsa\", and \"ec\"\n"
+			"    -b  set size of key in bits (RSA and DSA only)\n"
+			"    -c  set curve name (EC only)\n"
 			"    logd_name is the name of the log server to host this log\n"
 			"    gcl_name is the name of the log to create\n"
 			"    metadata ids are (by convention) four letters or digits\n",
@@ -73,18 +74,23 @@ main(int argc, char **argv)
 	int keytype = EP_CRYPTO_KEYTYPE_UNKNOWN;
 	int keylen = 0;
 	int exponent = 0;
+	const char *curve = NULL;
 	const char *keyfile = NULL;
 	int keyform = EP_CRYPTO_KEYFORM_PEM;
 	EP_CRYPTO_KEY *key = NULL;
 	char *p;
 
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "b:D:G:h:kK:t:")) > 0)
+	while ((opt = getopt(argc, argv, "b:c:D:G:h:kK:t:")) > 0)
 	{
 		switch (opt)
 		{
 		 case 'b':
 			keylen = atoi(optarg);
+			break;
+
+		 case 'c':
+			curve = optarg;
 			break;
 
 		 case 'D':
@@ -210,7 +216,7 @@ main(int argc, char **argv)
 	}
 	if (keytype <= 0)
 	{
-		const char *p = ep_adm_getstrparam("swarm.gdp.crypto.sign.alg", "rsa");
+		const char *p = ep_adm_getstrparam("swarm.gdp.crypto.sign.alg", "ec");
 		keytype = ep_crypto_keytype_byname(p);
 		if (keytype <= 0)
 		{
@@ -230,6 +236,11 @@ main(int argc, char **argv)
 		if (keylen <= 0)
 			keylen = ep_adm_getintparam("swarm.gdp.crypto.dsa.keylen", 2048);
 		break;
+
+	case EP_CRYPTO_KEYTYPE_EC:
+		if (curve == NULL)
+			curve = ep_adm_getstrparam("swarm.gdp.crypto.ec.curve", NULL);
+		break;
 	}
 
 	// see if we have an existing key
@@ -242,7 +253,7 @@ main(int argc, char **argv)
 			struct stat st;
 
 			keyfile_is_directory = true;
-			keyfile = ep_adm_getstrparam("swarm.gdp.crypto.keydir", "KEYS");
+			keyfile = ep_adm_getstrparam("swarm.gdp.crypto.key.dir", "KEYS");
 			if (stat(keyfile, &st) != 0 || (st.st_mode & S_IFMT) != S_IFDIR)
 				keyfile = ".";
 		}
@@ -286,13 +297,13 @@ main(int argc, char **argv)
 	// if creating new key, go ahead and do it
 	if (make_new_key)
 	{
-		if (keylen < GDP_MIN_KEY_LEN)
+		if (keylen < GDP_MIN_KEY_LEN && keytype != EP_CRYPTO_KEYTYPE_EC)
 		{
 			ep_app_error("Insecure key length %d; %d min",
 					keylen, GDP_MIN_KEY_LEN);
 			exit(EX_UNAVAILABLE);
 		}
-		key = ep_crypto_key_create(keytype, keylen, exponent, NULL);
+		key = ep_crypto_key_create(keytype, keylen, exponent, curve);
 		if (key == NULL)
 		{
 			ep_app_error("Could not create new key");

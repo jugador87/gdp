@@ -450,15 +450,18 @@ Full List of Administrative Parameters:
 		keys when writing a log.  Defaults to ".:KEYS:
 		~/.swarm/gdp/keys:/usr/local/etc/swarm/gdp/keys:
 		/etc/swarm/gdp/keys".
-	swarm.gdp.crypto.keydir --- the directory in which to store the
+	swarm.gdp.crypto.key.dir --- the directory in which to store the
 		secret keys when creating a GCL.  Defaults to "KEYS".
 		Can be overridden by gcl-create -K flag.
 	swarm.gdp.crypto.hash.alg --- the default hashing algorithm.
 		Defaults to "sha256".  Can be overridden by gcl-create
 		-h <alg> flag.
 	swarm.gdp.crypto.sign.alg --- the default signing algorithm.
-		Defaults to "rsa".  Can be overridden by gcl-create
+		Defaults to "ec".  Can be overridden by gcl-create
 		-t flag.
+	swarm.gdp.crypto.ec.curve --- the default curve to use when
+		creating an EC key.  Defaults to secp384k1 (subject
+		to change).  Can be overridden by gcl-create -c flag.
 	swarm.gdp.crypto.dsa.keylen --- the default size of an RSA
 		signature key in bits.  Defaults to 2048.  Can be
 		overridden by gcl-create -b flag.

@@ -315,6 +315,10 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 		EP_CRYPTO_KEY *pubkey = ep_crypto_key_read_mem(pkbuf + 4, pkbuflen - 4,
 				pktype, EP_CRYPTO_KEYFORM_DER, EP_CRYPTO_F_PUBLIC);
 
+		if (ep_dbg_test(Dbg, 40))
+		{
+			ep_crypto_key_print(pubkey, ep_dbg_getfile(), EP_CRYPTO_F_PUBLIC);
+		}
 		estat = ep_crypto_key_compat(secretkey, pubkey);
 		ep_crypto_key_free(pubkey);
 		if (!EP_STAT_ISOK(estat))

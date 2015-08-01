@@ -260,7 +260,9 @@ cmd_open_ao(gdp_req_t *req)
 
 	mdtype = pkbuf[0];
 	pktype = pkbuf[1];
-	pklen = (pkbuf[2] << 8) | pkbuf[3];
+	//pkbits = (pkbuf[2] << 8) | pkbuf[3];
+	ep_dbg_cprintf(Dbg, 40, "cmd_open_ao: mdtype=%d, pktype=%d, pklen=%zd\n",
+			mdtype, pktype, pklen);
 	key = ep_crypto_key_read_mem(pkbuf + 4, pklen - 4, pktype,
 			EP_CRYPTO_KEYFORM_DER, EP_CRYPTO_F_PUBLIC);
 	if (key == NULL)

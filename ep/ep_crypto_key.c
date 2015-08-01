@@ -119,11 +119,38 @@ generate_dh_key(EP_CRYPTO_KEY *key, ...)
 static EP_STAT
 generate_ec_key(EP_CRYPTO_KEY *key, const char *curve)
 {
-	EC *eckey = EC_KEY_new_by_curve_name(NID_xyzzy_curve);
-	if (eckey == NULL || !EC_KEY_generate_key(eckey))
-		return _ep_crypto_error("cannot generate EC key");
-	if (EVP_PKEY_assign_EC(key, eckey) != 1)
-		return _ep_crypto_error("cannot save EC key");
+	if (curve == NULL)
+		curve = ep_adm_getstrparam("libep.crypto.key.ec.curve",
+				"secp384r1");
+	int nid = OBJ_txt2nid(curve);
+	if (nid == NID_undef)
+	{
+		_ep_crypto_error("unknown EC curve name %s", curve);
+		goto fail0;
+	}
+	EC_KEY *eckey = EC_KEY_new_by_curve_name(nid);
+	if (eckey == NULL)
+	{
+		_ep_crypto_error("cannot create EC key");
+		goto fail0;
+	}
+	if (!EC_KEY_generate_key(eckey))
+	{
+		_ep_crypto_error("cannot generate EC key");
+		goto fail1;
+	}
+	if (EVP_PKEY_assign_EC_KEY(key, eckey) != 1)
+	{
+		_ep_crypto_error("cannot assign EC key");
+		goto fail1;
+	}
+	return EP_STAT_OK;
+
+fail1:
+	EC_KEY_free(eckey);
+
+fail0:
+	return EP_STAT_CRYPTO_KEYCREATE;
 }
 #endif
 
@@ -207,6 +234,32 @@ ep_crypto_keyform_fromstring(const char *fmt)
 }
 
 
+
+void
+ep_crypto_key_print(
+		EP_CRYPTO_KEY *key,
+		FILE *fp,
+		uint32_t flags)
+{
+	BIO *bio = BIO_new_fp(fp, BIO_NOCLOSE);
+	int istat;
+	int off = 0;
+
+	if (bio == NULL)
+	{
+		_ep_crypto_error("ep_crypto_key_print: cannot allocate bio");
+		return;
+	}
+	if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
+		istat = EVP_PKEY_print_private(bio, key, off, NULL);
+	else
+		istat = EVP_PKEY_print_public(bio, key, off, NULL);
+	if (istat != 1)
+		_ep_crypto_error("ep_crypto_key_print: cannot print");
+	BIO_free(bio);
+}
+
+
 static EP_CRYPTO_KEY *
 key_read_bio(BIO *bio,
 		const char *filename,
@@ -218,8 +271,9 @@ key_read_bio(BIO *bio,
 	const char *pubsec = EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags) ?
 		"secret" : "public";
 
-	ep_dbg_cprintf(Dbg, 20, "key_read_bio: name %s, type %d, form %d\n",
-			filename, keytype, keyform);
+	ep_dbg_cprintf(Dbg, 20, "key_read_bio: name %s, type %d, form %d,"
+			" flags %x\n",
+			filename, keytype, keyform, flags);
 	EP_ASSERT(bio != NULL);
 	if (keyform <= 0)
 		return _ep_crypto_error("keyform must be specified");
@@ -255,11 +309,17 @@ key_read_bio(BIO *bio,
 		else
 			rsakey = d2i_RSA_PUBKEY_bio(bio, NULL);
 		if (rsakey == NULL)
-			return _ep_crypto_error("cannot decode RSA %s DER key",
+		{
+			_ep_crypto_error("cannot decode RSA %s DER key",
 					pubsec);
+			goto fail0;
+		}
 		if (EVP_PKEY_assign_RSA(key, rsakey) != 1)
-			return _ep_crypto_error("cannot assign RSA %s DER key",
+		{
+			_ep_crypto_error("cannot assign RSA %s DER key",
 					pubsec);
+			goto fail0;
+		}
 		break;
 # endif
 
@@ -273,11 +333,17 @@ key_read_bio(BIO *bio,
 		else
 			dsakey = d2i_DSA_PUBKEY_bio(bio, NULL);
 		if (dsakey == NULL)
-			return _ep_crypto_error("cannot decode DSA %s DER key",
+		{
+			_ep_crypto_error("cannot decode DSA %s DER key",
 					pubsec);
+			goto fail0;
+		}
 		if (EVP_PKEY_assign_DSA(key, dsakey) != 1)
-			return _ep_crypto_error("cannot assign DSA %s DER key",
+		{
+			_ep_crypto_error("cannot assign DSA %s DER key",
 					pubsec);
+			goto fail0;
+		}
 		break;
 # endif
 
@@ -291,11 +357,17 @@ key_read_bio(BIO *bio,
 		else
 			eckey = d2i_EC_PUBKEY_bio(bio, NULL);
 		if (eckey == NULL)
-			return _ep_crypto_error("cannot decode EC %s DER key",
+		{
+			_ep_crypto_error("cannot decode EC %s DER key",
 					pubsec);
+			goto fail0;
+		}
 		if (EVP_PKEY_assign_EC_KEY(key, eckey) != 1)
-			return _ep_crypto_error("cannot save EC %s DER key",
+		{
+			_ep_crypto_error("cannot save EC %s DER key",
 					pubsec);
+			goto fail0;
+		}
 		break;
 # endif
 
@@ -309,19 +381,27 @@ key_read_bio(BIO *bio,
 		else
 			dhkey = d2i_DH_PUBKEY_bio(bio, NULL);
 		if (dhkey == NULL)
-			return _ep_crypto_error("cannot decode DH %s DER key",
+		{
+			_ep_crypto_error("cannot decode DH %s DER key",
 					pubsec);
+			goto fail0;
+		}
 		if (EVP_PKEY_assign_DH_KEY(key, dhkey) != 1)
-			return _ep_crypto_error("cannot save DH %s DER key",
+		{
+			_ep_crypto_error("cannot save DH %s DER key",
 					pubsec);
+			goto fail0;
+		}
 		break;
 # endif
 
 	  default:
-		return _ep_crypto_error("unknown key type %d", keytype);
+		_ep_crypto_error("unknown key type %d", keytype);
+		goto fail0;
 	}
 #else
-	return _ep_crypto_error("DER format not (yet) supported");
+	_ep_crypto_error("DER format not (yet) supported");
+	goto fail0;
 #endif // _EP_CRYPTO_INCLUDE_DER
 
 finis:
@@ -329,6 +409,10 @@ finis:
 		return _ep_crypto_error("cannot read %s key from %s",
 				pubsec, filename);
 	return key;
+
+fail0:
+	EVP_PKEY_free(key);
+	return NULL;
 }
 
 
@@ -485,15 +569,15 @@ key_write_bio(EP_CRYPTO_KEY *key,
 		break;
 # endif
 
-# if _EP_CRYPTO_INCLUDE_ECDSA
-	  case EP_CRYPTO_KEYTYPE_ECDSA:
+# if _EP_CRYPTO_INCLUDE_EC
+	  case EP_CRYPTO_KEYTYPE_EC:
 		type = "ECDSA";
 		EC_KEY *eckey = EVP_PKEY_get1_EC_KEY(key);
 
-		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flaga))
-			istat = i2d_XXX();
+		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
+			istat = i2d_ECPrivateKey_bio(bio, eckey);
 		else
-			istat = i2d_XXX();
+			istat = i2d_EC_PUBKEY_bio(bio, eckey);
 		if (istat != 1)
 			goto fail1;
 		break;
@@ -617,6 +701,7 @@ static struct name_to_format	KeyTypeStrings[] =
 	{ "rsa",		EP_CRYPTO_KEYTYPE_RSA,		},
 	{ "dsa",		EP_CRYPTO_KEYTYPE_DSA,		},
 	{ "ec",			EP_CRYPTO_KEYTYPE_EC,		},
+	{ "ecdsa",		EP_CRYPTO_KEYTYPE_EC,		},
 	{ "dh",			EP_CRYPTO_KEYTYPE_DH,		},
 	{ NULL,			EP_CRYPTO_KEYTYPE_UNKNOWN,	}
 };
@@ -632,6 +717,19 @@ ep_crypto_keytype_byname(const char *fmt)
 			break;
 	}
 	return kt->form;
+}
+
+const char *
+ep_crypto_keytype_name(int keytype)
+{
+	struct name_to_format *kt;
+
+	for (kt = KeyTypeStrings; kt->str != NULL; kt++)
+	{
+		if (kt->form == keytype)
+			return kt->str;
+	}
+	return "unknown";
 }
 
 

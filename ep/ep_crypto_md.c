@@ -179,3 +179,16 @@ ep_crypto_md_alg_byname(const char *fmt)
 	}
 	return kf->form;
 }
+
+const char *
+ep_crypto_md_alg_name(int md_alg)
+{
+	struct name_to_format *kf;
+
+	for (kf = MdAlgStrings; kf->str != NULL; kf++)
+	{
+		if (kf->form == md_alg)
+			return kf->str;
+	}
+	return "unknown";
+}

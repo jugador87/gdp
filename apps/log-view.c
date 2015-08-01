@@ -41,7 +41,7 @@ check_file_offset(FILE *fp, long offset)
 {
 	if (ftell(fp) != offset)
 	{
-		printf("%sWARNING: file offset error (%ld != %ld)%s\n",
+		printf("%sWARNING: file offset error (actual %ld, expected %ld)%s\n",
 				EpVid->vidfgred, ftell(fp), offset, EpVid->vidnorm);
 	}
 }
@@ -85,7 +85,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 	if (plev >= GDP_PR_BASIC)
 	{
-		printf("Header: magic = 0x%016" PRIx32
+		printf("Header: magic = 0x%08" PRIx32
 				", version = %" PRIi32
 				", type = %" PRIi16 "\n",
 				header.magic, header.version, header.log_type);
@@ -138,9 +138,9 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 		for (i = 0; i < header.num_metadata_entries; ++i)
 		{
-			char *metadata_string = malloc(metadata_hdrs[i].md_len + 1);
+			uint8_t *mdata = malloc(metadata_hdrs[i].md_len + 1);
 												// +1 for null-terminator
-			if (fread(metadata_string, metadata_hdrs[i].md_len, 1, data_fp) != 1)
+			if (fread(mdata, metadata_hdrs[i].md_len, 1, data_fp) != 1)
 			{
 				fprintf(stderr,
 						"fread() failed while reading metadata string,"
@@ -148,33 +148,69 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 						ferror(data_fp));
 				return EX_DATAERR;
 			}
-			metadata_string[metadata_hdrs[i].md_len] = '\0';
+			mdata[metadata_hdrs[i].md_len] = '\0';
+			file_offset += metadata_hdrs[i].md_len;
+			CHECK_FILE_OFFSET(data_fp, file_offset);
 			if (plev >= GDP_PR_BASIC)
 			{
 				fprintf(stdout,
-						"\n\tMetadata entry %d: name = 0x%08" PRIx32
-						", len = %" PRId32 "\n\t\t%s",
-						i, metadata_hdrs[i].md_id, metadata_hdrs[i].md_len,
-						EpChar->lquote);
-				ep_xlate_out(metadata_string, metadata_hdrs[i].md_len,
-						stdout, "", EP_XLATE_PLUS | EP_XLATE_NPRINT);
-				fprintf(stdout, "%s\n", EpChar->rquote);
+						"\nMetadata entry %d: name = 0x%08" PRIx32
+						", len = %" PRId32,
+						i, metadata_hdrs[i].md_id, metadata_hdrs[i].md_len);
+				switch (metadata_hdrs[i].md_id)
+				{
+					case GDP_GCLMD_XID:
+						printf(" (external id)\n");
+						break;
+
+					case GDP_GCLMD_CTIME:
+						printf(" (creation time)\n");
+						break;
+
+					case GDP_GCLMD_PUBKEY:
+						printf(" (public key)\n");
+						int keylen = mdata[2] << 8 | mdata[3];
+						printf("\tmd_alg %d, keytype %d, keylen %d\n",
+								mdata[0], mdata[1], keylen);
+						if (plev > GDP_PR_BASIC)
+						{
+							EP_CRYPTO_KEY *key;
+
+							key = ep_crypto_key_read_mem(mdata + 4,
+									metadata_hdrs[i].md_len - 4,
+									mdata[1], EP_CRYPTO_KEYFORM_DER,
+									EP_CRYPTO_F_PUBLIC);
+							ep_crypto_key_print(key, stdout, EP_CRYPTO_F_PUBLIC);
+							ep_crypto_key_free(key);
+						}
+						if (plev >= GDP_PR_DETAILED)
+							ep_hexdump(mdata + 4, metadata_hdrs[i].md_len - 4,
+									stdout, EP_HEXDUMP_HEX, 0);
+						continue;
+					default:
+						printf("\n");
+						break;
+				}
+				if (plev < GDP_PR_DETAILED)
+				{
+					printf("\t%s", EpChar->lquote);
+					ep_xlate_out(mdata, metadata_hdrs[i].md_len,
+							stdout, "", EP_XLATE_PLUS | EP_XLATE_NPRINT);
+					fprintf(stdout, "%s\n", EpChar->rquote);
+				}
 			}
 			else if (metadata_hdrs[i].md_id == GDP_GCLMD_XID)
 			{
 				fprintf(stdout,
-						"\tExternal name: %s\n", metadata_string);
+						"\tExternal name: %s\n", mdata);
 			}
-			free(metadata_string);
 
 			if (plev >= GDP_PR_DETAILED)
 			{
-				fprintf(stdout, "Raw:\n");
-				ep_hexdump(metadata_string, metadata_hdrs[i].md_len,
+				ep_hexdump(mdata, metadata_hdrs[i].md_len,
 						stdout, EP_HEXDUMP_ASCII, file_offset);
 			}
-			file_offset += metadata_hdrs[i].md_len;
-			CHECK_FILE_OFFSET(data_fp, file_offset);
+			free(mdata);
 		}
 	}
 	else if (plev >= GDP_PR_BASIC)
@@ -182,7 +218,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 		fprintf(stdout, "\n<No metadata>\n");
 	}
 
-	if (plev < GDP_PR_BASIC)
+	if (plev <= GDP_PR_BASIC)
 		return EX_OK;
 
 	fprintf(stdout, "\n");
@@ -195,11 +231,9 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 				record.recno, file_offset, file_offset, record.data_length);
 		fprintf(stdout, "\tTimestamp: ");
 		ep_time_print(&record.timestamp, stdout, EP_TIME_FMT_HUMAN);
-		fprintf(stdout, " (%" PRIi64 ".%09d)\n",
-				record.timestamp.tv_sec, record.timestamp.tv_nsec);
-		fprintf(stdout, "\tTime accuracy (s): %8f\n", record.timestamp.tv_accuracy);
+		fprintf(stdout, " (sec=%" PRIi64 ")\n", record.timestamp.tv_sec);
 
-		if (plev >= GDP_PR_DETAILED)
+		if (plev > GDP_PR_DETAILED)
 		{
 			fprintf(stdout, "\tRaw:\n");
 			ep_hexdump(&record, sizeof record, stdout,
@@ -215,9 +249,8 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 			return EX_DATAERR;
 		}
 
-		if (plev >= GDP_PR_BASIC + 1)
+		if (plev >= GDP_PR_BASIC + 2)
 		{
-			fprintf(stdout, "\tData:\n");
 			ep_hexdump(data_buffer, record.data_length,
 					stdout, EP_HEXDUMP_ASCII,
 					plev < GDP_PR_DETAILED ? 0 : file_offset);
@@ -302,7 +335,7 @@ usage(const char *msg)
 			"\t-D spec -- set debug flags\n"
 			"\t-l -- list all local GCLs\n"
 			"\t-r -- print raw byte hex dumps\n"
-			"\t-v -- print verbose information\n",
+			"\t-v -- print verbose information (can be repeated)\n",
 				msg);
 
 	exit(EX_USAGE);
@@ -340,7 +373,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'v':
-			plev = GDP_PR_BASIC + 1;
+			plev++;
 			break;
 
 		default:

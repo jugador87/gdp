@@ -31,7 +31,7 @@
 #  define _EP_CRYPTO_INCLUDE_DSA	1
 # endif
 # ifndef _EP_CRYPTO_INCLUDE_EC
-#  define _EP_CRYPTO_INCLUDE_EC		0
+#  define _EP_CRYPTO_INCLUDE_EC		1
 # endif
 # ifndef _EP_CRYPTO_INCLUDE_DH
 #  define _EP_CRYPTO_INCLUDE_DH		0
@@ -82,11 +82,19 @@
 // limits
 # define EP_CRYPTO_KEY_MINLEN_RSA	1024
 
+void			ep_crypto_key_print(
+				EP_CRYPTO_KEY *key,
+				FILE *fp,
+				uint32_t flags);
+
 EP_CRYPTO_KEY		*ep_crypto_key_create(
 				int keytype,
 				int keylen,
 				int keyexp,
 				const char *curve);
+void			ep_crypto_key_free(
+				EP_CRYPTO_KEY *key);
+
 EP_CRYPTO_KEY		*ep_crypto_key_read_file(
 				const char *filename,
 				int keytype,
@@ -104,6 +112,7 @@ EP_CRYPTO_KEY		*ep_crypto_key_read_mem(
 				int keytype,
 				int keyform,
 				uint32_t flags);
+
 EP_STAT			ep_crypto_key_write_file(
 				EP_CRYPTO_KEY *key,
 				const char *filename,
@@ -123,8 +132,7 @@ EP_STAT			ep_crypto_key_write_mem(
 				int keyform,
 				int cipher,
 				uint32_t flags);
-void			ep_crypto_key_free(
-				EP_CRYPTO_KEY *key);
+
 EP_STAT			ep_crypto_key_compat(
 				const EP_CRYPTO_KEY *pubkey,
 				const EP_CRYPTO_KEY *seckey);
@@ -134,6 +142,8 @@ int			ep_crypto_keytype_fromkey(
 				EP_CRYPTO_KEY *key);
 int			ep_crypto_keytype_byname(
 				const char *alg_name);
+const char		*ep_crypto_keytype_name(
+				int keytype);
 
 
 /*
@@ -150,14 +160,13 @@ int			ep_crypto_keytype_byname(
 # define EP_CRYPTO_MD_SHA384	4
 # define EP_CRYPTO_MD_SHA512	5
 
-int			ep_crypto_md_alg_byname(
-				const char *algname);
 EP_CRYPTO_MD		*ep_crypto_md_new(
 				int md_alg_id);
 EP_CRYPTO_MD		*ep_crypto_md_clone(
 				EP_CRYPTO_MD *base_md);
 void			ep_crypto_md_free(
 				EP_CRYPTO_MD *md);
+
 EP_STAT			ep_crypto_md_update(
 				EP_CRYPTO_MD *md,
 				void *data,
@@ -166,8 +175,13 @@ EP_STAT			ep_crypto_md_final(
 				EP_CRYPTO_MD *md,
 				void *dbuf,
 				size_t *dbufsize);
+
 int			ep_crypto_md_type(
 				EP_CRYPTO_MD *md);
+int			ep_crypto_md_alg_byname(
+				const char *algname);
+const char		*ep_crypto_md_alg_name(
+				int md_alg);
 
 // private
 const EVP_MD		*_ep_crypto_md_getalg_byid(

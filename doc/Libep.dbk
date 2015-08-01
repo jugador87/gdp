@@ -2206,21 +2206,22 @@ ep_log(
   <section>
     <title>TRANSLATIONS</title>
 
-    <para>Simple string translations for certain external formats</para>
+    <para>Simple string translations for certain external formats, for example
+    as might be used by URLs or Quoted-Printable.</para>
 
     <programlisting>    #include &lt;ep/ep_xlate.h&gt;
 
     int
     ep_xlate_in(
-        const char *in,                 // input string
+        const void *ext,                // external (encoded) string input
         uchar_t *out,                   // pointer to output buffer
         size_t olen,                    // length of output buffer
         char stopchar,                  // input char to stop at
         uint32_t how)                   // what kind of translations to do</programlisting>
 
-    <para>Translates an external form into internal form. Returns the number
-    of output bytes. The "how" parameter tells what translations to do -- they
-    can be combined:</para>
+    <para>Translates an external form (with encodings) into internal form
+    (potentially 8-bit binary). Returns the number of output bytes. The "how"
+    parameter tells what translations to do -- they can be combined:</para>
 
     <table>
       <title>EP_XLATE "how" Bits</title>
@@ -2267,15 +2268,22 @@ ep_log(
             <entry>Translate 8-bit characters
             (<function>ep_xlate_out</function> only)</entry>
           </row>
+
+          <row>
+            <entry>EP_XLATE_NPRINT</entry>
+
+            <entry>Translate non-printable characters
+            (<function>ep_xlate_out</function> only)</entry>
+          </row>
         </tbody>
       </tgroup>
     </table>
 
     <programlisting>    int
     ep_xlate_out(
-        const char *in,                 // input string
+        const void *in,                 // internal (not encoded) input string
         size_t ilen,                    // length of in
-        FILE *osp,                      // output stream pointer
+        FILE *osp,                      // encoded output stream pointer
         const char *forbid,             // list of characters to encode
         uint32_t how)                   // how to do output translations</programlisting>
 
@@ -2285,8 +2293,10 @@ ep_log(
     and <constant>EP_XLATE_PLUS</constant>. If none are listed,
     <constant>EP_XLATE_PLUS</constant> is assumed.
     <constant>EP_XLATE_8BIT</constant> can be added to encode all 8-bit
-    characters. Returns the number of bytes output to the indicated
-    osp.</para>
+    characters and <constant>EP_XLATE_NPRINT</constant> translates all
+    unprintable characters (as determined by <function>isprint(3)</function>,
+    which generally does understand locales). Returns the number of bytes
+    output to the indicated osp.</para>
 
     <note>
       <para>[[Arguably they should both use streams for both input and
