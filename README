@@ -300,13 +300,11 @@ Create a GCL:
 	would be reasonable choices.  To actually create the log on
 	a given server, use
 
-		gcl-create [-k] <server> <logname>
+		gcl-create <server> <logname>
 
-	The -k flag asks to create a keypair for the new log (the
-	parameters can be tuned with other command line flags).
 	For example:
 
-		gcl-create -k edu.berkeley.eecs.gdp-01.gdplogd \
+		gcl-create edu.berkeley.eecs.gdp-01.gdplogd \
 			berkeley/swarmlab/sensor/23
 
 	The good news is that this the only time you'll need to know
@@ -458,7 +456,7 @@ Full List of Administrative Parameters:
 		-h <alg> flag.
 	swarm.gdp.crypto.sign.alg --- the default signing algorithm.
 		Defaults to "ec".  Can be overridden by gcl-create
-		-t flag.
+		-k flag.
 	swarm.gdp.crypto.ec.curve --- the default curve to use when
 		creating an EC key.  Defaults to secp384k1 (subject
 		to change).  Can be overridden by gcl-create -c flag.
