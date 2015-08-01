@@ -17,6 +17,7 @@
 */
 
 # include <openssl/evp.h>
+# include <openssl/sha.h>
 
 
 
@@ -182,6 +183,11 @@ int			ep_crypto_md_alg_byname(
 				const char *algname);
 const char		*ep_crypto_md_alg_name(
 				int md_alg);
+
+void			ep_crypto_md_sha256(
+				const void *data,
+				size_t glen,
+				uint8_t *out);
 
 // private
 const EVP_MD		*_ep_crypto_md_getalg_byid(

@@ -480,7 +480,7 @@ _gdp_lib_init(const char *myname)
 	}
 
 	if (!gdp_name_is_valid(_GdpMyRoutingName))
-		_gdp_newname(_GdpMyRoutingName);
+		_gdp_newname(_GdpMyRoutingName, NULL);
 
 	// avoid running as root if possible (and another user specified)
 	if (progname != NULL)

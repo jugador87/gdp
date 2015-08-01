@@ -148,7 +148,7 @@ gdp_parse_name(const char *ext, gdp_name_t name)
 			!EP_STAT_ISOK(gdp_internal_name(ext, name)))
 	{
 		// must be human-oriented name
-		SHA256((const uint8_t *) ext, strlen(ext), name);
+		ep_crypto_md_sha256((const uint8_t *) ext, strlen(ext), name);
 	}
 	return EP_STAT_OK;
 }
@@ -254,6 +254,16 @@ gdp_gcl_create(gdp_name_t gclname,
 {
 	EP_STAT estat = EP_STAT_OK;
 	char ebuf[100];
+	gdp_name_t namebuf;
+
+	if (gclname == NULL)
+	{
+		gclname = namebuf;
+		gdp_buf_t *buf = gdp_buf_new();
+		size_t mdlen = _gdp_gclmd_serialize(gmd, buf);
+		ep_crypto_md_sha256(gdp_buf_getptr(buf, mdlen), mdlen, gclname);
+		gdp_buf_free(buf);
+	}
 
 	estat = _gdp_gcl_create(gclname, logdname, gmd, _GdpChannel,
 					GDP_REQ_ALLOC_RID, pgcl);

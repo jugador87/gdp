@@ -313,7 +313,7 @@ EP_STAT			_gdp_gcl_newhandle(			// create new in-mem handle
 void			_gdp_gcl_freehandle(		// free in-memory handle
 						gdp_gcl_t *gcl);
 
-void			_gdp_gcl_newname(			// create a new name
+void			_gdp_gcl_newname(			// create new name based on metadata
 						gdp_gcl_t *gcl);
 
 void			_gdp_gcl_dump(				// dump for debugging
@@ -396,7 +396,8 @@ EP_STAT			_gdp_start_event_loop_thread(
 						struct event_base *evb,
 						const char *where);
 
-void			_gdp_newname(gdp_name_t gname);
+void			_gdp_newname(gdp_name_t gname,
+						gdp_gclmd_t *gmd);
 
 EP_STAT			_gdp_lib_init(const char *my_routing_name);
 

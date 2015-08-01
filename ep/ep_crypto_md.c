@@ -114,6 +114,13 @@ ep_crypto_md_free(EP_CRYPTO_MD *md)
 }
 
 
+void
+ep_crypto_md_sha256(const void *data, size_t dlen, uint8_t *out)
+{
+	SHA256(data, dlen, out);
+}
+
+
 int
 ep_crypto_md_type(EP_CRYPTO_MD *md)
 {

@@ -29,7 +29,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl.ops", "GCL operations for GDP");
 void
 _gdp_gcl_newname(gdp_gcl_t *gcl)
 {
-	_gdp_newname(gcl->name);
+	_gdp_newname(gcl->name, gcl->gclmd);
 	gdp_printable_name(gcl->name, gcl->pname);
 }
 
@@ -55,7 +55,7 @@ _gdp_gcl_newhandle(gdp_name_t gcl_name, gdp_gcl_t **pgcl)
 
 	// create a name if we don't have one passed in
 	if (gcl_name == NULL || !gdp_name_is_valid(gcl_name))
-		_gdp_newname(gcl->name);
+		_gdp_newname(gcl->name, gcl->gclmd);
 	else
 		memcpy(gcl->name, gcl_name, sizeof gcl->name);
 	gdp_printable_name(gcl->name, gcl->pname);
