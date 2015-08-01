@@ -40,11 +40,11 @@ usage(void)
 			"\t[logd_name] [<mdid>=<metadata>...] [gcl_name]\n"
 			"    -D  set debugging flags\n"
 			"    -G  IP host to contact for GDP router\n"
-			"    -k  create a public/secret key pair\n"
+			"    -k  type of key; valid key types are \"rsa\", \"dsa\", and \"ec\"\n"
+			"\t(defaults to ec); \"none\" turns off key generation\n"
 			"    -K  use indicated public key/place to write secret key\n"
 			"\tIf -K specifies a directory, a .pem file is written there\n"
 			"\twith the name of the GCL (defaults to \"KEYS\" or \".\")\n"
-			"    -t  type of key; valid key types are \"rsa\", \"dsa\", and \"ec\"\n"
 			"    -b  set size of key in bits (RSA and DSA only)\n"
 			"    -c  set curve name (EC only)\n"
 			"    logd_name is the name of the log server to host this log\n"
@@ -69,7 +69,7 @@ main(int argc, char **argv)
 	char *gdpd_addr = NULL;
 	char buf[200];
 	bool show_usage = false;
-	bool make_new_key = false;
+	bool make_new_key = true;
 	int md_alg_id = -1;
 	int keytype = EP_CRYPTO_KEYTYPE_UNKNOWN;
 	int keylen = 0;
@@ -81,7 +81,7 @@ main(int argc, char **argv)
 	char *p;
 
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "b:c:D:G:h:kK:t:")) > 0)
+	while ((opt = getopt(argc, argv, "b:c:D:G:h:k:K:")) > 0)
 	{
 		switch (opt)
 		{
@@ -111,21 +111,21 @@ main(int argc, char **argv)
 			break;
 
 		 case 'k':
-			make_new_key = true;
-			break;
-
-		 case 'K':
-			keyfile = optarg;
-			break;
-
-		 case 't':
-			make_new_key = true;
+			if (strcasecmp(optarg, "none") == 0)
+			{
+				make_new_key = false;
+				break;
+			}
 			keytype = ep_crypto_keytype_byname(optarg);
 			if (keytype == EP_CRYPTO_KEYTYPE_UNKNOWN)
 			{
 				ep_app_error("unknown key type %s", optarg);
 				show_usage = true;
 			}
+			break;
+
+		 case 'K':
+			keyfile = optarg;
 			break;
 
 		 default:
@@ -341,7 +341,7 @@ main(int argc, char **argv)
 
 	if (gclxname == NULL)
 	{
-		// create a new GCL handle with a new name
+		// create a new GCL handle with a new name based on metadata
 		estat = gdp_gcl_create(NULL, logdiname, gmd, &gcl);
 	}
 	else
