@@ -170,8 +170,10 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 					case GDP_GCLMD_PUBKEY:
 						printf(" (public key)\n");
 						int keylen = mdata[2] << 8 | mdata[3];
-						printf("\tmd_alg %d, keytype %d, keylen %d\n",
-								mdata[0], mdata[1], keylen);
+						printf("\tmd_alg %s (%d), keytype %s (%d), keylen %d\n",
+								ep_crypto_md_alg_name(mdata[0]), mdata[0],
+								ep_crypto_keytype_name(mdata[1]), mdata[1],
+								keylen);
 						if (plev > GDP_PR_BASIC)
 						{
 							EP_CRYPTO_KEY *key;
