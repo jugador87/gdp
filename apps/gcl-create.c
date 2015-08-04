@@ -35,10 +35,11 @@
 void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [-D dbgspec] [-G gdpd_addr]\n"
+	fprintf(stderr, "Usage: %s [-D dbgspec] [-e key_enc_alg] [-G gdpd_addr]\n"
 			"\t[-k] [-K keyfile] [-t keytype] [-b keybits] [-c curve]\n"
 			"\t[logd_name] [<mdid>=<metadata>...] [gcl_name]\n"
 			"    -D  set debugging flags\n"
+			"    -e  set private key encryption algorithm\n"
 			"    -G  IP host to contact for GDP router\n"
 			"    -k  type of key; valid key types are \"rsa\", \"dsa\", and \"ec\"\n"
 			"\t(defaults to ec); \"none\" turns off key generation\n"
@@ -77,11 +78,16 @@ main(int argc, char **argv)
 	const char *curve = NULL;
 	const char *keyfile = NULL;
 	int keyform = EP_CRYPTO_KEYFORM_PEM;
+	int key_enc_alg = -1;
+	char *passwd = NULL;
 	EP_CRYPTO_KEY *key = NULL;
 	char *p;
 
+	// initialize crypto code (must happen early)
+	ep_crypto_init(0);
+
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "b:c:D:G:h:k:K:")) > 0)
+	while ((opt = getopt(argc, argv, "b:c:D:e:G:h:k:K:")) > 0)
 	{
 		switch (opt)
 		{
@@ -95,6 +101,15 @@ main(int argc, char **argv)
 
 		 case 'D':
 			ep_dbg_set(optarg);
+			break;
+
+		 case 'e':
+			key_enc_alg = ep_crypto_keyenc_byname(optarg);
+			if (key_enc_alg < 0)
+			{
+				ep_app_error("unknown key encryption algorithm %s", optarg);
+				show_usage = true;
+			}
 			break;
 
 		 case 'G':
@@ -203,6 +218,18 @@ main(int argc, char **argv)
 	**  Do cryptographic setup (e.g., generating keys)
 	*/
 
+	if (key_enc_alg < 0)
+	{
+		const char *p = ep_adm_getstrparam("swarm.gdp.crypto.keyenc.alg",
+								"aes192");
+		key_enc_alg = ep_crypto_keyenc_byname(p);
+		if (key_enc_alg < 0)
+		{
+			ep_app_error("unknown private key encryption algorithm %s", p);
+			exit(EX_USAGE);
+		}
+	}
+
 	if (md_alg_id < 0)
 	{
 		const char *p = ep_adm_getstrparam("swarm.gdp.crypto.hash.alg",
@@ -211,7 +238,7 @@ main(int argc, char **argv)
 		if (md_alg_id < 0)
 		{
 			ep_app_error("unknown digest hash algorithm %s", p);
-			exit(EX_CONFIG);
+			exit(EX_USAGE);
 		}
 	}
 	if (keytype <= 0)
@@ -221,7 +248,7 @@ main(int argc, char **argv)
 		if (keytype <= 0)
 		{
 			ep_app_error("unknown keytype %s", p);
-			exit(EX_CONFIG);
+			exit(EX_USAGE);
 		}
 	}
 	switch (keytype)
@@ -294,7 +321,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	// if creating new key, go ahead and do it
+	// if creating new key, go ahead and do it (in memory)
 	if (make_new_key)
 	{
 		if (keylen < GDP_MIN_KEY_LEN && keytype != EP_CRYPTO_KEYTYPE_EC)
@@ -311,7 +338,60 @@ main(int argc, char **argv)
 		}
 	}
 
-	// at this point, key is initialized but not necessarily on disk
+	/*
+	**	Now would be a good time to write the private key to disk
+	**		We do this before creating GCL so we don't risk having
+	**		GCLs that exist with no access possible.  But we need
+	**		to use a temporary name because we don't know the final
+	**		name of the GCL yet.
+	*/
+
+	char *tempkeyfile = NULL;
+	if (make_new_key)
+	{
+		const char *localkeyfile = keyfile;
+
+		// it might be a directory, in which case we use a temporary name
+		if (keyfile_is_directory)
+		{
+			size_t len;
+			gdp_pname_t pbuf;
+			gdp_name_t tempname;
+
+			// use random name for the temp file
+			evutil_secure_rng_get_bytes(tempname, sizeof tempname);
+			gdp_printable_name(tempname, pbuf);
+			len = strlen(keyfile) + sizeof pbuf + 6;
+			tempkeyfile = ep_mem_malloc(len);
+			snprintf(tempkeyfile, len, "%s/%s.pem", keyfile, pbuf);
+			localkeyfile = tempkeyfile;
+		}
+
+		int fd;
+		FILE *fp;
+
+		if ((fd = open(localkeyfile, O_WRONLY|O_CREAT|O_TRUNC, 0600)) < 0 ||
+				(fp = fdopen(fd, "w")) == NULL)
+		{
+			ep_app_error("Cannot create %s", localkeyfile);
+			exit(EX_CANTCREAT);
+		}
+
+		estat = ep_crypto_key_write_fp(key, fp, EP_CRYPTO_KEYFORM_PEM,
+						key_enc_alg, passwd, EP_CRYPTO_F_SECRET);
+
+		// TODO: should really clear the fp buffer memory here to
+		//		 avoid exposing any secret key information after free
+		fclose(fp);
+
+		if (!EP_STAT_ISOK(estat))
+		{
+			ep_app_abort("Couldn't write secret key to %s; giving up",
+					localkeyfile);
+		}
+	}
+
+	// at this point, key is initialized and secret is on disk
 	if (key != NULL)
 	{
 		// add the public key to the metadata
@@ -323,7 +403,7 @@ main(int argc, char **argv)
 		der_buf[2] = (keylen >> 8) & 0xff;
 		der_buf[3] = keylen & 0xff;
 		estat = ep_crypto_key_write_mem(key, derp, EP_CRYPTO_MAX_DER,
-						EP_CRYPTO_KEYFORM_DER, EP_CRYPTO_CIPHER_NONE,
+						EP_CRYPTO_KEYFORM_DER, key_enc_alg, NULL,
 						EP_CRYPTO_F_PUBLIC);
 		if (!EP_STAT_ISOK(estat))
 		{
@@ -335,9 +415,9 @@ main(int argc, char **argv)
 				EP_STAT_TO_INT(estat) + 4, der_buf);
 	}
 
-	/**************************************************************
-	**  Hello sailor, this is where the actual creation happens  **
-	**************************************************************/
+	/*
+	**  Hello sailor, this is where the actual creation happens
+	*/
 
 	if (gclxname == NULL)
 	{
@@ -368,53 +448,36 @@ main(int argc, char **argv)
 	}
 	EP_STAT_CHECK(estat, goto fail1);
 
+	/*
+	**  Rename the secret key file to the new name.
+	*/
+
+	if (tempkeyfile != NULL)
+	{
+		char *finalkeyfile = NULL;
+		size_t len;
+		gdp_pname_t pbuf;
+
+		gdp_printable_name(gcliname, pbuf);
+		len = strlen(keyfile) + sizeof pbuf + 6;
+		finalkeyfile = ep_mem_malloc(len);
+		snprintf(finalkeyfile, len, "%s/%s.pem", keyfile, pbuf);
+		if (rename(tempkeyfile, finalkeyfile) != 0)
+		{
+			ep_app_abort("Cannot rename %s to %s", tempkeyfile, finalkeyfile);
+		}
+
+		ep_mem_free(finalkeyfile);
+		ep_mem_free(tempkeyfile);
+		tempkeyfile = NULL;
+	}
+
 	// just for a lark, let the user know the (internal) name
 	{
 		gdp_pname_t pname;
 
 		printf("Created new GCL %s\n\ton log server %s\n",
 				gdp_printable_name(*gdp_gcl_getname(gcl), pname), logdxname);
-	}
-
-	// now would be a good time to write the private key to disk
-	if (make_new_key)
-	{
-		char *keyfilebuf = NULL;
-
-		// it might be a directory, in which case we append the GCL name
-		if (keyfile_is_directory)
-		{
-			size_t len;
-			gdp_pname_t pbuf;
-
-			gdp_printable_name(gcliname, pbuf);
-			len = strlen(keyfile) + sizeof pbuf + 6;
-			keyfilebuf = ep_mem_malloc(len);
-			snprintf(keyfilebuf, len, "%s/%s.pem", keyfile, pbuf);
-			keyfile = keyfilebuf;
-		}
-
-		int fd;
-		FILE *fp;
-
-		if ((fd = open(keyfile, O_WRONLY|O_CREAT|O_TRUNC, 0600)) < 0 ||
-				(fp = fdopen(fd, "w")) == NULL)
-		{
-			ep_app_error("Cannot create %s", keyfile);
-			exit(EX_CANTCREAT);
-		}
-
-		// third arg is cipher, which should be settable
-		estat = ep_crypto_key_write_fp(key, fp, EP_CRYPTO_KEYFORM_PEM,
-						EP_CRYPTO_CIPHER_NONE, EP_CRYPTO_F_SECRET);
-		fclose(fp);
-
-		// abandon keyfilebuf; we may need the string later
-//		if (keyfilebuf != NULL)
-//		{
-//			ep_mem_free(keyfilebuf);
-//			keyfile = NULL;
-//		}
 	}
 
 fail1:

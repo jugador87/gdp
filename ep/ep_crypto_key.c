@@ -213,6 +213,33 @@ struct name_to_format
 	int		form;		// internal name
 };
 
+
+static int
+get_byname(struct name_to_format *table, const char *s)
+{
+	struct name_to_format *kt;
+
+	for (kt = table; kt->str != NULL; kt++)
+	{
+		if (strcasecmp(kt->str, s) == 0)
+			break;
+	}
+	return kt->form;
+}
+
+static const char *
+get_name(struct name_to_format *table, int code)
+{
+	struct name_to_format *kt;
+
+	for (kt = table; kt->str != NULL; kt++)
+	{
+		if (kt->form == code)
+			return kt->str;
+	}
+	return "unknown";
+}
+
 static struct name_to_format	KeyFormStrings[] =
 {
 	{ "pem",		EP_CRYPTO_KEYFORM_PEM,		},
@@ -223,14 +250,24 @@ static struct name_to_format	KeyFormStrings[] =
 int
 ep_crypto_keyform_fromstring(const char *fmt)
 {
-	struct name_to_format *kf;
+	return get_byname(KeyFormStrings, fmt);
+}
 
-	for (kf = KeyFormStrings; kf->str != NULL; kf++)
-	{
-		if (strcasecmp(kf->str, fmt) == 0)
-			break;
-	}
-	return kf->form;
+
+static const EVP_CIPHER *
+cipher_byid(int id)
+{
+	if (id == EP_CRYPTO_KEYENC_NONE)
+		return NULL;
+
+	// a bit weird, but easier to get cipher by name
+	const char *s = ep_crypto_keyenc_name(id);
+	if (s == NULL)
+		return NULL;
+	const EVP_CIPHER *enc = EVP_get_cipherbyname(s);
+	if (enc == NULL)
+		_ep_crypto_error("keyenc_byid: unknown EVP cipher %s", s);
+	return enc;
 }
 
 
@@ -486,20 +523,21 @@ ep_crypto_key_read_mem(
 **	Have to use BIO because it's the only way to find out how
 **	long the output is (that I could find).
 **
-**	XXX	Doesn't have any way to specify encryption when writing
-**	XXX	private keys.
 **	For PEM the calling convention is:
-**	    PEM_write_*(fp, key, cipher, kstr, klen, pwcb, u)
-**	where cipher is the key encryption cipher, kstr & klen point
+**	    PEM_write_*(fp, key, keyenc, kstr, klen, pwcb, u)
+**	where keyenc is the key encryption cipher, kstr & klen point
 **	at the password, pwcb points to a routine to use to read a
-**	password, and u is a parameter to pwcb.
+**	password, and u is a parameter to pwcb.  If kstr and pwcb
+**	are both NULL, u can be a pointer to a null-terminated
+**	password string.
 */
 
 static EP_STAT
 key_write_bio(EP_CRYPTO_KEY *key,
 		BIO *bio,
 		int keyform,
-		int cipher,
+		int keyenc,
+		const char *passwd,
 		uint32_t flags)
 {
 	int keytype = ep_crypto_keytype_fromkey(key);
@@ -519,10 +557,16 @@ key_write_bio(EP_CRYPTO_KEY *key,
 	{
 		// easy case
 		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
-			istat = PEM_write_bio_PrivateKey(bio, key, NULL,
-					NULL, 0, NULL, NULL);
+		{
+			const EVP_CIPHER *enc = cipher_byid(keyenc);
+
+			istat = PEM_write_bio_PrivateKey(bio, key, enc,
+					NULL, 0, NULL, (void *) passwd);
+		}
 		else
+		{
 			istat = PEM_write_bio_PUBKEY(bio, key);
+		}
 		if (istat != 1)
 		{
 			(void) _ep_crypto_error("cannot write %s PEM key",
@@ -612,7 +656,8 @@ EP_STAT
 ep_crypto_key_write_fp(EP_CRYPTO_KEY *key,
 		FILE *fp,
 		int keyform,
-		int cipher,
+		int keyenc,
+		const char *passwd,
 		uint32_t flags)
 {
 	EP_STAT estat;
@@ -625,7 +670,7 @@ ep_crypto_key_write_fp(EP_CRYPTO_KEY *key,
 	}
 
 	bio = BIO_new_fp(fp, BIO_NOCLOSE);
-	estat = key_write_bio(key, bio, keyform, cipher, flags);
+	estat = key_write_bio(key, bio, keyform, keyenc, passwd, flags);
 	BIO_free(bio);
 	return estat;
 }
@@ -636,7 +681,8 @@ ep_crypto_key_write_mem(EP_CRYPTO_KEY *key,
 		void *buf,
 		size_t buflen,
 		int keyform,
-		int cipher,
+		int keyenc,
+		const char *passwd,
 		uint32_t flags)
 {
 	EP_STAT estat;
@@ -646,7 +692,7 @@ ep_crypto_key_write_mem(EP_CRYPTO_KEY *key,
 		bio = BIO_new(BIO_s_secmem());
 	else
 		bio = BIO_new(BIO_s_mem());
-	estat = key_write_bio(key, bio, keyform, cipher, flags);
+	estat = key_write_bio(key, bio, keyform, keyenc, passwd, flags);
 	if (EP_STAT_ISOK(estat))
 	{
 		// save the memory
@@ -709,27 +755,13 @@ static struct name_to_format	KeyTypeStrings[] =
 int
 ep_crypto_keytype_byname(const char *fmt)
 {
-	struct name_to_format *kt;
-
-	for (kt = KeyTypeStrings; kt->str != NULL; kt++)
-	{
-		if (strcasecmp(kt->str, fmt) == 0)
-			break;
-	}
-	return kt->form;
+	return get_byname(KeyTypeStrings, fmt);
 }
 
 const char *
 ep_crypto_keytype_name(int keytype)
 {
-	struct name_to_format *kt;
-
-	for (kt = KeyTypeStrings; kt->str != NULL; kt++)
-	{
-		if (kt->form == keytype)
-			return kt->str;
-	}
-	return "unknown";
+	return get_name(KeyTypeStrings, keytype);
 }
 
 
@@ -743,3 +775,34 @@ ep_crypto_key_compat(const EP_CRYPTO_KEY *pubkey, const EP_CRYPTO_KEY *seckey)
 	return EP_STAT_CRYPTO_KEYCOMPAT;
 }
 
+static struct name_to_format	KeyEncStrings[] =
+{
+	{ "none",		EP_CRYPTO_KEYENC_NONE,		},
+	{ "aes128",		EP_CRYPTO_KEYENC_AES128,	},
+	{ "aes192",		EP_CRYPTO_KEYENC_AES192,	},
+	{ "aes256",		EP_CRYPTO_KEYENC_AES256,	},
+	{ "camellia128",	EP_CRYPTO_KEYENC_CAMELLIA128,	},
+	{ "camellia192",	EP_CRYPTO_KEYENC_CAMELLIA192,	},
+	{ "camellia256",	EP_CRYPTO_KEYENC_CAMELLIA256,	},
+	{ "des",		EP_CRYPTO_KEYENC_DES,		},
+	{ "3des",		EP_CRYPTO_KEYENC_3DES,		},
+	{ "idea",		EP_CRYPTO_KEYENC_IDEA,		},
+	{ NULL,			-1,				}
+};
+
+int
+ep_crypto_keyenc_byname(const char *str)
+{
+	int enc = get_byname(KeyEncStrings, str);
+
+	// if openssl doesn't know about it, return an error
+	if (enc > 0 && EVP_get_cipherbyname(str) == NULL)
+		return -1;
+	return get_byname(KeyEncStrings, str);
+}
+
+const char *
+ep_crypto_keyenc_name(int key_enc_alg)
+{
+	return get_name(KeyEncStrings, key_enc_alg);
+}

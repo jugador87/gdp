@@ -50,19 +50,15 @@
 # define EP_CRYPTO_MAX_DIGEST	(512 / 8)
 # define EP_CRYPTO_MAX_DER	(1024 * 8)	//XXX should add a slop factor
 
-# define EP_CRYPTO_KEY		EVP_PKEY
 
-
-/*
-**  Ciphers
-*/
-
-# define EP_CRYPTO_CIPHER_NONE		0
+void		ep_crypto_init(uint32_t flags);
 
 
 /*
 **  Key Management
 */
+
+# define EP_CRYPTO_KEY		EVP_PKEY
 
 // on-disk key formats
 # define EP_CRYPTO_KEYFORM_UNKNOWN	0	// error
@@ -75,6 +71,18 @@
 # define EP_CRYPTO_KEYTYPE_DSA		2	// DSA
 # define EP_CRYPTO_KEYTYPE_EC		3	// Elliptic curve
 # define EP_CRYPTO_KEYTYPE_DH		4	// Diffie-Hellman
+
+// key encryption algorithms for secret PEM keys
+# define EP_CRYPTO_KEYENC_NONE		0	// error/unencrypted, MBZ
+# define EP_CRYPTO_KEYENC_AES128	1	// AES-128
+# define EP_CRYPTO_KEYENC_AES192	2	// AES-192
+# define EP_CRYPTO_KEYENC_AES256	3	// AES-256
+# define EP_CRYPTO_KEYENC_CAMELLIA128	4	// Camellia 128
+# define EP_CRYPTO_KEYENC_CAMELLIA192	5	// Camellia 192
+# define EP_CRYPTO_KEYENC_CAMELLIA256	6	// Camellia 256
+# define EP_CRYPTO_KEYENC_DES		7	// single DES
+# define EP_CRYPTO_KEYENC_3DES		8	// triple DES
+# define EP_CRYPTO_KEYENC_IDEA		9	// IDEA
 
 // flag bits
 # define EP_CRYPTO_F_PUBLIC		0x0000	// public key (no flags set)
@@ -118,21 +126,29 @@ EP_STAT			ep_crypto_key_write_file(
 				EP_CRYPTO_KEY *key,
 				const char *filename,
 				int keyform,
-				int cipher,
+				int keyenc,
+				const char *passwd,
 				uint32_t flags);
 EP_STAT			ep_crypto_key_write_fp(
 				EP_CRYPTO_KEY *key,
 				FILE *fp,
 				int keyform,
-				int cipher,
+				int keyenc,
+				const char *passwd,
 				uint32_t flags);
 EP_STAT			ep_crypto_key_write_mem(
 				EP_CRYPTO_KEY *key,
 				void *buf,
 				size_t bufsize,
 				int keyform,
-				int cipher,
+				int keyenc,
+				const char *passwd,
 				uint32_t flags);
+
+int			ep_crypto_keyenc_byname(
+				const char *enc_alg_str);
+const char		*ep_crypto_keyenc_name(
+				int enc_alg);
 
 EP_STAT			ep_crypto_key_compat(
 				const EP_CRYPTO_KEY *pubkey,

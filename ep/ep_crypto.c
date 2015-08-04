@@ -4,13 +4,23 @@
 #include <ep_crypto.h>
 #include <ep_dbg.h>
 
+#include <openssl/conf.h>
 #include <openssl/err.h>
 
 //static EP_DBG	Dbg = EP_DBG_INIT("libep.crypto", "crypto support");
 
 /*
-**  EP CRYPTOGRAPHIC SUPPORT
+**  LIBEP CRYPTOGRAPHIC SUPPORT
 */
+
+
+void
+ep_crypto_init(uint32_t flags)
+{
+	OPENSSL_load_builtin_modules();
+	OpenSSL_add_all_algorithms();
+}
+
 
 void *
 _ep_crypto_error(const char *msg, ...)
