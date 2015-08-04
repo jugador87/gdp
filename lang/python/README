@@ -52,6 +52,8 @@ DATA
     __all__ = [0, 1, 2, <function gdp_init>, <function gdp_run_accept_even...
 
 
+Help on class GDP_NAME in gdp:
+
 gdp.GDP_NAME = class GDP_NAME
  |  Represents name of a GCL. Each GCL has potentially up to three kind of 
  |  names:
@@ -86,10 +88,17 @@ gdp.GDP_NAME = class GDP_NAME
  |  
  |  pname_t = <class 'gdp.GDP_NAME.c_ubyte_Array_44'>
 
+Help on class GDP_GCL in gdp:
+
 gdp.GDP_GCL = class GDP_GCL
  |  A class that represents a GCL handle. A GCL handle resembles an open
  |      file handle in various ways. However, it is still different in
  |      certain ways
+ |  
+ |  Note that get_next_event is both a class method (for events on any of
+ |      the GCL's) as well as an instance method (for events on a particular
+ |      GCL). The auto-generated documentation might not show this, but
+ |      something to keep in mind.
  |  
  |  Methods defined here:
  |  
@@ -108,6 +117,9 @@ gdp.GDP_GCL = class GDP_GCL
  |      Write a datum to the GCL. The datum should be a dictionary, with
  |          the only valid key being 'data'. The value is the actual 
  |          data that is to be written
+ |  
+ |  append_async(self, datum_dict)
+ |      XXX: This is still work in progress. Async version of append
  |  
  |  getname(self)
  |      Get the name of this GCL, returns a GDP_NAME object
@@ -136,8 +148,11 @@ gdp.GDP_GCL = class GDP_GCL
  |  ----------------------------------------------------------------------
  |  Class methods defined here:
  |  
+ |  create(cls, logd_name, name) from __builtin__.classobj
+ |      create a new GCL with 'name' on 'logdname'
+ |  
  |  get_next_event(cls, timeout) from __builtin__.classobj
- |      Get the events for any open GCL.
+ |      Get events for ANY open gcl
  |  
  |  ----------------------------------------------------------------------
  |  Data and other attributes defined here:

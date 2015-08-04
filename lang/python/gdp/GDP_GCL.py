@@ -11,6 +11,11 @@ class GDP_GCL:
     A class that represents a GCL handle. A GCL handle resembles an open
         file handle in various ways. However, it is still different in
         certain ways
+
+    Note that get_next_event is both a class method (for events on any of
+        the GCL's) as well as an instance method (for events on a particular
+        GCL). The auto-generated documentation might not show this, but
+        something to keep in mind.
     """
 
     # We need to keep a list of all the open GCL handles we have, and
