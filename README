@@ -513,6 +513,8 @@ Full List of Administrative Parameters:
 	swarm.rest.scgi.pollinterval --- how often to poll for SCGI
 		connections (in microseconds).  Defaults to 100000
 		(100 msec).
+	libep.crypto.dev --- whether or not to try to use /dev/crypto
+		for hardware acceleration.  Defaults to true.
 	libep.time.accuracy --- the value filled in for the "accuracy"
 		field in time structures (defaults to zero).
 	libep.thr.pool.min_workers --- the default minimum number of
