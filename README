@@ -462,7 +462,7 @@ Full List of Administrative Parameters:
 		turns off encryption.  Can be overridden by gcl-create
 		-e flag.
 	swarm.gdp.crypto.ec.curve --- the default curve to use when
-		creating an EC key.  Defaults to secp384k1 (subject
+		creating an EC key.  Defaults to secp256k1 (subject
 		to change).  Can be overridden by gcl-create -c flag.
 	swarm.gdp.crypto.dsa.keylen --- the default size of an RSA
 		signature key in bits.  Defaults to 2048.  Can be

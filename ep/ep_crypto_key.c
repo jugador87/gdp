@@ -121,7 +121,7 @@ generate_ec_key(EP_CRYPTO_KEY *key, const char *curve)
 {
 	if (curve == NULL)
 		curve = ep_adm_getstrparam("libep.crypto.key.ec.curve",
-				"secp384r1");
+				"secp256r1");
 	int nid = OBJ_txt2nid(curve);
 	if (nid == NID_undef)
 	{
