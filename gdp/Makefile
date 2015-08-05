@@ -1,5 +1,6 @@
 DESTDIR=
 LOCALROOT=	/usr
+CRYPTOROOT=	/usr/local/ssl
 INSTALLROOT=	${DESTDIR}${LOCALROOT}
 INCDIR=		${INSTALLROOT}/include
 LIBDIR=		${INSTALLROOT}/lib
@@ -48,13 +49,18 @@ LOCAL1=		/usr/local
 LOCAL2=		/opt/local
 INCROOT=	..
 LIBROOT=	${INCROOT}
+INCCRYPTO=	-I${CRYPTOROOT}/include
 LIBCRYPTO=	-lcrypto
-LIBEVENT2=	-levent -levent_pthreads
-LIBEP=		-L${LIBROOT}/ep -lep
-INCEP=		-I${INCROOT}
 INCEVENT2=	-I${LOCAL1}/include -I${LOCAL2}/include
+LIBEVENT2=	-levent -levent_pthreads
+INCEP=		-I${INCROOT}
+LIBEP=		-lep
 INCS=		${INCEP} ${INCEVENT2} ${INCCRYPTO}
-LDFLAGS= 	${LIBEP} ${LIBEVENT2} ${LIBCRYPTO}
+LIBSEARCH=	-L${CRYPTOROOT}/lib \
+		-L${LIBROOT}/ep \
+		-L${LOCAL1}/lib \
+		-L${LOCAL2}/lib
+LDFLAGS= 	${LIBSEARCH} ${LIBEP} ${LIBEVENT2} ${LIBCRYPTO}
 PG=
 O=		-O
 WALL=		-Wall

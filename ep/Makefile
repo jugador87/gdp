@@ -14,6 +14,7 @@ SBINDIR=	${INSTALLROOT}/sbin
 LIBDIR=		${INSTALLROOT}/lib
 INCDIR=		${INSTALLROOT}/include
 INSTALL=	install
+CRYPTOROOT=	/usr/local/ssl
 
 CURDIR=	.
 
@@ -141,11 +142,14 @@ PG=
 O=	-O
 WALL=	-Wall
 STD=
+CRYPTOCFLAGS=	-I${CRYPTOROOT}/include
+CRYPTOLFLAGS=	-L${CRYPTOROOT}/lib
+INCLS=		${CRYPTOCFLAGS}
 COPTS=	${PG} -g ${WALL} $O ${STD}
 CFLAGS=	${COPTS} ${INCLS} -I${CURDIR} -I.. -fPIC
 RM=	rm
 LD=	ld
-LDFLAGS=-L.
+LDFLAGS=	-L. ${CRYPTOLFLAGS}
 LDLIBS=	libep.a
 LIBS=	-lcrypto
 LN=	ln
