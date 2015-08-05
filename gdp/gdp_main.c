@@ -444,6 +444,7 @@ _gdp_lib_init(const char *myname)
 	progname = ep_app_getprogname();
 	if (progname != NULL)
 		ep_adm_readparams(progname);
+	ep_crypto_init(0);
 
 	// clear out spurious errors
 	errno = 0;
