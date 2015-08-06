@@ -218,7 +218,7 @@ cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 	flush_input_data(req, "cmd_open_xx");
 
 	// see if we already know about this GCL
-	estat = get_open_handle(req, iomode);
+	estat = get_open_handle(req, GDP_MODE_ANY);
 	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pdu->dst, "cmd_openxx: could not open GCL",
@@ -227,6 +227,7 @@ cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
 
 	req->gcl->nrecs = req->pdu->datum->recno = gcl_max_recno(req->gcl);
 	req->gcl->flags |= GCLF_DEFER_FREE;
+	req->gcl->iomode |= iomode;
 	if (req->gcl->gclmd != NULL)
 	{
 		// send metadata as payload

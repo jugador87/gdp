@@ -536,7 +536,7 @@ fail0:
 	{
 		char ebuf[100];
 
-		ep_dbg_printf("Couldn't open gcl %s: %s\n",
+		ep_dbg_printf("Couldn't open gcl %s:\n\t%s\n",
 				gcl->pname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	return estat;

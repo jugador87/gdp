@@ -378,7 +378,7 @@ fail0:
 		char ebuf[100];
 
 		ep_dbg_cprintf(Dbg, 10,
-				"Couldn't open GCL %s: %s\n",
+				"Couldn't open GCL %s:\n\t%s\n",
 				gcl->pname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	return estat;
@@ -428,13 +428,15 @@ _gdp_gcl_append(gdp_gcl_t *gcl,
 			gdp_chan_t *chan,
 			uint32_t reqflags)
 {
-	EP_STAT estat;
+	EP_STAT estat = GDP_STAT_BAD_IOMODE;
 	gdp_req_t *req = NULL;
 
 	errno = 0;				// avoid spurious messages
 
 	EP_ASSERT_POINTER_VALID(gcl);
 	EP_ASSERT_POINTER_VALID(datum);
+	if (!EP_UT_BITSET(GDP_MODE_AO, gcl->iomode))
+		goto fail0;
 
 	estat = _gdp_req_new(GDP_CMD_APPEND, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -541,13 +543,15 @@ _gdp_gcl_read(gdp_gcl_t *gcl,
 			gdp_chan_t *chan,
 			uint32_t reqflags)
 {
-	EP_STAT estat;
+	EP_STAT estat = GDP_STAT_BAD_IOMODE;
 	gdp_req_t *req;
 
 	errno = 0;				// avoid spurious messages
 
 	EP_ASSERT_POINTER_VALID(gcl);
 	EP_ASSERT_POINTER_VALID(datum);
+	if (!EP_UT_BITSET(GDP_MODE_RO, gcl->iomode))
+		goto fail0;
 	estat = _gdp_req_new(GDP_CMD_READ, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
