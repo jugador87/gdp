@@ -482,10 +482,15 @@ exit_on_signal(int sig)
 */
 
 EP_STAT
-_gdp_lib_init(const char *myname)
+gdp_lib_init(const char *myname)
 {
 	EP_STAT estat = EP_STAT_OK;
 	const char *progname;
+	static bool initialized = false;
+
+	if (initialized)
+		return estat;
+	initialized = true;
 
 	ep_dbg_cprintf(Dbg, 4, "_gdp_lib_init(%s):\n",
 			myname == NULL ? "NULL" : myname);

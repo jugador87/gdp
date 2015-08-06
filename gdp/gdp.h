@@ -145,6 +145,10 @@ struct event_base		*GdpIoEventBase;	// the base for GDP I/O events
 extern EP_STAT	gdp_init(
 					const char *gdpd_addr);	// address of gdpd
 
+// pre-initialize the library (gdp_init does this -- rarely needed)
+EP_STAT			gdp_lib_init(
+					const char *my_routing_name);
+
 // run event loop (normally run from gdp_init; never returns)
 extern void		*gdp_run_accept_event_loop(
 					void *);				// unused

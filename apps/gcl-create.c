@@ -83,8 +83,8 @@ main(int argc, char **argv)
 	EP_CRYPTO_KEY *key = NULL;
 	char *p;
 
-	// initialize crypto code (must happen early)
-	ep_crypto_init(0);
+	// preinit library (must be early due to crypto code in arg processing)
+	gdp_lib_init(NULL);
 
 	// collect command-line arguments
 	while ((opt = getopt(argc, argv, "b:c:D:e:G:h:k:K:")) > 0)
