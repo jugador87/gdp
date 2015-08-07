@@ -36,11 +36,12 @@ void
 usage(void)
 {
 	fprintf(stderr, "Usage: %s [-D dbgspec] [-e key_enc_alg] [-G gdpd_addr]\n"
-			"\t[-k] [-K keyfile] [-t keytype] [-b keybits] [-c curve]\n"
+			"\t[-h] [-k] [-K keyfile] [-t keytype] [-b keybits] [-c curve]\n"
 			"\t[logd_name] [<mdid>=<metadata>...] [gcl_name]\n"
 			"    -D  set debugging flags\n"
-			"    -e  set private key encryption algorithm\n"
+			"    -e  set secret key encryption algorithm\n"
 			"    -G  IP host to contact for GDP router\n"
+			"    -h  set the hash (message digest) algorithm (defaults to sha256)\n"
 			"    -k  type of key; valid key types are \"rsa\", \"dsa\", and \"ec\"\n"
 			"\t(defaults to ec); \"none\" turns off key generation\n"
 			"    -K  use indicated public key/place to write secret key\n"
@@ -225,7 +226,7 @@ main(int argc, char **argv)
 		key_enc_alg = ep_crypto_keyenc_byname(p);
 		if (key_enc_alg < 0)
 		{
-			ep_app_error("unknown private key encryption algorithm %s", p);
+			ep_app_error("unknown secret key encryption algorithm %s", p);
 			exit(EX_USAGE);
 		}
 	}
@@ -300,7 +301,7 @@ main(int argc, char **argv)
 			// no existing key file; OK if we are creating it
 			if (!make_new_key)
 			{
-				ep_app_error("Could not read private key file %s", keyfile);
+				ep_app_error("Could not read secret key file %s", keyfile);
 				exit(EX_NOINPUT);
 			}
 		}
@@ -339,7 +340,7 @@ main(int argc, char **argv)
 	}
 
 	/*
-	**	Now would be a good time to write the private key to disk
+	**	Now would be a good time to write the secret key to disk
 	**		We do this before creating GCL so we don't risk having
 	**		GCLs that exist with no access possible.  But we need
 	**		to use a temporary name because we don't know the final

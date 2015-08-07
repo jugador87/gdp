@@ -1329,7 +1329,7 @@ EP_STAT                 ep_crypto_vrfy_final(
         <tr>
           <td>EP_STAT_CRYPTO_KEYCOMPAT</td>
 
-          <td>Public and private keys are incompatible</td>
+          <td>Public and secret keys are incompatible</td>
         </tr>
       </informaltable>
     </section>

@@ -310,7 +310,7 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 		}
 	}
 
-	// validate the compatibility of the public and private keys
+	// validate the compatibility of the public and secret keys
 	{
 		EP_CRYPTO_KEY *pubkey = ep_crypto_key_read_mem(pkbuf + 4, pkbuflen - 4,
 				pktype, EP_CRYPTO_KEYFORM_DER, EP_CRYPTO_F_PUBLIC);

@@ -1004,7 +1004,7 @@ typedef struct
     </p>
     <h3>A.1 Access Control</h3>
     <p> Do this using Access Control Lists (so each user/app has a keypair) or
-      by passing public/private keys around (so each GCL has a private keypair).
+      by passing public/secret keys around (so each GCL has a secret keypair).
       The latter makes revocation impossible (even for write access), so I
       prefer the ACL approach. Third way?</p>
     <p> Revocation? Deep vs. Shallow. Deep = take away permissions that have
@@ -1024,7 +1024,7 @@ typedef struct
       any previous grants, so this may be sufficient.</p>
     <p> </p>
     <h3> A.2 Naming</h3>
-    <p> If each GCL has a private keypair, then the public key is sufficient to
+    <p> If each GCL has a secret keypair, then the public key is sufficient to
       name the entity. If not, then assigning a GCL a GUID on creation seems
       like the best approach. Having the user assign a name seems like a
       non-starter, if only because of the possibility of conflicts.</p>

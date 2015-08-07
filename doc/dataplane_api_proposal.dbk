@@ -675,8 +675,8 @@ typedef struct
       <title xml:id="oq-access">Access Control</title>
 
       <para>Do this using Access Control Lists (so each user/app has a
-      keypair) or by passing public/private keys around (so each nexus has a
-      private keypair). The latter makes revocation impossible (even for write
+      keypair) or by passing public/secret keys around (so each nexus has a
+      secret keypair). The latter makes revocation impossible (even for write
       access), so I prefer the ACL approach. Third way?</para>
 
       <para>Revocation? Deep vs. Shallow. Deep = take away permissions that
@@ -700,7 +700,7 @@ typedef struct
     <section>
       <title xml:id="oq-naming">Naming</title>
 
-      <para>If each nexus has a private keypair, then the public key is
+      <para>If each nexus has a secret keypair, then the public key is
       sufficient to name the entity. If not, then assigning a nexus a GUID on
       creation seems like the best approach. Having the user assign a name
       seems like a non-starter, if only because of the possibility of
