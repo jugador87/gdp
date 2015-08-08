@@ -474,6 +474,32 @@ exit_on_signal(int sig)
 
 
 /*
+**  Change user id to something innocuous.
+*/
+
+static void
+run_as(const char *runasuser)
+{
+	if (runasuser != NULL && *runasuser != '\0')
+	{
+		struct passwd *pw = getpwnam(runasuser);
+		if (pw == NULL)
+		{
+			ep_app_warn("User %s unknown; running as 1:1 (daemon)",
+					runasuser);
+			setgid(1);
+			setuid(1);
+		}
+		else
+		{
+			setgid(pw->pw_gid);
+			setuid(pw->pw_uid);
+		}
+	}
+}
+
+
+/*
 **  Initialization, Part 1:
 **		Initialize the various external libraries.
 **		Set up the I/O event loop base.
@@ -556,26 +582,8 @@ gdp_lib_init(const char *myname)
 
 		if (getuid() == 0)
 		{
-			const char *runasuser;
-
 			snprintf(argname, sizeof argname, "swarm.%s.runasuser", progname);
-			runasuser = ep_adm_getstrparam(argname, NULL);
-			if (runasuser != NULL && *runasuser != '\0')
-			{
-				struct passwd *pw = getpwnam(runasuser);
-				if (pw == NULL)
-				{
-					ep_app_warn("User %s unknown; running as 1:1 (daemon)",
-							runasuser);
-					setgid(1);
-					setuid(1);
-				}
-				else
-				{
-					setgid(pw->pw_gid);
-					setuid(pw->pw_uid);
-				}
-			}
+			run_as(ep_adm_getstrparam(argname, NULL));
 		}
 
 		// allow log facilities on a per-app basis
@@ -585,6 +593,9 @@ gdp_lib_init(const char *myname)
 			logfac = ep_adm_getstrparam("swarm.gdp.syslog.facility", "local4");
 		ep_log_init(progname, ep_syslog_fac_from_name(logfac), stderr, NULL);
 	}
+
+	if (getuid() == 0)
+		run_as(ep_adm_getstrparam("swarm.gdp.runasuser", NULL));
 
 	if (ep_dbg_test(Dbg, 1))
 	{

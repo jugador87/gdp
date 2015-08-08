@@ -144,12 +144,12 @@ It was impossible to create a new key.
 .El
 .Sh ADMINISTRATIVE PARAMETERS
 .Bl -tag
-.It Va swarm.gdp.crypto.dsa.keylen
+.It swarm.gdp.crypto.dsa.keylen
 The DSA key length.
 Defaults to 2048.
 Overridden by
 .Fl b .
-.It Va swarm.gdp.crypto.ec.curve
+.It swarm.gdp.crypto.ec.curve
 The EC curve.
 Defaults to
 .Li sect283r1
@@ -157,13 +157,13 @@ Defaults to
 .Li B-283 ) .
 Overridden by
 .Fl c .
-.It Va swarm.gdp.crypto.hash.alg
+.It swarm.gdp.crypto.hash.alg
 The hash algorithm.
 Defaults to
 .Li sha256 .
 Overridden by
 .Fl h .
-.It Va swarm.gdp.crypto.key.dir
+.It swarm.gdp.crypto.key.dir
 The directory in which to store secret keys.
 Defaults to
 .Pa KEYS
@@ -172,21 +172,21 @@ If that subdirectory does not exist,
 the keys are written to the current directory.
 Overridden by
 .Fl K .
-.It Va swarm.gdp.crypto.keyenc.alg
+.It swarm.gdp.crypto.keyenc.alg
 The secret key (symmetric) encryption algorithm.
 Defaults to
 .Li aes192 .
 Overridden by
 .Fl e .
-.It Va swarm.gdp.crypto.rsa.keyexp
+.It swarm.gdp.crypto.rsa.keyexp
 The exponent to be used in the RSA algorithm.
 Defaults to 3.
-.It Va swarm.gdp.crypto.rsa.keylen
+.It swarm.gdp.crypto.rsa.keylen
 The key length for the RSA algorithm.
 Defaults to 2048.
 Overridden by
 .Fl b .
-.It Va swarm.gdp.crypto.sign.alg
+.It swarm.gdp.crypto.sign.alg
 The signing algorithm.
 Defaults to
 .Li ec .
@@ -195,7 +195,9 @@ Overridden by
 .El
 .\".Sh ENVIRONMENT
 .\".Sh FILES
-.\".Sh SEE ALSO
+.Sh SEE ALSO
+.Xr gdp 7 ,
+.Xr gdplogd 8
 .Sh EXAMPLES
 .Bl -bullet
 .It
@@ -232,3 +234,7 @@ since it is your only way to access the log.
 .Sh BUGS
 There should be some way to provide the key password
 other than reading it from the standard input.
+.Pp
+It should not be necessary to name the server on which the log will be created.
+This command will be replaced by a smart service
+that chooses placement based on locality and capacity.

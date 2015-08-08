@@ -157,7 +157,7 @@ void
 gcl_reclaim_resources(void)
 {
 	// how long to leave GCLs open before reclaiming (default: 5 minutes)
-	time_t reclaim_age = ep_adm_getlongparam("swarm.gdplogd.gcl.reclaim-age",
+	time_t reclaim_age = ep_adm_getlongparam("swarm.gdplogd.reclaim.age",
 								300L);
 	_gdp_gcl_cache_reclaim(reclaim_age);
 }

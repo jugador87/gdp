@@ -482,7 +482,7 @@ Full List of Administrative Parameters:
 		be stored.  Defaults to "/var/swarm/gcls".
 	swarm.gdplogd.reclaim.interval --- how often to wake up to
 		reclaim unused resources.  Defaults to 15 (seconds).
-	swarm.gdplogd.gcl.reclaim-age --- how long a GCL is permitted to
+	swarm.gdplogd.reclaim.age --- how long a GCL is permitted to
 		sit idle before its resources are reclaimed.  Defaults
 		to 300 (seconds, i.e., five minutes).
 	swarm.gdplogd.gdpname --- the name to use as the source address
