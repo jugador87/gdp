@@ -116,6 +116,7 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 					"\t%s\n",
 					pname, req->gcl, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		}
+		return estat;
 	}
 
 	// not in cache?  create a new one.
