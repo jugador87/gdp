@@ -16,11 +16,14 @@ class GDP_DATUM:
     class gdp_datum_t(Structure):
         pass
 
-    # Python representation of this is a dictionary, with the exact same fields
-    class __EP_TIME_SPEC(Structure):
+    class gdp_buf_t(Structure):
         pass
 
-    __EP_TIME_SPEC._fields_ = [("tv_sec", c_int64),
+    # Python representation of this is a dictionary, with the exact same fields
+    class EP_TIME_SPEC(Structure):
+        pass
+
+    EP_TIME_SPEC._fields_ = [("tv_sec", c_int64),
                                ("tv_nsec", c_uint32),
                                ("tv_accuracy", c_float)]
 
@@ -101,10 +104,10 @@ class GDP_DATUM:
             dictionary. The keys are: tv_sec, tv_nsec and tv_accuracy
         """
 
-        ts = self.__EP_TIME_SPEC()
+        ts = self.EP_TIME_SPEC()
         __func = gdp.gdp_datum_getts
         __func.argtypes = [
-            POINTER(self.gdp_datum_t), POINTER(self.__EP_TIME_SPEC)]
+            POINTER(self.gdp_datum_t), POINTER(self.EP_TIME_SPEC)]
         # ignore the return value
 
         __func(self.gdp_datum, byref(ts))
@@ -136,37 +139,32 @@ class GDP_DATUM:
         Effectively drains the buffer too.
         """
 
-        class __gdp_buf_t(Structure):
-            pass
-
         __func = gdp.gdp_datum_getbuf
         __func.argtypes = [POINTER(self.gdp_datum_t)]
-        __func.restype = POINTER(__gdp_buf_t)
+        __func.restype = POINTER(self.gdp_buf_t)
 
         gdp_buf_ptr = __func(self.gdp_datum)
         __func_read = gdp.gdp_buf_read
-        __func_read.argtypes = [POINTER(__gdp_buf_t), c_void_p, c_size_t]
+        __func_read.argtypes = [POINTER(self.gdp_buf_t), c_void_p, c_size_t]
         __func_read.restype = c_size_t
 
         dlen = self.getdlen()
         tmp_buf = create_string_buffer(dlen)
         readbytes = __func_read(gdp_buf_ptr, byref(tmp_buf), dlen)
+
         return string_at(tmp_buf, readbytes)
 
     def setbuf(self, data):
         "Set the buffer to the given data. data is a python string"
 
-        class __gdp_buf_t(Structure):
-            pass
-
         __func = gdp.gdp_datum_getbuf
         __func.argtypes = [POINTER(self.gdp_datum_t)]
-        __func.restype = POINTER(__gdp_buf_t)
+        __func.restype = POINTER(self.gdp_buf_t)
 
         gdp_buf_ptr = __func(self.gdp_datum)
 
         __func_write = gdp.gdp_buf_write
-        __func_write.argtypes = [POINTER(__gdp_buf_t), c_void_p, c_size_t]
+        __func_write.argtypes = [POINTER(self.gdp_buf_t), c_void_p, c_size_t]
         __func_write.restype = c_int
 
         size = c_size_t(len(data))
