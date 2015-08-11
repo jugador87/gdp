@@ -428,7 +428,11 @@ cmd_append(gdp_req_t *req)
 		ep_dbg_cprintf(Dbg, 1, "cmd_append: record sequence error: got %"
 						PRIgdp_recno ", wanted %" PRIgdp_recno "\n",
 						req->pdu->datum->recno, req->gcl->nrecs + 1);
-		return gdpd_gcl_error(req->pdu->dst, "cmd_append: record sequence error",
+
+		// XXX TEMPORARY: if no key, allow any record number XXX
+		// (for compatibility with older clients)
+		if (req->gcl->digest != NULL)
+			return gdpd_gcl_error(req->pdu->dst, "cmd_append: record sequence error",
 						GDP_STAT_RECNO_SEQ_ERROR, GDP_NAK_C_FORBIDDEN);
 	}
 
