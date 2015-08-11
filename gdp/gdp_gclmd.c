@@ -111,8 +111,8 @@ gdp_gclmd_add(gdp_gclmd_t *gmd,
 	{
 		gmd->mds[gmd->nused].md_data = ep_mem_malloc(len);
 		gmd->mds[gmd->nused].md_flags = MDF_OWNDATA;
+		memcpy(gmd->mds[gmd->nused].md_data, data, len);
 	}
-	memcpy(gmd->mds[gmd->nused].md_data, data, len);
 
 	gmd->nused++;
 
