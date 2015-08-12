@@ -11,7 +11,7 @@
 
 #define GDP_PORT_DEFAULT		8007	// default IP port
 
-#define GDP_PROTO_CUR_VERSION	2		// current protocol version
+#define GDP_PROTO_CUR_VERSION	3		// current protocol version
 #define GDP_PROTO_MIN_VERSION	2		// min version we can accept
 
 #define GDP_TTL_DEFAULT			15		// hops left

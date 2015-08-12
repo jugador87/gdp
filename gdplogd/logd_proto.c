@@ -162,6 +162,12 @@ cmd_create(gdp_req_t *req)
 				gdp_printable_name(gclname, pbuf));
 	}
 
+	if (GDP_PROTO_MIN_VERSION <= 2 && req->pdu->ver == 2)
+	{
+		// change the request to seem to come from this GCL
+		memcpy(req->pdu->dst, gclname, sizeof req->pdu->dst);
+	}
+
 	// get the memory space for the GCL itself
 	estat = gcl_alloc(gclname, GDP_MODE_AO, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -430,9 +436,10 @@ cmd_append(gdp_req_t *req)
 						req->pdu->datum->recno, req->gcl->nrecs + 1);
 
 		// XXX TEMPORARY: if no key, allow any record number XXX
-		// (for compatibility with older clients)
-		if (req->gcl->digest != NULL)
-			return gdpd_gcl_error(req->pdu->dst, "cmd_append: record sequence error",
+		// (for compatibility with older clients) [delete if condition]
+		if (GDP_PROTO_MIN_VERSION > 2 || req->pdu->ver > 2)
+			return gdpd_gcl_error(req->pdu->dst,
+						"cmd_append: record sequence error",
 						GDP_STAT_RECNO_SEQ_ERROR, GDP_NAK_C_FORBIDDEN);
 	}
 

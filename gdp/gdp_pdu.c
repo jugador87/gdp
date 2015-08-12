@@ -228,7 +228,10 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *basemd)
 	}
 
 	// version number
-	*pbp++ = GDP_PROTO_CUR_VERSION;
+	if (pdu->ver < GDP_PROTO_MIN_VERSION || pdu->ver > GDP_PROTO_CUR_VERSION)
+		*pbp++ = GDP_PROTO_CUR_VERSION;
+	else
+		*pbp++ = pdu->ver;
 
 	// time to live (in hops)
 	*pbp++ = pdu->ttl;
