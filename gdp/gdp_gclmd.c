@@ -15,7 +15,7 @@
 */
 
 
-#define INITIALMDS		4		// number of initial metadata entries (must be > 3)
+#define MINMDS		4		// minimum number of metadata entries (must be > 3)
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl.metadata", "GCL metadata processing");
 
@@ -25,13 +25,16 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl.metadata", "GCL metadata processing");
 */
 
 gdp_gclmd_t *
-gdp_gclmd_new(void)
+gdp_gclmd_new(int nentries)
 {
 	gdp_gclmd_t *gmd;
 	size_t len = sizeof *gmd;
 
 	gmd = ep_mem_zalloc(len);
-	gmd->nalloc = INITIALMDS;
+	if (nentries > MINMDS)
+		gmd->nalloc = nentries;
+	else
+		gmd->nalloc = MINMDS;
 	gmd->nused = 0;
 	gmd->mds = ep_mem_zalloc(gmd->nalloc * sizeof *gmd->mds);
 	ep_dbg_cprintf(Dbg, 21, "gdp_gclmd_new() => %p\n", gmd);
@@ -65,6 +68,10 @@ gdp_gclmd_free(gdp_gclmd_t *gmd)
 
 /*
 **  GDP_GCLMD_ADD --- add a single metadatum to a metadata list
+**
+**		As a special case for use in gdplogd you can pass in NULL
+**		data, which reserves the slot but not the data.  That
+**		can be set later using gdp_gclmd_set.
 */
 
 EP_STAT
@@ -77,8 +84,9 @@ gdp_gclmd_add(gdp_gclmd_t *gmd,
 
 	if (ep_dbg_test(Dbg, 36))
 	{
-		ep_dbg_printf("gdp_gclmd_add(%04x, %zd)\n", id, len);
-		ep_hexdump(data, len, ep_dbg_getfile(), EP_HEXDUMP_ASCII, 0);
+		ep_dbg_printf("gdp_gclmd_add(%08x, %zd, %p)\n", id, len, data);
+		if (data != NULL)
+			ep_hexdump(data, len, ep_dbg_getfile(), EP_HEXDUMP_ASCII, 0);
 	}
 
 	if (EP_UT_BITSET(GCLMDF_READONLY, gmd->flags))
@@ -99,9 +107,12 @@ gdp_gclmd_add(gdp_gclmd_t *gmd,
 
 	gmd->mds[gmd->nused].md_id = id;
 	gmd->mds[gmd->nused].md_len = len;
-	gmd->mds[gmd->nused].md_data = ep_mem_malloc(len);
-	gmd->mds[gmd->nused].md_flags = MDF_OWNDATA;
-	memcpy(gmd->mds[gmd->nused].md_data, data, len);
+	if (data != NULL)
+	{
+		gmd->mds[gmd->nused].md_data = ep_mem_malloc(len);
+		gmd->mds[gmd->nused].md_flags = MDF_OWNDATA;
+		memcpy(gmd->mds[gmd->nused].md_data, data, len);
+	}
 
 	gmd->nused++;
 
@@ -110,7 +121,40 @@ gdp_gclmd_add(gdp_gclmd_t *gmd,
 
 
 /*
-**  GDP_GCLMD_GET --- get metadata from an existing GCL
+**  _GDP_GCLMD_ADDDATA --- set the pointers into a data block
+**
+**		This is intended for internal use only.
+**
+**		XXX could do more error checking.
+*/
+
+void
+_gdp_gclmd_adddata(gdp_gclmd_t *gmd,
+			void *data)
+{
+	int i;
+
+	EP_ASSERT_POINTER_VALID(gmd);
+
+	gmd->databuf = data;
+	for (i = 0; i < gmd->nused; i++)
+	{
+		if (ep_dbg_test(Dbg, 37))
+		{
+			ep_dbg_printf("metadata[%d] = %p\n", i, data);
+			if (ep_dbg_test(Dbg, 40))
+				ep_hexdump(data, gmd->mds[i].md_len, ep_dbg_getfile(),
+						EP_HEXDUMP_ASCII, 0);
+		}
+		gmd->mds[i].md_data = data;
+		data += gmd->mds[i].md_len;
+	}
+}
+
+
+
+/*
+**  GDP_GCLMD_GET --- get metadata from a metadata list by index
 */
 
 EP_STAT
@@ -139,21 +183,63 @@ gdp_gclmd_get(gdp_gclmd_t *gmd,
 
 
 /*
-**  _GDP_GCLMD_SERIALIZE --- serialize metadata into network order
+**  GDP_GCLMD_FIND --- get metadata from a metadata list by name
 */
 
-void
+EP_STAT
+gdp_gclmd_find(gdp_gclmd_t *gmd,
+		gdp_gclmd_id_t id,
+		size_t *len,
+		const void **data)
+{
+	int indx;
+
+	ep_dbg_cprintf(Dbg, 40, "gdp_gclmd_find, gmd = %p, id = %08x... ", gmd, id);
+	if (gmd == NULL)
+		goto fail0;
+
+	for (indx = 0; indx < gmd->nused; indx++)
+	{
+		if (id != gmd->mds[indx].md_id)
+			continue;
+		if (len != NULL)
+			*len = gmd->mds[indx].md_len;
+		if (data != NULL)
+			*data = gmd->mds[indx].md_data;
+		break;
+	}
+	if (indx >= gmd->nused)
+	{
+fail0:
+		ep_dbg_cprintf(Dbg, 40, "not found\n");
+		return GDP_STAT_NOTFOUND;
+	}
+	else
+	{
+		ep_dbg_cprintf(Dbg, 40, "len %zd\n", gmd->mds[indx].md_len);
+		return EP_STAT_OK;
+	}
+}
+
+
+/*
+**  _GDP_GCLMD_SERIALIZE --- serialize metadata list into network order
+*/
+
+size_t
 _gdp_gclmd_serialize(gdp_gclmd_t *gmd, struct evbuffer *evb)
 {
 	int i;
+	size_t slen = 0;
 
 	if (gmd == NULL)
-		return;
+		return 0;
 
 	// write the number of entries
 	{
 		uint16_t t16 = htons(gmd->nused);
 		evbuffer_add(evb, &t16, sizeof t16);
+		slen += sizeof t16;
 	}
 
 	// for each metadata item, write the header
@@ -165,14 +251,19 @@ _gdp_gclmd_serialize(gdp_gclmd_t *gmd, struct evbuffer *evb)
 		evbuffer_add(evb, &t32, sizeof t32);
 		t32 = htonl(gmd->mds[i].md_len);
 		evbuffer_add(evb, &t32, sizeof t32);
+		slen = 2 * sizeof t32;
 	}
 
 	// now write out all the data
 	for (i = 0; i < gmd->nused; i++)
 	{
 		if (gmd->mds[i].md_len > 0)
+		{
 			evbuffer_add(evb, gmd->mds[i].md_data, gmd->mds[i].md_len);
+			slen += gmd->mds[i].md_len;
+		}
 	}
+	return slen;
 }
 
 

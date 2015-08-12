@@ -183,8 +183,11 @@ ep_time_nanosleep(int64_t nsec)
 */
 
 void
-ep_time_format(const EP_TIME_SPEC *tv, char *tbuf, size_t tbsiz, bool human)
+ep_time_format(const EP_TIME_SPEC *tv, char *tbuf, size_t tbsiz, uint32_t flags)
 {
+	bool human = EP_UT_BITSET(EP_TIME_FMT_HUMAN, flags);
+	bool showfuzz = !EP_UT_BITSET(EP_TIME_FMT_NOFUZZ, flags);
+
 	if (!EP_TIME_ISVALID(tv))
 	{
 		snprintf(tbuf, tbsiz, "%s", human ? "(none)" : "-");
@@ -199,7 +202,7 @@ ep_time_format(const EP_TIME_SPEC *tv, char *tbuf, size_t tbsiz, bool human)
 	tvsec = tv->tv_sec;	// may overflow if time_t is 32 bits!
 	gmtime_r(&tvsec, &tm);
 	strftime(xbuf, sizeof xbuf, "%Y-%m-%dT%H:%M:%S", &tm);
-	if (tv->tv_accuracy != 0.0)
+	if (tv->tv_accuracy != 0.0 && showfuzz)
 	{
 		if (human)
 		{
@@ -224,11 +227,11 @@ ep_time_format(const EP_TIME_SPEC *tv, char *tbuf, size_t tbsiz, bool human)
 */
 
 void
-ep_time_print(const EP_TIME_SPEC *tv, FILE *fp, bool human)
+ep_time_print(const EP_TIME_SPEC *tv, FILE *fp, uint32_t flags)
 {
 	char tbuf[100];
 
-	ep_time_format(tv, tbuf, sizeof tbuf, human);
+	ep_time_format(tv, tbuf, sizeof tbuf, flags);
 	fprintf(fp, "%s", tbuf);
 }
 

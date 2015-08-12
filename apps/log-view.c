@@ -5,6 +5,7 @@
 #include <ep/ep_hexdump.h>
 #include <ep/ep_string.h>
 #include <ep/ep_time.h>
+#include <ep/ep_xlate.h>
 #include <gdp/gdp.h>
 
 #include <dirent.h>
@@ -40,7 +41,7 @@ check_file_offset(FILE *fp, long offset)
 {
 	if (ftell(fp) != offset)
 	{
-		printf("%sWARNING: file offset error (%ld != %ld)%s\n",
+		printf("%sWARNING: file offset error (actual %ld, expected %ld)%s\n",
 				EpVid->vidfgred, ftell(fp), offset, EpVid->vidnorm);
 	}
 }
@@ -84,7 +85,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 	if (plev >= GDP_PR_BASIC)
 	{
-		printf("Header: magic = 0x%016" PRIx32
+		printf("Header: magic = 0x%08" PRIx32
 				", version = %" PRIi32
 				", type = %" PRIi16 "\n",
 				header.magic, header.version, header.log_type);
@@ -137,9 +138,9 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 		for (i = 0; i < header.num_metadata_entries; ++i)
 		{
-			char *metadata_string = malloc(metadata_hdrs[i].md_len + 1);
+			uint8_t *mdata = malloc(metadata_hdrs[i].md_len + 1);
 												// +1 for null-terminator
-			if (fread(metadata_string, metadata_hdrs[i].md_len, 1, data_fp) != 1)
+			if (fread(mdata, metadata_hdrs[i].md_len, 1, data_fp) != 1)
 			{
 				fprintf(stderr,
 						"fread() failed while reading metadata string,"
@@ -147,31 +148,71 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 						ferror(data_fp));
 				return EX_DATAERR;
 			}
-			metadata_string[metadata_hdrs[i].md_len] = '\0';
+			mdata[metadata_hdrs[i].md_len] = '\0';
+			file_offset += metadata_hdrs[i].md_len;
+			CHECK_FILE_OFFSET(data_fp, file_offset);
 			if (plev >= GDP_PR_BASIC)
 			{
 				fprintf(stdout,
-						"\tMetadata entry %d: name = 0x%08" PRIx32
-						", len = %" PRId32 "\n\t\t%s\n",
-						i, metadata_hdrs[i].md_id, metadata_hdrs[i].md_len,
-						metadata_string);
+						"\nMetadata entry %d: name = 0x%08" PRIx32
+						", len = %" PRId32,
+						i, metadata_hdrs[i].md_id, metadata_hdrs[i].md_len);
+				switch (metadata_hdrs[i].md_id)
+				{
+					case GDP_GCLMD_XID:
+						printf(" (external id)\n");
+						break;
+
+					case GDP_GCLMD_CTIME:
+						printf(" (creation time)\n");
+						break;
+
+					case GDP_GCLMD_PUBKEY:
+						printf(" (public key)\n");
+						int keylen = mdata[2] << 8 | mdata[3];
+						printf("\tmd_alg %s (%d), keytype %s (%d), keylen %d\n",
+								ep_crypto_md_alg_name(mdata[0]), mdata[0],
+								ep_crypto_keytype_name(mdata[1]), mdata[1],
+								keylen);
+						if (plev > GDP_PR_BASIC)
+						{
+							EP_CRYPTO_KEY *key;
+
+							key = ep_crypto_key_read_mem(mdata + 4,
+									metadata_hdrs[i].md_len - 4,
+									mdata[1], EP_CRYPTO_KEYFORM_DER,
+									EP_CRYPTO_F_PUBLIC);
+							ep_crypto_key_print(key, stdout, EP_CRYPTO_F_PUBLIC);
+							ep_crypto_key_free(key);
+						}
+						if (plev >= GDP_PR_DETAILED)
+							ep_hexdump(mdata + 4, metadata_hdrs[i].md_len - 4,
+									stdout, EP_HEXDUMP_HEX, 0);
+						continue;
+					default:
+						printf("\n");
+						break;
+				}
+				if (plev < GDP_PR_DETAILED)
+				{
+					printf("\t%s", EpChar->lquote);
+					ep_xlate_out(mdata, metadata_hdrs[i].md_len,
+							stdout, "", EP_XLATE_PLUS | EP_XLATE_NPRINT);
+					fprintf(stdout, "%s\n", EpChar->rquote);
+				}
 			}
 			else if (metadata_hdrs[i].md_id == GDP_GCLMD_XID)
 			{
 				fprintf(stdout,
-						"\tExternal name: %s\n", metadata_string);
+						"\tExternal name: %s\n", mdata);
 			}
-			free(metadata_string);
 
 			if (plev >= GDP_PR_DETAILED)
 			{
-				fprintf(stdout, "\n");
-				fprintf(stdout, "Raw:\n");
-				ep_hexdump(metadata_string, metadata_hdrs[i].md_len,
+				ep_hexdump(mdata, metadata_hdrs[i].md_len,
 						stdout, EP_HEXDUMP_ASCII, file_offset);
 			}
-			file_offset += metadata_hdrs[i].md_len;
-			CHECK_FILE_OFFSET(data_fp, file_offset);
+			free(mdata);
 		}
 	}
 	else if (plev >= GDP_PR_BASIC)
@@ -179,24 +220,22 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 		fprintf(stdout, "\n<No metadata>\n");
 	}
 
-	if (plev < GDP_PR_BASIC)
+	if (plev <= GDP_PR_BASIC)
 		return EX_OK;
 
 	fprintf(stdout, "\n");
-	fprintf(stdout, "Data records\n");
+	fprintf(stdout, "Data records:\n");
 
 	while (fread(&record, sizeof record, 1, data_fp) == 1)
 	{
-		fprintf(stdout, "\nRecord number: %" PRIgdp_recno "\n", record.recno);
-		fprintf(stdout, "\tOffset = %zd (0x%zx)\n", file_offset, file_offset);
-		fprintf(stdout, "\tHuman readable timestamp: ");
-		ep_time_print(&record.timestamp, stdout, true);
-		fprintf(stdout, "\n\tRaw timestamp seconds: %" PRIi64 "\n", record.timestamp.tv_sec);
-		fprintf(stdout, "\tRaw Timestamp ns: %" PRIi32 "\n", record.timestamp.tv_nsec);
-		fprintf(stdout, "\tTime accuracy (s): %8f\n", record.timestamp.tv_accuracy);
-		fprintf(stdout, "\tData length: %" PRIi64 "\n", record.data_length);
+		fprintf(stdout, "\nRecord number: %" PRIgdp_recno
+				", offset = %zd (0x%zx), dlen = %" PRIi64 "\n",
+				record.recno, file_offset, file_offset, record.data_length);
+		fprintf(stdout, "\tTimestamp: ");
+		ep_time_print(&record.timestamp, stdout, EP_TIME_FMT_HUMAN);
+		fprintf(stdout, " (sec=%" PRIi64 ")\n", record.timestamp.tv_sec);
 
-		if (plev >= GDP_PR_DETAILED)
+		if (plev > GDP_PR_DETAILED)
 		{
 			fprintf(stdout, "\tRaw:\n");
 			ep_hexdump(&record, sizeof record, stdout,
@@ -212,9 +251,8 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 			return EX_DATAERR;
 		}
 
-		if (plev >= GDP_PR_BASIC + 1)
+		if (plev >= GDP_PR_BASIC + 2)
 		{
-			fprintf(stdout, "\tData:\n");
 			ep_hexdump(data_buffer, record.data_length,
 					stdout, EP_HEXDUMP_ASCII,
 					plev < GDP_PR_DETAILED ? 0 : file_offset);

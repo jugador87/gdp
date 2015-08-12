@@ -97,23 +97,26 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 {
 	EP_STAT estat;
 
-	// if we already got this (e.g., in _gdp_pdu_process) just let it be
-	if (req->gcl != NULL)
-		return EP_STAT_OK;
-
-	// see if we can find the handle in the cache
-	req->gcl = _gdp_gcl_cache_get(req->pdu->dst, iomode);
-	if (req->gcl != NULL)
+	// if we already got this (e.g., in _gdp_pdu_process or in cache)
+	//		just let it be
+	if (req->gcl != NULL ||
+		(req->gcl = _gdp_gcl_cache_get(req->pdu->dst, iomode)) != NULL)
 	{
+		if (iomode == GDP_MODE_ANY || EP_UT_BITSET(iomode, req->gcl->iomode))
+			estat = EP_STAT_OK;
+		else
+			estat = GDP_STAT_BAD_IOMODE;
 		if (ep_dbg_test(Dbg, 40))
 		{
 			gdp_pname_t pname;
+			char ebuf[100];
 
 			gdp_printable_name(req->pdu->dst, pname);
-			ep_dbg_printf("get_open_handle: using cached GCL:\n\t%s => %p\n",
-					pname, req->gcl);
+			ep_dbg_printf("get_open_handle: using existing GCL:\n\t%s => %p\n"
+					"\t%s\n",
+					pname, req->gcl, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		}
-		return EP_STAT_OK;
+		return estat;
 	}
 
 	// not in cache?  create a new one.
@@ -155,7 +158,7 @@ void
 gcl_reclaim_resources(void)
 {
 	// how long to leave GCLs open before reclaiming (default: 5 minutes)
-	time_t reclaim_age = ep_adm_getlongparam("swarm.gdplogd.gcl.reclaim-age",
+	time_t reclaim_age = ep_adm_getlongparam("swarm.gdplogd.reclaim.age",
 								300L);
 	_gdp_gcl_cache_reclaim(reclaim_age);
 }

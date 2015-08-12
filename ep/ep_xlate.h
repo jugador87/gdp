@@ -18,14 +18,14 @@
 #define EP_XLATE_NPRINT		0x00000200	// encode non-printable chars
 
 extern int	ep_xlate_in(
-			const char *in,
+			const void *in,
 			unsigned char *out,
 			size_t olen,
 			char stopchar,
 			uint32_t how);
 
 extern int	ep_xlate_out(
-			const char *in,
+			const void *in,
 			size_t ilen,
 			FILE *osp,
 			const char *forbid,

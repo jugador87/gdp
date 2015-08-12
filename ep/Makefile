@@ -14,6 +14,7 @@ SBINDIR=	${INSTALLROOT}/sbin
 LIBDIR=		${INSTALLROOT}/lib
 INCDIR=		${INSTALLROOT}/include
 INSTALL=	install
+CRYPTOROOT=	/usr/local/ssl
 
 CURDIR=	.
 
@@ -22,6 +23,11 @@ OBJS=	\
 	ep_app.o \
 	ep_assert.o \
 	ep_b64.o \
+	ep_crypto.o \
+	ep_crypto_key.o \
+	ep_crypto_md.o \
+	ep_crypto_sign.o \
+	ep_crypto_vrfy.o \
 	ep_dbg.o \
 	ep_dumpfds.o \
 	ep_fopensmem.o \
@@ -86,6 +92,7 @@ HFILES=	\
 	ep_assert.h \
 	ep_b64.h \
 	ep_conf.h \
+	ep_crypto.h \
 	ep_dbg.h \
 	ep_funclist.h \
 	ep_hash.h \
@@ -135,12 +142,16 @@ PG=
 O=	-O
 WALL=	-Wall
 STD=
+CRYPTOCFLAGS=	-I${CRYPTOROOT}/include
+CRYPTOLFLAGS=	-L${CRYPTOROOT}/lib
+INCLS=		${CRYPTOCFLAGS}
 COPTS=	${PG} -g ${WALL} $O ${STD}
 CFLAGS=	${COPTS} ${INCLS} -I${CURDIR} -I.. -fPIC
 RM=	rm
 LD=	ld
-LDFLAGS=-L.
+LDFLAGS=	-L. ${CRYPTOLFLAGS}
 LDLIBS=	libep.a
+LIBS=	-lcrypto
 LN=	ln
 MV=	mv
 CP=	cp
@@ -151,7 +162,7 @@ SHARED=	-shared
 TIME=
 
 EPLIBMAJVER=	2
-EPLIBMINVER=	0
+EPLIBMINVER=	1
 EPLIBVER=	${EPLIBMAJVER}.${EPLIBMINVER}
 LIBALL=		libep.a libep.so.${EPLIBVER}
 INCALL=		${HFILES}
@@ -164,7 +175,7 @@ libep.a: ${OBJS}
 	${RANLIB} $@
 
 libep.so.${EPLIBVER}: ${OBJS}
-	${CC} ${SHARED} -o $@ ${OBJS}
+	${CC} ${SHARED} -o $@ ${OBJS} ${LIBS}
 
 ep_version.o: ep_version.c FORCE
 	${CC} ${CFLAGS} -D_CURRENT_DATE_=\"`date +'%Y-%m-%d_%H:%M'`\" -c ep_version.c

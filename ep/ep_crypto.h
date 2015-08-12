@@ -1,0 +1,253 @@
+/* vim: set ai sw=8 sts=8 ts=8 :*/
+
+/***********************************************************************
+**	Copyright (c) 2014, Eric P. Allman.  All rights reserved.
+***********************************************************************/
+
+#ifndef _EP_CRYPTO_H_
+#define _EP_CRYPTO_H_
+
+# include <ep/ep.h>
+# include <ep/ep_statcodes.h>
+
+
+/*
+**  At the moment this wraps openssl, but we could conceivably
+**  in the future switch to another package, e.g., NaCl.
+*/
+
+# include <openssl/evp.h>
+# include <openssl/sha.h>
+
+
+
+/*
+**  Configuration
+*/
+
+# ifndef _EP_CRYPTO_INCLUDE_RSA
+#  define _EP_CRYPTO_INCLUDE_RSA	1
+# endif
+# ifndef _EP_CRYPTO_INCLUDE_DSA
+#  define _EP_CRYPTO_INCLUDE_DSA	1
+# endif
+# ifndef _EP_CRYPTO_INCLUDE_EC
+#  define _EP_CRYPTO_INCLUDE_EC		1
+# endif
+# ifndef _EP_CRYPTO_INCLUDE_DH
+#  define _EP_CRYPTO_INCLUDE_DH		0
+# endif
+# ifndef _EP_CRYPTO_INCLUDE_DER
+#  define _EP_CRYPTO_INCLUDE_DER	1	// ASN.1
+# endif
+
+/*
+**  General defines
+*/
+
+# define EP_CRYPTO_MAX_PUB_KEY	(1024 * 8)
+# define EP_CRYPTO_MAX_SEC_KEY	(1024 * 8)
+# define EP_CRYPTO_MAX_DIGEST	(512 / 8)
+# define EP_CRYPTO_MAX_DER	(1024 * 8)	//XXX should add a slop factor
+
+
+void		ep_crypto_init(uint32_t flags);
+
+
+/*
+**  Key Management
+*/
+
+# define EP_CRYPTO_KEY		EVP_PKEY
+
+// on-disk key formats
+# define EP_CRYPTO_KEYFORM_UNKNOWN	0	// error
+# define EP_CRYPTO_KEYFORM_PEM		1	// PEM (text)
+# define EP_CRYPTO_KEYFORM_DER		2	// DER (binary ASN.1)
+
+// key types
+# define EP_CRYPTO_KEYTYPE_UNKNOWN	0	// error
+# define EP_CRYPTO_KEYTYPE_RSA		1	// RSA
+# define EP_CRYPTO_KEYTYPE_DSA		2	// DSA
+# define EP_CRYPTO_KEYTYPE_EC		3	// Elliptic curve
+# define EP_CRYPTO_KEYTYPE_DH		4	// Diffie-Hellman
+
+// key encryption algorithms for secret PEM keys
+# define EP_CRYPTO_KEYENC_NONE		0	// error/unencrypted, MBZ
+# define EP_CRYPTO_KEYENC_AES128	1	// AES-128
+# define EP_CRYPTO_KEYENC_AES192	2	// AES-192
+# define EP_CRYPTO_KEYENC_AES256	3	// AES-256
+# define EP_CRYPTO_KEYENC_CAMELLIA128	4	// Camellia 128
+# define EP_CRYPTO_KEYENC_CAMELLIA192	5	// Camellia 192
+# define EP_CRYPTO_KEYENC_CAMELLIA256	6	// Camellia 256
+# define EP_CRYPTO_KEYENC_DES		7	// single DES
+# define EP_CRYPTO_KEYENC_3DES		8	// triple DES
+# define EP_CRYPTO_KEYENC_IDEA		9	// IDEA
+
+// flag bits
+# define EP_CRYPTO_F_PUBLIC		0x0000	// public key (no flags set)
+# define EP_CRYPTO_F_SECRET		0x0001	// secret key
+
+// limits
+# define EP_CRYPTO_KEY_MINLEN_RSA	1024
+
+void			ep_crypto_key_print(
+				EP_CRYPTO_KEY *key,
+				FILE *fp,
+				uint32_t flags);
+
+EP_CRYPTO_KEY		*ep_crypto_key_create(
+				int keytype,
+				int keylen,
+				int keyexp,
+				const char *curve);
+void			ep_crypto_key_free(
+				EP_CRYPTO_KEY *key);
+
+EP_CRYPTO_KEY		*ep_crypto_key_read_file(
+				const char *filename,
+				int keytype,
+				int keyform,
+				uint32_t flags);
+EP_CRYPTO_KEY		*ep_crypto_key_read_fp(
+				FILE *fp,
+				const char *filename,
+				int keytype,
+				int keyform,
+				uint32_t flags);
+EP_CRYPTO_KEY		*ep_crypto_key_read_mem(
+				const void *buf,
+				size_t buflen,
+				int keytype,
+				int keyform,
+				uint32_t flags);
+
+EP_STAT			ep_crypto_key_write_file(
+				EP_CRYPTO_KEY *key,
+				const char *filename,
+				int keyform,
+				int keyenc,
+				const char *passwd,
+				uint32_t flags);
+EP_STAT			ep_crypto_key_write_fp(
+				EP_CRYPTO_KEY *key,
+				FILE *fp,
+				int keyform,
+				int keyenc,
+				const char *passwd,
+				uint32_t flags);
+EP_STAT			ep_crypto_key_write_mem(
+				EP_CRYPTO_KEY *key,
+				void *buf,
+				size_t bufsize,
+				int keyform,
+				int keyenc,
+				const char *passwd,
+				uint32_t flags);
+
+int			ep_crypto_keyenc_byname(
+				const char *enc_alg_str);
+const char		*ep_crypto_keyenc_name(
+				int enc_alg);
+
+EP_STAT			ep_crypto_key_compat(
+				const EP_CRYPTO_KEY *pubkey,
+				const EP_CRYPTO_KEY *seckey);
+int			ep_crypto_keyform_byname(
+				const char *fmt);
+int			ep_crypto_keytype_fromkey(
+				EP_CRYPTO_KEY *key);
+int			ep_crypto_keytype_byname(
+				const char *alg_name);
+const char		*ep_crypto_keytype_name(
+				int keytype);
+
+
+/*
+**  Message Digests
+*/
+
+# define EP_CRYPTO_MD		EVP_MD_CTX
+
+// digest algorithms (no more than 4 bits)
+# define EP_CRYPTO_MD_NULL	0
+# define EP_CRYPTO_MD_SHA1	1
+# define EP_CRYPTO_MD_SHA224	2
+# define EP_CRYPTO_MD_SHA256	3
+# define EP_CRYPTO_MD_SHA384	4
+# define EP_CRYPTO_MD_SHA512	5
+
+EP_CRYPTO_MD		*ep_crypto_md_new(
+				int md_alg_id);
+EP_CRYPTO_MD		*ep_crypto_md_clone(
+				EP_CRYPTO_MD *base_md);
+void			ep_crypto_md_free(
+				EP_CRYPTO_MD *md);
+
+EP_STAT			ep_crypto_md_update(
+				EP_CRYPTO_MD *md,
+				void *data,
+				size_t dsize);
+EP_STAT			ep_crypto_md_final(
+				EP_CRYPTO_MD *md,
+				void *dbuf,
+				size_t *dbufsize);
+
+int			ep_crypto_md_type(
+				EP_CRYPTO_MD *md);
+int			ep_crypto_md_alg_byname(
+				const char *algname);
+const char		*ep_crypto_md_alg_name(
+				int md_alg);
+
+void			ep_crypto_md_sha256(
+				const void *data,
+				size_t glen,
+				uint8_t *out);
+
+// private
+const EVP_MD		*_ep_crypto_md_getalg_byid(
+				int md_alg_id);
+
+/*
+**  Signing and Verification
+*/
+
+# define EP_CRYPTO_MAX_SIG	(1024 * 8)
+
+EP_CRYPTO_MD		*ep_crypto_sign_new(
+				EP_CRYPTO_KEY *skey,
+				int md_alg_id);
+void			ep_crypto_sign_free(
+				EP_CRYPTO_MD *md);
+EP_STAT			ep_crypto_sign_update(
+				EP_CRYPTO_MD *md,
+				void *dbuf,
+				size_t dbufsize);
+EP_STAT			ep_crypto_sign_final(
+				EP_CRYPTO_MD *md,
+				void *sbuf,
+				size_t *sbufsize);
+
+EP_CRYPTO_MD		*ep_crypto_vrfy_new(
+				EP_CRYPTO_KEY *pkey,
+				int md_alg_id);
+void			ep_crypto_vrfy_free(
+				EP_CRYPTO_MD *md);
+EP_STAT			ep_crypto_vrfy_update(
+				EP_CRYPTO_MD *md,
+				void *dbuf,
+				size_t dbufsize);
+EP_STAT			ep_crypto_vrfy_final(
+				EP_CRYPTO_MD *md,
+				void *obuf,
+				size_t obufsize);
+
+
+/*
+**  Error Handling (private)
+*/
+
+void	*_ep_crypto_error(const char *msg, ...);
+
+#endif // _EP_CRYPTO_H_

@@ -22,6 +22,14 @@
 #include <string.h>
 #include <sys/queue.h>
 
+
+// how strongly we enforce signatures
+uint32_t	GdpSignatureStrictness;		// how strongly we enforce signatures
+
+#define GDP_SIG_MUSTVERIFY	0x01		// sig must verify if it exists
+#define GDP_SIG_REQUIRED	0x02		// sig must exist if pub key exists
+#define GDP_SIG_PUBKEYREQ	0x04		// public key must exist
+
 /*
 **  Private GCL definitions for gdpd only
 **

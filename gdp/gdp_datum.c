@@ -139,7 +139,7 @@ gdp_datum_print(const gdp_datum_t *datum, FILE *fp, uint32_t flags)
 	if (EP_TIME_ISVALID(&datum->ts))
 	{
 		fprintf(fp, ", ts ");
-		ep_time_print(&datum->ts, fp, true);
+		ep_time_print(&datum->ts, fp, EP_TIME_FMT_HUMAN);
 	}
 	else
 	{

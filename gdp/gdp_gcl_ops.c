@@ -29,7 +29,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl.ops", "GCL operations for GDP");
 void
 _gdp_gcl_newname(gdp_gcl_t *gcl)
 {
-	_gdp_newname(gcl->name);
+	_gdp_newname(gcl->name, gcl->gclmd);
 	gdp_printable_name(gcl->name, gcl->pname);
 }
 
@@ -55,7 +55,7 @@ _gdp_gcl_newhandle(gdp_name_t gcl_name, gdp_gcl_t **pgcl)
 
 	// create a name if we don't have one passed in
 	if (gcl_name == NULL || !gdp_name_is_valid(gcl_name))
-		_gdp_newname(gcl->name);
+		_gdp_newname(gcl->name, gcl->gclmd);
 	else
 		memcpy(gcl->name, gcl_name, sizeof gcl->name);
 	gdp_printable_name(gcl->name, gcl->pname);
@@ -103,6 +103,13 @@ _gdp_gcl_freehandle(gdp_gcl_t *gcl)
 	// free any additional per-GCL resources
 	if (gcl->freefunc != NULL)
 		(*gcl->freefunc)(gcl);
+	gcl->freefunc = NULL;
+	if (gcl->gclmd != NULL)
+		gdp_gclmd_free(gcl->gclmd);
+	gcl->gclmd = NULL;
+	if (gcl->digest != NULL)
+		ep_crypto_md_free(gcl->digest);
+	gcl->digest = NULL;
 
 	// release the locks and cache entry
 	ep_thr_mutex_destroy(&gcl->mutex);
@@ -151,12 +158,14 @@ _gdp_gcl_dump(
 
 		if (detail >= GDP_PR_BASIC)
 		{
-			fprintf(fp, "\tiomode = %d, refcnt = %d, reqs = %p\n",
-					gcl->iomode, gcl->refcnt, LIST_FIRST(&gcl->reqs));
+			fprintf(fp, "\tiomode = %d, refcnt = %d, reqs = %p, nrecs = %"
+					PRIgdp_recno "\n",
+					gcl->iomode, gcl->refcnt, LIST_FIRST(&gcl->reqs),
+					gcl->nrecs);
 			if (detail >= GDP_PR_DETAILED)
 			{
-				fprintf(fp, "\tfreefunc = %p, x = %p\n",
-						gcl->freefunc, gcl->x);
+				fprintf(fp, "\tfreefunc = %p, gclmd = %p, digest = %p, x = %p\n",
+						gcl->freefunc, gcl->gclmd, gcl->digest, gcl->x);
 			}
 		}
 	}
@@ -194,19 +203,16 @@ _gdp_gcl_create(gdp_name_t gclname,
 				gdp_printable_name(logdname, dxname));
 	}
 
-	// create a new GCL so we can correlate the results
-	estat = _gdp_gcl_newhandle(gclname, &gcl);
+	// create a new pseudo-GCL for the daemon so we can correlate the results
+	estat = _gdp_gcl_newhandle(logdname, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// create the request
 	estat = _gdp_req_new(GDP_CMD_CREATE, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	// set the target address to be the log daemon
-	memcpy(req->pdu->dst, logdname, sizeof req->pdu->dst);
-
 	// send the name of the log to be created in the payload
-	gdp_buf_write(req->pdu->datum->dbuf, gcl->name, sizeof (gdp_name_t));
+	gdp_buf_write(req->pdu->datum->dbuf, gclname, sizeof (gdp_name_t));
 
 	// add the metadata to the output stream
 	_gdp_gclmd_serialize(gmd, req->pdu->datum->dbuf);
@@ -214,7 +220,10 @@ _gdp_gcl_create(gdp_name_t gclname,
 	estat = _gdp_invoke(req);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	// success
+	// success --- change the GCL name to the true name
+	memcpy(gcl->name, gclname, sizeof gcl->name);
+
+	// free resources and return results
 	_gdp_req_free(req);
 	*pgcl = gcl;
 	return estat;
@@ -245,34 +254,131 @@ fail0:
 EP_STAT
 _gdp_gcl_open(gdp_gcl_t *gcl,
 			int cmd,
+			EP_CRYPTO_KEY *secretkey,
 			gdp_chan_t *chan,
 			uint32_t reqflags)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gdp_req_t *req = NULL;
+	size_t pkbuflen;
+	const uint8_t *pkbuf;
+	int md_alg;
+	int pktype;
+	int pkbits;
 
+	// send the request across to the log daemon
 	errno = 0;				// avoid spurious messages
-
 	estat = _gdp_req_new(cmd, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
-
 	estat = _gdp_invoke(req);
+	EP_STAT_CHECK(estat, goto fail0);
+	// success
 
-	_gdp_req_free(req);
+	// save the number of records
+	gcl->nrecs = req->pdu->datum->recno;
+
+	// read in the metadata to internal format
+	gcl->gclmd = _gdp_gclmd_deserialize(req->pdu->datum->dbuf);
+
+	// if read-only, we're done
+	if (cmd != GDP_CMD_OPEN_AO)
+		goto finis;
+
+	// see if we have a public key; if not we're done
+	estat = gdp_gclmd_find(gcl->gclmd, GDP_GCLMD_PUBKEY,
+				&pkbuflen, (const void **) &pkbuf);
+	if (!EP_STAT_ISOK(estat))
+	{
+		ep_dbg_cprintf(Dbg, 30, "_gdp_gcl_open: no public key\n");
+		goto finis;
+	}
+
+	md_alg = pkbuf[0];
+	pktype = pkbuf[1];
+	pkbits = (pkbuf[2] << 8) | pkbuf[3];
+
+	if (secretkey == NULL)
+	{
+		secretkey = _gdp_crypto_skey_read(gcl->pname, "pem");
+
+		if (secretkey == NULL)
+		{
+			// OK, now we have a problem --- we can't sign
+			estat = GDP_STAT_SKEY_REQUIRED;
+			ep_dbg_cprintf(Dbg, 30, "_gdp_gcl_open: no secret key\n");
+			goto fail0;
+		}
+	}
+
+	// validate the compatibility of the public and secret keys
+	{
+		EP_CRYPTO_KEY *pubkey = ep_crypto_key_read_mem(pkbuf + 4, pkbuflen - 4,
+				pktype, EP_CRYPTO_KEYFORM_DER, EP_CRYPTO_F_PUBLIC);
+
+		if (ep_dbg_test(Dbg, 40))
+		{
+			ep_crypto_key_print(pubkey, ep_dbg_getfile(), EP_CRYPTO_F_PUBLIC);
+		}
+		estat = ep_crypto_key_compat(secretkey, pubkey);
+		ep_crypto_key_free(pubkey);
+		if (!EP_STAT_ISOK(estat))
+		{
+			(void) _ep_crypto_error("public & secret keys are not compatible");
+			goto fail0;
+		}
+	}
+
+	// set up the message digest context
+	gcl->digest = ep_crypto_sign_new(secretkey, md_alg);
+	if (gcl->digest == NULL)
+		goto fail1;
+
+	// add the GCL name to the hashed message digest
+	ep_crypto_sign_update(gcl->digest, gcl->name, sizeof gcl->name);
+
+	// re-serialize the metadata and include it
+	struct evbuffer *evb = evbuffer_new();
+	_gdp_gclmd_serialize(gcl->gclmd, evb);
+	size_t evblen = evbuffer_get_length(evb);
+	ep_crypto_sign_update(gcl->digest, evbuffer_pullup(evb, evblen), evblen);
+	//evbuffer_drain(evb, evblen);
+	evbuffer_free(evb);
+
+	// the GCL hash structure now has the fixed part of the hash
+
+finis:
+	estat = EP_STAT_OK;
+
+	if (false)
+	{
+fail1:
+		estat = EP_STAT_CRYPTO_DIGEST;
+	}
 
 fail0:
+	if (req != NULL)
+		_gdp_req_free(req);
+
 	// log failure
 	if (EP_STAT_ISOK(estat))
 	{
 		// success!
-		ep_dbg_cprintf(Dbg, 10, "Opened GCL %s\n", gcl->pname);
+		if (ep_dbg_test(Dbg, 30))
+		{
+			ep_dbg_printf("Opened ");
+			_gdp_gcl_dump(gcl, ep_dbg_getfile(), GDP_PR_DETAILED, 0);
+		}
+		else
+		{
+			ep_dbg_cprintf(Dbg, 10, "Opened GCL %s\n", gcl->pname);
+		}
 	}
 	else
 	{
 		char ebuf[100];
 
 		ep_dbg_cprintf(Dbg, 10,
-				"Couldn't open GCL %s: %s\n",
+				"Couldn't open GCL %s:\n\t%s\n",
 				gcl->pname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	return estat;
@@ -322,22 +428,28 @@ _gdp_gcl_append(gdp_gcl_t *gcl,
 			gdp_chan_t *chan,
 			uint32_t reqflags)
 {
-	EP_STAT estat;
+	EP_STAT estat = GDP_STAT_BAD_IOMODE;
 	gdp_req_t *req = NULL;
 
 	errno = 0;				// avoid spurious messages
 
 	EP_ASSERT_POINTER_VALID(gcl);
 	EP_ASSERT_POINTER_VALID(datum);
+	if (!EP_UT_BITSET(GDP_MODE_AO, gcl->iomode))
+		goto fail0;
 
 	estat = _gdp_req_new(GDP_CMD_APPEND, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 	gdp_datum_free(req->pdu->datum);
-	(void) ep_time_now(&datum->ts);
+	//(void) ep_time_now(&datum->ts);
 	req->pdu->datum = datum;
 	EP_ASSERT(datum->inuse);
+	req->md = gcl->digest;
+	datum->recno = gcl->nrecs + 1;
 
 	estat = _gdp_invoke(req);
+	if (EP_STAT_ISOK(estat))
+		gcl->nrecs++;
 
 	req->pdu->datum = NULL;			// owned by caller
 	_gdp_req_free(req);
@@ -431,13 +543,15 @@ _gdp_gcl_read(gdp_gcl_t *gcl,
 			gdp_chan_t *chan,
 			uint32_t reqflags)
 {
-	EP_STAT estat;
+	EP_STAT estat = GDP_STAT_BAD_IOMODE;
 	gdp_req_t *req;
 
 	errno = 0;				// avoid spurious messages
 
 	EP_ASSERT_POINTER_VALID(gcl);
 	EP_ASSERT_POINTER_VALID(datum);
+	if (!EP_UT_BITSET(GDP_MODE_RO, gcl->iomode))
+		goto fail0;
 	estat = _gdp_req_new(GDP_CMD_READ, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 

@@ -25,14 +25,14 @@ platform() {
     local  __resultvar=$1
     local result
     if [ -f "/etc/lsb-release" ]; then
-	source /etc/lsb-release
+	. /etc/lsb-release
 	result="$DISTRIB_ID"
     elif [ -f "/etc/redhat-release" ]; then
 	result="centos"
     else
         result=`uname -s`
     fi
-    result=`echo $release | tr '[A-Z]' '[a-z]'`
+    result=`echo $result | tr '[A-Z]' '[a-z]'`
     if [ "$result" = "linux" ]; then
 	result=`cat /etc/issue | sed 's/ .*//' | tr '[A-Z]' '[a-z]'`
     fi

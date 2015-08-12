@@ -480,7 +480,7 @@ a_append(scgi_request *req, gdp_name_t gcliname, gdp_datum_t *datum)
 		{
 			char tbuf[100];
 
-			ep_time_format(&datum->ts, tbuf, sizeof tbuf, false);
+			ep_time_format(&datum->ts, tbuf, sizeof tbuf, EP_TIME_FMT_DEFAULT);
 			json_object_set_nocheck(j, "timestamp", json_string(tbuf));
 		}
 		jbuf = json_dumps(j, JSON_INDENT(4));
@@ -551,7 +551,7 @@ a_read_datum(scgi_request *req, gdp_name_t gcliname, gdp_recno_t recno)
 			if (EP_TIME_ISVALID(&datum->ts))
 			{
 				fprintf(fp, "GDP-Commit-Timestamp: ");
-				ep_time_print(&datum->ts, fp, false);
+				ep_time_print(&datum->ts, fp, EP_TIME_FMT_DEFAULT);
 				fprintf(fp, "\r\n");
 			}
 			fprintf(fp, "\r\n");				// end of header

@@ -41,6 +41,10 @@ static struct ep_stat_to_string Stats[] =
 	{ GDP_STAT_READONLY,				"cannot update read-only object",	},
 	{ GDP_STAT_NOTFOUND,				"cannot find requested object",	},
 	{ GDP_STAT_PDU_CORRUPT,				"corrupt pdu",					},
+	{ GDP_STAT_SKEY_REQUIRED,			"secret key required",				},
+	{ GDP_STAT_GCL_READ_ERROR,			"GCL read error",					},
+	{ GDP_STAT_RECNO_SEQ_ERROR,			"record out of sequence",			},
+	{ GDP_STAT_CRYPTO_SIGFAIL,			"signature failure",				},
 
 	{ GDP_STAT_NAK_BADREQ,				"4.00 bad request",				},
 	{ GDP_STAT_NAK_UNAUTH,				"4.01 unauthorized",			},

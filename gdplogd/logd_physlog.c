@@ -459,7 +459,38 @@ gcl_physopen(gdp_gcl_t *gcl)
 	gcl->x->log_type = log_header.log_type;
 
 	// XXX: read metadata entries
+	if (log_header.num_metadata_entries > 0)
+	{
+		int mdtotal = 0;
+		void *md_data;
+		int i;
 
+		gcl->gclmd = gdp_gclmd_new(log_header.num_metadata_entries);
+		for (i = 0; i < log_header.num_metadata_entries; i++)
+		{
+			uint32_t md_id;
+			uint32_t md_len;
+
+			if (fread(&md_id, sizeof md_id, 1, data_fp) != 1 ||
+				fread(&md_len, sizeof md_len, 1, data_fp) != 1)
+			{
+				estat = GDP_STAT_GCL_READ_ERROR;
+				goto fail3;
+			}
+
+			gdp_gclmd_add(gcl->gclmd, md_id, md_len, NULL);
+			mdtotal += md_len;
+		}
+		md_data = ep_mem_malloc(mdtotal);
+		if (fread(md_data, mdtotal, 1, data_fp) != 1)
+		{
+			estat = GDP_STAT_GCL_READ_ERROR;
+			goto fail3;
+		}
+		_gdp_gclmd_adddata(gcl->gclmd, md_data);
+	}
+
+	// open the index file
 	fd = open(index_pbuf, O_RDWR | O_APPEND);
 	if (fd < 0 || flock(fd, LOCK_SH) < 0 ||
 			(index_fp = fdopen(fd, "a+")) == NULL)
@@ -505,7 +536,7 @@ fail0:
 	{
 		char ebuf[100];
 
-		ep_dbg_printf("Couldn't open gcl %s: %s\n",
+		ep_dbg_printf("Couldn't open gcl %s:\n\t%s\n",
 				gcl->pname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	return estat;

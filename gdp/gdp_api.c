@@ -148,7 +148,7 @@ gdp_parse_name(const char *ext, gdp_name_t name)
 			!EP_STAT_ISOK(gdp_internal_name(ext, name)))
 	{
 		// must be human-oriented name
-		SHA256((const uint8_t *) ext, strlen(ext), name);
+		ep_crypto_md_sha256((const uint8_t *) ext, strlen(ext), name);
 	}
 	return EP_STAT_OK;
 }
@@ -206,9 +206,8 @@ gdp_init(const char *router_addr)
 		return EP_STAT_OK;
 	inited = true;
 
-	// pass it on to the internal module
 	// set up global state, event loop, etc.
-	estat = _gdp_lib_init(NULL);
+	estat = gdp_lib_init(NULL);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// initialize connection
@@ -254,6 +253,16 @@ gdp_gcl_create(gdp_name_t gclname,
 {
 	EP_STAT estat = EP_STAT_OK;
 	char ebuf[100];
+	gdp_name_t namebuf;
+
+	if (gclname == NULL)
+	{
+		gclname = namebuf;
+		gdp_buf_t *buf = gdp_buf_new();
+		size_t mdlen = _gdp_gclmd_serialize(gmd, buf);
+		ep_crypto_md_sha256(gdp_buf_getptr(buf, mdlen), mdlen, gclname);
+		gdp_buf_free(buf);
+	}
 
 	estat = _gdp_gcl_create(gclname, logdname, gmd, _GdpChannel,
 					GDP_REQ_ALLOC_RID, pgcl);
@@ -300,7 +309,7 @@ gdp_gcl_open(gdp_name_t name,
 	EP_STAT_CHECK(estat, goto fail0);
 	gcl->iomode = mode;
 
-	estat = _gdp_gcl_open(gcl, cmd, _GdpChannel, GDP_REQ_ALLOC_RID);
+	estat = _gdp_gcl_open(gcl, cmd, NULL, _GdpChannel, GDP_REQ_ALLOC_RID);
 	if (EP_STAT_ISOK(estat))
 	{
 		*pgcl = gcl;
@@ -321,7 +330,11 @@ fail0:
 EP_STAT
 gdp_gcl_close(gdp_gcl_t *gcl)
 {
-	return _gdp_gcl_close(gcl, _GdpChannel, 0);
+	EP_STAT estat;
+
+	estat = _gdp_gcl_close(gcl, _GdpChannel, 0);
+	_gdp_gcl_freehandle(gcl);
+	return estat;
 }
 
 

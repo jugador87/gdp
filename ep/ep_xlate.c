@@ -66,12 +66,13 @@ EP_SRC_ID("@(#)$Id: ep_xlate.c 252 2008-09-16 21:24:42Z eric $");
 
 int
 ep_xlate_in(
-	const char *in,
+	const void *_in,
 	unsigned char *out,
 	size_t olen,
 	char stopchar,
 	uint32_t how)
 {
+	const uint8_t *in = _in;
 	size_t ol = olen;
 	unsigned char *op = out;
 	char ch;
@@ -156,7 +157,7 @@ ep_xlate_in(
 		}
 		else if (ch == '&' && EP_UT_BITSET(EP_XLATE_AMPER, how))
 		{
-			const char *firstin = in;
+			const uint8_t *firstin = in;
 			char *b;
 			char buf[32];
 
@@ -227,7 +228,7 @@ static char	HexCharMap[16] = "0123456789ABCDEF";
 
 int
 ep_xlate_out(
-	const char *tval,
+	const void *_tval,
 	size_t tlen,
 	FILE *osp,
 	const char *forbid,
@@ -235,6 +236,7 @@ ep_xlate_out(
 {
 	int osize = 0;
 	char encode_char;
+	const uint8_t *tval = _tval;
 
 	if (EP_UT_BITSET(EP_XLATE_PERCENT, how))
 		encode_char = '%';

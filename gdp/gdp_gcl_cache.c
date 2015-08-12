@@ -335,9 +335,11 @@ _gdp_gcl_decref(gdp_gcl_t *gcl)
 		ep_log(EP_STAT_ABORT, "_gdp_gcl_decref: %p: zero refcnt", gcl);
 	}
 
-	ep_dbg_cprintf(Dbg, 44, "_gdl_gcl_decref(%p): %d\n",
+	ep_dbg_cprintf(Dbg, 44, "_gdp_gcl_decref(%p): %d\n",
 			gcl, gcl->refcnt);
 	ep_thr_mutex_unlock(&gcl->mutex);
+	if (gcl->refcnt == 0 && !EP_UT_BITSET(GCLF_DEFER_FREE, gcl->flags))
+		_gdp_gcl_freehandle(gcl);
 }
 
 

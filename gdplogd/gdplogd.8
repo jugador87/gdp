@@ -1,0 +1,146 @@
+.Dd August 7, 2015
+.Dt GDPLOGD 8
+.Os Swarm-GDP
+.Sh NAME
+.Nm gdplogd
+.Nd GDP log server
+.Sh SYNOPSIS
+.Nm gdplogd
+.Op Fl D Ar debug-spec
+.Op Fl F
+.Op Fl G Ar router-ip
+.Op Fl n Ar n-workers
+.Op Fl N Ar my-name
+.Op Fl s Ar sig-strictness
+.Sh DESCRIPTION
+.Nm gdplogd
+serves up logs from stable storage,
+accepting commands from clients.
+.Sh OPTIONS
+.Bl -tag
+.It Fl D Ar debug-spec
+Turns on debugging flags using the libep-style format.
+Useful only with the code in hand.
+Implies
+.Fl F .
+.It Fl F
+Runs the daemon in foreground.
+At the moment the daemon always runs in foreground,
+so this flag does nothing.
+.It Fl G Ar router-ip
+Contact the given IP address (which may be a DNS name)
+to get a connection to the GDP routing layer.
+This will be replaced by automatic discovery
+(for example, using Zeroconf)
+soon.
+The address may have an optional port number after a colon.
+If this is not specified,
+the names listed in the
+.Va swarm.gdp.routers
+runtime administrative parameter
+are searched.
+See
+.Xr gdp 7
+for details.
+.It Fl n Ar n-workers
+Set the number of worker threads.
+A more flexible way of setting these uses the
+.Va libep.thr.pool.min_workers
+and
+.Va libep.thr.pool.max_workers
+to set the minimum and maximum number of threads in the thread pool.
+See
+.Xr gdp 7
+for details.
+.It Fl N Ar my-name
+Sets the name of this log daemon instance.
+This is the same name used in the
+.Xr gcl-create 8
+command.
+.Em The name must be unique in the GDP,
+and hence will usually have a structured name such as
+.Qq edu.berkeley.eecs.gdp-01.gdplogd .
+.It Fl S Ar sig-strictness
+Specifies how strict the daemon will be about enforcing signatures
+on append (write) requests to logs.
+It is only possible to make the checking stricter using this flag.
+See the description of the
+.Va swarm.gdplogd.crypto.strictness
+parameter below for details.
+This option is only intended to be used during a transition period;
+it will go away in the future.
+.El
+
+
+.Sh EXIT STATUS
+
+
+.Sh ADMINISTRATIVE PARAMETERS
+These only describe the parameters specific to
+.Nm .
+See
+.Xr gdp 7
+for descriptions of shared parameters.
+.Bl -tag
+.It swarm.gdplogd.crypto.strictness
+Specifies how strict the daemon will be about enforcing signatures
+on append (write) requests to logs.
+The value is a comma-separated string of words
+from the set:
+.Bl -tag -nested -compact
+.It Li Verify
+If a signature exists on an append command
+it must correctly verify.
+.It Li Required
+Signatures are required to exist on all append commands;
+any unsigned commands are rejected.
+.It Li Pubkey
+Logs must have a public key associated with them.
+If they do not,
+attempts to open a file for writing will fail.
+.El
+Only the first character is actually tested, so
+.Qq V,R
+and
+.Qq Verify,Required
+are semantically the same.
+This variable is only intended to be used during a transition period;
+it will go away in the future.
+.It swarm.gdplogd.gcl.dir
+The directory in which physical logs are written.
+Defaults to
+.Qq Pa /var/swarm/gcls .
+.It swarm.gdplogd.gdpname
+Sets the name of this instance of
+.Nm .
+This is needed when using
+.Xr gcl-create 8
+to create a new log.
+.It swarm.gdplogd.index.cachesize
+The size (in entries) of the internal record offset cache.
+This can be used to speed access to recently accessed records.
+Defaults to 65536, which equals 1MiB.
+.It swarm.gdplogd.reclaim.age
+When an in-memory log reference count drops to zero
+that log is a candidate for having resources
+(such as memory and open file descriptors)
+reclaimed.
+However there is a high likelihood that the log will be referenced again soon,
+so reclaimation is deferred for this parameter's value (in seconds).
+Defaults to 300 (five minutes).
+.It swarm.gdplogd.reclaim.interval
+How often to scan the cached but unreferenced resources
+that might be cleared (in seconds).
+Defaults to 15.
+This should generally be less than
+.Va swarm.gdplogd.reclaim.age .
+.El
+
+.Sh SEE ALSO
+.Xr gdp 7 ,
+.Xr gcl-create 8
+
+.Sh BUGS
+The
+.Fl S
+flag is a horrible thing indeed.

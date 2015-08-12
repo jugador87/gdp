@@ -444,10 +444,34 @@ Full List of Administrative Parameters:
 		request when no response is received.  Defaults to 3
 		(meaning that the request may be sent up to 4 times
 		total).
-	swarm.gdp.log.keylen --- the default size of a signature key
-		in bits.  Defaults to 2048.
-	swarm.gdp.log.keyexp --- the exponent for a signature key.
-		Defaults to 3.
+	swarm.gdp.crypto.key.path --- path name to search for secret
+		keys when writing a log.  Defaults to ".:KEYS:
+		~/.swarm/gdp/keys:/usr/local/etc/swarm/gdp/keys:
+		/etc/swarm/gdp/keys".
+	swarm.gdp.crypto.key.dir --- the directory in which to store the
+		secret keys when creating a GCL.  Defaults to "KEYS".
+		Can be overridden by gcl-create -K flag.
+	swarm.gdp.crypto.hash.alg --- the default hashing algorithm.
+		Defaults to "sha256".  Can be overridden by gcl-create
+		-h <alg> flag.
+	swarm.gdp.crypto.sign.alg --- the default signing algorithm.
+		Defaults to "ec".  Can be overridden by gcl-create
+		-k flag.
+	swarm.gdp.crypto.keyenc.alg --- the default secret key encryption
+		algorithm.  Defaults to "aes192".  A value of "none"
+		turns off encryption.  Can be overridden by gcl-create
+		-e flag.
+	swarm.gdp.crypto.ec.curve --- the default curve to use when
+		creating an EC key.  Defaults to sect283r1 (subject
+		to change).  Can be overridden by gcl-create -c flag.
+	swarm.gdp.crypto.dsa.keylen --- the default size of an RSA
+		signature key in bits.  Defaults to 2048.  Can be
+		overridden by gcl-create -b flag.
+	swarm.gdp.crypto.rsa.keylen --- the default size of an RSA
+		signature key in bits.  Defaults to 2048.  Can be
+		overridden by gcl-create -b flag.
+	swarm.gdp.crypto.rsa.keyexp --- the exponent for an RSA signature
+		key.  Defaults to 3.
 	swarm.gdp.syslog.facility --- the name of the log facility to use
 		(see syslog(3) for details).  The "gdp" in the name
 		can be replaced by an individual program name to set a
@@ -458,7 +482,7 @@ Full List of Administrative Parameters:
 		be stored.  Defaults to "/var/swarm/gcls".
 	swarm.gdplogd.reclaim.interval --- how often to wake up to
 		reclaim unused resources.  Defaults to 15 (seconds).
-	swarm.gdplogd.gcl.reclaim-age --- how long a GCL is permitted to
+	swarm.gdplogd.reclaim.age --- how long a GCL is permitted to
 		sit idle before its resources are reclaimed.  Defaults
 		to 300 (seconds, i.e., five minutes).
 	swarm.gdplogd.gdpname --- the name to use as the source address
@@ -473,6 +497,13 @@ Full List of Administrative Parameters:
 		parameter avoids mistakes.  If the named account does
 		not exist it defaults to 1:1 (user daemon on most
 		systems).
+	swarm.gdplogd.crypto.strictness --- how strictly signatures
+		are enforced.  This is a sequence of comma-separated
+		words where only the first letter is significant.
+		Values are "verify" (signature must verify if it
+		exists), "required" (signature must be present if the
+		GCL has a public key), and/or "pubkeyreq" (public
+		key is required).  For now, defaults to "verify".
 	swarm.rest.kv.gclname --- the name of the GCL to use for the
 		key-value store.  Defaults to "swarm.rest.kv.gcl".
 	swarm.rest.prefix --- the REST prefix (e.g., /gdp/v1/).
@@ -482,6 +513,8 @@ Full List of Administrative Parameters:
 	swarm.rest.scgi.pollinterval --- how often to poll for SCGI
 		connections (in microseconds).  Defaults to 100000
 		(100 msec).
+	libep.crypto.dev --- whether or not to try to use /dev/crypto
+		for hardware acceleration.  Defaults to true.
 	libep.time.accuracy --- the value filled in for the "accuracy"
 		field in time structures (defaults to zero).
 	libep.thr.pool.min_workers --- the default minimum number of

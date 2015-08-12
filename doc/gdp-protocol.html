@@ -138,11 +138,8 @@
           </td>
         </tr>
         <tr>
-          <td colspan="1" rowspan="1" align="center" valign="top">Signature Alg<br>
-            (1 octet)<br>
-          </td>
-          <td align="center" valign="top">Signature Len<br>
-            (1 octet)<br>
+          <td colspan="2" rowspan="1" align="center" valign="top">Signature Info<br>
+            (2 octets)<br>
           </td>
           <td colspan="1" rowspan="1" align="center" valign="top">Optionals
             Length<br>
@@ -212,14 +209,66 @@
       will be the address of the program instance, which in general will change
       when the program is restarted.<br>
     </p>
-    <p>Signature Alg (1 octet).&nbsp; The general class of signature
-      algorithm.&nbsp; If this is zero there is no signature.&nbsp; [[TODO:
-      specify values]]</p>
+    <p>Signature Info (2 octets).&nbsp; The message digest and signature
+      length.&nbsp; If this is zero there is no signature.&nbsp; The top four
+      bits indicate the message digest algorithm:</p>
+    <table align="center" border="1" cellpadding="2" cellspacing="2" width="90%">
+      <tbody>
+        <tr>
+          <td valign="top">Name<br>
+          </td>
+          <td valign="top">Numeric Value<br>
+          </td>
+          <td valign="top">Interpretation/Reference<br>
+          </td>
+        </tr>
+        <tr>
+          <td>MD_NULL</td>
+          <td>0x0000</td>
+          <td>no digest</td>
+        </tr>
+        <tr>
+          <td valign="top">MD_SHA1<br>
+          </td>
+          <td valign="top">0x1000<br>
+          </td>
+          <td valign="top">SHA-1 (160 bit) (FIPS PUB 180-1) </td>
+        </tr>
+        <tr>
+          <td valign="top">MD_SHA224<br>
+          </td>
+          <td valign="top">0x2000<br>
+          </td>
+          <td valign="top">SHA-2 (224 bit) (FIPS PUB 180-3)<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">MD_SHA256<br>
+          </td>
+          <td valign="top">0x3000<br>
+          </td>
+          <td style="height: 19.2px;" valign="top">SHA-2 (256 bit) (FIPS PUB
+            180-3) </td>
+        </tr>
+        <tr>
+          <td>MD_SHA384</td>
+          <td>0x4000</td>
+          <td>SHA-2 (384 bit) (FIPS PUB 180-3)</td>
+        </tr>
+        <tr>
+          <td>MD_SHA512</td>
+          <td>0x5000</td>
+          <td>SHA-2 (512 bit) (FIPS PUB 180-3)</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>The bottom 12 bits gives the signature length in octets.&nbsp; <em>[[Do
+        we need the digest algorithm?&nbsp; It allows each record to use a
+        different algorithm, and means we have to store this with each
+        record.&nbsp; On the other hand, this could be construed as an
+        advantage.&nbsp; If this information isn't in the PDU then it has to be
+        stored in the log metadata.]]</em></p>
     <p> </p>
-    <p>Signature Len (1 octet).&nbsp; The length of this signature in units of
-      four octets (32 bits).&nbsp; For example, a signature size of 7 translates
-      to a 28 byte (224 bit) signature.<br>
-    </p>
     <p> </p>
     <p>Optionals Length (1 octet).&nbsp; The number of octets of optional header
       data in units of four octets (for example, a value of 2 means that there
@@ -285,13 +334,14 @@
     </p>
     <p>Record Number (8 octets; optional).&nbsp; Contains the record number to
       read, or the first record number for a subscribe or multiread; in
-      responses it contains the actual record number.&nbsp; Responses to PUBLISH
-      commands will contain the record number assigned to the new record.<br>
+      responses it contains the actual record number.&nbsp; PUBLISH commands
+      must contain the next record number (i.e., records cannot be written more
+      than once and there can be no gaps).<br>
     </p>
     <p>Sequence Number (8 octets; optional).&nbsp; When the PDU is signed, this
       field is included with the signature to avoid replay attacks.&nbsp; It
-      must be monotonically increasing.&nbsp; [[Across all time?&nbsp; How is
-      this stored in the GCL?]]<br>
+      must be strictly increasing.&nbsp; [[Across all time?&nbsp; How is this
+      stored in the GCL?]]<br>
     </p>
     <p>Commit Timestamp (16 octets; optional).&nbsp; Contains the commit
       timestamp on received data.&nbsp; [[Merge with Sequence Number??]]</p>
@@ -314,8 +364,8 @@
         yet been understood, and we need to proceed.<br>
       </li>
       <li>The signature itself is at the end of the PDU so it can be computed
-        while the data is being written.<br>
-      </li>
+        while the data is being written.</li>
+      <li>It's unclear whether we need the sequence number.</li>
     </ul>
     <h3>Alternative Standard Format (0x02) <i>[NOT IMPLEMENTED]</i><br>
     </h3>
@@ -350,11 +400,8 @@
           </td>
         </tr>
         <tr align="center">
-          <td colspan="1" rowspan="1" valign="top" width="12%">Signature Alg<br>
-            (1 octet)<br>
-          </td>
-          <td colspan="1" valign="top">Signature Len<br>
-            (1 octet)<br>
+          <td colspan="2" rowspan="1" valign="top" width="12%">Signature Info<br>
+            (2 octets)<br>
           </td>
           <td rowspan="1" colspan="1" valign="top">#Options<br>
             (1 octet)<br>
@@ -808,8 +855,8 @@
           </td>
           <td valign="top">&ndash;/&ndash;<br>
           </td>
-          <td valign="top">Generic operation succeeded.&nbsp; The payload is
-            empty.<br>
+          <td valign="top">Generic operation succeeded.&nbsp; The payload
+            depends on the command being acknowledged.<br>
           </td>
         </tr>
         <tr>
@@ -1092,7 +1139,7 @@
     </p>
     <p>[[Need separate service to do location placement, resource balancing,
       etc.&nbsp; A bit issue will be key management; you don't want to have
-      every log server respond to the same private key (that wouldn't be very
+      every log server respond to the same secret key (that wouldn't be very
       private!), but there has to be some way to do things cross-ADMD.]]<br>
     </p>
     <h3>GCL Open and Close (CMD_OPEN_AO, CMD_OPEN_RO, CMD_CLOSE)</h3>

@@ -42,7 +42,7 @@ typedef struct gdp_qos_req	gdp_qos_req_t;
 **	Other data types
 */
 
-// the internal name of a GCL
+// the internal name of a GCL (256 bits)
 typedef uint8_t				gdp_name_t[32];
 
 #define GDP_NAME_SAME(a, b)	(memcmp((a), (b), sizeof (gdp_name_t)) == 0)
@@ -59,9 +59,6 @@ typedef uint32_t			gdp_rid_t;
 typedef int64_t				gdp_recno_t;
 #define PRIgdp_recno		PRId64
 
-// the size of a DER crypto buffer
-#define _GDP_MAX_DER_LEN	1024
-
 /*
 **	I/O modes
 **
@@ -73,18 +70,20 @@ typedef int64_t				gdp_recno_t;
 
 typedef enum
 {
-	GDP_MODE_ANY = 0,	// no mode specified
-	GDP_MODE_RO = 1,	// read only
-	GDP_MODE_AO = 2,	// append only
+	GDP_MODE_ANY =		0,				// no mode specified
+	GDP_MODE_RO =		0x0001,			// readable
+	GDP_MODE_AO =		0x0002,			// appendable
 } gdp_iomode_t;
 
 
 /*
-**  GCL Metadata
+**  GCL Metadata keys
 */
 
-#define GDP_GCLMD_XID		0x00584944	// XID
-#define GDP_GCLMD_PUBKEY	0x00505542	// PUB
+#define GDP_GCLMD_XID		0x00584944	// XID (external id)
+#define GDP_GCLMD_PUBKEY	0x00505542	// PUB (public key)
+#define GDP_GCLMD_CTIME		0x0043544D	// CTM (creation time)
+#define GDP_GCLMD_CID		0x00434944	// CID (creator id)
 
 
 /*
@@ -145,6 +144,10 @@ struct event_base		*GdpIoEventBase;	// the base for GDP I/O events
 // initialize the library
 extern EP_STAT	gdp_init(
 					const char *gdpd_addr);	// address of gdpd
+
+// pre-initialize the library (gdp_init does this -- rarely needed)
+EP_STAT			gdp_lib_init(
+					const char *my_routing_name);
 
 // run event loop (normally run from gdp_init; never returns)
 extern void		*gdp_run_accept_event_loop(
@@ -248,7 +251,8 @@ EP_STAT			gdp_parse_name(
 					gdp_name_t internal);
 
 // create a new metadata set
-gdp_gclmd_t		*gdp_gclmd_new(void);
+gdp_gclmd_t		*gdp_gclmd_new(
+					int entries);
 
 // free a metadata set
 void			gdp_gclmd_free(gdp_gclmd_t *gmd);
@@ -260,11 +264,18 @@ EP_STAT			gdp_gclmd_add(
 					size_t len,
 					const void *data);
 
-// get an entry from a metadata set
+// get an entry from a metadata set by index
 EP_STAT			gdp_gclmd_get(
 					gdp_gclmd_t *gmd,
 					int indx,
 					gdp_gclmd_id_t *id,
+					size_t *len,
+					const void **data);
+
+// get an entry from a metadata set by id
+EP_STAT			gdp_gclmd_find(
+					gdp_gclmd_t *gmd,
+					gdp_gclmd_id_t id,
 					size_t *len,
 					const void **data);
 
