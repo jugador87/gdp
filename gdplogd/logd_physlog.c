@@ -42,9 +42,6 @@ typedef struct index_entry
 	CIRCULAR_BUFFER		*index_cache;
 } gcl_log_index_t;
 
-#define SIZEOF_INDEX_HEADER		0	//XXX no header yet, but there should be
-#define SIZEOF_INDEX_RECORD		(sizeof(gcl_index_record))
-
 
 /*
 **  FSIZEOF --- return the size of a file

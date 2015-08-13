@@ -18,6 +18,7 @@
 #include <string.h>
 #include <sysexits.h>
 #include <time.h>
+#include <sys/stat.h>
 
 // following are actually private definitions
 #include <gdp/gdp_priv.h>
@@ -51,18 +52,19 @@ int
 show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 {
 	gdp_pname_t gcl_pname;
+	struct stat st;
+	gdp_recno_t max_recno;
 
 	(void) gdp_printable_name(gcl_name, gcl_pname);
 
 	// Add 5 in the middle for '/_xx/'
 	int filename_size = strlen(gcl_dir_name) + 5 + strlen(gcl_pname) +
-			strlen(GCL_DATA_SUFFIX) + 1;
+			strlen(GCL_INDEX_SUFFIX) + 1;
 	char *data_filename = alloca(filename_size);
 
 	snprintf(data_filename, filename_size,
 			"%s/_%02x/%s%s",
 			gcl_dir_name, gcl_name[0], gcl_pname, GCL_DATA_SUFFIX);
-	fprintf(stdout, "%s\n", gcl_pname);
 	ep_dbg_cprintf(Dbg, 6, "Reading %s\n\n", data_filename);
 
 	FILE *data_fp = fopen(data_filename, "r");
@@ -75,6 +77,22 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 		fprintf(stderr, "Could not open %s, errno = %d\n", data_filename, errno);
 		return EX_NOINPUT;
 	}
+
+	snprintf(data_filename, filename_size,
+			"%s/_%02x/%s%s",
+			gcl_dir_name, gcl_name[0], gcl_pname, GCL_INDEX_SUFFIX);
+	if (stat(data_filename, &st) != 0)
+	{
+		fprintf(stderr, "could not stat %s (%s)\n",
+				data_filename, strerror(errno));
+		max_recno = -1;
+		// keep on trying
+	}
+	else
+	{
+		max_recno = (st.st_size - SIZEOF_INDEX_HEADER) / SIZEOF_INDEX_RECORD;
+	}
+	printf("%s (%" PRIgdp_recno " recs)\n", gcl_pname, max_recno);
 
 	if (fread(&header, sizeof header, 1, data_fp) != 1)
 	{
@@ -151,7 +169,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 			mdata[metadata_hdrs[i].md_len] = '\0';
 			file_offset += metadata_hdrs[i].md_len;
 			CHECK_FILE_OFFSET(data_fp, file_offset);
-			if (plev >= GDP_PR_BASIC)
+			if (plev > GDP_PR_BASIC)
 			{
 				fprintf(stdout,
 						"\nMetadata entry %d: name = 0x%08" PRIx32
@@ -268,7 +286,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 
 int
-list_gcls(const char *gcl_dir_name)
+list_gcls(const char *gcl_dir_name, int plev)
 {
 	DIR *dir;
 	int subdir;
@@ -318,7 +336,7 @@ list_gcls(const char *gcl_dir_name)
 
 			// print the name
 			gdp_parse_name(dent->d_name, gcl_iname);
-			show_gcl(gcl_dir_name, gcl_iname, GDP_PR_PRETTY);
+			show_gcl(gcl_dir_name, gcl_iname, plev);
 		}
 		closedir(dir);
 	}
@@ -388,11 +406,31 @@ main(int argc, char *argv[])
 	if (gcl_dir_name == NULL)
 		gcl_dir_name = ep_adm_getstrparam("swarm.gdplogd.gcl.dir", GCL_DIR);
 
+	int plev;
+	switch (verbosity)
+	{
+	case 0:
+		plev = GDP_PR_PRETTY;
+		break;
+
+	case 1:
+		plev = GDP_PR_BASIC;
+		break;
+
+	case 2:
+		plev = GDP_PR_BASIC + 1;
+		break;
+
+	default:
+		plev = GDP_PR_DETAILED;
+		break;
+	}
+
 	if (list_gcl)
 	{
 		if (argc > 0)
 			usage("cannot use a GCL name with -l");
-		return list_gcls(gcl_dir_name);
+		return list_gcls(gcl_dir_name, plev);
 	}
 
 	if (argc > 0)
@@ -414,22 +452,6 @@ main(int argc, char *argv[])
 	if (!EP_STAT_ISOK(estat))
 	{
 		usage("unparsable GCL name");
-	}
-
-	int plev;
-	switch (verbosity)
-	{
-	case 0:
-		plev = GDP_PR_BASIC;
-		break;
-
-	case 1:
-		plev = GDP_PR_BASIC + 1;
-		break;
-
-	default:
-		plev = GDP_PR_DETAILED;
-		break;
 	}
 	exit(show_gcl(gcl_dir_name, gcl_name, plev));
 }
