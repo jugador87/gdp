@@ -19,7 +19,7 @@ GDP_ROOT = ../
 GDP_LOGD_DOCKERFILE = Dockerfile.gdplogd
 GDP_LOGD_VERSION = 0.3-1
 
-GDP_ROUTER_ROOT = ./routia
+GDP_ROUTER_ROOT = ./gdp_router
 GDP_ROUTER_DOCKERFILE = Dockerfile.gdp-router
 GDP_ROUTER_VERSION = 0.3-1
 
@@ -28,13 +28,13 @@ PIPEWORK = ./pipework/pipework
 HOST_IP = 172.30.0.255
 SUBNET = 20
 
-NUM_ROUTERS = 2
+NUM_ROUTERS = 1
 ROUTER_IP_PREFIX = 172.30.0.
 ROUTER_PORT = 8007
 
-NUM_LOGDS_PER_ROUTER = 2    # max 15. Change subnet if you want more
+NUM_LOGDS_PER_ROUTER = 1    # max 15. Change subnet if you want more
 LOGD_IP_PREFIX = 172.30.
-LOGD_CMDLINE_ARGS = -D *=40       # this is in addition to '-G <router>'
+LOGD_CMDLINE_ARGS = -D *=10       # this is in addition to '-G <router>'
 
 ROUTER_IPS = $(foreach num,$(shell seq 1 $(NUM_ROUTERS)),$(ROUTER_IP_PREFIX)$(num))
 ROUTER_CMDLINE_ARGS_ROUTERS = $(shell echo "$(foreach router,$(ROUTER_IPS),$(router):$(ROUTER_PORT))" | sed -e 's/ /,/g')
@@ -46,7 +46,7 @@ $(PIPEWORK):
 	git clone https://github.com/jpetazzo/pipework.git
 
 $(GDP_ROUTER_ROOT):
-	git clone https://github.com/niteshmor/routia.git
+	git clone repoman@repo.eecs.berkeley.edu:projects/swarmlab/gdp_router.git
 
 gdp-router-docker-image: $(GDP_ROUTER_ROOT) $(GDP_ROUTER_DOCKERFILE)
 	$(GDP_ROUTER_ROOT)/deb-pkg/package.sh $(GDP_ROUTER_VERSION)
