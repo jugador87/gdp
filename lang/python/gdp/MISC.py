@@ -47,6 +47,13 @@ gdp_recno_t = c_int64
 
 (GDP_MODE_ANY, GDP_MODE_RO, GDP_MODE_AO) = (0, 1, 2)
 
+# Event types
+#   GDP_EVENT_DATA      1   // returned data
+#   GDP_EVENT_EOS       2   // normal end of subscription
+#   GDP_EVENT_SHUTDOWN  3   // subscription terminating because of shutdown
+#   GDP_EVENT_ASTAT     4   // asynchronous status
+
+(GDP_EVENT_DATA, GDP_EVENT_EOS, GDP_EVENT_SHUTDOWN, GDP_EVENT_ASTAT)=(1,2,3,4)
 
 class EP_STAT(Structure):
     pass
