@@ -66,7 +66,7 @@ class GDP_NAME:
             return bool(s.translate(None, textchars))
 
 
-        if len(name) == 33 and __is_binary_string(name)==True:
+        if len(name) == 32 and __is_binary_string(name)==True:
             # If length of name is exactly 32, treat it as a gdp_name_t
             # This is bit guesswork
 

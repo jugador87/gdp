@@ -39,9 +39,11 @@ provided.
 """
 
 from MISC import GDP_MODE_ANY, GDP_MODE_RO, GDP_MODE_AO, \
+    GDP_EVENT_DATA, GDP_EVENT_EOS, GDP_EVENT_SHUTDOWN, GDP_EVENT_ASTAT, \
     gdp_init, gdp_run_accept_event_loop
 from GDP_NAME import GDP_NAME
 from GDP_GCL import GDP_GCL
 
 __all__ = [GDP_MODE_ANY, GDP_MODE_RO, GDP_MODE_AO,
+           GDP_EVENT_DATA, GDP_EVENT_EOS, GDP_EVENT_SHUTDOWN, GDP_EVENT_ASTAT,
            gdp_init, gdp_run_accept_event_loop, GDP_NAME, GDP_GCL]

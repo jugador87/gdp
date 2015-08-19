@@ -23,8 +23,8 @@ Getting Started:
 	access.
 
      b)	(Optional) Get the code for GDP router (gdp_router) using:
-	    git clone https://github.com/niteshmor/gdp_router.git
-	(This is a public repository.)
+	    git clone \
+        repoman@repo.eecs.berkeley.edu:projects/swarmlab/gdp_router.git
 	This step is required only if you intend to run a GDP router. For
 	the moment, it is highly recommended that you do not run your own
 	instance of gdp_router.
@@ -215,8 +215,7 @@ Start the GDP Routing Daemon:
 	own gdp_router at the moment.
 
 	Currently, gdp_router is in it's own separate repository at:
-	    https://github.com/niteshmor/gdp_router.git
-	This will be moved to some place else in near future.
+	repoman@repo.eecs.berkeley.edu:projects/swarmlab/gdp_router.git
 
 	The current version of the routing daemon uses a simple
 	"global knowledge" algorithm where every routing node knows

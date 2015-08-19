@@ -18,7 +18,7 @@ def main(name_str, start, stop):
     gcl_handle = gdp.GDP_GCL(gcl_name, gdp.GDP_MODE_RO)
 
     # this is the actual subscribe call
-    gcl_handle.multiread(start, stop-start)
+    gcl_handle.multiread(start, stop-start+1)
 
     # timeout
     t = {'tv_sec':0, 'tv_nsec':500*(10**6), 'tv_accuracy':0.0}
@@ -27,7 +27,8 @@ def main(name_str, start, stop):
 
         # This could return a None, after the specified timeout
         event = gdp.GDP_GCL.get_next_event(t)
-        if event is None: break
+        if event is None or event["type"] == gdp.GDP_EVENT_EOS:
+            break
         datum = event["datum"]
         handle = event["gcl_handle"]
         print datum
