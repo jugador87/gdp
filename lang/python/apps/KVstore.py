@@ -58,7 +58,7 @@ import random
 
 class KVstore:
 
-    __freq__ = 10
+    __freq = 10
 
     @staticmethod
     def __to_datum(ds):
@@ -85,40 +85,40 @@ class KVstore:
         "Initialize the instance with the root log"
     
         gdp.gdp_init()  ## XXX: Not sure if this is the best idea
-        self.root = gdp.GDP_NAME(root)
-        self.root_handle = gdp.GDP_GCL(self.root, gdp.GDP_MODE_AO)
+        self.__root = gdp.GDP_NAME(root)
+        self.__root_handle = gdp.GDP_GCL(self.__root, gdp.GDP_MODE_AO)
 
         # a cache for records. recno => datum
         # datum may or may not contain a timestamp and recno
-        self.cache = {}
+        self.__cache = {}
 
         # find the number of records by querying the most recent record
         try:
-            datum = self.root_handle.read(-1)
-            self.num_records = datum["recno"]
-            self.cache[self.num_records] = datum
+            datum = self.__root_handle.read(-1)
+            self.__num_records = datum["recno"]
+            self.__cache[self.__num_records] = datum
         except gdp.MISC.EP_STAT_SEV_ERROR:
-            self.num_records = 0
+            self.__num_records = 0
 
 
     def __read(self, recno):
         "Read a single record. A wrapper around the cache"
 
-        if recno<0: recno = self.num_records+recno
-        if recno not in self.cache:
-            datum = self.root_handle.read(recno)
-            self.cache[recno] = datum
-        return self.__from_datum(self.cache[recno])
+        if recno<0: recno = self.__num_records+recno
+        if recno not in self.__cache:
+            datum = self.__root_handle.read(recno)
+            self.__cache[recno] = datum
+        return self.__from_datum(self.__cache[recno])
 
 
     def __append(self, ds):
         "Append a single record. A wrapper around the cache"
 
         datum = self.__to_datum(ds)
-        self.root_handle.append(datum)
+        self.__root_handle.append(datum)
 
-        self.num_records += 1
-        self.cache[self.num_records] = datum
+        self.__num_records += 1
+        self.__cache[self.__num_records] = datum
 
 
     def __setitems__(self, kvpairs):
@@ -127,7 +127,7 @@ class KVstore:
             kvpairs: a dictionary of key=>value mappings
         """
 
-        if (self.num_records+1)%self.__freq__==0:
+        if (self.__num_records+1)%self.__freq==0:
             self.__do_checkpoint()
 
         # make sure input is in the desired form
@@ -152,7 +152,7 @@ class KVstore:
         # sequentially read rcords from the very end till we find
         #   the key we are looking for, or we hit a checkpoint record
 
-        cur = self.num_records
+        cur = self.__num_records
 
         while cur>0:
 
@@ -188,7 +188,7 @@ class KVstore:
         level = 9
         newmetadata = {}
         newdata = {}
-        upper = cur = self.num_records
+        upper = cur = self.__num_records
 
         while cur>0:
 
