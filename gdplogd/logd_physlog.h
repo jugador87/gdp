@@ -106,4 +106,7 @@ typedef struct gcl_index_record
 // return maximum record number for a given GCL
 extern gdp_recno_t	gcl_max_recno(gdp_gcl_t *gcl);
 
+#define SIZEOF_INDEX_HEADER		0	//XXX no header yet, but there should be
+#define SIZEOF_INDEX_RECORD		(sizeof(gcl_index_record))
+
 #endif //_GDPLOGD_PHYSLOG_H_
