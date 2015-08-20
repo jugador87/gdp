@@ -8,9 +8,25 @@ initilization, the name of the rootlog is to be supplied by a user.
 If the assumption of a single-writer is violated, things won't work anymore.
 
 Individual records are serialized versions of python data structures.  There
-are multiple kinds of records:
+are multiple kinds of records in the log itself, as described later.
 
-### Typical record ###
+
+### Usage ###
+
+example:
+> kv = KVstore('rootlog')
+> kv['key1'] = 'val1'
+> p = kv['key1']
+> print p
+val1
+>
+
+### Internal structure ###
+
+As mentioned earlier, individual records in the log are serialized versions
+of python data structures.
+
+**Typical record**
 
 A typical record that adds/updates/deletes one or more keys in the KVstore.
 
@@ -19,7 +35,7 @@ A typical record that adds/updates/deletes one or more keys in the KVstore.
     ...
 }
 
-### Checkpoint record ###
+**Checkpoint record**
 
 A record that provides a snapshot of a certain record range in the KVstore.
 Each checkpoint has a level associated with it, where level is an integer from
