@@ -68,9 +68,8 @@ and <snapshot> is a dictionary like any typical record.
 
 import gdp      # load the main package
 import cPickle  # for serialization
-import collections
-import copy
-import random
+from threading import Lock 
+
 
 class KVstore:
 
@@ -116,6 +115,11 @@ class KVstore:
         except gdp.MISC.EP_STAT_SEV_ERROR:
             self.__num_records = 0
 
+        # set up lock for adding new data to the log
+        # >> we want the __setitems__ to be atomic, because that also
+        #    includes the checkpointing logic
+        self.log_lock = Lock()
+
 
     def __read(self, recno):
         "Read a single record. A wrapper around the cache"
@@ -141,7 +145,13 @@ class KVstore:
         """
         Update multiple values at once. At the core of all updates.
             kvpairs: a dictionary of key=>value mappings
+        >> we want the __setitems__ to be atomic, because that also
+           includes the checkpointing logic. We don't want to be 
+           in a situation where one thread is doing checkpointing 
+           while the other appends another record
         """
+
+        self.log_lock.acquire()
 
         if (self.__num_records+1)%self.__freq==0:
             self.__do_checkpoint()
@@ -149,6 +159,8 @@ class KVstore:
         # make sure input is in the desired form
         assert isinstance(kvpairs, dict)
         self.__append(kvpairs)
+
+        self.log_lock.release()
 
     
     def __setitem__(self, key, value):
