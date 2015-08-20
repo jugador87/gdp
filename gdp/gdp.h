@@ -73,6 +73,7 @@ typedef enum
 	GDP_MODE_ANY =		0,				// no mode specified
 	GDP_MODE_RO =		0x0001,			// readable
 	GDP_MODE_AO =		0x0002,			// appendable
+	GDP_MODE_RA =		0x0003,			// read + append
 } gdp_iomode_t;
 
 
