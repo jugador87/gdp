@@ -210,104 +210,114 @@ fail0:
 
 
 /*
-**  CMD_OPEN_RO, _AO --- open for read or append only
+**  CMD_OPEN --- open for read-only, append-only, or read-append
+**
+**		We cheat and look at the command to decode.
 */
 
 EP_STAT
-cmd_open_xx(gdp_req_t *req, gdp_iomode_t iomode)
+cmd_open(gdp_req_t *req)
 {
 	EP_STAT estat = EP_STAT_OK;
+	gdp_iomode_t iomode;
+	gdp_gcl_t *gcl = NULL;
+
+	switch (req->pdu->cmd)
+	{
+		case GDP_CMD_OPEN_RO:
+			iomode = GDP_MODE_RO;
+			break;
+
+		case GDP_CMD_OPEN_AO:
+			iomode = GDP_MODE_AO;
+			break;
+
+		case GDP_CMD_OPEN_RA:
+			iomode = GDP_MODE_RA;
+			break;
+
+		default:
+			ep_assert_failure("bad iomode", "require", __FILE__, __LINE__);
+	}
 
 	req->pdu->cmd = GDP_ACK_SUCCESS;
 
 	// should have no input data; ignore anything there
-	flush_input_data(req, "cmd_open_xx");
+	flush_input_data(req, "cmd_open");
 
 	// see if we already know about this GCL
 	estat = get_open_handle(req, GDP_MODE_ANY);
 	if (!EP_STAT_ISOK(estat))
 	{
-		return gdpd_gcl_error(req->pdu->dst, "cmd_openxx: could not open GCL",
+		estat = gdpd_gcl_error(req->pdu->dst, "cmd_openxx: could not open GCL",
 							estat, GDP_NAK_C_BADREQ);
+		goto fail0;
 	}
 
-	req->gcl->nrecs = req->pdu->datum->recno = gcl_max_recno(req->gcl);
-	req->gcl->flags |= GCLF_DEFER_FREE;
-	req->gcl->iomode |= iomode;
-	if (req->gcl->gclmd != NULL)
+	gcl = req->gcl;
+	gcl->nrecs = req->pdu->datum->recno = gcl_max_recno(gcl);
+	gcl->flags |= GCLF_DEFER_FREE;
+	gcl->iomode |= iomode;
+	if (gcl->gclmd != NULL)
 	{
 		// send metadata as payload
-		_gdp_gclmd_serialize(req->gcl->gclmd, req->pdu->datum->dbuf);
+		_gdp_gclmd_serialize(gcl->gclmd, req->pdu->datum->dbuf);
 	}
-	return estat;
-}
 
-EP_STAT
-cmd_open_ao(gdp_req_t *req)
-{
-	EP_STAT estat;
-	size_t pklen;
-	uint8_t *pkbuf;
-	int pktype;
-	int mdtype;
-	gdp_gcl_t *gcl;
-	EP_CRYPTO_KEY *key;
-
-	estat = cmd_open_xx(req, GDP_MODE_AO);
-	EP_STAT_CHECK(estat, return estat);
-	gcl = req->gcl;
-
-	// assuming we have a public key, set up the message digest context
-	if (gcl->gclmd == NULL)
-		goto nopubkey;
-	estat = gdp_gclmd_find(gcl->gclmd, GDP_GCLMD_PUBKEY, &pklen,
-					(const void **) &pkbuf);
-	if (!EP_STAT_ISOK(estat) || pklen < 5)
-		goto nopubkey;
-
-	mdtype = pkbuf[0];
-	pktype = pkbuf[1];
-	//pkbits = (pkbuf[2] << 8) | pkbuf[3];
-	ep_dbg_cprintf(Dbg, 40, "cmd_open_ao: mdtype=%d, pktype=%d, pklen=%zd\n",
-			mdtype, pktype, pklen);
-	key = ep_crypto_key_read_mem(pkbuf + 4, pklen - 4, pktype,
-			EP_CRYPTO_KEYFORM_DER, EP_CRYPTO_F_PUBLIC);
-	if (key == NULL)
-		goto nopubkey;
-
-	gcl->digest = ep_crypto_vrfy_new(key, mdtype);
-
-	// include the GCL name
-	ep_crypto_vrfy_update(gcl->digest, gcl->name, sizeof gcl->name);
-
-	// and the metadata (re-serialized)
-	struct evbuffer *evb = evbuffer_new();
-	_gdp_gclmd_serialize(gcl->gclmd, evb);
-	size_t evblen = evbuffer_get_length(evb);
-	ep_crypto_vrfy_update(gcl->digest, evbuffer_pullup(evb, evblen), evblen);
-	evbuffer_free(evb);
-
-	if (false)
+	if (EP_UT_BITSET(GDP_MODE_AO, iomode))
 	{
+		EP_STAT estat;
+		size_t pklen;
+		uint8_t *pkbuf;
+		int pktype;
+		int mdtype;
+		EP_CRYPTO_KEY *key;
+
+		// assuming we have a public key, set up the message digest context
+		if (gcl->gclmd == NULL)
+			goto nopubkey;
+		estat = gdp_gclmd_find(gcl->gclmd, GDP_GCLMD_PUBKEY, &pklen,
+						(const void **) &pkbuf);
+		if (!EP_STAT_ISOK(estat) || pklen < 5)
+			goto nopubkey;
+
+		mdtype = pkbuf[0];
+		pktype = pkbuf[1];
+		//pkbits = (pkbuf[2] << 8) | pkbuf[3];
+		ep_dbg_cprintf(Dbg, 40, "cmd_open: mdtype=%d, pktype=%d, pklen=%zd\n",
+				mdtype, pktype, pklen);
+		key = ep_crypto_key_read_mem(pkbuf + 4, pklen - 4, pktype,
+				EP_CRYPTO_KEYFORM_DER, EP_CRYPTO_F_PUBLIC);
+		if (key == NULL)
+			goto nopubkey;
+
+		gcl->digest = ep_crypto_vrfy_new(key, mdtype);
+
+		// include the GCL name
+		ep_crypto_vrfy_update(gcl->digest, gcl->name, sizeof gcl->name);
+
+		// and the metadata (re-serialized)
+		struct evbuffer *evb = evbuffer_new();
+		_gdp_gclmd_serialize(gcl->gclmd, evb);
+		size_t evblen = evbuffer_get_length(evb);
+		ep_crypto_vrfy_update(gcl->digest, evbuffer_pullup(evb, evblen), evblen);
+		evbuffer_free(evb);
+
+		if (false)
+		{
 nopubkey:
-		ep_dbg_cprintf(Dbg, 1, "WARNING: no public key for %s\n",
-					gcl->pname);
-		if (EP_UT_BITSET(GDP_SIG_PUBKEYREQ, GdpSignatureStrictness))
-			estat = GDP_STAT_CRYPTO_SIGFAIL;
-		else
-			estat = EP_STAT_OK;
+			ep_dbg_cprintf(Dbg, 1, "WARNING: no public key for %s\n",
+						gcl->pname);
+			if (EP_UT_BITSET(GDP_SIG_PUBKEYREQ, GdpSignatureStrictness))
+				estat = GDP_STAT_CRYPTO_SIGFAIL;
+			else
+				estat = EP_STAT_OK;
+		}
 	}
 
-	_gdp_gcl_decref(req->gcl);
-	req->gcl = NULL;
-	return estat;
-}
 
-EP_STAT
-cmd_open_ro(gdp_req_t *req)
-{
-	EP_STAT estat = cmd_open_xx(req, GDP_MODE_RO);
-	_gdp_gcl_decref(req->gcl);
+fail0:
+	_gdp_gcl_decref(gcl);
 	req->gcl = NULL;
 	return estat;
 }
@@ -923,14 +933,15 @@ static struct cmdfuncs	CmdFuncs[] =
 {
 	{ GDP_CMD_PING,			cmd_ping		},
 	{ GDP_CMD_CREATE,		cmd_create		},
-	{ GDP_CMD_OPEN_AO,		cmd_open_ao		},
-	{ GDP_CMD_OPEN_RO,		cmd_open_ro		},
+	{ GDP_CMD_OPEN_AO,		cmd_open		},
+	{ GDP_CMD_OPEN_RO,		cmd_open		},
 	{ GDP_CMD_CLOSE,		cmd_close		},
 	{ GDP_CMD_READ,			cmd_read		},
 	{ GDP_CMD_APPEND,		cmd_append		},
 	{ GDP_CMD_SUBSCRIBE,	cmd_subscribe	},
 	{ GDP_CMD_MULTIREAD,	cmd_multiread	},
 	{ GDP_CMD_GETMETADATA,	cmd_getmetadata	},
+	{ GDP_CMD_OPEN_RA,		cmd_open		},
 	{ 0,					NULL			}
 };
 
