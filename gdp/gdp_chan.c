@@ -324,7 +324,7 @@ fail0:
 	{
 		char ebuf[80];
 
-		ep_dbg_cprintf(Dbg, 20, "_gdp_open_channel => %s\n",
+		ep_dbg_cprintf(Dbg, 20, "_gdp_chan_open => %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	return estat;
