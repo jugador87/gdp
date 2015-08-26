@@ -173,6 +173,9 @@ cmd_create(gdp_req_t *req)
 	EP_STAT_CHECK(estat, goto fail0);
 	req->gcl = gcl;			// for debugging
 
+	// assume both read and write modes
+	gcl->iomode = GDP_MODE_RA;
+
 	// collect metadata, if any
 	gmd = _gdp_gclmd_deserialize(req->pdu->datum->dbuf);
 
