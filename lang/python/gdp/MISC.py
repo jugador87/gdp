@@ -44,8 +44,9 @@ gdp_recno_t = c_int64
 #   GDP_MODE_ANY: no mode specified
 #   GDP_MODE_RO: read only
 #   GDP_MODE_AO: append only
+#   GDP_MODE_RA: read+append
 
-(GDP_MODE_ANY, GDP_MODE_RO, GDP_MODE_AO) = (0, 1, 2)
+(GDP_MODE_ANY, GDP_MODE_RO, GDP_MODE_AO, GDP_MODE_RA) = (0, 1, 2, 3)
 
 # Event types
 #   GDP_EVENT_DATA      1   // returned data

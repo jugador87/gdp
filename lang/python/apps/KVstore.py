@@ -68,12 +68,22 @@ and <snapshot> is a dictionary like any typical record.
 
 import gdp      # load the main package
 import cPickle  # for serialization
-from threading import Lock 
+import threading
 
 
 class KVstore:
 
-    __freq = 10
+    __freq = 10     # checkpoint frequency
+
+    # modes: Read only, or read-write. There can be multiple kv-instances
+    #   all pointing back to a single log. However, at most one can be in
+    #   read/write mode. There is no way to enforce this at this level.
+    (MODE_RO, MODE_RW) = (0,1)
+
+    # throw this when a read-only key-value store is altered
+    class writeToReadOnlyKVstore(Exception):
+        pass
+
 
     @staticmethod
     def __to_datum(ds):
@@ -95,13 +105,17 @@ class KVstore:
         return ds
 
 
+    def __init__(self, root, mode=MODE_RO):
+        """Initialize the instance with the root log
+           By default, we open the log in read only mode.
+        """
 
-    def __init__(self, root):
-        "Initialize the instance with the root log"
+        self.iomode = mode
+        gdp_iomode = gdp.GDP_MODE_RO if mode==self.MODE_RO else gdp.GDP_MODE_RA
     
         gdp.gdp_init()  ## XXX: Not sure if this is the best idea
         self.__root = gdp.GDP_NAME(root)
-        self.__root_handle = gdp.GDP_GCL(self.__root, gdp.GDP_MODE_AO)
+        self.__root_handle = gdp.GDP_GCL(self.__root, gdp_iomode)
 
         # a cache for records. recno => datum
         # datum may or may not contain a timestamp and recno
@@ -118,7 +132,37 @@ class KVstore:
         # set up lock for adding new data to the log
         # >> we want the __setitems__ to be atomic, because that also
         #    includes the checkpointing logic
-        self.log_lock = Lock()
+        self.log_lock = threading.Lock()  # unused in MODE_RO
+
+        # for a read-only KVstore, make sure we have a subscription
+        #   in a separate thread to keep things most up to date
+        if self.iomode == self.MODE_RO:
+            t = threading.Thread(target=self.__subscription_thread)
+            t.start()
+
+
+    def __subscription_thread(self):
+        """ A separate thread to make sure we have the latest records """
+
+        assert self.iomode == self.MODE_RO
+
+        # we ideally should create our own copy of the log handle to 
+        #   avoid conflict of subscription with any 'read' attempts
+        loghandle = gdp.GDP_GCL(self.__root, gdp.GDP_MODE_RO)
+        loghandle.subscribe(0, 0, None)
+        timeout = {'tv_sec':0, 'tv_nsec':100*(10**6), 'tv_accuracy':0.0}
+
+        while True:
+
+            event = loghandle.get_next_event(timeout)
+            if event is None: continue 
+
+            assert event["type"] == gdp.GDP_EVENT_DATA
+            # should we do some locking? All operations we do are 
+            #   atomic, aren't they?
+            self.__num_records += 1
+            self.__cache[self.__num_records] = event["datum"]
+
 
 
     def __read(self, recno):
@@ -133,6 +177,10 @@ class KVstore:
 
     def __append(self, ds):
         "Append a single record. A wrapper around the cache"
+
+        # any attempt to write to a read-only KVstore should be 
+        #   caught by now, in __setitems__
+        assert self.iomode == self.MODE_RW
 
         datum = self.__to_datum(ds)
         self.__root_handle.append(datum)
@@ -150,6 +198,9 @@ class KVstore:
            in a situation where one thread is doing checkpointing 
            while the other appends another record
         """
+
+        if self.iomode == self.MODE_RO:
+            raise self.writeToReadOnlyKVstore()
 
         self.log_lock.acquire()
 
@@ -173,12 +224,17 @@ class KVstore:
         return self.__setitem__({key: None})
 
 
+    def __record_iterator(self):
+        """
+        a generator function 
+        iterates over checkpoints to cover the entire range of records till
+            the latest checkpoints and the records since the latest 
+            checkpoint, in reverse order
 
-    def __getitem__(self, key):
-        "get value of key"
+        returns a dictionary item that could come from either a regular 
+            record or a checkpoint at each yield
+        """
 
-        # sequentially read rcords from the very end till we find
-        #   the key we are looking for, or we hit a checkpoint record
 
         cur = self.__num_records
 
@@ -187,26 +243,76 @@ class KVstore:
             rec = self.__read(cur)
 
             if isinstance(rec, dict):       # regular record
-                if key in rec:              # found it
-                    return rec[key]
-                else:                       # go check the previous record
-                    cur = cur-1
-                    continue
+                yield rec
+                cur = cur-1
+                continue
 
             elif isinstance(rec, tuple):    # checkpoint record
                 (metadata, data) = rec
                 assert metadata["cp_range"][1] == cur-1     # sanity check
+                yield data
+                cur = metadata["cp_range"][0]-1
+                continue
 
-                if key in data:             # found key in the current CP rec
-                    return data[key]
-                else:                       # skip the range this CP covers
-                    cur = metadata["cp_range"][0]-1
-                    continue
-
-            else:                           # unknown type
+            else:                           # unknown record
                 assert False
 
-        return None                         # key not found anywhere
+        assert cur==0
+
+
+    def __getitem__(self, key):
+        "get value of key"
+
+        # sequentially read rcords from the very end till we find
+        #   the key we are looking for, or we hit a checkpoint record
+
+        for d in self.__record_iterator(): 
+            # d is either dictionary from a regular record, or from checkpoint
+            if key in d:
+                return d[key]
+
+        return None
+
+
+    def __dumpall(self):
+        """ dump the entire state (all kv pairs) as a single dictionary
+            -- only the latest value of a key is returned    
+            For internal use only
+        """
+
+        ret = {}
+        for d in self.__record_iterator():
+            for key in d.keys():
+                if key not in ret:  # Can't just not include the 'None; keys
+                    ret[key] = d[key]
+
+        # Let's not return the keys that have 'None'
+        for k in ret.keys():
+            if ret[k] is None: ret.pop(k)
+
+        return ret
+
+    def __iter__(self):
+        """ Returns the keys """
+
+        # TODO: think of a better implementation
+        d = self.__dumpall()
+        for k in d.keys():
+            yield k
+
+    def __contains__(self, item):
+        """ check whether item exists in key-value store """
+
+        # TODO: think of a better implementation
+        d = self.__dumpall()
+        return (item in d)
+
+    def __len__(self):
+        """ returns the length of key-value store """
+
+        # TODO: think of a better implementation
+        d = self.__dumpall()
+        return (len(d))
 
 
     def __do_checkpoint(self):
@@ -273,3 +379,39 @@ class KVstore:
         newrec = (newmetadata, newdata)
         self.__append(newrec)
 
+
+
+def __selftest(logname):
+    """ 
+    Perform a simple self-test. Creates a new Key Value store based
+        on 'logname'.
+    """
+
+    N = 100
+    kv = KVstore(logname, mode=KVstore.MODE_RW)       # create a kvstore
+
+    tmp = {}
+    for idx in xrange(N):       # write N keys
+        kv[idx] = idx*idx
+        tmp[idx] = idx*idx
+
+    assert len(kv) == N
+    for idx in xrange(N):
+        assert idx in kv
+
+    # get all the keys, and compare if they match
+    for k in kv:                # tests the iteration
+        assert k in tmp
+        assert tmp[k] == kv[k]
+        tmp.pop(k)              # make sure we don't have duplicates
+    assert len(tmp)==0
+
+    print "Passed selftest"
+
+
+if __name__=="__main__":
+    import sys
+    if len(sys.argv)<2:
+        print "Usage: %s <logname>" % sys.argv[0]
+        sys.exit(-1)
+    __selftest(sys.argv[1])
