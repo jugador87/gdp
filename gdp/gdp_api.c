@@ -289,8 +289,10 @@ gdp_gcl_open(gdp_name_t name,
 
 	if (mode == GDP_MODE_RO)
 		cmd = GDP_CMD_OPEN_RO;
-	else if (mode == GDP_MODE_AO || mode == GDP_MODE_RA)
+	else if (mode == GDP_MODE_AO)
 		cmd = GDP_CMD_OPEN_AO;
+	else if (mode == GDP_MODE_RA)
+		cmd = GDP_CMD_OPEN_RA;
 	else
 	{
 		// illegal I/O mode

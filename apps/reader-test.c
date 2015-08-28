@@ -321,16 +321,21 @@ main(int argc, char **argv)
 	gdp_recno_t firstrec = 0;
 	bool show_usage = false;
 	char *log_file_name = NULL;
+	gdp_iomode_t open_mode = GDP_MODE_RO;
 
 	setlinebuf(stdout);								//DEBUG
 	//char outbuf[65536];							//DEBUG
 	//setbuffer(stdout, outbuf, sizeof outbuf);		//DEBUG
 
 	// parse command-line options
-	while ((opt = getopt(argc, argv, "cD:f:G:L:mMn:st")) > 0)
+	while ((opt = getopt(argc, argv, "AcD:f:G:L:mMn:st")) > 0)
 	{
 		switch (opt)
 		{
+		  case 'A':				// hidden flag for debugging only
+			open_mode = GDP_MODE_RA;
+			break;
+
 		  case 'c':
 			// use callbacks
 			use_callbacks = true;
@@ -426,7 +431,7 @@ main(int argc, char **argv)
 	fprintf(stdout, "Reading GCL %s\n", gclpname);
 
 	// open the GCL; arguably this shouldn't be necessary
-	estat = gdp_gcl_open(gclname, GDP_MODE_RO, NULL, &gcl);
+	estat = gdp_gcl_open(gclname, open_mode, NULL, &gcl);
 	if (!EP_STAT_ISOK(estat))
 	{
 		char sbuf[100];
