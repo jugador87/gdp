@@ -6,6 +6,8 @@ apps/gdp-writer
 apps/log-mirror
 apps/log-view
 apps/rw-bench
+apps/gdp-zcbrowse
+apps/gdp-zcpublish
 debian/libgdp*
 ep/decode-epstat
 examples/machine-mon

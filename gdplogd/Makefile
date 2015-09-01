@@ -12,6 +12,7 @@ INSTALL=	install
 LOCAL1=		/usr/local
 LOCAL2=		/opt/local
 INCROOT=	..
+INCSEARCH=	-I${LOCAL1}/include -I${LOCAL2}/include
 LIBROOT=	${INCROOT}
 #LIBSEARCH=	-L${INCROOT}/libs
 LIBSEARCH=	-L${CRYPTOROOT}/lib \
@@ -23,12 +24,15 @@ INCGDP=		-I${INCROOT}
 LIBGDP=		-lgdp
 INCEP=		-I${INCROOT}
 LIBEP=		-lep
-INCEVENT2=	-I${LOCAL1}/include -I${LOCAL2}/include
+INCEVENT2=
 LIBEVENT2=	-levent -levent_pthreads -pthread
 INCCRYPTO=	-I${CRYPTOROOT}/include
 LIBCRYPTO=	-lcrypto
-INCS=		${INCGDP} ${INCEP} ${INCEVENT2} ${INCCRYPTO}
-LDFLAGS=	${LIBSEARCH} ${LIBGDP} ${LIBEP} ${LIBEVENT2} ${LIBCRYPTO}
+LIBAVAHI=	-lavahi-client -lavahi-common
+INCS=		${INCSEARCH} ${INCGDP} ${INCEP} \
+		${INCEVENT2} ${INCCRYPTO}
+LDFLAGS=	${LIBSEARCH} ${LIBGDP} ${LIBEP} \
+		${LIBEVENT2} ${LIBCRYPTO} ${LIBAVAHI}
 PG=
 O=		-O
 WALL=		-Wall

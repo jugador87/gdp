@@ -102,6 +102,8 @@ case "$OS" in
 	package libssl-dev
 	package lighttpd
 	package libjansson-dev
+	package libavahi-common-dev
+	package libavahi-client-dev
 	;;
 
     "darwin")
@@ -125,6 +127,7 @@ case "$OS" in
 	package openssl
 	package lighttpd
 	package jansson
+	package avahi
 	;;
 
     "freebsd")
@@ -132,6 +135,7 @@ case "$OS" in
 	package openssl
 	package lighttpd
 	package jansson
+	package avahi
 	;;
 
     "gentoo")

@@ -3,11 +3,13 @@ BINALL=		gcl-create \
 		log-mirror \
 		log-view \
 		gdp-reader \
-		gdp-writer\
+		gdp-writer \
+		gdp-zcbrowse \
 
 SBINALL=	gdp-rest \
 		log-view \
-		gdp-name-xlate\
+		gdp-name-xlate \
+		gdp-zcpublish \
 
 ALL=		${BINALL} ${SBINALL}
 
@@ -22,6 +24,7 @@ INSTALL=	install
 LOCAL1=		/usr/local
 LOCAL2=		/opt/local
 INCROOT=	..
+INCSEARCH=	-I${LOCAL1}/include -I${LOCAL2}/include
 LIBROOT=	${INCROOT}
 LIBSEARCH=	-L${CRYPTOROOT}/lib \
 		-L${LIBROOT}/ep \
@@ -30,14 +33,18 @@ INCGDP=		-I${INCROOT}
 LIBGDP=		-lgdp
 INCEP=
 LIBEP=		-lep
-INCJANSSON=	-I${LOCAL1}/include -I${LOCAL2}/include
+INCJANSSON=
 LIBJANSSON=	-L${LOCAL1}/lib -L${LOCAL2}/lib -ljansson
-INCEVENT2=	-I${LOCAL1}/include -I${LOCAL2}/include
+INCEVENT2=
 LIBEVENT2=	-levent -levent_pthreads -pthread
 INCCRYPTO=	-I${CRYPTOROOT}/include
 LIBCRYPTO=	-lcrypto
-INCS=		${INCGDP} ${INCEP} ${INCJANSSON} ${INCEVENT2} ${INCCRYPTO}
-LDFLAGS=	${LIBSEARCH} ${LIBGDP} ${LIBEP} ${LIBJANSSON} ${LIBEVENT2} ${LIBCRYPTO}
+INCAVAHI=
+LIBAVAHI=	-lavahi-client -lavahi-common
+INCS=		${INCSEARCH} ${INCGDP} ${INCEP} \
+		${INCJANSSON} ${INCEVENT2} ${INCCRYPTO} ${INCAVAHI}
+LDFLAGS=	${LIBSEARCH} ${LIBGDP} ${LIBEP} \
+		${LIBJANSSON} ${LIBEVENT2} ${LIBCRYPTO} ${LIBAVAHI}
 PG=
 O=		-O
 WALL=		-Wall
@@ -71,6 +78,12 @@ log-view:	log-view.o
 
 gdp-name-xlate:	gdp-name-xlate.o
 	$(CC) -o $@ gdp-name-xlate.o $(LDFLAGS)
+
+gdp-zcpublish:	gdp-zcpublish.o
+	$(CC) -o $@ gdp-zcpublish.o $(LDFLAGS)
+
+gdp-zcbrowse:	gdp-zcbrowse.o
+	$(CC) -o $@ gdp-zcbrowse.o $(LDFLAGS)
 
 ${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 

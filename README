@@ -93,15 +93,19 @@ Required Packages:
 	Jansson --- JSON library from http://www.digip.org/jansson/.
 		On Linux it can be installed as the libjansson-dev package.
 		On MacOS and FreeBSD it is the "jansson" port or pkg.
+	Avahi --- for Zeroconf discovery.
 
 	To install these, use the following commands:
 	    On the Mac:
-		sudo port install libevent openssl lighttpd jansson
+		sudo port install libevent openssl lighttpd jansson \
+			avahi
 	    On FreeBSD:
-		sudo pkg install libevent2 openssl lighttpd jansson
+		sudo pkg install libevent2 openssl lighttpd jansson \
+			avahi
 	    On Ubuntu/Linux:
 		sudo apt-get install libevent-dev libssl-dev \
-			lighttpd libjansson-dev
+			lighttpd libjansson-dev libavahi-common-dev \
+			libavahi-client-dev
 	    On Gentoo/Linux:
 		sudo emerge openssl libevent lighttpd jansson
 	Or, use the helper script adm/gdp-setup.sh, which should work
@@ -188,7 +192,8 @@ Adjust Administrative Parameters:
 		This defaults to 127.0.0.1.  If you have a local
 		routing node you should name it first, followed
 		by "gdp-01.eecs.berkeley.edu; gdp-02.eecs.berkeley.edu"
-		(these are run by us for your convenience).
+		(these are run by us for your convenience).  This
+		parameter is only consulted if Zeroconf fails.
 	    swarm.gdplogd.gcl.dir		gdplogd
 	    	This is the name of the directory you created in
 		the previous step.  It only applies on nodes that

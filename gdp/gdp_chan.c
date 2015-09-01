@@ -7,6 +7,7 @@
 
 #include "gdp.h"
 #include "gdp_priv.h"
+#include "gdp_zc_client.h"
 
 #include <ep/ep_dbg.h>
 #include <ep/ep_log.h>
@@ -17,6 +18,7 @@
 #include <string.h>
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.gdp_chan", "GDP protocol processing");
+static EP_DBG	DemoMode = EP_DBG_INIT("_demo", "Demo Mode");
 
 
 /*
@@ -189,14 +191,50 @@ _gdp_chan_open(const char *gdp_addr,
 	bufferevent_enable(chan->bev, EV_READ | EV_WRITE);
 
 	// attach it to a socket
-	char abuf[500];
+	char abuf[500] = "";
 	char *port = NULL;		// keep gcc happy
 	char *host;
 
 	// get the host:port info into abuf
-	if (gdp_addr == NULL)
-		gdp_addr = ep_adm_getstrparam("swarm.gdp.routers", "127.0.0.1");
-	strlcpy(abuf, gdp_addr, sizeof abuf);
+	if (gdp_addr != NULL && gdp_addr[0] != '\0')
+	{
+		strlcpy(abuf, gdp_addr, sizeof abuf);
+	}
+	else
+	{
+		if (ep_adm_getboolparam("swarm.gdp.zeroconf.enable", true))
+		{
+			// zeroconf
+			ZCInfo **list;
+			char *info = NULL;
+
+			if (gdp_zc_scan())
+			{
+				list = gdp_zc_get_infolist();
+				if (list != NULL)
+				{
+					info = gdp_zc_addr_str(list);
+					gdp_zc_free_infolist(list);
+					if (info != NULL)
+					{
+						if (info[0] != '\0')
+						{
+							ep_dbg_cprintf(DemoMode, 1, "Zeroconf found %s\n",
+									info);
+							strlcpy(abuf, info, sizeof abuf);
+							strlcat(abuf, ";", sizeof abuf);
+						}
+						free(info);
+					}
+				}
+			}
+		}
+		strlcat(abuf,
+				ep_adm_getstrparam("swarm.gdp.routers", "127.0.0.1"),
+				sizeof abuf);
+	}
+
+	ep_dbg_cprintf(Dbg, 8, "_gdp_chan_open(%s)\n", abuf);
 
 	// strip off addresses and try them
 	estat = GDP_STAT_NOTFOUND;				// anything that is not OK
@@ -213,8 +251,10 @@ _gdp_chan_open(const char *gdp_addr,
 		host = &host[strspn(host, " \t")];	// strip early spaces
 		if (*host == '\0')
 			continue;						// empty spec
-		port = host;
 
+		ep_dbg_cprintf(DemoMode, 1, "Trying %s\n", host);
+
+		port = host;
 		if (*host == '[')
 		{
 			// IPv6 literal
@@ -233,10 +273,12 @@ _gdp_chan_open(const char *gdp_addr,
 		}
 		if (port == NULL || *port == '\0')
 		{
-			int portno = ep_adm_getintparam("swarm.gdp.router.port",
+			int portno;
+
+			portno = ep_adm_getintparam("swarm.gdp.router.port",
 							GDP_PORT_DEFAULT);
-			port = pbuf;
 			snprintf(pbuf, sizeof pbuf, "%d", portno);
+			port = pbuf;
 		}
 
 		ep_dbg_cprintf(Dbg, 20, "_gdp_chan_open: trying host %s port %s\n",

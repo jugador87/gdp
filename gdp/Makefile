@@ -23,12 +23,16 @@ OBJS=	\
 	gdp_stat.o \
 	gdp_subscr.o \
 	gdp_util.o \
+	gdp_zc_client.o \
+	gdp_zc_server.o \
 
 PUBHFILES=	\
 	gdp.h \
 	gdp_buf.h \
 	gdp_stat.h \
 	gdp_version.h \
+	gdp_zc_client.h \
+	gdp_zc_server.h \
 
 PRIVHFILES=	\
 	gdp_event.h \
@@ -48,19 +52,22 @@ ALL=		${INCALL} ${LIBALL}
 LOCAL1=		/usr/local
 LOCAL2=		/opt/local
 INCROOT=	..
+INCSEARCH=	-I${LOCAL1}/include -I${LOCAL2}/include
 LIBROOT=	${INCROOT}
 INCCRYPTO=	-I${CRYPTOROOT}/include
 LIBCRYPTO=	-lcrypto
-INCEVENT2=	-I${LOCAL1}/include -I${LOCAL2}/include
+INCEVENT2=
 LIBEVENT2=	-levent -levent_pthreads
+INCAVAHI=
+LIBAVAHI=	-lavahi-client -lavahi-common
 INCEP=		-I${INCROOT}
 LIBEP=		-lep
-INCS=		${INCEP} ${INCEVENT2} ${INCCRYPTO}
+INCS=		${INCSEARCH} ${INCEP} ${INCEVENT2} ${INCCRYPTO} ${INCAVAHI}
 LIBSEARCH=	-L${CRYPTOROOT}/lib \
 		-L${LIBROOT}/ep \
 		-L${LOCAL1}/lib \
 		-L${LOCAL2}/lib
-LDFLAGS= 	${LIBSEARCH} ${LIBEP} ${LIBEVENT2} ${LIBCRYPTO}
+LDFLAGS= 	${LIBSEARCH} ${LIBEP} ${LIBEVENT2} ${LIBCRYPTO} ${LIBAVAHI}
 PG=
 O=		-O
 WALL=		-Wall
