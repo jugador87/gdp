@@ -34,7 +34,7 @@ def main(name_str):
     gcl_name = gdp.GDP_NAME(name_str)
 
     print "opening gcl", "".join(["%0.2x" % ord(x) for x in gcl_name.internal_name()])
-    gcl_handle = gdp.GDP_GCL(gcl_name, gdp.GDP_MODE_AO)
+    gcl_handle = gdp.GDP_GCL(gcl_name, gdp.GDP_MODE_RA)
 
     # the data that will be written
     data = generate_random_data(100, 10)
