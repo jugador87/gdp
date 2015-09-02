@@ -73,7 +73,7 @@ import threading
 
 class KVstore:
 
-    __freq = 10     # checkpoint frequency
+    __freq = 100     # checkpoint frequency
 
     # modes: Read only, or read-write. There can be multiple kv-instances
     #   all pointing back to a single log. However, at most one can be in
@@ -138,6 +138,7 @@ class KVstore:
         #   in a separate thread to keep things most up to date
         if self.iomode == self.MODE_RO:
             t = threading.Thread(target=self.__subscription_thread)
+            t.daemon = True
             t.start()
 
 
@@ -146,15 +147,12 @@ class KVstore:
 
         assert self.iomode == self.MODE_RO
 
-        # we ideally should create our own copy of the log handle to 
-        #   avoid conflict of subscription with any 'read' attempts
-        loghandle = gdp.GDP_GCL(self.__root, gdp.GDP_MODE_RO)
-        loghandle.subscribe(0, 0, None)
+        self.__root_handle.subscribe(0, 0, None)
         timeout = {'tv_sec':0, 'tv_nsec':100*(10**6), 'tv_accuracy':0.0}
 
         while True:
 
-            event = loghandle.get_next_event(timeout)
+            event = self.__root_handle.get_next_event(timeout)
             if event is None: continue 
 
             assert event["type"] == gdp.GDP_EVENT_DATA
