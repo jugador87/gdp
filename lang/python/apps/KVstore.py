@@ -86,8 +86,9 @@ metadata:
 
 cp_ts_dict is a list of recno=>timestamp mapping, includes all checkpoint 
 records so far
-ts_dict is a list of recno=>timestamp mapping for all records that this 
-checkpoint record covers
+ts_dict is a list of recno=>timestamp mapping for all records between the
+most recent checkpoint and this. NOTE: It is not the same as the range of 
+records covered by the current checkpoint record.
 
 
 ## TODO: 
@@ -107,7 +108,7 @@ import time     # for timestamping
 
 class KVstore:
 
-    __freq = 20     # checkpoint frequency
+    __freq = 100     # checkpoint frequency
 
     # modes: Read only, or read-write. There can be multiple kv-instances
     #   all pointing back to a single log. However, at most one can be in
@@ -368,11 +369,14 @@ class KVstore:
                     if ts_dict[r]>timestamp: break
 
                 # by now, r should be the desired record number 
-                rec_no = r
+                rec_no = max(r-1,0)
                 break
 
             else:
                 assert False
+
+        # special case, when timestamp value is less than the oldest record
+        if rec_no == 0: return None
 
         for (metadata, data) in self.__record_iterator(rec_no): 
             if key in data:
@@ -474,7 +478,6 @@ class KVstore:
 
                         data.update(newdata)    # dictionary update
                         newdata = data
-                        ts_dict.update(metadata["ts_dict"])
                         cur = metadata["cp_range"][0]-1
                         continue
 
@@ -485,7 +488,6 @@ class KVstore:
                 else:
                     data.update(newdata)
                     newdata = data
-                    ts_dict.update(metadata["ts_dict"])
                     cur = metadata["cp_range"][0]-1     # skip range covered
                     continue
 
