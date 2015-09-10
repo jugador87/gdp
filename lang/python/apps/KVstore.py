@@ -406,12 +406,11 @@ class KVstore:
                     if len(set(ok) & set(nk))> 0.8*min(len(ok), len(nk)):
 
                         # YES, let's merge
+                        level = metadata["cp_level"]    # bump level down
+
                         data.update(newdata)    # dictionary update
                         newdata = data
-                        level = metadata["cp_level"]
-
                         ts_dict.update(metadata["ts_dict"])
-                        # continue recursively
                         cur = metadata["cp_range"][0]-1
                         continue
 
@@ -420,8 +419,8 @@ class KVstore:
                         break
 
                 else:
-                    for key in data:
-                        if key not in newdata: newdata[key] = data[key]
+                    data.update(newdata)
+                    newdata = data
                     ts_dict.update(metadata["ts_dict"])
                     cur = metadata["cp_range"][0]-1     # skip range covered
                     continue
