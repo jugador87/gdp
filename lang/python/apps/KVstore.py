@@ -21,19 +21,45 @@ example:
 val1
 >
 
+Public interface:
+* [] can be used it to treat Key-Value store like a python dictionary.
+  - A timestamp value is attached whenever a key is changed/deleted/modified
+  - if using [] interface, the timestamp is not made visible, so as to
+    maintain compatibility with a true dictionary
+* len(<kv object>) returns the number of keys.
+
+
+
 ### Internal structure ###
 
 As mentioned earlier, individual records in the log are serialized versions
 of python data structures.
 
+** Records **
+
+All records are in the form:
+    (<metadata>, <data>)
+where both <metadata> and <data> are dictionaries. <metadata> is maintained
+directly by the key-value store and is not under direct user control.
+
+
 **Typical record**
 
 A typical record that adds/updates/deletes one or more keys in the KVstore.
 
+metadata:
+{   timestamp: <ts>,
+    type: "regular"
+}
+
+data:
 {   key1: val1,
     key2: val2,
     ...
 }
+
+The timestamp is accurate only to a certain degree, and is included by the
+    key-value store wrapper.
 
 **Checkpoint record**
 
@@ -46,13 +72,12 @@ level 0 means a full copy of the data upto the current record, any level above
 Each checkpoint contains some metadata, especially the current checkpoint level
 number and the range of the first and last record included in the checkpoint.
 
-The checkpoint record looks as follows:
-
-( <metadata>, <snapshot> )
-where <metadata> is a dictionary of the following type:
+metadata:
 {
+    timestamp: <float>,
+    type: "checkpoint",
     cp_range: (<cp_from>, <cp_upto>),
-    cp_level: <int>,
+    cp_level: <int>
 }
 
 and <snapshot> is a dictionary like any typical record.
@@ -69,6 +94,7 @@ and <snapshot> is a dictionary like any typical record.
 import gdp      # load the main package
 import cPickle  # for serialization
 import threading
+import time     # for timestamping
 
 
 class KVstore:
@@ -110,7 +136,7 @@ class KVstore:
            By default, we open the log in read only mode.
         """
 
-        self.iomode = mode
+        self.__iomode = mode
         gdp_iomode = gdp.GDP_MODE_RO if mode==self.MODE_RO else gdp.GDP_MODE_RA
     
         gdp.gdp_init()  ## XXX: Not sure if this is the best idea
@@ -136,16 +162,21 @@ class KVstore:
 
         # for a read-only KVstore, make sure we have a subscription
         #   in a separate thread to keep things most up to date
-        if self.iomode == self.MODE_RO:
+        if self.__iomode == self.MODE_RO:
             t = threading.Thread(target=self.__subscription_thread)
             t.daemon = True
             t.start()
 
 
+    def debug(self):
+        """ Some debugging functions just to help development """
+        return self.__cache
+
+
     def __subscription_thread(self):
         """ A separate thread to make sure we have the latest records """
 
-        assert self.iomode == self.MODE_RO
+        assert self.__iomode == self.MODE_RO
 
         self.__root_handle.subscribe(0, 0, None)
         timeout = {'tv_sec':0, 'tv_nsec':100*(10**6), 'tv_accuracy':0.0}
@@ -178,7 +209,7 @@ class KVstore:
 
         # any attempt to write to a read-only KVstore should be 
         #   caught by now, in __setitems__
-        assert self.iomode == self.MODE_RW
+        assert self.__iomode == self.MODE_RW
 
         datum = self.__to_datum(ds)
         self.__root_handle.append(datum)
@@ -197,7 +228,7 @@ class KVstore:
            while the other appends another record
         """
 
-        if self.iomode == self.MODE_RO:
+        if self.__iomode == self.MODE_RO:
             raise self.writeToReadOnlyKVstore()
 
         self.log_lock.acquire()
@@ -207,7 +238,13 @@ class KVstore:
 
         # make sure input is in the desired form
         assert isinstance(kvpairs, dict)
-        self.__append(kvpairs)
+
+        # create the metadata dict
+        metadata = { "timestamp": time.time(), "type": "regular" }
+        rec = (metadata, kvpairs)
+
+        # append this to the log now.
+        self.__append(rec)
 
         self.log_lock.release()
 
@@ -215,6 +252,11 @@ class KVstore:
     def __setitem__(self, key, value):
         "set key to value"
         return self.__setitems__({key: value})
+
+
+    def set(self, key, value):
+        """ Just an alias for __setitem__ """
+        return self.__setitem__(key, value)
 
 
     def __delitem__(self, key):
@@ -239,14 +281,14 @@ class KVstore:
         while cur>0:
 
             rec = self.__read(cur)
+            (metadata, data) = rec
 
-            if isinstance(rec, dict):       # regular record
-                yield rec
+            if metadata["type"] == "regular":           # regular record
+                yield data
                 cur = cur-1
                 continue
 
-            elif isinstance(rec, tuple):    # checkpoint record
-                (metadata, data) = rec
+            elif metadata["type"] == "checkpoint":      # checkpoint record
                 assert metadata["cp_range"][1] == cur-1     # sanity check
                 yield data
                 cur = metadata["cp_range"][0]-1
@@ -258,8 +300,8 @@ class KVstore:
         assert cur==0
 
 
-    def __getitem__(self, key):
-        "get value of key"
+    def get(self, key):
+        "get value of key, along with timestamp"
 
         # sequentially read rcords from the very end till we find
         #   the key we are looking for, or we hit a checkpoint record
@@ -270,6 +312,12 @@ class KVstore:
                 return d[key]
 
         return None
+
+
+    def __getitem__(self, key):
+        "get value of key, as it was written"
+
+        return self.get(key)
 
 
     def __dumpall(self):
@@ -325,15 +373,15 @@ class KVstore:
         while cur>0:
 
             rec = self.__read(cur)
+            (metadata, data) = rec
 
-            if isinstance(rec, dict):       # a regular record
-                for key in rec:             # recent data takes precedence
-                    if key not in newdata: newdata[key] = rec[key]
+            if metadata["type"] == "regular":           # a regular record
+                for key in data:             # recent data takes precedence
+                    if key not in newdata: newdata[key] = data[key]
                 cur = cur-1
                 continue 
 
-            elif isinstance(rec, tuple):    # checkpoint record
-                (metadata, data) = rec
+            elif metadata["type"] == "checkpoint":      # checkpoint record
                 assert metadata["cp_range"][1] == cur-1     # sanity check
                 assert 0<=metadata["cp_level"]<=9
 
@@ -374,6 +422,8 @@ class KVstore:
         if lower==1: level = 0          # Makes sense, doesn't it?
         newmetadata["cp_range"] = (lower, upper)
         newmetadata["cp_level"] = level
+        newmetadata["timestamp"] = time.time()
+        newmetadata["type"] = "checkpoint"
         newrec = (newmetadata, newdata)
         self.__append(newrec)
 
