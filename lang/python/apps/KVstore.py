@@ -369,6 +369,9 @@ class KVstore:
         newmetadata = {}
         newdata = {}
         upper = cur = self.__num_records
+        most_recent_cp = False
+        cp_ts_dict = {}
+        ts_dict = {}
 
         while cur>0:
 
@@ -378,12 +381,19 @@ class KVstore:
             if metadata["type"] == "regular":           # a regular record
                 for key in data:             # recent data takes precedence
                     if key not in newdata: newdata[key] = data[key]
+                ts_dict[cur] = metadata["timestamp"]
                 cur = cur-1
                 continue 
 
             elif metadata["type"] == "checkpoint":      # checkpoint record
                 assert metadata["cp_range"][1] == cur-1     # sanity check
                 assert 0<=metadata["cp_level"]<=9
+
+                # Just to copy the timestamp dictionary from just the most
+                #   recent checkpoint
+                if most_recent_cp==False:
+                    cp_ts_dict = metadata["cp_ts_dict"]
+                    most_recent_cp = True
 
                 if metadata["cp_level"]<level:  # this is where we could stop
 
@@ -400,6 +410,7 @@ class KVstore:
                         newdata = data
                         level = metadata["cp_level"]
 
+                        ts_dict.update(metadata["ts_dict"])
                         # continue recursively
                         cur = metadata["cp_range"][0]-1
                         continue
@@ -411,6 +422,7 @@ class KVstore:
                 else:
                     for key in data:
                         if key not in newdata: newdata[key] = data[key]
+                    ts_dict.update(metadata["ts_dict"])
                     cur = metadata["cp_range"][0]-1     # skip range covered
                     continue
 
@@ -420,10 +432,16 @@ class KVstore:
         lower = cur+1       # out of loop because either cur==0, or break
 
         if lower==1: level = 0          # Makes sense, doesn't it?
+        cur_time = time.time()
+        cp_ts_dict[upper+1] = cur_time
+
+        newmetadata["type"] = "checkpoint"
+        newmetadata["timestamp"] = cur_time
         newmetadata["cp_range"] = (lower, upper)
         newmetadata["cp_level"] = level
-        newmetadata["timestamp"] = time.time()
-        newmetadata["type"] = "checkpoint"
+        newmetadata["cp_ts_dict"] = cp_ts_dict
+        newmetadata["ts_dict"] = ts_dict
+
         newrec = (newmetadata, newdata)
         self.__append(newrec)
 
