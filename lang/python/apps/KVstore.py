@@ -49,7 +49,8 @@ A typical record that adds/updates/deletes one or more keys in the KVstore.
 
 metadata:
 {   timestamp: <ts>,
-    type: "regular"
+    type: "regular",
+    rec_no: <int>
 }
 
 data:
@@ -76,11 +77,18 @@ metadata:
 {
     timestamp: <float>,
     type: "checkpoint",
+    rec_no: <int>,
     cp_range: (<cp_from>, <cp_upto>),
-    cp_level: <int>
+    cp_level: <int>,
+    cp_ts_dict: {...},
+    ts_dict: {...}
 }
 
-and <snapshot> is a dictionary like any typical record.
+cp_ts_dict is a list of recno=>timestamp mapping, includes all checkpoint 
+records so far
+ts_dict is a list of recno=>timestamp mapping for all records that this 
+checkpoint record covers
+
 
 ## TODO: 
 - handle non-existent keys better than None
@@ -99,7 +107,7 @@ import time     # for timestamping
 
 class KVstore:
 
-    __freq = 100     # checkpoint frequency
+    __freq = 20     # checkpoint frequency
 
     # modes: Read only, or read-write. There can be multiple kv-instances
     #   all pointing back to a single log. However, at most one can be in
@@ -240,7 +248,9 @@ class KVstore:
         assert isinstance(kvpairs, dict)
 
         # create the metadata dict
-        metadata = { "timestamp": time.time(), "type": "regular" }
+        metadata = { "timestamp": time.time(), 
+                     "type": "regular", 
+                     "rec_no": self.__num_records+1 }
         rec = (metadata, kvpairs)
 
         # append this to the log now.
@@ -264,33 +274,38 @@ class KVstore:
         return self.__setitem__({key: None})
 
 
-    def __record_iterator(self):
+    def __record_iterator(self, start_rec=0):
         """
         a generator function 
-        iterates over checkpoints to cover the entire range of records till
-            the latest checkpoints and the records since the latest 
-            checkpoint, in reverse order
+        iterates over regular and checkpoint records in reverse 
+            chronological order starting from (and including )start_rec
+            such that the entire range is covered
 
-        returns a dictionary item that could come from either a regular 
-            record or a checkpoint at each yield
+        returns the entire record (including metadata) at each yield
+
+        if start_rec == 0, start from the latest record
         """
 
 
-        cur = self.__num_records
+        if start_rec==0:
+            cur = self.__num_records
+        else:
+            cur = start_rec
 
         while cur>0:
 
             rec = self.__read(cur)
             (metadata, data) = rec
+            assert metadata["rec_no"] == cur
 
             if metadata["type"] == "regular":           # regular record
-                yield data
+                yield rec
                 cur = cur-1
                 continue
 
             elif metadata["type"] == "checkpoint":      # checkpoint record
                 assert metadata["cp_range"][1] == cur-1     # sanity check
-                yield data
+                yield rec
                 cur = metadata["cp_range"][0]-1
                 continue
 
@@ -300,25 +315,73 @@ class KVstore:
         assert cur==0
 
 
-    def get(self, key):
-        "get value of key, along with timestamp"
+    def __getitem__(self, key):
+        "get value of key"
 
         # sequentially read rcords from the very end till we find
         #   the key we are looking for, or we hit a checkpoint record
 
-        for d in self.__record_iterator(): 
-            # d is either dictionary from a regular record, or from checkpoint
-            if key in d:
-                return d[key]
+        for (metadata, data) in self.__record_iterator(): 
+            # data is either dictionary from a regular record, or from checkpoint
+            if key in data:
+                return data[key]
 
         return None
 
 
-    def __getitem__(self, key):
-        "get value of key, as it was written"
+    def get(self, key, timestamp):
+        """
+        get the most recent value of key that is before provided timestamp
+        """
 
-        return self.get(key)
+        # first we need to find the record number from where we should start
+        #   an iteration from. 
 
+        rec_no = -1
+        for (metadata, data) in self.__record_iterator():
+            if metadata["type"] == "regular":
+                if metadata["timestamp"]<timestamp:
+                    # this is where we stop this iteration
+                    rec_no = metadata["rec_no"]
+                    break
+
+            elif metadata["type"] == "checkpoint":
+
+                # we can find exact recno by two record fetches, at most
+                cp_ts_dict = metadata["cp_ts_dict"]
+                cp_rec_nos = sorted(cp_ts_dict.keys())
+
+                for r in cp_rec_nos:
+                    if cp_ts_dict[r]>timestamp: break
+
+                # by now, r should be a record number that is just bigger
+                #   than timestamp
+
+                (_m, _d) = self.__read(r)
+                assert _m["rec_no"] == r and _m["type"] == "checkpoint"
+                assert _m["timestamp"] > timestamp
+
+                ts_dict = _m["ts_dict"]
+                rec_nos = sorted(ts_dict.keys())
+
+                for r in rec_nos:
+                    if ts_dict[r]>timestamp: break
+
+                # by now, r should be the desired record number 
+                rec_no = r
+                break
+
+            else:
+                assert False
+
+        for (metadata, data) in self.__record_iterator(rec_no): 
+            if key in data:
+                return data[key]
+
+        return None
+ 
+
+            
 
     def __dumpall(self):
         """ dump the entire state (all kv pairs) as a single dictionary
@@ -327,10 +390,10 @@ class KVstore:
         """
 
         ret = {}
-        for d in self.__record_iterator():
-            for key in d.keys():
+        for (metadata, data) in self.__record_iterator():
+            for key in data.keys():
                 if key not in ret:  # Can't just not include the 'None; keys
-                    ret[key] = d[key]
+                    ret[key] = data[key]
 
         # Let's not return the keys that have 'None'
         for k in ret.keys():
@@ -377,6 +440,7 @@ class KVstore:
 
             rec = self.__read(cur)
             (metadata, data) = rec
+            assert metadata["rec_no"] == cur
 
             if metadata["type"] == "regular":           # a regular record
                 for key in data:             # recent data takes precedence
@@ -436,6 +500,7 @@ class KVstore:
 
         newmetadata["type"] = "checkpoint"
         newmetadata["timestamp"] = cur_time
+        newmetadata["rec_no"] = self.__num_records+1
         newmetadata["cp_range"] = (lower, upper)
         newmetadata["cp_level"] = level
         newmetadata["cp_ts_dict"] = cp_ts_dict
