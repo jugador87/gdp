@@ -10,6 +10,15 @@
   color: red;  
   background-color: #ffff99;
 }
+.command {
+  font-family: monospace;
+}
+.variable {
+  font-style: oblique;
+}
+.filename {
+  font-family: monospace;
+}
 
 </style></head>
   <body>
@@ -194,7 +203,6 @@
       </li>
       <li>The handle itself is returned indirectly through <code>*gclp</code>.<br>
       </li>
-      <i> </i>
       <li><i> Can handles be R/W or are the only options RO or AO (Append Only)?
           Or for that matter can you update an existing GCL (overwrite) by
           cloning a new version (e.g., using CoW)?</i></li>
@@ -207,9 +215,11 @@
       <i> </i>
       <li><i> It may be useful to pass in a "payment" parameter. See discussion
           below.</i></li>
-      <i> </i>
+      <li> <span class="warning">This interface should take a cryptographic
+          signing key as a parameter.&nbsp; As it is, it locates the signing key
+          using a search path as detailed below.&nbsp; As a result this
+          interface will probably change in the future.</span> </li>
     </ul>
-    <i> </i>
     <hr size="2" width="100%">
     <h4> </h4>
     <h4> Name</h4>
@@ -944,8 +954,35 @@ typedef struct
     you are running NTP this value is likely to be on the order of a few tens to
     a few hundreds of milliseconds, but if you set your clock manually it is
     likely to be several seconds or worse.<br>
-    <br>
-    <h2>6&nbsp; Miscellaneous and Utilities</h2>
+    <h2>6&nbsp; Signing and Encryption</h2>
+    <h3> 6.1&nbsp; Signing</h3>
+    <p>Each log should have a public key in the metadata which is used to verify
+      writes to the log.&nbsp; The library hides most of the details of this,
+      but some still appear.</p>
+    <p> The <span class="command">gcl-create</span> command automatically
+      creates a public/secret keypair unless otherwise specified.&nbsp; See the
+      man page for details.&nbsp; The public part of the key is inserted into
+      the log metadata and stored with the log.&nbsp; The secret part is stored
+      somewhere on your local filesystem, typically <span class="filename">KEYS/<span
+          class="variable">gcl-id</span>.pem</span>.&nbsp; Normally <span class="command">gcl-create</span>
+      will encrypt the secret key with another key entered from the command
+      line, although this can also be turned off.</p>
+    <p>When a GDP application attempts to open a log using gdp_gcl_open, the
+      library will attempt to find a secret key by searching the directories "<span
+        class="filename">.</span>", "<span class="filename">KEYS</span>", "<span
+        class="filename">~/.swarm/gdp/keys</span>", "<span class="filename">/usr/local/etc/swarm/gdp/keys</span>",
+      and "<span class="filename">/etc/swarm/gdp/keys</span>" for a file having
+      the same name as the log (with a <span class="filename">.pem</span> file
+      suffix).&nbsp; If that secret key is encrypted, the library will prompt
+      the (human) user for the secret key password.</p>
+    <p>Once the secret key has been located and decrypted, all further append
+      requests will be signed using the secret key and verified by the log
+      daemon against the public key in the log metadata.</p>
+    <h3>6.2&nbsp; Encryption</h3>
+    <p>Not yet implemented.</p>
+    <p> </p>
+    <h2>7&nbsp; Miscellaneous and Utilities</h2>
+    <hr>
     <h4>Name</h4>
     <p>gdp_gcl_getnrecs &mdash; return the number of records in an existing GCL</p>
     <h4>Synopsis</h4>
@@ -968,7 +1005,7 @@ typedef struct
       PRIgdp_recno macro<br>
       <br>
     </p>
-    <h2>7&nbsp; Examples</h2>
+    <h2>8&nbsp; Examples</h2>
     <p>The following pseudo-code example excerpts from <tt>apps/writer-test.c</tt>.<br>
     </p>
     <pre>#include &lt;gdp/gdp.h&gt;<br>#include &lt;stdio.h&gt;<br>#include &lt;string.h&gt;<br><br>int main(int argc, char **argv)<br>{<br>	gdp_tcl_t *gcl;<br>	EP_STAT estat;<br>	gdp_name_t gcliname;	// internal name of GCL<br>	gdp_datum_t *d;<br><br>	// general startup and initialization<br>	if (argc &lt; 2)<br>		usage_error();<br>	estat = gdp_init();<br>	if (!EP_STAT_ISOK(estat))<br>		initialization_error(estat);<br>	d = gdp_datum_new();
@@ -990,7 +1027,7 @@ typedef struct
     <hr size="2" width="100%">
     <p><br>
     </p>
-    <h2>8&nbsp; Compiling and Linking</h2>
+    <h2>9&nbsp; Compiling and Linking</h2>
     <p>The GDP library uses a reduced version of libep and also uses the
       libevent library version 2.1. These will need to be included both during
       compilation and linking.</p>
