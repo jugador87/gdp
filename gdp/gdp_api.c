@@ -174,6 +174,18 @@ gdp_name_is_valid(const gdp_name_t name)
 	return false;
 }
 
+
+/*
+**  GDP_GCL_GETNRECS --- get the number of records in a GCL
+*/
+
+gdp_recno_t
+gdp_gcl_getnrecs(const gdp_gcl_t *gcl)
+{
+	return gcl->nrecs;
+}
+
+
 /*
 **  GDP_GCL_PRINT --- print a GCL (for debugging)
 */

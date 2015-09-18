@@ -251,6 +251,14 @@ EP_STAT			gdp_parse_name(
 					const char *ext,
 					gdp_name_t internal);
 
+// get the number of records in the log
+extern gdp_recno_t	gdp_gcl_getnrecs(
+					const gdp_gcl_t *gcl);	// open GCL handle
+
+/*
+**  Metadata handling
+*/
+
 // create a new metadata set
 gdp_gclmd_t		*gdp_gclmd_new(
 					int entries);
@@ -286,10 +294,14 @@ void			gdp_gclmd_print(
 					FILE *fp,
 					int detail);
 
-// allocate a new message
+/*
+**  Datum handling
+*/
+
+// allocate a new message datum
 gdp_datum_t		*gdp_datum_new(void);
 
-// free a message
+// free a message datum
 void			gdp_datum_free(gdp_datum_t *);
 
 // print out data record

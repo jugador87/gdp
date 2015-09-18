@@ -16,7 +16,7 @@
     <h1>Global Data Plane Programmatic API<br>
     </h1>
     <h4>Editor: Eric Allman, U.C. Berkeley Swarm Lab, eric@cs.berkeley.edu<br>
-      Version 0.71, 2015-01-16</h4>
+      Version 0.72, 2015-09-18</h4>
     <br>
     <p>This document describes the procedural programmatic interface to the
       Global Data Plane.&nbsp; The native code is written in C for maximum
@@ -946,6 +946,23 @@ typedef struct
     likely to be several seconds or worse.<br>
     <br>
     <h2>6&nbsp; Miscellaneous and Utilities</h2>
+    <h4>Name</h4>
+    <p>gdp_gcl_getnrecs &mdash; return the number of records in an existing GCL</p>
+    <h4>Synopsis</h4>
+    <p>gdp_recno_t gdp_gcl_getnrecs(gdp_gcl_t *gcl)</p>
+    <h4>Notes</h4>
+    <ul>
+      <li>Returns the number of records in a GCL.</li>
+      <li>This does not check with the log server, i.e., the return value is
+        cached in the local process (and is updated each time the GCL is read or
+        written).&nbsp; This shouldn't be a problem for writers (since there
+        should only be one writer), but may be for readers.&nbsp; Readers
+        wanting to get the latest number of records can read the last record in
+        the GCL (using gdp_gcl_read) and check the record number in the returned
+        datum.</li>
+    </ul>
+    <hr>
+    <h3>To be done</h3>
     <p>Header files<br>
       Version info<br>
       PRIgdp_recno macro<br>

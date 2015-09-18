@@ -1,6 +1,13 @@
 #ALL=	gcl-create writer-test reader-test gdp-rest rw-bench log-view
-BINALL=		gcl-create log-view reader-test writer-test
-SBINALL=	gdp-rest log-view gdp-name-xlate
+BINALL=		gcl-create \
+		log-mirror \
+		log-view \
+		reader-test \
+		writer-test\
+
+SBINALL=	gdp-rest \
+		log-view \
+		gdp-name-xlate\
 
 ALL=		${BINALL} ${SBINALL}
 
@@ -55,6 +62,9 @@ gdp-rest:	gdp-rest.o ../scgilib/scgilib.o
 
 rw-bench:	rw-bench.o
 	$(CC) -o $@ rw-bench.o $(LDFLAGS)
+
+log-mirror:	log-mirror.o
+	$(CC) -o $@ log-mirror.o $(LDFLAGS)
 
 log-view:	log-view.o
 	$(CC) -o $@ log-view.o $(LDFLAGS)
