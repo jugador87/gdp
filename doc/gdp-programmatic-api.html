@@ -19,6 +19,12 @@
 .filename {
   font-family: monospace;
 }
+.admin-param {
+  font-family: monospace;
+}
+.function {
+  font-family: monospace;
+}
 
 </style></head>
   <body>
@@ -967,14 +973,16 @@ typedef struct
           class="variable">gcl-id</span>.pem</span>.&nbsp; Normally <span class="command">gcl-create</span>
       will encrypt the secret key with another key entered from the command
       line, although this can also be turned off.</p>
-    <p>When a GDP application attempts to open a log using gdp_gcl_open, the
-      library will attempt to find a secret key by searching the directories "<span
-        class="filename">.</span>", "<span class="filename">KEYS</span>", "<span
-        class="filename">~/.swarm/gdp/keys</span>", "<span class="filename">/usr/local/etc/swarm/gdp/keys</span>",
-      and "<span class="filename">/etc/swarm/gdp/keys</span>" for a file having
-      the same name as the log (with a <span class="filename">.pem</span> file
-      suffix).&nbsp; If that secret key is encrypted, the library will prompt
-      the (human) user for the secret key password.</p>
+    <p>When a GDP application attempts to open a log using <span class="function">gdp_gcl_open</span>,
+      the library will attempt to find a secret key by searching the directories
+      named in the <span class="admin-param">swarm.gdp.crypto.key.path</span>
+      administrative parameter for a file having the same name as the log (with
+      a <span class="filename">.pem</span> file suffix).&nbsp; If that secret
+      key is encrypted, the library will prompt the (human) user for the secret
+      key password.&nbsp; The default path is "<span class="filename">.</span>",
+      "<span class="filename">KEYS</span>", "<span class="filename">~/.swarm/gdp/keys</span>",
+      "<span class="filename">/usr/local/etc/swarm/gdp/keys</span>", and "<span
+        class="filename">/etc/swarm/gdp/keys</span>".</p>
     <p>Once the secret key has been located and decrypted, all further append
       requests will be signed using the secret key and verified by the log
       daemon against the public key in the log metadata.</p>
@@ -986,7 +994,7 @@ typedef struct
     <h4>Name</h4>
     <p>gdp_gcl_getnrecs &mdash; return the number of records in an existing GCL</p>
     <h4>Synopsis</h4>
-    <p>gdp_recno_t gdp_gcl_getnrecs(gdp_gcl_t *gcl)</p>
+    <p><code>gdp_recno_t gdp_gcl_getnrecs(gdp_gcl_t *gcl)</code></p>
     <h4>Notes</h4>
     <ul>
       <li>Returns the number of records in a GCL.</li>

@@ -86,26 +86,30 @@ As a special case, the type
 suppresses creation of the keypair.
 .It Fl K Ar key-location
 This option has two purposes.
-First, if for some reason you want to create your own key
-you can do so, storing the result as a PEM format keypair,
-and name that file using the
+First, if you want to use an existing keypair
+(formatted as a PEM file)
+you can use the
 .Fl K
-flag.
-Alternatively it can name a file in which to store the secret key,
+flag to name the existing PEM file.
+If you want
+.Nm
+to create a keypair for you,
+.Fl K
+can name either a file in which to store the secret key,
 or a directory into which the secret key will be written
 named the same as the internal name of the log (with
 .Va \&.pem
 appended).
 If
 .Fl K
-is not specified, the
+is not specified, the value of the
 .Va swarm.gdp.crypto.key.dir
-parameter will be used as a directory name,
+administrative parameter will be used as a directory name,
 which defaults to
 .Pa ./KEYS ,
-or to the current directory if
+or to the current directory if the
 .Pa KEYS
-does not exist.
+directory does not exist.
 .It Fl b Ar key-bits
 If the key type is RSA or DSA,
 this parameter specifies the number of bits in the key.
