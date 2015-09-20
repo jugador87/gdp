@@ -1,11 +1,13 @@
 apps/gcl-create
 apps/gdp-name-xlate
 apps/gdp-rest
+apps/log-mirror
 apps/log-view
 apps/reader-test
 apps/rw-bench
 apps/writer-test
 debian/libgdp*
+ep/decode-stat
 examples/machine-mon
 gdplogd/gdplogd
 gdp_router
@@ -20,6 +22,7 @@ tags
 *.o
 *.a
 *.so.*
+*.dSYM
 !libs/*.a
 !libs/*.so*
 !doc/Libep.pdf
