@@ -94,16 +94,16 @@
     <h3>Revocation</h3>
     <p>Revocation looks very similar to creation.</p>
     <ol>
-      <li>Create new symmetric key K'</li>
-      <li>Create new key pair (S'<sub>r1</sub>, P'<sub>r1</sub>) [only if
-        sharing secret key]</li>
-      <li>Encrypt K' with P<sub>self</sub>, P<sub>r1</sub>, P<sub>r2</sub>...
+      <li>Create new symmetric key K&prime;</li>
+      <li>Create new key pair (S&prime;<sub>r1</sub>, P&prime;<sub>r1</sub>)
+        [only if sharing secret key]</li>
+      <li>Encrypt K&prime; with P<sub>self</sub>, P<sub>r1</sub>, P<sub>r2</sub>...
         (need not be the same set of readers)</li>
-      <li>Encrypt old key K with new key K'<br>
+      <li>Encrypt old key K with new key K&prime;<br>
       </li>
       <li>Write encrypted K and E<sup>P<sub>i</sub></sup>(K) &forall;i to G<sub>L</sub>
         (this creates a new generation)<sub></sub></li>
-      <li>Start using K' as K</li>
+      <li>Start using K&prime; as K</li>
     </ol>
     <h3>Reading (Problem Case)</h3>
     <p>This could be because you have no access, or you do but you have to read
@@ -126,7 +126,7 @@
     <br>
     <h2>Security Analysis/Discussion/Questions</h2>
     <p>Once a reader has access to any point in the log, they have access to all
-      points prior.&nbsp; This could be mitigated by not including E<sup>K'</sup>(K)
+      points prior.&nbsp; This could be mitigated by not including E<sup>K&prime;</sup>(K)
       in new G<sub>L</sub> records, but then granting backward access would be
       hard.<br>
     </p>
