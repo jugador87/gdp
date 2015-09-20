@@ -138,6 +138,9 @@ HFILES_NOTYET=	\
 	ep_tree.h \
 	ep_types.h \
 
+BINALL= \
+	decode-epstat
+
 CC=	cc
 PG=
 O=	-O
@@ -167,7 +170,7 @@ EPLIBMINVER=	1
 EPLIBVER=	${EPLIBMAJVER}.${EPLIBMINVER}
 LIBALL=		libep.a libep.so.${EPLIBVER}
 INCALL=		${HFILES}
-ALL=		${LIBALL} ${INCALL}
+ALL=		${LIBALL} ${INCALL} ${BINALL}
 
 all: ${ALL}
 
@@ -185,6 +188,10 @@ ep_version.o: ep_version.c FORCE
 #	-mv -f ep_stat.h ep_stat.h~
 #	./procstatus.py < ep_status_codes.stat > ep_stat.h
 #	chmod 444 ep_stat.h
+
+#
+#  Utilities
+#
 
 FORCE:
 

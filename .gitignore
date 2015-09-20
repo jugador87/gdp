@@ -7,7 +7,7 @@ apps/reader-test
 apps/rw-bench
 apps/writer-test
 debian/libgdp*
-ep/decode-stat
+ep/decode-epstat
 examples/machine-mon
 gdplogd/gdplogd
 gdp_router
