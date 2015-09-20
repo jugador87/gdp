@@ -257,7 +257,7 @@ ep_crypto_keyform_fromstring(const char *fmt)
 static const EVP_CIPHER *
 cipher_byid(int id)
 {
-	if (id == EP_CRYPTO_KEYENC_NONE)
+	if (id == EP_CRYPTO_SYMKEY_NONE)
 		return NULL;
 
 	// a bit weird, but easier to get cipher by name
@@ -777,16 +777,16 @@ ep_crypto_key_compat(const EP_CRYPTO_KEY *pubkey, const EP_CRYPTO_KEY *seckey)
 
 static struct name_to_format	KeyEncStrings[] =
 {
-	{ "none",		EP_CRYPTO_KEYENC_NONE,		},
-	{ "aes128",		EP_CRYPTO_KEYENC_AES128,	},
-	{ "aes192",		EP_CRYPTO_KEYENC_AES192,	},
-	{ "aes256",		EP_CRYPTO_KEYENC_AES256,	},
-	{ "camellia128",	EP_CRYPTO_KEYENC_CAMELLIA128,	},
-	{ "camellia192",	EP_CRYPTO_KEYENC_CAMELLIA192,	},
-	{ "camellia256",	EP_CRYPTO_KEYENC_CAMELLIA256,	},
-	{ "des",		EP_CRYPTO_KEYENC_DES,		},
-	{ "3des",		EP_CRYPTO_KEYENC_3DES,		},
-	{ "idea",		EP_CRYPTO_KEYENC_IDEA,		},
+	{ "none",		EP_CRYPTO_SYMKEY_NONE,		},
+	{ "aes128",		EP_CRYPTO_SYMKEY_AES128,	},
+	{ "aes192",		EP_CRYPTO_SYMKEY_AES192,	},
+	{ "aes256",		EP_CRYPTO_SYMKEY_AES256,	},
+	{ "camellia128",	EP_CRYPTO_SYMKEY_CAMELLIA128,	},
+	{ "camellia192",	EP_CRYPTO_SYMKEY_CAMELLIA192,	},
+	{ "camellia256",	EP_CRYPTO_SYMKEY_CAMELLIA256,	},
+	{ "des",		EP_CRYPTO_SYMKEY_DES,		},
+	{ "3des",		EP_CRYPTO_SYMKEY_3DES,		},
+	{ "idea",		EP_CRYPTO_SYMKEY_IDEA,		},
 	{ NULL,			-1,				}
 };
 

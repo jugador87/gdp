@@ -65,24 +65,26 @@ void		ep_crypto_init(uint32_t flags);
 # define EP_CRYPTO_KEYFORM_PEM		1	// PEM (text)
 # define EP_CRYPTO_KEYFORM_DER		2	// DER (binary ASN.1)
 
-// key types
+// asymmetric key types
 # define EP_CRYPTO_KEYTYPE_UNKNOWN	0	// error
 # define EP_CRYPTO_KEYTYPE_RSA		1	// RSA
 # define EP_CRYPTO_KEYTYPE_DSA		2	// DSA
 # define EP_CRYPTO_KEYTYPE_EC		3	// Elliptic curve
 # define EP_CRYPTO_KEYTYPE_DH		4	// Diffie-Hellman
 
-// key encryption algorithms for secret PEM keys
-# define EP_CRYPTO_KEYENC_NONE		0	// error/unencrypted, MBZ
-# define EP_CRYPTO_KEYENC_AES128	1	// AES-128
-# define EP_CRYPTO_KEYENC_AES192	2	// AES-192
-# define EP_CRYPTO_KEYENC_AES256	3	// AES-256
-# define EP_CRYPTO_KEYENC_CAMELLIA128	4	// Camellia 128
-# define EP_CRYPTO_KEYENC_CAMELLIA192	5	// Camellia 192
-# define EP_CRYPTO_KEYENC_CAMELLIA256	6	// Camellia 256
-# define EP_CRYPTO_KEYENC_DES		7	// single DES
-# define EP_CRYPTO_KEYENC_3DES		8	// triple DES
-# define EP_CRYPTO_KEYENC_IDEA		9	// IDEA
+// symmetric key type (used to encrypt secret asymmetric keys)
+# define EP_CRYPTO_SYMKEY_NONE		0	// error/unencrypted, MBZ
+# define EP_CRYPTO_SYMKEY_AES128	1	// Advanced Encr Std 128
+# define EP_CRYPTO_SYMKEY_AES192	2	// Advanced Encr Std 192
+# define EP_CRYPTO_SYMKEY_AES256	3	// Advanced Encr Std 256
+# define EP_CRYPTO_SYMKEY_CAMELLIA128	4	// Camellia 128
+# define EP_CRYPTO_SYMKEY_CAMELLIA192	5	// Camellia 192
+# define EP_CRYPTO_SYMKEY_CAMELLIA256	6	// Camellia 256
+# define EP_CRYPTO_SYMKEY_DES		7	// single Data Encr Std
+# define EP_CRYPTO_SYMKEY_3DES		8	// triple Data Encr Std
+# define EP_CRYPTO_SYMKEY_IDEA		9	// Int'l Data Encr Alg
+
+# define EP_CRYPTO_SYMKEY_MASK		0xff
 
 // flag bits
 # define EP_CRYPTO_F_PUBLIC		0x0000	// public key (no flags set)
@@ -242,6 +244,45 @@ EP_STAT			ep_crypto_vrfy_final(
 				EP_CRYPTO_MD *md,
 				void *obuf,
 				size_t obufsize);
+
+
+/*
+**  Symmetric Ciphers
+**	Algorithm definitions are above
+*/
+
+typedef struct ep_crypto_cipher_ctx	EP_CRYPTO_CIPHER_CTX;
+
+#define EP_CRYPTO_MODE_CBC	0x100		// Cipher Block Chaining
+#define EP_CRYPTO_MODE_CFB	0x200		// Cipher Feedback
+#define EP_CRYPTO_MODE_OFB	0x300		// Output Feedback
+
+#define EP_CRYPTO_MODE_MASK	0xf00		// mask for cipher mode
+
+EP_CRYPTO_CIPHER_CTX	*ep_crypto_cipher_new(
+				uint32_t ciphertype,
+				uint8_t *key,
+				uint8_t *iv,
+				bool enc);
+void			ep_crypto_cipher_free(
+				EP_CRYPTO_CIPHER_CTX *cipher);
+
+EP_STAT			ep_crypto_cipher_crypt(
+				EP_CRYPTO_CIPHER_CTX *cipher,
+				void *in,
+				size_t inlen,
+				void *out,
+				size_t outlen);
+EP_STAT			ep_crypto_cipher_cryptblock(
+				EP_CRYPTO_CIPHER_CTX *cipher,
+				void *in,
+				size_t inlen,
+				void *out,
+				size_t outlen);
+EP_STAT			ep_crypto_cipher_finish(
+				EP_CRYPTO_CIPHER_CTX *cipher,
+				void *out,
+				size_t outlen);
 
 
 /*

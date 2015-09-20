@@ -24,6 +24,7 @@ OBJS=	\
 	ep_assert.o \
 	ep_b64.o \
 	ep_crypto.o \
+	ep_crypto_cipher.o \
 	ep_crypto_key.o \
 	ep_crypto_md.o \
 	ep_crypto_sign.o \
