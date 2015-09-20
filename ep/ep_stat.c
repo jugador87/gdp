@@ -469,6 +469,7 @@ ep_stat_tostr(EP_STAT stat,
 			if (EP_STAT_DETAIL(stat) <
 			    (sizeof GenericErrors / sizeof *GenericErrors))
 				detail = GenericErrors[EP_STAT_DETAIL(stat)];
+			break;
 		}
 		break;
 
