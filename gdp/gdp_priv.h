@@ -108,6 +108,14 @@ struct gdp_gcl
 	gdp_recno_t			nrecs;			// number of records (= last recno)
 	gdp_gclmd_t			*gclmd;			// metadata
 	EP_CRYPTO_MD		*digest;		// base crypto digest
+	EP_STAT				(*apndfilter)(	// append filter function
+							gdp_datum_t *,
+							void *);
+	void				*apndfpriv;		// private data for apndfilter
+	EP_STAT				(*readfilter)(	// read filter function
+							gdp_datum_t *,
+							void *);
+	void				*readfpriv;		// private data for readfilter
 	struct gdp_gcl_xtra	*x;				// for use by gdpd, gdp-rest
 };
 

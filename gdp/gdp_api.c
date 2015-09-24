@@ -468,3 +468,31 @@ gdp_gcl_getmetadata(gdp_gcl_t *gcl,
 {
 	return _gdp_gcl_getmetadata(gcl, gmdp, _GdpChannel, 0);
 }
+
+
+/*
+**  GDP_GCL_SET_APPEND_FILTER --- set the append filter function
+*/
+
+void
+gdp_gcl_set_append_filter(gdp_gcl_t *gcl,
+		EP_STAT (*appendfilter)(gdp_datum_t *, void *),
+		void *filterdata)
+{
+	gcl->apndfilter = appendfilter;
+	gcl->apndfpriv = filterdata;
+}
+
+
+/*
+**  GDP_GCL_SET_READ_FILTER --- set the read filter function
+*/
+
+void
+gdp_gcl_set_read_filter(gdp_gcl_t *gcl,
+		EP_STAT (*readfilter)(gdp_datum_t *, void *),
+		void *filterdata)
+{
+	gcl->readfilter = readfilter;
+	gcl->readfpriv = filterdata;
+}

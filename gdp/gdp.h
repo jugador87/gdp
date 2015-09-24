@@ -217,6 +217,18 @@ extern EP_STAT	gdp_gcl_getmetadata(
 					gdp_gcl_t *gcl,			// GCL handle
 					gdp_gclmd_t **gmdp);	// out-param for metadata
 
+// set append filter
+extern void		gdp_gcl_set_append_filter(
+					gdp_gcl_t *gcl,			// GCL handle
+					EP_STAT (*readfilter)(gdp_datum_t *, void *),
+					void *filterdata);
+
+// set read filter
+extern void		gdp_gcl_set_read_filter(
+					gdp_gcl_t *gcl,			// GCL handle
+					EP_STAT (*readfilter)(gdp_datum_t *, void *),
+					void *filterdata);
+
 // return the name of a GCL
 //		XXX: should this be in a more generic "getstat" function?
 extern const gdp_name_t *gdp_gcl_getname(
