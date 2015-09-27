@@ -3,6 +3,7 @@
 from MISC import *
 from GDP_NAME import *
 from GDP_DATUM import *
+from GDP_GCLMD import *
 
 
 class GDP_GCL:
@@ -99,12 +100,16 @@ class GDP_GCL:
         return
 
     @classmethod
-    def create(cls, logd_name, name):
-        "create a new GCL with 'name' on 'logdname'"
+    def create(cls, logd_name, name, metadata):
+        """
+        create a new GCL with 'name' on 'logd_name'
+        metadata is a dictionary with keys as 32-bit unsigned integers
+        """
 
         # we do need an internal represenation of the names.
         gcl_name_python = name.internal_name()
         logd_name_python = logd_name.internal_name()
+
         # convert this to a string that ctypes understands. Some ctypes magic
         # ahead
         buf1 = create_string_buffer(gcl_name_python, 32+1)
@@ -117,14 +122,48 @@ class GDP_GCL:
 
         throwaway_ptr = POINTER(cls.gdp_gcl_t)()
 
+        md = GDP_GCLMD(0)
+        for k in metadata:
+            md.add(k, metadata[k])
+
         __func = gdp.gdp_gcl_create
         __func.argtypes = [GDP_NAME.name_t, GDP_NAME.name_t,
-                                c_void_p, POINTER(POINTER(cls.gdp_gcl_t))]
+                                POINTER(GDP_GCLMD.gdp_gclmd_t), 
+                                POINTER(POINTER(cls.gdp_gcl_t))]
         __func.restype = EP_STAT
 
-        estat = __func(gcl_name_ctypes, logd_name_ctypes, None, throwaway_ptr)
+        estat = __func(gcl_name_ctypes, logd_name_ctypes, md.gdp_gclmd, throwaway_ptr)
         check_EP_STAT(estat)
         return
+
+    def getmetadata(self):
+        """
+        return the metadata included at creation time. Represented as a python dict
+        """
+
+        __func = gdp.gdp_gcl_getmetadata
+        __func.argtypes = [POINTER(self.gdp_gcl_t), POINTER(POINTER(GDP_GCLMD.gdp_gclmd_t))]
+        __func.restype = EP_STAT
+
+        gmd = POINTER(GDP_GCLMD.gdp_gclmd_t)()
+        estat = __func(self.ptr, byref(gmd)) 
+        check_EP_STAT(estat)
+
+        md = GDP_GCLMD(ptr=gmd)
+
+        idx = 0
+        metadata = {}
+        while True:
+            try: 
+                (i,v) = md.get(idx)
+                metadata[i] = v
+                idx += 1
+            except EP_STAT_SEV_ERROR:
+                break
+
+        return metadata
+            
+
 
 
     def read(self, recno):
