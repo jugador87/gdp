@@ -3,6 +3,7 @@
 #include <ep/ep.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_hexdump.h>
+#include <ep/ep_net.h>
 #include <ep/ep_string.h>
 #include <ep/ep_time.h>
 #include <ep/ep_xlate.h>
@@ -100,6 +101,12 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 				ferror(data_fp));
 		return EX_DATAERR;
 	}
+	header.magic = ep_net_ntoh32(header.magic);
+	header.version = ep_net_ntoh32(header.version);
+	header.header_size = ep_net_ntoh32(header.header_size);
+	header.num_metadata_entries = ep_net_ntoh16(header.num_metadata_entries);
+	header.log_type = ep_net_ntoh16(header.log_type);
+	header.recno_offset = ep_net_ntoh64(header.recno_offset);
 
 	if (plev >= GDP_PR_BASIC)
 	{
@@ -131,16 +138,16 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 		struct mdhdr *metadata_hdrs = alloca(header.num_metadata_entries *
 											sizeof *metadata_hdrs);
 
-		if (fread(metadata_hdrs,
+		i = fread(metadata_hdrs,
 					sizeof *metadata_hdrs,
 					header.num_metadata_entries,
-					data_fp)
-			!= header.num_metadata_entries)
+					data_fp);
+		if (i != header.num_metadata_entries)
 		{
 			fprintf(stderr,
 					"fread() failed while reading metadata headers,"
-					" ferror = %d\n",
-					ferror(data_fp));
+					" ferror = %d, wanted %d, got %d\n",
+					ferror(data_fp), header.num_metadata_entries, i);
 			return EX_DATAERR;
 		}
 
@@ -156,7 +163,12 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 		for (i = 0; i < header.num_metadata_entries; ++i)
 		{
-			uint8_t *mdata = malloc(metadata_hdrs[i].md_len + 1);
+			uint8_t *mdata;
+
+			metadata_hdrs[i].md_id = ep_net_ntoh32(metadata_hdrs[i].md_id);
+			metadata_hdrs[i].md_len = ep_net_ntoh32(metadata_hdrs[i].md_len);
+
+			mdata = malloc(metadata_hdrs[i].md_len + 1);
 												// +1 for null-terminator
 			if (fread(mdata, metadata_hdrs[i].md_len, 1, data_fp) != 1)
 			{
@@ -246,6 +258,11 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 	while (fread(&record, sizeof record, 1, data_fp) == 1)
 	{
+		record.recno = ep_net_ntoh64(record.recno);
+		ep_net_ntoh_timespec(&record.timestamp);
+		record.sigmeta = ep_net_ntoh16(record.sigmeta);
+		record.data_length = ep_net_ntoh64(record.data_length);
+
 		fprintf(stdout, "\nRecord number: %" PRIgdp_recno
 				", offset = %zd (0x%zx), dlen = %" PRIi64 "\n",
 				record.recno, file_offset, file_offset, record.data_length);

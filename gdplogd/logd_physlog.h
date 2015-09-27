@@ -45,7 +45,7 @@ void			gcl_physforeach(
 
 #define GCL_DIR				"/var/swarm/gcls"
 
-#define GCL_LOG_MAGIC		UINT32_C(0x07434C31)	// 'GCL1'
+#define GCL_LOG_MAGIC		UINT32_C(0x47434C31)	// 'GCL1'
 #define GCL_LOG_VERSION		UINT32_C(0)
 #define GCL_LOG_MINVERS		UINT32_C(0)			// lowest version we can read
 #define GCL_LOG_MAXVERS		UINT32_C(0)			// highest version we can read
@@ -64,10 +64,12 @@ typedef struct gcl_log_record
 {
 	gdp_recno_t		recno;
 	EP_TIME_SPEC	timestamp;
-	int32_t			reserved1;			// reserved for future use
+	uint16_t		sigmeta;			// signature metadata (size & hash alg)
+	int16_t			reserved1;			// reserved for future use
 	int32_t			reserved2;			// reserved for future use
 	int64_t			data_length;
 	char			data[];
+										// signature is after the data
 } gcl_log_record;
 
 /*
@@ -84,12 +86,13 @@ typedef struct gcl_log_record
 
 typedef struct gcl_log_header
 {
-	int32_t magic;
-	int32_t version;
-	int32_t header_size; 	// the total size of the header such that
-							// the data records begin at offset header_size
-	int16_t num_metadata_entries;
-	int16_t log_type;		// directory, indirect, data, etc.
+	int32_t		magic;
+	int32_t		version;
+	int32_t		header_size; 	// the total size of the header such that
+								// the data records begin at offset header_size
+	int16_t		num_metadata_entries;
+	int16_t		log_type;		// directory, indirect, data, etc. (unused)
+	gdp_recno_t	recno_offset;	// record number offset (first stored recno - 1)
 } gcl_log_header;
 
 

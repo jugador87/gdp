@@ -50,6 +50,7 @@ struct gdp_gcl_xtra
 	off_t				data_offset;	// offset for start of data
 	uint16_t			nmetadata;		// number of metadata entries
 	uint16_t			log_type;		// from log header
+	gdp_recno_t			recno_offset;	// recno offset (first stored recno - 1)
 };
 
 

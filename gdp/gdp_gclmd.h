@@ -22,7 +22,7 @@
 struct metadatum
 {
 	gdp_gclmd_id_t		md_id;			// identifier (uint32_t)
-	size_t				md_len;			// data length (only 24 bits!)
+	uint32_t			md_len;			// data length (only 24 bits!)
 	void				*md_data;		// pointer to data
 	uint32_t			md_flags;		// see below
 };
