@@ -56,6 +56,16 @@ gdp_recno_t = c_int64
 
 (GDP_EVENT_DATA, GDP_EVENT_EOS, GDP_EVENT_SHUTDOWN, GDP_EVENT_ASTAT)=(1,2,3,4)
 
+# GCL Metadata keys
+# GDP_GCLMD_XID       0x00584944  // XID (external id)
+# GDP_GCLMD_PUBKEY    0x00505542  // PUB (public key)
+# GDP_GCLMD_CTIME     0x0043544D  // CTM (creation time)
+# GDP_GCLMD_CID       0x00434944  // CID (creator id)
+
+(GDP_GCLMD_XID, GDP_GCLMD_PUBKEY, GDP_GCLMD_CTIME, GDP_GCLMD_CID) = \
+            (0x00584944, 0x00505542, 0x0043544D, 0x00434944)
+
+
 class EP_STAT(Structure):
     pass
 EP_STAT._fields_ = [("code", c_ulong)]
