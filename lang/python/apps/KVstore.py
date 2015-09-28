@@ -380,7 +380,7 @@ class KVstore:
 
         for (metadata, data) in self.__record_iterator(rec_no): 
             if key in data:
-                return data[key]
+                return (metadata["timestamp"], data[key])
 
         return None
  
@@ -404,6 +404,16 @@ class KVstore:
             if ret[k] is None: ret.pop(k)
 
         return ret
+
+    def keys(self):
+        """ return all the keys as a single list """
+        return self.__dumpall().keys()
+
+
+    def values(self):
+        """  return all the values as a single list """
+        return self.__dumpall().values()
+
 
     def __iter__(self):
         """ Returns the keys """
@@ -471,7 +481,8 @@ class KVstore:
                     nk = newdata.keys()         # nk => new keys
 
                     # condition when merging should be performed:
-                    if len(set(ok) & set(nk))> 0.8*min(len(ok), len(nk)):
+                    if (len(set(ok) & set(nk))> 0.8*min(len(ok), len(nk))) or \
+                            (len(set(nk))>10*len(set(ok))):
 
                         # YES, let's merge
                         level = metadata["cp_level"]    # bump level down
