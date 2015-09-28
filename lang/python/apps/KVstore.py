@@ -110,6 +110,13 @@ class KVstore:
 
     __freq = 100     # checkpoint frequency
 
+    ## Criteria for checkpointing ##
+    # Bump up CP level if size(new_cp)>N*size(old_cp)
+    #   This is useful for too many unique keys
+    __cp_size_factor = None     # initialized in __init__
+    # Bump up CP level if old CP and new CP have keys in common
+    __cp_X_factor = None        # initialized in __init__
+
     # modes: Read only, or read-write. There can be multiple kv-instances
     #   all pointing back to a single log. However, at most one can be in
     #   read/write mode. There is no way to enforce this at this level.
@@ -140,12 +147,16 @@ class KVstore:
         return ds
 
 
-    def __init__(self, root, mode=MODE_RO):
+    def __init__(self, root, mode=MODE_RO, freq=100, size_factor=2, X_factor=0.8):
         """Initialize the instance with the root log
            By default, we open the log in read only mode.
         """
 
         self.__iomode = mode
+        self.__freq = freq
+        self.__cp_size_factor = size_factor
+        self.__cp_X_factor = X_factor
+
         gdp_iomode = gdp.GDP_MODE_RO if mode==self.MODE_RO else gdp.GDP_MODE_RA
     
         gdp.gdp_init()  ## XXX: Not sure if this is the best idea
@@ -481,8 +492,10 @@ class KVstore:
                     nk = newdata.keys()         # nk => new keys
 
                     # condition when merging should be performed:
-                    if (len(set(ok) & set(nk))> 0.8*min(len(ok), len(nk))) or \
-                            (len(set(nk))>10*len(set(ok))):
+                    len_X = len(set(ok) & set(nk))
+                    min_len = min(len(ok), len(nk))
+                    if (len_X > self.__cp_X_factor*min_len) or \
+                            (len(set(nk))>self.__cp_size_factor*len(set(ok))):
 
                         # YES, let's merge
                         level = metadata["cp_level"]    # bump level down
