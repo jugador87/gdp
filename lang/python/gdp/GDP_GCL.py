@@ -122,7 +122,7 @@ class GDP_GCL:
 
         throwaway_ptr = POINTER(cls.gdp_gcl_t)()
 
-        md = GDP_GCLMD(0)
+        md = GDP_GCLMD()
         for k in metadata:
             md.add(k, metadata[k])
 
@@ -132,7 +132,7 @@ class GDP_GCL:
                                 POINTER(POINTER(cls.gdp_gcl_t))]
         __func.restype = EP_STAT
 
-        estat = __func(gcl_name_ctypes, logd_name_ctypes, md.gdp_gclmd, throwaway_ptr)
+        estat = __func(gcl_name_ctypes, logd_name_ctypes, md.gdp_gclmd_ptr, throwaway_ptr)
         check_EP_STAT(estat)
         return
 
