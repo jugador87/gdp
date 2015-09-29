@@ -104,11 +104,13 @@ import gdp      # load the main package
 import cPickle  # for serialization
 import threading
 import time     # for timestamping
+from collections import OrderedDict
 
 
 class KVstore:
 
-    __freq = 100     # checkpoint frequency
+    # checkpoint frequency
+    __freq = None               # initialized in __init__
 
     ## Criteria for checkpointing ##
     # Bump up CP level if size(new_cp)>N*size(old_cp)
@@ -116,6 +118,10 @@ class KVstore:
     __cp_size_factor = None     # initialized in __init__
     # Bump up CP level if old CP and new CP have keys in common
     __cp_X_factor = None        # initialized in __init__
+
+    # cache size
+    __cache_size = None         # initialized in __init__
+
 
     # modes: Read only, or read-write. There can be multiple kv-instances
     #   all pointing back to a single log. However, at most one can be in
@@ -147,7 +153,7 @@ class KVstore:
         return ds
 
 
-    def __init__(self, root, mode=MODE_RO, freq=100, size_factor=2, X_factor=0.8):
+    def __init__(self, root, mode=MODE_RO, freq=100, cache_size=1000, size_factor=2, X_factor=0.8):
         """Initialize the instance with the root log
            By default, we open the log in read only mode.
         """
@@ -156,6 +162,8 @@ class KVstore:
         self.__freq = freq
         self.__cp_size_factor = size_factor
         self.__cp_X_factor = X_factor
+        self.__cache_size = cache_size
+        assert self.__cache_size > 0
 
         gdp_iomode = gdp.GDP_MODE_RO if mode==self.MODE_RO else gdp.GDP_MODE_RA
     
@@ -165,7 +173,7 @@ class KVstore:
 
         # a cache for records. recno => datum
         # datum may or may not contain a timestamp and recno
-        self.__cache = {}
+        self.__cache = OrderedDict()
 
         # find the number of records by querying the most recent record
         try:
@@ -209,9 +217,12 @@ class KVstore:
             assert event["type"] == gdp.GDP_EVENT_DATA
             # should we do some locking? All operations we do are 
             #   atomic, aren't they?
+
+            # make sure cache size doesn't go above
+            while len(self.__cache)>=self.__cache_size:
+                self.__cache.popitem(last=False)
             self.__num_records += 1
             self.__cache[self.__num_records] = event["datum"]
-
 
 
     def __read(self, recno):
@@ -220,7 +231,15 @@ class KVstore:
         if recno<0: recno = self.__num_records+recno
         if recno not in self.__cache:
             datum = self.__root_handle.read(recno)
-            self.__cache[recno] = datum
+        else:
+            # we need to remove and re-write the item to make LRU work
+            datum = self.__cache.pop(recno)
+
+        # make sure cache size doesn't go above
+        while len(self.__cache)>=self.__cache_size:
+            self.__cache.popitem(last=False)
+        self.__cache[recno] = datum
+
         return self.__from_datum(self.__cache[recno])
 
 
@@ -233,6 +252,10 @@ class KVstore:
 
         datum = self.__to_datum(ds)
         self.__root_handle.append(datum)
+
+        # make sure cache size doesn't go above
+        while len(self.__cache)>=self.__cache_size:
+            self.__cache.popitem(last=False)
 
         self.__num_records += 1
         self.__cache[self.__num_records] = datum
