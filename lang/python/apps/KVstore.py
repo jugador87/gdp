@@ -13,8 +13,8 @@ are multiple kinds of records in the log itself, as described later.
 
 ### Usage ###
 
-example:
-> kv = KVstore('rootlog')
+Simplified example:
+> kv = KVstore('rootlog', KVstore.MODE_RW)
 > kv['key1'] = 'val1'
 > p = kv['key1']
 > print p
@@ -22,6 +22,8 @@ val1
 >
 
 Public interface:
+* Initialization: Single writer mode vs Read only mode. You can specify
+  certain optional parameters for tweaking the performance. 
 * [] can be used it to treat Key-Value store like a python dictionary.
   - A timestamp value is attached whenever a key is changed/deleted/modified
   - if using [] interface, the timestamp is not made visible, so as to
@@ -93,9 +95,6 @@ records covered by the current checkpoint record.
 
 ## TODO: 
 - handle non-existent keys better than None
-- expire entries from the cache
-- tune the condition when to merge checkpoint records
-- create an intermediate cache
 
 
 """
@@ -153,9 +152,20 @@ class KVstore:
         return ds
 
 
-    def __init__(self, root, mode=MODE_RO, freq=100, cache_size=1000, size_factor=2, X_factor=0.8):
-        """Initialize the instance with the root log
-           By default, we open the log in read only mode.
+    def __init__(self, root, mode=MODE_RO, freq=100, cache_size=1000,
+                            size_factor=2, X_factor=0.8):
+        """
+        Initialize the instance with the root log. By default, we open 
+             log in read only mode.
+          Parameters name: description
+        - mode           : Read-only or Read-Write mode
+        - freq           : checkpoint frequency
+        - cache_size     : max records to hold in in-memory cache
+        - size_factor    : Change the checkpoint level if the size
+                             of the new checkpoint differs by this factor
+        - X_factor       : Change the checkpoint level if there is a 
+                             certain amount of overlap in keys of old 
+                             checkpoint and new checkpoint
         """
 
         self.__iomode = mode
