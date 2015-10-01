@@ -15,7 +15,7 @@
       <year>2008, 2014&ndash;2015 Eric P. Allman. All rights reserved.</year>
     </copyright>
 
-    <date>2015-02-15</date>
+    <date>2015-09-30</date>
   </articleinfo>
 
   <section>
@@ -363,6 +363,10 @@ EP_STAT  EP_STAT_FROM_INT(unsigned int istat)  // convert unsigned integer to st
       <constant>EP_STAT_MOD_GENERIC</constant>:</para>
 
       <informaltable border="1">
+        <col width="4*" />
+
+        <col width="6*" />
+
         <tr>
           <td>EP_STAT_OK</td>
 
@@ -416,11 +420,18 @@ EP_STAT  EP_STAT_FROM_INT(unsigned int istat)  // convert unsigned integer to st
 
           <td>Couldn't parse a date/time string</td>
         </tr>
+
+        <tr>
+          <td>EP_STAT_BUF_OVERFLOW</td>
+
+          <td>Buffer overflow averted</td>
+        </tr>
       </informaltable>
 
       <para>There is also a special module
-      <constant>EP_STAT_MOD_ERRNO</constant> that encodes Posix-style
-      errnos.</para>
+      <constant>EP_STAT_MOD_ERRNO</constant> that encodes Posix-style errnos
+      (i.e., use <function>EP_STAT_DETAIL</function> on codes returned by that
+      module to get the Posix errno code).</para>
     </section>
 
     <section>
@@ -461,6 +472,10 @@ void            ep_stat_abort(
           follows:</para>
 
           <informaltable border="1">
+            <col width="4*" />
+
+            <col width="6*" />
+
             <tr>
               <td>0x000 (<constant>EP_REGISTRY_GENERIC</constant>)</td>
 
@@ -1060,6 +1075,45 @@ EP_TIME_INVALIDATE(                  // invalidate a timestamp
     <para>The current implementation wraps the OpenSSL library, but it could
     be retargeted.</para>
 
+    <para>Before any cryptographic functions can be used, the library must be
+    initialized:</para>
+
+    <programlisting>void         ep_crypto_init(uint32_t flags)</programlisting>
+
+    <para>At the moment flags is unused (just pass zero). There are also
+    several general purpose definitions, useful for declaring buffers without
+    memory allocation:</para>
+
+    <informaltable border="1">
+      <col width="4*" />
+
+      <col width="6*" />
+
+      <tr>
+        <td><constant>EP_CRYPTO_MAX_PUB_KEY</constant></td>
+
+        <td>Maximum length of a public key</td>
+      </tr>
+
+      <tr>
+        <td><constant>EP_CRYPTO_MAX_SEC_KEY</constant></td>
+
+        <td>Maximum length of a secret key</td>
+      </tr>
+
+      <tr>
+        <td><constant>EP_CRYPTO_MAX_DIGEST</constant></td>
+
+        <td>Maximum length of a message digest</td>
+      </tr>
+
+      <tr>
+        <td><constant>EP_CRYPTO_MAX_DER</constant></td>
+
+        <td>Maximum length of a DER-encoded key</td>
+      </tr>
+    </informaltable>
+
     <section>
       <title>Key Management</title>
 
@@ -1072,14 +1126,14 @@ EP_TIME_INVALIDATE(                  // invalidate a timestamp
 
       <programlisting>// on-disk key formats
 # define EP_CRYPTO_KEYFORM_UNKNOWN      0       // error
-# define EP_CRYPTO_KEYFORM_PEM          1       // PEM (text)
+# define EP_CRYPTO_KEYFORM_PEM          1       // PEM (ASCII-encoded text)
 # define EP_CRYPTO_KEYFORM_DER          2       // DER (binary ASN.1)</programlisting>
 
       <para>Internally, algorithms (e.g., for keys and hash/digest functions)
       are represented by a scalar value. Keys also have to be identified as
       public or secret.</para>
 
-      <remark>[[Note: EC and DH are not supported at this time.]]</remark>
+      <remark>[[Note: DH is not supported at this time.]]</remark>
 
       <programlisting>// key types
 # define EP_CRYPTO_KEYTYPE_UNKNOWN      0       // error
@@ -1267,7 +1321,141 @@ EP_STAT                 ep_crypto_vrfy_final(
     <section>
       <title>Encryption and Decryption (Symmetric Ciphers)</title>
 
-      <para>To be supplied.</para>
+      <para>Symmetric Ciphers are driven by a Chaining Mode (how subsequent
+      blocks have the key modified to prevent replay and brute force attacks)
+      and the actual cipher itself. The chaining modes are:</para>
+
+      <informaltable border="1">
+        <col width="4*" />
+
+        <col width="6*" />
+
+        <tr>
+          <td width=""><constant>EP_CRYPTO_MODE_CBC</constant></td>
+
+          <td>Cipher Block Chaining</td>
+        </tr>
+
+        <tr>
+          <td width=""><constant>EP_CRYPTO_MODE_CFB</constant></td>
+
+          <td>Cipher Feedback mode</td>
+        </tr>
+
+        <tr>
+          <td width=""><constant>EP_CRYPTO_MODE_OFB</constant></td>
+
+          <td>Output Feedback mode</td>
+        </tr>
+      </informaltable>
+
+      <para>The various cipher algorithms (which is equivalent to the key
+      type) are:</para>
+
+      <informaltable border="1">
+        <col width="4*" />
+
+        <col width="6*" />
+
+        <tr>
+          <td><constant>EP_CRYPTO_SYMKEY_NONE</constant></td>
+
+          <td>Error/unencrypted</td>
+        </tr>
+
+        <tr>
+          <td><constant>EP_CRYPTO_SYMKEY_AES128</constant></td>
+
+          <td>Advanced Encr Std, 128-bit key</td>
+        </tr>
+
+        <tr>
+          <td><constant>EP_CRYPTO_SYMKEY_AES192</constant></td>
+
+          <td>Advanced Encr Std, 192-bit key</td>
+        </tr>
+
+        <tr>
+          <td><constant>EP_CRYPTO_SYMKEY_AES256</constant></td>
+
+          <td>Advanced Encr Std, 256-bit key</td>
+        </tr>
+
+        <tr>
+          <td><constant>EP_CRYPTO_SYMKEY_CAMELLIA128</constant></td>
+
+          <td>Camellia, 128-bit key</td>
+        </tr>
+
+        <tr>
+          <td><constant>EP_CRYPTO_SYMKEY_CAMELLIA192</constant></td>
+
+          <td>Camellia, 192-bit key</td>
+        </tr>
+
+        <tr>
+          <td><constant>EP_CRYPTO_SYMKEY_CAMELLIA256</constant></td>
+
+          <td>Camellia, 256-bit key</td>
+        </tr>
+
+        <tr>
+          <td><constant>EP_CRYPTO_SYMKEY_DES</constant></td>
+
+          <td>Data Encryption Standard, single, 56-bit key</td>
+        </tr>
+
+        <tr>
+          <td><constant>EP_CRYPTO_SYMKEY_3DES</constant></td>
+
+          <td>Data Encryption Standard, triple, 128-bit key (112-bit
+          effective)</td>
+        </tr>
+
+        <tr>
+          <td><constant>EP_CRYPTO_SYMKEY_IDEA</constant></td>
+
+          <td>International Data Encryption Alg, 128-bit key</td>
+        </tr>
+      </informaltable>
+
+      <para>One value from each table are "or"ed together to specify a full
+      symmetric cipher. The rest of the interface is as follows:</para>
+
+      <programlisting>/*
+**      The cipher is set to encrypt or decrypt when the context
+**      is created.
+**
+**      ep_crypto_cipher_crypt is just shorthand for a single
+**      call to ep_crypto_cipher_cryptblock followed by a single
+**      call to ep_crypto_cipher_finish.  Finish pads out any
+**      remaining block and returns that data.
+*/
+
+EP_CRYPTO_CIPHER_CTX    *ep_crypto_cipher_new(
+                                uint32_t ciphertype,    // mode + keytype &amp; len
+                                uint8_t *key,           // the key
+                                uint8_t *iv,            // initialization vector
+                                bool enc);              // true =&gt; encrypt
+void                    ep_crypto_cipher_free(
+                                EP_CRYPTO_CIPHER_CTX *cipher);
+
+EP_STAT                 ep_crypto_cipher_crypt(
+                                EP_CRYPTO_CIPHER_CTX *cipher,
+                                void *in,               // input data
+                                size_t inlen,           // input length
+                                void *out,              // output buffer
+                                size_t outlen);         // output buf size
+EP_STAT                 ep_crypto_cipher_cryptblock(
+                                EP_CRYPTO_CIPHER_CTX *cipher,
+                                void *in,               // input data
+                                size_t inlen,           // input length
+                                void *out,              // output buffer
+                                size_t outlen);         // output buf size
+EP_STAT                 ep_crypto_cipher_finish(
+                                EP_CRYPTO_CIPHER_CTX *cipher,
+                                void *out,              // output buffer
+                                size_t outlen);         // output buf size</programlisting>
     </section>
 
     <section>
@@ -1278,58 +1466,68 @@ EP_STAT                 ep_crypto_vrfy_final(
       EP_STAT_MOD_CRYPTO.</para>
 
       <informaltable border="1">
+        <col width="4*" />
+
+        <col width="6*" />
+
         <tr>
-          <td>EP_STAT_CRYPTO_DIGEST</td>
+          <td><errorcode>EP_STAT_CRYPTO_DIGEST</errorcode></td>
 
           <td>Failed to update or finalize a digest (hash)</td>
         </tr>
 
         <tr>
-          <td>EP_STAT_CRYPTO_SIGN</td>
+          <td><errorcode>EP_STAT_CRYPTO_SIGN</errorcode></td>
 
           <td>Failed to update or finalize a digest for signing</td>
         </tr>
 
         <tr>
-          <td>EP_STAT_CRYPTO_VRFY</td>
+          <td><errorcode>EP_STAT_CRYPTO_VRFY</errorcode></td>
 
           <td>Failed to update or finalize a digest for verification</td>
         </tr>
 
         <tr>
-          <td>EP_STAT_CRYPTO_BADSIG</td>
+          <td><errorcode>EP_STAT_CRYPTO_BADSIG</errorcode></td>
 
           <td>Signature did not match</td>
         </tr>
 
         <tr>
-          <td>EP_STAT_CRYPTO_KEYTYPE</td>
+          <td><errorcode>EP_STAT_CRYPTO_KEYTYPE</errorcode></td>
 
           <td>Unknown key type</td>
         </tr>
 
         <tr>
-          <td>EP_STAT_CRYPTO_KEYFORM</td>
+          <td><errorcode>EP_STAT_CRYPTO_KEYFORM</errorcode></td>
 
           <td>Unknown key format</td>
         </tr>
 
         <tr>
-          <td>EP_STAT_CRYPTO_CONVERT</td>
+          <td><errorcode>EP_STAT_CRYPTO_CONVERT</errorcode></td>
 
           <td>Couldn't read or write a key</td>
         </tr>
 
         <tr>
-          <td>EP_STAT_CRYPTO_KEYCREATE</td>
+          <td><errorcode>EP_STAT_CRYPTO_KEYCREATE</errorcode></td>
 
           <td>Couldn't create a new key</td>
         </tr>
 
         <tr>
-          <td>EP_STAT_CRYPTO_KEYCOMPAT</td>
+          <td><errorcode>EP_STAT_CRYPTO_KEYCOMPAT</errorcode></td>
 
           <td>Public and secret keys are incompatible</td>
+        </tr>
+
+        <tr>
+          <td><errorcode>EP_STAT_CRYPTO_CIPHER</errorcode></td>
+
+          <td>Symmetric cipher failure</td>
         </tr>
       </informaltable>
     </section>
