@@ -337,7 +337,7 @@ Running GDP-based Programs:
 	them to the standard output.  It is invoked as:
 
 	    reader-test [-D dbgspec] [-f firstrec] [-G router-addr] \
-	    	[-m] [-M] [-n nrecs] [-s] gcl-name
+		[-m] [-M] [-n nrecs] [-s] [-v] gcl-name
 
 	The -D and -G flags are the same as writer-test.  The -f and
 	-n flags specify the first record number (starting from 1) and
@@ -350,7 +350,8 @@ Running GDP-based Programs:
 	command acknowledgement.  The -s flag turns on subscription
 	mode, which is like -m except that the log daemon will wait
 	until new records are added and deliver them spontaneously to
-	subscribers.  For example:
+	subscribers.  The -v flag prints signature information associated
+	with the record.  For example:
 
 	    reader-test -f 1 -s eric/sensor45
 

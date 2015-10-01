@@ -46,9 +46,9 @@ void			gcl_physforeach(
 #define GCL_DIR				"/var/swarm/gcls"
 
 #define GCL_LOG_MAGIC		UINT32_C(0x47434C31)	// 'GCL1'
-#define GCL_LOG_VERSION		UINT32_C(0)
-#define GCL_LOG_MINVERS		UINT32_C(0)			// lowest version we can read
-#define GCL_LOG_MAXVERS		UINT32_C(0)			// highest version we can read
+#define GCL_LOG_VERSION		UINT32_C(20151001)		// on-disk version
+#define GCL_LOG_MINVERS		UINT32_C(20151001)		// lowest readable version
+#define GCL_LOG_MAXVERS		UINT32_C(20151001)		// highest readable version
 
 #define GCL_DATA_SUFFIX		".data"
 #define GCL_INDEX_SUFFIX	".index"

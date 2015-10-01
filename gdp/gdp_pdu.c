@@ -74,14 +74,15 @@ _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 			len += sizeof pdu->datum->recno;
 		}
 		fprintf(fp, ", dbuf=%p, dlen=%zu", pdu->datum->dbuf,
-				pdu->datum->dbuf == NULL ? 0 : gdp_buf_getlength(pdu->datum->dbuf));
+				pdu->datum->dbuf == NULL ? 0 :
+						gdp_buf_getlength(pdu->datum->dbuf));
 		fprintf(fp, "\n\t\tts=");
 		ep_time_print(&pdu->datum->ts, fp, EP_TIME_FMT_HUMAN);
 		if (EP_TIME_ISVALID(&pdu->datum->ts))
 			len += sizeof pdu->datum->ts;
 	}
 	fprintf(fp, "\n\tsigmdalg=0x%x, siglen=%d, sig=%p",
-			pdu->sigmdalg, pdu->siglen, pdu->sig);
+			pdu->datum->sigmdalg, pdu->datum->siglen, pdu->datum->sig);
 	fprintf(fp, "\n\ttotal header=%d\n", len);
 done:
 	funlockfile(fp);
@@ -171,6 +172,7 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *basemd)
 	size_t offset;
 	struct evbuffer *obuf = bufferevent_get_output(chan->bev);
 	uint8_t sigbuf[EP_CRYPTO_MAX_SIG];
+	bool use_sigbuf = false;
 
 	EP_ASSERT_POINTER_VALID(pdu);
 
@@ -195,13 +197,7 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *basemd)
 		}
 	}
 
-	if (basemd == NULL)
-	{
-		pdu->siglen = 0;
-		if (pdu->sig != NULL)
-			gdp_buf_reset(pdu->sig);
-	}
-	else
+	if (basemd != NULL)
 	{
 		// compute the signature
 		uint8_t recnobuf[8];		// 64 bits
@@ -216,9 +212,12 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *basemd)
 		reclen = gdp_buf_getlength(datum->dbuf);
 		ep_crypto_sign_update(md, gdp_buf_getptr(datum->dbuf, reclen), reclen);
 		ep_crypto_sign_final(md, &sigbuf, &siglen);
-		pdu->siglen = siglen;
-		pdu->sigmdalg = ep_crypto_md_type(md);
+		datum->siglen = siglen;
+		datum->sigmdalg = ep_crypto_md_type(md);
+		if (datum->sig != NULL)
+			evbuffer_drain(datum->sig, evbuffer_get_length(datum->sig));
 		ep_crypto_sign_free(md);
+		use_sigbuf = true;
 	}
 
 	if (ep_dbg_test(Dbg, 22))
@@ -256,7 +255,8 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *basemd)
 	// signature digest algorithm and size
 	{
 		uint16_t sigtmp;
-		sigtmp = (pdu->siglen & 0x0fff) | ((pdu->sigmdalg & 0x0f) << 12);
+		sigtmp = (pdu->datum->siglen & 0x0fff) |
+				((pdu->datum->sigmdalg & 0x0f) << 12);
 		PUT16(sigtmp);
 	}
 
@@ -325,11 +325,19 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *basemd)
 	}
 
 	// send signature
-	if (pdu->siglen > 0)
+	if (pdu->datum->siglen > 0)
 	{
-		estat = send_data(obuf, sigbuf, pdu->siglen,
+		uint8_t *sigp;
+
+		if (use_sigbuf)
+			sigp = sigbuf;
+		else if (pdu->datum->sig != NULL)
+			sigp = evbuffer_pullup(pdu->datum->sig, pdu->datum->siglen);
+		else
+			EP_ASSERT_INSIST(pdu->datum->sig != NULL);
+		estat = send_data(obuf, sigp, pdu->datum->siglen,
 						"signature", offset, EP_HEXDUMP_HEX);
-		offset += pdu->siglen;
+		offset += pdu->datum->siglen;
 		EP_STAT_CHECK(estat, goto fail0);
 	}
 
@@ -467,8 +475,8 @@ _gdp_pdu_hdr_in(gdp_pdu_t *pdu,
 	GET32(pdu->rid);
 	uint16_t sigtmp;
 	GET16(sigtmp);
-	pdu->sigmdalg = (sigtmp >> 12) & 0x0f;
-	pdu->siglen = sigtmp & 0x0fff;
+	pdu->datum->sigmdalg = (sigtmp >> 12) & 0x0f;
+	pdu->datum->siglen = sigtmp & 0x0fff;
 	pdu->olen = *pbp++ * 4;
 	pdu->flags = *pbp++;
 	GET32(dlen);
@@ -492,7 +500,7 @@ _gdp_pdu_hdr_in(gdp_pdu_t *pdu,
 	}
 
 	// figure out how much additional data we will need
-	needed += pdu->olen + dlen + pdu->siglen;
+	needed += pdu->olen + dlen + pdu->datum->siglen;
 	*dlenp = dlen;
 	*pduszp = needed;
 
@@ -614,29 +622,29 @@ _gdp_pdu_in(gdp_pdu_t *pdu, gdp_chan_t *chan)
 	}
 
 	// ibuf now points at the signature (if any)
-	if (pdu->siglen > 0)
+	if (pdu->datum->siglen > 0)
 	{
 		size_t l;
 
 		ep_dbg_cprintf(Dbg, 38,
 				"_gdp_pdu_in: reading %zd signature bytes (%zd available)\n",
-				pdu->siglen, evbuffer_get_length(ibuf));
-		if (pdu->sig == NULL)
-			pdu->sig = gdp_buf_new();
-		gdp_buf_reset(pdu->sig);			// just in case
+				pdu->datum->siglen, evbuffer_get_length(ibuf));
+		if (pdu->datum->sig == NULL)
+			pdu->datum->sig = gdp_buf_new();
+		gdp_buf_reset(pdu->datum->sig);			// just in case
 
-		l = evbuffer_remove_buffer(ibuf, pdu->sig, pdu->siglen);
+		l = evbuffer_remove_buffer(ibuf, pdu->datum->sig, pdu->datum->siglen);
 		if (ep_dbg_test(Dbg, 39))
 		{
-			ep_hexdump(evbuffer_pullup(pdu->sig, l), l,
+			ep_hexdump(evbuffer_pullup(pdu->datum->sig, l), l,
 					ep_dbg_getfile(), EP_HEXDUMP_HEX, sz);
 		}
-		if (l < pdu->siglen)
+		if (l < pdu->datum->siglen)
 		{
 			// should never happen since we already have all the data in memory
 			ep_dbg_cprintf(Dbg, 2,
 					"_gdp_pdu_in: cannot read all signature; wanted %zd, got %zd\n",
-					pdu->siglen, l);
+					pdu->datum->siglen, l);
 		}
 	}
 

@@ -50,11 +50,200 @@ check_file_offset(FILE *fp, long offset)
 
 
 int
+show_metadata(int nmds, FILE *dfp, size_t *foffp, int plev)
+{
+	int i;
+	struct mdhdr
+	{
+		uint32_t md_id;
+		uint32_t md_len;
+	};
+	struct mdhdr *mdhdrs = alloca(nmds * sizeof *mdhdrs);
+
+	i = fread(mdhdrs, sizeof *mdhdrs, nmds, dfp);
+	if (i != nmds)
+	{
+		fprintf(stderr,
+				"fread() failed while reading metadata headers,"
+				" ferror = %d, wanted %d, got %d\n",
+				ferror(dfp), nmds, i);
+		return EX_DATAERR;
+	}
+
+	if (plev >= GDP_PR_DETAILED)
+	{
+		ep_hexdump(mdhdrs, nmds * sizeof *mdhdrs,
+				stdout, EP_HEXDUMP_ASCII, *foffp);
+	}
+
+	*foffp += nmds * sizeof *mdhdrs;
+	CHECK_FILE_OFFSET(dfp, *foffp);
+
+	for (i = 0; i < nmds; ++i)
+	{
+		uint8_t *mdata;
+
+		mdhdrs[i].md_id = ep_net_ntoh32(mdhdrs[i].md_id);
+		mdhdrs[i].md_len = ep_net_ntoh32(mdhdrs[i].md_len);
+
+		mdata = malloc(mdhdrs[i].md_len + 1);
+											// +1 for null-terminator
+		if (fread(mdata, mdhdrs[i].md_len, 1, dfp) != 1)
+		{
+			fprintf(stderr,
+					"fread() failed while reading metadata string,"
+					" ferror = %d\n",
+					ferror(dfp));
+			return EX_DATAERR;
+		}
+		mdata[mdhdrs[i].md_len] = '\0';
+		*foffp += mdhdrs[i].md_len;
+		CHECK_FILE_OFFSET(dfp, *foffp);
+		if (plev > GDP_PR_BASIC)
+		{
+			fprintf(stdout,
+					"\nMetadata entry %d: name = 0x%08" PRIx32
+					", len = %" PRId32,
+					i, mdhdrs[i].md_id, mdhdrs[i].md_len);
+			switch (mdhdrs[i].md_id)
+			{
+				case GDP_GCLMD_XID:
+					printf(" (external id)\n");
+					break;
+
+				case GDP_GCLMD_CTIME:
+					printf(" (creation time)\n");
+					break;
+
+				case GDP_GCLMD_PUBKEY:
+					printf(" (public key)\n");
+					int keylen = mdata[2] << 8 | mdata[3];
+					printf("\tmd_alg %s (%d), keytype %s (%d), keylen %d\n",
+							ep_crypto_md_alg_name(mdata[0]), mdata[0],
+							ep_crypto_keytype_name(mdata[1]), mdata[1],
+							keylen);
+					if (plev > GDP_PR_BASIC)
+					{
+						EP_CRYPTO_KEY *key;
+
+						key = ep_crypto_key_read_mem(mdata + 4,
+								mdhdrs[i].md_len - 4,
+								mdata[1], EP_CRYPTO_KEYFORM_DER,
+								EP_CRYPTO_F_PUBLIC);
+						ep_crypto_key_print(key, stdout, EP_CRYPTO_F_PUBLIC);
+						ep_crypto_key_free(key);
+					}
+					if (plev >= GDP_PR_DETAILED)
+						ep_hexdump(mdata + 4, mdhdrs[i].md_len - 4,
+								stdout, EP_HEXDUMP_HEX, 0);
+					continue;
+				default:
+					printf("\n");
+					break;
+			}
+			if (plev < GDP_PR_DETAILED)
+			{
+				printf("\t%s", EpChar->lquote);
+				ep_xlate_out(mdata, mdhdrs[i].md_len,
+						stdout, "", EP_XLATE_PLUS | EP_XLATE_NPRINT);
+				fprintf(stdout, "%s\n", EpChar->rquote);
+			}
+		}
+		else if (mdhdrs[i].md_id == GDP_GCLMD_XID)
+		{
+			fprintf(stdout,
+					"\tExternal name: %s\n", mdata);
+		}
+
+		if (plev >= GDP_PR_DETAILED)
+		{
+			ep_hexdump(mdata, mdhdrs[i].md_len,
+					stdout, EP_HEXDUMP_ASCII, *foffp);
+		}
+		free(mdata);
+	}
+	return EX_OK;
+}
+
+
+int
+show_record(gcl_log_record *rec, FILE *dfp, size_t *foffp, int plev)
+{
+	rec->recno = ep_net_ntoh64(rec->recno);
+	ep_net_ntoh_timespec(&rec->timestamp);
+	rec->sigmeta = ep_net_ntoh16(rec->sigmeta);
+	rec->data_length = ep_net_ntoh64(rec->data_length);
+
+	fprintf(stdout, "\nRecno: %" PRIgdp_recno
+			", offset = %zd (0x%zx), dlen = %" PRIi64
+			", sigmeta = %x (mdalg = %d, len = %d)\n",
+			rec->recno, *foffp, *foffp, rec->data_length, rec->sigmeta,
+			(rec->sigmeta >> 12) & 0x000f, rec->sigmeta & 0x0fff);
+	fprintf(stdout, "\tTimestamp: ");
+	ep_time_print(&rec->timestamp, stdout, EP_TIME_FMT_HUMAN);
+	fprintf(stdout, " (sec=%" PRIi64 ")\n", rec->timestamp.tv_sec);
+
+	if (plev > GDP_PR_DETAILED)
+	{
+		fprintf(stdout, "\tRaw:\n");
+		ep_hexdump(&*rec, sizeof *rec, stdout, EP_HEXDUMP_HEX, *foffp);
+	}
+	*foffp += sizeof *rec;
+	CHECK_FILE_OFFSET(dfp, *foffp);
+
+	char *data_buffer = malloc(rec->data_length);
+	if (fread(data_buffer, rec->data_length, 1, dfp) != 1)
+	{
+		fprintf(stderr, "fread() failed while reading data (%d)\n",
+				ferror(dfp));
+		free(data_buffer);
+		return EX_DATAERR;
+	}
+
+	if (plev >= GDP_PR_BASIC + 2)
+	{
+		ep_hexdump(data_buffer, rec->data_length,
+				stdout, EP_HEXDUMP_ASCII,
+				plev < GDP_PR_DETAILED ? 0 : *foffp);
+	}
+	*foffp += rec->data_length;
+	CHECK_FILE_OFFSET(dfp, *foffp);
+	free(data_buffer);
+
+	// print the signature
+	if ((rec->sigmeta & 0x0fff) > 0)
+	{
+		uint8_t sigbuf[0x1000];		// maximum size of signature
+		int siglen = rec->sigmeta & 0x0fff;
+
+		if (fread(sigbuf, siglen, 1, dfp) != 1)
+		{
+			fprintf(stderr, "fread() failed while reading signature (%d)\n",
+					ferror(dfp));
+			return EX_DATAERR;
+		}
+
+		if (plev >= GDP_PR_BASIC + 2)
+		{
+			ep_hexdump(sigbuf, siglen, stdout, EP_HEXDUMP_ASCII,
+				plev < GDP_PR_DETAILED ? 0 : *foffp);
+		}
+
+		*foffp += siglen;
+		CHECK_FILE_OFFSET(dfp, *foffp);
+	}
+
+	return EX_OK;
+}
+
+
+int
 show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 {
 	gdp_pname_t gcl_pname;
 	struct stat st;
 	gdp_recno_t max_recno;
+	int istat;
 
 	(void) gdp_printable_name(gcl_name, gcl_pname);
 
@@ -129,121 +318,10 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 	if (header.num_metadata_entries > 0)
 	{
-		int i;
-		struct mdhdr
-		{
-			uint32_t md_id;
-			uint32_t md_len;
-		};
-		struct mdhdr *metadata_hdrs = alloca(header.num_metadata_entries *
-											sizeof *metadata_hdrs);
-
-		i = fread(metadata_hdrs,
-					sizeof *metadata_hdrs,
-					header.num_metadata_entries,
-					data_fp);
-		if (i != header.num_metadata_entries)
-		{
-			fprintf(stderr,
-					"fread() failed while reading metadata headers,"
-					" ferror = %d, wanted %d, got %d\n",
-					ferror(data_fp), header.num_metadata_entries, i);
-			return EX_DATAERR;
-		}
-
-		if (plev >= GDP_PR_DETAILED)
-		{
-			ep_hexdump(metadata_hdrs,
-					header.num_metadata_entries * sizeof *metadata_hdrs,
-					stdout, EP_HEXDUMP_ASCII, file_offset);
-		}
-
-		file_offset += header.num_metadata_entries * sizeof *metadata_hdrs;
-		CHECK_FILE_OFFSET(data_fp, file_offset);
-
-		for (i = 0; i < header.num_metadata_entries; ++i)
-		{
-			uint8_t *mdata;
-
-			metadata_hdrs[i].md_id = ep_net_ntoh32(metadata_hdrs[i].md_id);
-			metadata_hdrs[i].md_len = ep_net_ntoh32(metadata_hdrs[i].md_len);
-
-			mdata = malloc(metadata_hdrs[i].md_len + 1);
-												// +1 for null-terminator
-			if (fread(mdata, metadata_hdrs[i].md_len, 1, data_fp) != 1)
-			{
-				fprintf(stderr,
-						"fread() failed while reading metadata string,"
-						" ferror = %d\n",
-						ferror(data_fp));
-				return EX_DATAERR;
-			}
-			mdata[metadata_hdrs[i].md_len] = '\0';
-			file_offset += metadata_hdrs[i].md_len;
-			CHECK_FILE_OFFSET(data_fp, file_offset);
-			if (plev > GDP_PR_BASIC)
-			{
-				fprintf(stdout,
-						"\nMetadata entry %d: name = 0x%08" PRIx32
-						", len = %" PRId32,
-						i, metadata_hdrs[i].md_id, metadata_hdrs[i].md_len);
-				switch (metadata_hdrs[i].md_id)
-				{
-					case GDP_GCLMD_XID:
-						printf(" (external id)\n");
-						break;
-
-					case GDP_GCLMD_CTIME:
-						printf(" (creation time)\n");
-						break;
-
-					case GDP_GCLMD_PUBKEY:
-						printf(" (public key)\n");
-						int keylen = mdata[2] << 8 | mdata[3];
-						printf("\tmd_alg %s (%d), keytype %s (%d), keylen %d\n",
-								ep_crypto_md_alg_name(mdata[0]), mdata[0],
-								ep_crypto_keytype_name(mdata[1]), mdata[1],
-								keylen);
-						if (plev > GDP_PR_BASIC)
-						{
-							EP_CRYPTO_KEY *key;
-
-							key = ep_crypto_key_read_mem(mdata + 4,
-									metadata_hdrs[i].md_len - 4,
-									mdata[1], EP_CRYPTO_KEYFORM_DER,
-									EP_CRYPTO_F_PUBLIC);
-							ep_crypto_key_print(key, stdout, EP_CRYPTO_F_PUBLIC);
-							ep_crypto_key_free(key);
-						}
-						if (plev >= GDP_PR_DETAILED)
-							ep_hexdump(mdata + 4, metadata_hdrs[i].md_len - 4,
-									stdout, EP_HEXDUMP_HEX, 0);
-						continue;
-					default:
-						printf("\n");
-						break;
-				}
-				if (plev < GDP_PR_DETAILED)
-				{
-					printf("\t%s", EpChar->lquote);
-					ep_xlate_out(mdata, metadata_hdrs[i].md_len,
-							stdout, "", EP_XLATE_PLUS | EP_XLATE_NPRINT);
-					fprintf(stdout, "%s\n", EpChar->rquote);
-				}
-			}
-			else if (metadata_hdrs[i].md_id == GDP_GCLMD_XID)
-			{
-				fprintf(stdout,
-						"\tExternal name: %s\n", mdata);
-			}
-
-			if (plev >= GDP_PR_DETAILED)
-			{
-				ep_hexdump(mdata, metadata_hdrs[i].md_len,
-						stdout, EP_HEXDUMP_ASCII, file_offset);
-			}
-			free(mdata);
-		}
+		istat = show_metadata(header.num_metadata_entries, data_fp,
+					&file_offset, plev);
+		if (istat != 0)
+			return istat;
 	}
 	else if (plev >= GDP_PR_BASIC)
 	{
@@ -258,44 +336,9 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 	while (fread(&record, sizeof record, 1, data_fp) == 1)
 	{
-		record.recno = ep_net_ntoh64(record.recno);
-		ep_net_ntoh_timespec(&record.timestamp);
-		record.sigmeta = ep_net_ntoh16(record.sigmeta);
-		record.data_length = ep_net_ntoh64(record.data_length);
-
-		fprintf(stdout, "\nRecord number: %" PRIgdp_recno
-				", offset = %zd (0x%zx), dlen = %" PRIi64 "\n",
-				record.recno, file_offset, file_offset, record.data_length);
-		fprintf(stdout, "\tTimestamp: ");
-		ep_time_print(&record.timestamp, stdout, EP_TIME_FMT_HUMAN);
-		fprintf(stdout, " (sec=%" PRIi64 ")\n", record.timestamp.tv_sec);
-
-		if (plev > GDP_PR_DETAILED)
-		{
-			fprintf(stdout, "\tRaw:\n");
-			ep_hexdump(&record, sizeof record, stdout,
-					EP_HEXDUMP_HEX, file_offset);
-		}
-		file_offset += sizeof record;
-		CHECK_FILE_OFFSET(data_fp, file_offset);
-
-		char *data_buffer = malloc(record.data_length);
-		if (fread(data_buffer, record.data_length, 1, data_fp) != 1)
-		{
-			fprintf(stderr, "fread() failed while reading data, ferror = %d\n", ferror(data_fp));
-			return EX_DATAERR;
-		}
-
-		if (plev >= GDP_PR_BASIC + 2)
-		{
-			ep_hexdump(data_buffer, record.data_length,
-					stdout, EP_HEXDUMP_ASCII,
-					plev < GDP_PR_DETAILED ? 0 : file_offset);
-		}
-		file_offset += record.data_length;
-		CHECK_FILE_OFFSET(data_fp, file_offset);
-
-		free(data_buffer);
+		int istat = show_record(&record, data_fp, &file_offset, plev);
+		if (istat != 0)
+			return istat;
 	}
 	
 	return EX_OK;

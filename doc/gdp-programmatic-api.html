@@ -813,11 +813,11 @@ void (*cbfunc)(gdp_event_t *gev)
 
 
 
-      Each record has a record number, a commit timestamp, and associated
-      data.&nbsp; Record numbers are of type <code>gdp_recno_t</code> and count
-      up by one as records are added (i.e., record numbers are unique within a
-      GCL and dense).&nbsp; Data is represented in dynamic buffers, as described
-      below.<br>
+      Each record has a record number, a commit timestamp, associated data, and
+      possible signature information if the record was signed.&nbsp; Record
+      numbers are of type <code>gdp_recno_t</code> and count up by one as
+      records are added (i.e., record numbers are unique within a GCL and
+      dense).&nbsp; Data is represented in dynamic buffers, as described below.<br>
     </p>
     <h3>5.1&nbsp; Datum Headers</h3>
     <hr size="2" width="100%">

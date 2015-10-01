@@ -741,33 +741,58 @@ gcl_physread(gdp_gcl_t *gcl,
 		estat = ep_stat_from_errno(errno);
 		goto fail1;
 	}
-	offset += sizeof(log_record);
+	offset += sizeof log_record;
 
 	log_record.recno = ep_net_ntoh64(log_record.recno);
 	ep_net_ntoh_timespec(&log_record.timestamp);
 	log_record.sigmeta = ep_net_ntoh16(log_record.sigmeta);
 	log_record.data_length = ep_net_ntoh64(log_record.data_length);
 
+	ep_dbg_cprintf(Dbg, 29, "gcl_physread: recno %" PRIgdp_recno
+				", sigmeta 0x%x, dlen %" PRId64 ", offset %" PRId64 "\n",
+				log_record.recno, log_record.sigmeta, log_record.data_length,
+				offset);
 
 	datum->recno = log_record.recno;
 	memcpy(&datum->ts, &log_record.timestamp, sizeof datum->ts);
-	//XXX decode log_record.sigmeta
+	datum->sigmdalg = (log_record.sigmeta >> 12) & 0x000f;
+	datum->siglen = log_record.sigmeta & 0x0fff;
 
 
 	// read data in chunks and add it to the evbuffer
 	int64_t data_length = log_record.data_length;
+	char *phase = "data";
 	while (data_length >= sizeof(read_buffer))
 	{
-		if (fread(&read_buffer, sizeof(read_buffer), 1, gcl->x->fp) < 1)
+		if (fread(read_buffer, sizeof(read_buffer), 1, gcl->x->fp) < 1)
 			goto fail2;
-		gdp_buf_write(datum->dbuf, &read_buffer, sizeof(read_buffer));
-		data_length -= sizeof(read_buffer);
+		gdp_buf_write(datum->dbuf, read_buffer, sizeof read_buffer);
+		data_length -= sizeof read_buffer;
 	}
 	if (data_length > 0)
 	{
-		if (fread(&read_buffer, data_length, 1, gcl->x->fp) < 1)
+		if (fread(read_buffer, data_length, 1, gcl->x->fp) < 1)
 			goto fail2;
-		gdp_buf_write(datum->dbuf, &read_buffer, data_length);
+		gdp_buf_write(datum->dbuf, read_buffer, data_length);
+	}
+
+	// read signature
+	if (datum->siglen > 0)
+	{
+		phase = "signature";
+		if (datum->siglen > sizeof read_buffer)
+		{
+			fprintf(stderr, "datum->siglen = %d, sizeof read_buffer = %zd\n",
+					datum->siglen, sizeof read_buffer);
+			EP_ASSERT_INSIST(datum->siglen <= sizeof read_buffer);
+		}
+		if (datum->sig == NULL)
+			datum->sig = gdp_buf_new();
+		else
+			gdp_buf_reset(datum->sig);
+		if (fread(read_buffer, datum->siglen, 1, gcl->x->fp) < 1)
+			goto fail2;
+		gdp_buf_write(datum->sig, read_buffer, datum->siglen);
 	}
 
 	// done
@@ -775,8 +800,8 @@ gcl_physread(gdp_gcl_t *gcl,
 	if (false)
 	{
 fail2:
-		ep_dbg_cprintf(Dbg, 1, "gcl_physread: data fread failed: %s\n",
-				strerror(errno));
+		ep_dbg_cprintf(Dbg, 1, "gcl_physread: %s fread failed: %s\n",
+				phase, strerror(errno));
 		estat = ep_stat_from_errno(errno);
 	}
 fail1:
@@ -797,8 +822,8 @@ gcl_physappend(gdp_gcl_t *gcl,
 {
 	gcl_log_record log_record;
 	gcl_index_record index_record;
-	size_t dlen = gdp_buf_getlength(datum->dbuf);
-	int64_t record_size = sizeof(gcl_log_record) + dlen;
+	size_t dlen = evbuffer_get_length(datum->dbuf);
+	int64_t record_size = sizeof(gcl_log_record);
 	gcl_log_index_t *entry = gcl->x->log_index;
 
 	if (ep_dbg_test(Dbg, 14))
@@ -814,16 +839,30 @@ gcl_physappend(gdp_gcl_t *gcl,
 	log_record.timestamp = datum->ts;
 	ep_net_hton_timespec(&log_record.timestamp);
 	log_record.data_length = ep_net_hton64(dlen);
+	log_record.sigmeta = (datum->siglen & 0x0fff) |
+				((datum->sigmdalg & 0x000f) << 12);
+	log_record.sigmeta = ep_net_hton16(log_record.sigmeta);
 
 	// write log record header
 	fwrite(&log_record, sizeof(log_record), 1, gcl->x->fp);
 
 	// write log record data
+	if (dlen > 0)
 	{
-		size_t dlen = evbuffer_get_length(datum->dbuf);
 		unsigned char *p = evbuffer_pullup(datum->dbuf, dlen);
 		if (p != NULL)
 			fwrite(p, dlen, 1, gcl->x->fp);
+		record_size += dlen;
+	}
+
+	// write signature
+	{
+		size_t slen = evbuffer_get_length(datum->sig);
+		unsigned char *p = evbuffer_pullup(datum->sig, slen);
+		EP_ASSERT_INSIST(datum->siglen == slen);
+		if (slen > 0 && p != NULL)
+			fwrite(p, slen, 1, gcl->x->fp);
+		record_size += slen;
 	}
 
 	index_record.recno = log_record.recno;

@@ -324,6 +324,7 @@ extern void		gdp_datum_print(
 
 #define GDP_DATUM_PRTEXT	0x00000001		// print data as text
 #define GDP_DATUM_PRDEBUG	0x00000002		// print debugging info
+#define GDP_DATUM_PRSIG		0x00000004		// print the signature
 
 // get the record number from a datum
 extern gdp_recno_t	gdp_datum_getrecno(
@@ -342,5 +343,12 @@ extern size_t	gdp_datum_getdlen(
 extern gdp_buf_t *gdp_datum_getbuf(
 					const gdp_datum_t *datum);
 
+// get the signature from a datum
+extern gdp_buf_t *gdp_datum_getsig(
+					const gdp_datum_t *datum);
+
+// get the signature digest algorithm from a datum
+extern short	gdp_datum_getsigmdalg(
+					const gdp_datum_t *datum);
 
 #endif // _GDP_H_

@@ -45,6 +45,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("reader-test", "GDP Reader Test Program");
 
 FILE	*LogFile;
 bool	TextData = false;		// set if data should be displayed as text
+bool	PrintSig = false;		// set if signature should be printed
 int		NRead = 0;				// number of datums read
 
 void
@@ -67,9 +68,15 @@ do_log(const char *tag)
 void
 printdatum(gdp_datum_t *datum, FILE *fp)
 {
+	uint32_t prflags = 0;
+
+	if (TextData)
+		prflags |= GDP_DATUM_PRTEXT;
+	if (PrintSig)
+		prflags |= GDP_DATUM_PRSIG;
 	flockfile(fp);
 	fprintf(fp, " >>> ");
-	gdp_datum_print(datum, fp, TextData ? GDP_DATUM_PRTEXT : 0);
+	gdp_datum_print(datum, fp, prflags);
 	funlockfile(fp);
 	NRead++;
 }
@@ -284,7 +291,7 @@ usage(void)
 {
 	fprintf(stderr,
 			"Usage: %s [-c] [-D dbgspec] [-f firstrec] [-G router_addr] [-m]\n"
-			"  [-L logfile] [-M] [-n nrecs] [-s] [-t] log_name\n"
+			"  [-L logfile] [-M] [-n nrecs] [-s] [-t] [-v] log_name\n"
 			"    -c  use callbacks\n"
 			"    -D  turn on debugging flags\n"
 			"    -f  first record number to read (from 1)\n"
@@ -294,7 +301,8 @@ usage(void)
 			"    -M  show log metadata\n"
 			"    -n  set number of records to read (default all)\n"
 			"    -s  subscribe to this log\n"
-			"    -t  print data as text (instead of hexdump)\n",
+			"    -t  print data as text (instead of hexdump)\n"
+			"    -v  print verbose output (include signature)\n",
 			ep_app_getprogname());
 	exit(EX_USAGE);
 }
@@ -328,7 +336,7 @@ main(int argc, char **argv)
 	//setbuffer(stdout, outbuf, sizeof outbuf);		//DEBUG
 
 	// parse command-line options
-	while ((opt = getopt(argc, argv, "AcD:f:G:L:mMn:st")) > 0)
+	while ((opt = getopt(argc, argv, "AcD:f:G:L:mMn:stv")) > 0)
 	{
 		switch (opt)
 		{
@@ -382,6 +390,10 @@ main(int argc, char **argv)
 		  case 't':
 			// print data as text
 			TextData = true;
+			break;
+
+		  case 'v':
+			PrintSig = true;
 			break;
 
 		  default:

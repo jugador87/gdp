@@ -81,10 +81,13 @@ struct gdp_datum
 {
 	EP_THR_MUTEX		mutex;			// locking mutex (mostly for dbuf)
 	struct gdp_datum	*next;			// next in free list
-	bool				inuse:1;		// indicates that the datum is in use
 	gdp_recno_t			recno;			// the record number
 	EP_TIME_SPEC		ts;				// commit timestamp
 	gdp_buf_t			*dbuf;			// data buffer
+	gdp_buf_t			*sig;			// signature (may be NULL)
+	short				sigmdalg;		// message digest algorithm
+	short				siglen;			// signature length
+	bool				inuse:1;		// the datum is in use (for debugging)
 };
 
 

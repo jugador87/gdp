@@ -102,6 +102,18 @@ gdp_datum_getbuf(const gdp_datum_t *datum)
 	return datum->dbuf;
 }
 
+gdp_buf_t *
+gdp_datum_getsig(const gdp_datum_t *datum)
+{
+	return datum->sig;
+}
+
+short
+gdp_datum_getsigmdalg(const gdp_datum_t *datum)
+{
+	return datum->sigmdalg;
+}
+
 /*
 **	GDP_DATUM_PRINT --- print a datum (for debugging)
 */
@@ -154,6 +166,17 @@ gdp_datum_print(const gdp_datum_t *datum, FILE *fp, uint32_t flags)
 			fprintf(fp, "%.*s\n", l, d);
 		else
 			ep_hexdump(d, l, fp, EP_HEXDUMP_ASCII, 0);
+	}
+
+	if (EP_UT_BITSET(GDP_DATUM_PRSIG, flags))
+	{
+		fprintf(fp, "  Sig len = %d, digest alg = %d\n",
+				datum->siglen, datum->sigmdalg);
+		if (datum->sig != NULL && EP_UT_BITSET(GDP_DATUM_PRDEBUG, flags))
+		{
+			d = gdp_buf_getptr(datum->sig, datum->siglen);
+			ep_hexdump(d, datum->siglen, fp, EP_HEXDUMP_HEX, 0);
+		}
 	}
 done:
 	funlockfile(fp);
