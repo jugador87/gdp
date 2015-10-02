@@ -862,6 +862,7 @@ gcl_physappend(gdp_gcl_t *gcl,
 	}
 
 	// write signature
+	if (datum->sig != NULL)
 	{
 		size_t slen = evbuffer_get_length(datum->sig);
 		unsigned char *p = evbuffer_pullup(datum->sig, slen);
@@ -869,6 +870,12 @@ gcl_physappend(gdp_gcl_t *gcl,
 		if (slen > 0 && p != NULL)
 			fwrite(p, slen, 1, gcl->x->fp);
 		record_size += slen;
+	}
+	else if (datum->siglen > 0)
+	{
+		// "can't happen"
+		ep_app_abort("gcl_physappend: siglen = %d but no signature",
+				datum->siglen);
 	}
 
 	index_record.recno = log_record.recno;
