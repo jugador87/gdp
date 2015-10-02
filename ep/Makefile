@@ -39,6 +39,7 @@ OBJS=	\
 	ep_lib.o \
 	ep_log.o \
 	ep_mem.o \
+	ep_net.o \
 	ep_pcvt.o \
 	ep_pprint.o \
 	ep_prflags.o \
@@ -61,7 +62,6 @@ OBJS_NOTYET=	\
 	ep_net_cvtaddr.o \
 	ep_pat.o \
 	ep_plist.o \
-	ep_prflags.o \
 	ep_st_control.o \
 	ep_st_getline.o \
 	ep_st_getrec.o \
@@ -100,6 +100,7 @@ HFILES=	\
 	ep_hexdump.h \
 	ep_log.h \
 	ep_mem.h \
+	ep_net.h \
 	ep_pcvt.h \
 	ep_prflags.h \
 	ep_registry.h \

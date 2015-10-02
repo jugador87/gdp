@@ -81,10 +81,13 @@ struct gdp_datum
 {
 	EP_THR_MUTEX		mutex;			// locking mutex (mostly for dbuf)
 	struct gdp_datum	*next;			// next in free list
-	bool				inuse:1;		// indicates that the datum is in use
 	gdp_recno_t			recno;			// the record number
 	EP_TIME_SPEC		ts;				// commit timestamp
 	gdp_buf_t			*dbuf;			// data buffer
+	gdp_buf_t			*sig;			// signature (may be NULL)
+	short				sigmdalg;		// message digest algorithm
+	short				siglen;			// signature length
+	bool				inuse:1;		// the datum is in use (for debugging)
 };
 
 
@@ -108,6 +111,14 @@ struct gdp_gcl
 	gdp_recno_t			nrecs;			// number of records (= last recno)
 	gdp_gclmd_t			*gclmd;			// metadata
 	EP_CRYPTO_MD		*digest;		// base crypto digest
+	EP_STAT				(*apndfilter)(	// append filter function
+							gdp_datum_t *,
+							void *);
+	void				*apndfpriv;		// private data for apndfilter
+	EP_STAT				(*readfilter)(	// read filter function
+							gdp_datum_t *,
+							void *);
+	void				*readfpriv;		// private data for readfilter
 	struct gdp_gcl_xtra	*x;				// for use by gdpd, gdp-rest
 };
 

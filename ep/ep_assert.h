@@ -56,7 +56,8 @@ extern void	ep_assert_failure(
 			const char *expr,
 			const char *type,
 			const char *file,
-			int line);
+			int line)
+			__attribute__ ((noreturn));
 
 // called if ep_assert_failure was rude enough to return
 extern void	ep_assert_abort(const char *msg)

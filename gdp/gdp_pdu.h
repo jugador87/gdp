@@ -94,16 +94,13 @@ typedef struct gdp_pdu
 	uint8_t				cmd;		// command or ack/nak
 	gdp_name_t			dst;		// destination address
 	gdp_name_t			src;		// source address
-	short				sigmdalg;	// signature digest algorithm
-	short				siglen;		// signature length (in octets)
 	uint16_t			olen;		// optionals length (in octets)
 	uint8_t				flags;		// see below
 	gdp_rid_t			rid;		// request id (GDP_PDU_NO_RID => none)
 	gdp_seqno_t			seqno;		// sequence number
 
-	// data length, record number, timestamp, and data are in the datum
+	// data length, recno, timestamp, signature, and data are in the datum
 	gdp_datum_t			*datum;		// pointer to data record
-	gdp_buf_t			*sig;		// signature (may be NULL)
 } gdp_pdu_t;
 
 

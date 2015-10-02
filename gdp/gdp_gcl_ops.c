@@ -417,6 +417,48 @@ fail0:
 
 
 /*
+**  APPEND_COMMON --- common code for sync and async appends
+*/
+
+static EP_STAT
+append_common(gdp_gcl_t *gcl,
+		gdp_datum_t *datum,
+		gdp_chan_t *chan,
+		uint32_t reqflags,
+		gdp_req_t **reqp)
+{
+	EP_STAT estat = GDP_STAT_BAD_IOMODE;
+
+	errno = 0;				// avoid spurious messages
+
+	EP_ASSERT_POINTER_VALID(gcl);
+	EP_ASSERT_POINTER_VALID(datum);
+	if (!EP_UT_BITSET(GDP_MODE_AO, gcl->iomode))
+		goto fail0;
+
+	// create a new request structure
+	estat = _gdp_req_new(GDP_CMD_APPEND, gcl, chan, NULL, reqflags, reqp);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	// ignore the new datum: use the one passed in
+	gdp_datum_free((*reqp)->pdu->datum);
+	(*reqp)->pdu->datum = datum;
+	EP_ASSERT(datum->inuse);
+
+	// set up for signing (req->md will be updated with data part)
+	(*reqp)->md = gcl->digest;
+	datum->recno = gcl->nrecs + 1;
+
+	// if doing append filtering (e.g., encryption), call it now.
+	if (gcl->apndfilter != NULL)
+		estat = gcl->apndfilter(datum, gcl->apndfpriv);
+
+fail0:
+	return estat;
+}
+
+
+/*
 **  _GDP_GCL_APPEND --- shared operation for appending to a GCL
 **
 **		Used both in GDP client library and gdpd.
@@ -431,22 +473,10 @@ _gdp_gcl_append(gdp_gcl_t *gcl,
 	EP_STAT estat = GDP_STAT_BAD_IOMODE;
 	gdp_req_t *req = NULL;
 
-	errno = 0;				// avoid spurious messages
-
-	EP_ASSERT_POINTER_VALID(gcl);
-	EP_ASSERT_POINTER_VALID(datum);
-	if (!EP_UT_BITSET(GDP_MODE_AO, gcl->iomode))
-		goto fail0;
-
-	estat = _gdp_req_new(GDP_CMD_APPEND, gcl, chan, NULL, reqflags, &req);
+	estat = append_common(gcl, datum, chan, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
-	gdp_datum_free(req->pdu->datum);
-	//(void) ep_time_now(&datum->ts);
-	req->pdu->datum = datum;
-	EP_ASSERT(datum->inuse);
-	req->md = gcl->digest;
-	datum->recno = gcl->nrecs + 1;
 
+	// send the request to the log server
 	estat = _gdp_invoke(req);
 	if (EP_STAT_ISOK(estat))
 		gcl->nrecs++;
@@ -479,23 +509,19 @@ _gdp_gcl_append_async(
 	gdp_req_t *req = NULL;
 	int i;
 
-	errno = 0;				// avoid spurious messages
-
-	EP_ASSERT_POINTER_VALID(gcl);
-	EP_ASSERT_POINTER_VALID(datum);
-
 	reqflags |= GDP_REQ_ASYNCIO;
-	estat = _gdp_req_new(GDP_CMD_APPEND, gcl, chan, NULL, reqflags, &req);
+	estat = append_common(gcl, datum, chan, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
-	gdp_datum_free(req->pdu->datum);
-	(void) ep_time_now(&datum->ts);
-	req->pdu->datum = datum;
-	EP_ASSERT(datum->inuse);
 
 	// arrange for responses to appear as events or callbacks
 	_gdp_event_setcb(req, cbfunc, cbarg);
 
 	estat = _gdp_req_send(req);
+
+	// Note that this is just a guess: the write may still fail.
+	// If it does, we'll be out of sync and all hell breaks loose.
+	if (EP_STAT_ISOK(estat))
+		gcl->nrecs++;
 
 	// synchronous calls clear the data in the datum, so be consistent
 	i = gdp_buf_drain(req->pdu->datum->dbuf, SIZE_MAX);

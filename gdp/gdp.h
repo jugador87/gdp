@@ -217,6 +217,18 @@ extern EP_STAT	gdp_gcl_getmetadata(
 					gdp_gcl_t *gcl,			// GCL handle
 					gdp_gclmd_t **gmdp);	// out-param for metadata
 
+// set append filter
+extern void		gdp_gcl_set_append_filter(
+					gdp_gcl_t *gcl,			// GCL handle
+					EP_STAT (*readfilter)(gdp_datum_t *, void *),
+					void *filterdata);
+
+// set read filter
+extern void		gdp_gcl_set_read_filter(
+					gdp_gcl_t *gcl,			// GCL handle
+					EP_STAT (*readfilter)(gdp_datum_t *, void *),
+					void *filterdata);
+
 // return the name of a GCL
 //		XXX: should this be in a more generic "getstat" function?
 extern const gdp_name_t *gdp_gcl_getname(
@@ -312,6 +324,7 @@ extern void		gdp_datum_print(
 
 #define GDP_DATUM_PRTEXT	0x00000001		// print data as text
 #define GDP_DATUM_PRDEBUG	0x00000002		// print debugging info
+#define GDP_DATUM_PRSIG		0x00000004		// print the signature
 
 // get the record number from a datum
 extern gdp_recno_t	gdp_datum_getrecno(
@@ -330,5 +343,12 @@ extern size_t	gdp_datum_getdlen(
 extern gdp_buf_t *gdp_datum_getbuf(
 					const gdp_datum_t *datum);
 
+// get the signature from a datum
+extern gdp_buf_t *gdp_datum_getsig(
+					const gdp_datum_t *datum);
+
+// get the signature digest algorithm from a datum
+extern short	gdp_datum_getsigmdalg(
+					const gdp_datum_t *datum);
 
 #endif // _GDP_H_

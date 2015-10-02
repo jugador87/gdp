@@ -5,19 +5,19 @@
 static struct ep_stat_to_string	Stats[] =
 {
     // generic status codes
-    { _EP_STAT_INTERNAL(OK, EP_STAT_MOD_GENERIC, 0), "generic"	},
+    { _EP_STAT_INTERNAL(OK, EP_STAT_MOD_GENERIC, 0), "generic"		},
 
     // individual codes
-    { EP_STAT_WARN,		"generic warning",		},
-    { EP_STAT_ERROR,		"generic error",		},
-    { EP_STAT_SEVERE,		"generic severe error",		},
-    { EP_STAT_ABORT,		"generic abort",		},
+    { EP_STAT_WARN,		"generic warning",			},
+    { EP_STAT_ERROR,		"generic error",			},
+    { EP_STAT_SEVERE,		"generic severe error",			},
+    { EP_STAT_ABORT,		"generic abort",			},
 
-    { EP_STAT_OUT_OF_MEMORY,	"out of memory",		},
-    { EP_STAT_ARG_OUT_OF_RANGE,	"argument out of range",	},
-    { EP_STAT_END_OF_FILE,	"end of file",			},
-    { EP_STAT_TIME_BADFORMAT,	"bad time format",		},
-    { EP_STAT_BUF_OVERFLOW,	"buffer overflow",			},
+    { EP_STAT_OUT_OF_MEMORY,	"out of memory",			},
+    { EP_STAT_ARG_OUT_OF_RANGE,	"argument out of range",		},
+    { EP_STAT_END_OF_FILE,	"end of file",				},
+    { EP_STAT_TIME_BADFORMAT,	"bad time format",			},
+    { EP_STAT_BUF_OVERFLOW,	"potential buffer overflow",		},
 
     // cryptographic status codes
     { _EP_STAT_INTERNAL(OK, EP_STAT_MOD_CRYPTO, 0), "crypto"		},
@@ -33,7 +33,7 @@ static struct ep_stat_to_string	Stats[] =
     { EP_STAT_CRYPTO_KEYCOMPAT,	"incompatible cryptographic keys",	},
     { EP_STAT_CRYPTO_CIPHER,	"symmetric cipher failure",		},
 
-    { EP_STAT_OK,		NULL,				}
+    { EP_STAT_OK,		NULL,					}
 };
 
 

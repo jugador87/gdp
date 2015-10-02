@@ -465,7 +465,7 @@ cmd_append(gdp_req_t *req)
 	}
 	else
 	{
-		if (req->pdu->sig == NULL)
+		if (req->pdu->datum->sig == NULL)
 		{
 			// error: signature required
 			ep_dbg_cprintf(Dbg, 1, "cmd_append: missing signature\n");
@@ -480,13 +480,13 @@ cmd_append(gdp_req_t *req)
 			gdp_datum_t *datum = req->pdu->datum;
 			EP_CRYPTO_MD *md = ep_crypto_md_clone(req->gcl->digest);
 
-			PUT64(req->pdu->datum->recno);
+			PUT64(datum->recno);
 			ep_crypto_vrfy_update(md, &recnobuf, sizeof recnobuf);
 			len = gdp_buf_getlength(datum->dbuf);
 			ep_crypto_vrfy_update(md, gdp_buf_getptr(datum->dbuf, len), len);
-			len = gdp_buf_getlength(req->pdu->sig);
+			len = gdp_buf_getlength(datum->sig);
 			estat = ep_crypto_vrfy_final(md,
-							gdp_buf_getptr(req->pdu->sig, len), len);
+							gdp_buf_getptr(datum->sig, len), len);
 			ep_crypto_md_free(md);
 			if (!EP_STAT_ISOK(estat))
 			{

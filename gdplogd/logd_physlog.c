@@ -10,9 +10,9 @@
 #include <ep/ep_hash.h>
 #include <ep/ep_log.h>
 #include <ep/ep_mem.h>
+#include <ep/ep_net.h>
 #include <ep/ep_thr.h>
 
-//#include <linux/limits.h>		XXX NOT PORTABLE!!!
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -89,6 +89,7 @@ gcl_physlog_init()
 static EP_STAT
 get_gcl_path(gdp_gcl_t *gcl, const char *ext, char *pbuf, int pbufsiz)
 {
+	EP_STAT estat = EP_STAT_OK;
 	gdp_pname_t pname;
 	int i;
 
@@ -104,7 +105,10 @@ get_gcl_path(gdp_gcl_t *gcl, const char *ext, char *pbuf, int pbufsiz)
 		i = snprintf(pbuf, pbufsiz, "%s/_%02x",
 					GCLDir, gcl->name[0]);
 		if (i >= pbufsiz)
+		{
+			estat = EP_STAT_BUF_OVERFLOW;
 			goto fail0;
+		}
 		if (stat(pbuf, &st) < 0)
 		{
 			// doesn't exist; we need to create it
@@ -127,18 +131,20 @@ get_gcl_path(gdp_gcl_t *gcl, const char *ext, char *pbuf, int pbufsiz)
 
 fail0:
 	{
-		EP_STAT estat;
 		char ebuf[100];
 
-		if (errno == 0)
-			estat = EP_STAT_ERROR;
-		else
-			estat = ep_stat_from_errno(errno);
+		if (!EP_STAT_ISOK(estat))
+		{
+			if (errno == 0)
+				estat = EP_STAT_ERROR;
+			else
+				estat = ep_stat_from_errno(errno);
+		}
 
 		ep_dbg_cprintf(Dbg, 1, "get_gcl_path(%s):\n\t%s\n",
 				pbuf, ep_stat_tostr(estat, ebuf, sizeof ebuf));
-		return estat;
 	}
+	return estat;
 }
 
 
@@ -302,10 +308,6 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 		size_t metadata_size = 0; // XXX: compute size of metadata
 		int i;
 
-		log_header.magic = GCL_LOG_MAGIC;
-		log_header.version = GCL_LOG_VERSION;
-
-		log_header.log_type = 0; // XXX: define different log types
 		metadata_size = 0;
 		if (gmd == NULL)
 		{
@@ -315,19 +317,28 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 		{
 			// allow space for id and length fields
 			metadata_size = gmd->nused * 2 * sizeof (uint32_t);
-			log_header.num_metadata_entries = gmd->nused;
+			gcl->x->nmetadata = gmd->nused;
+			log_header.num_metadata_entries = ep_net_hton16(gmd->nused);
 
 			// compute the space needed for the data fields
 			for (i = 0; i < gmd->nused; i++)
 				metadata_size += gmd->mds[i].md_len;
 		}
-		log_header.header_size = sizeof(gcl_log_header) + metadata_size;
+
+		gcl->x->ver = GCL_LOG_VERSION;
+		gcl->x->data_offset = sizeof (gcl_log_header) + metadata_size;
+
+		log_header.magic = ep_net_hton32(GCL_LOG_MAGIC);
+		log_header.version = ep_net_hton32(GCL_LOG_VERSION);
+		log_header.header_size = ep_net_ntoh32(gcl->x->data_offset);
+		log_header.reserved1 = 0;
+		log_header.log_type = ep_net_hton16(0);		//XXX unused for now
+		log_header.extent = ep_net_hton16(0);		//XXX unused for now
+		log_header.reserved2 = 0;
+		memcpy(log_header.gname, gcl->name, sizeof log_header.gname);
+		log_header.recno_offset = 0;
 
 		fwrite(&log_header, sizeof(log_header), 1, data_fp);
-
-		gcl->x->ver = log_header.version;
-		gcl->x->data_offset = log_header.header_size;
-		gcl->x->nmetadata = log_header.num_metadata_entries;
 	}
 
 	// write metadata
@@ -340,9 +351,9 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 		{
 			uint32_t t32;
 
-			t32 = gmd->mds[i].md_id;
+			t32 = ep_net_hton32(gmd->mds[i].md_id);
 			fwrite(&t32, sizeof t32, 1, data_fp);
-			t32 = gmd->mds[i].md_len;
+			t32 = ep_net_hton32(gmd->mds[i].md_len);
 			fwrite(&t32, sizeof t32, 1, data_fp);
 		}
 
@@ -433,6 +444,14 @@ gcl_physopen(gdp_gcl_t *gcl)
 		goto fail3;
 	}
 
+	// on-disk format in network byte order
+	log_header.magic = ep_net_ntoh32(log_header.magic);
+	log_header.version = ep_net_ntoh32(log_header.version);
+	log_header.header_size = ep_net_ntoh32(log_header.header_size);
+	log_header.num_metadata_entries = ep_net_ntoh16(log_header.num_metadata_entries);
+	log_header.log_type = ep_net_ntoh16(log_header.log_type);
+	log_header.recno_offset = ep_net_ntoh64(log_header.recno_offset);
+
 	if (log_header.magic != GCL_LOG_MAGIC)
 	{
 		estat = GDP_STAT_CORRUPT_GCL;
@@ -454,6 +473,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 
 	gcl->x->nmetadata = log_header.num_metadata_entries;
 	gcl->x->log_type = log_header.log_type;
+	gcl->x->recno_offset = log_header.recno_offset;
 
 	// XXX: read metadata entries
 	if (log_header.num_metadata_entries > 0)
@@ -474,6 +494,9 @@ gcl_physopen(gdp_gcl_t *gcl)
 				estat = GDP_STAT_GCL_READ_ERROR;
 				goto fail3;
 			}
+
+			md_id = ntohl(md_id);
+			md_len = ntohl(md_len);
 
 			gdp_gclmd_add(gcl->gclmd, md_id, md_len, NULL);
 			mdtotal += md_len;
@@ -680,6 +703,9 @@ gcl_physread(gdp_gcl_t *gcl,
 				goto fail0;
 			}
 
+			index_record.recno = ep_net_ntoh64(index_record.recno);
+			index_record.offset = ep_net_ntoh64(index_record.offset);
+
 			if (datum->recno < index_record.recno)
 			{
 				end = mid;
@@ -721,23 +747,58 @@ gcl_physread(gdp_gcl_t *gcl,
 		estat = ep_stat_from_errno(errno);
 		goto fail1;
 	}
-	offset += sizeof(log_record);
+	offset += sizeof log_record;
+
+	log_record.recno = ep_net_ntoh64(log_record.recno);
+	ep_net_ntoh_timespec(&log_record.timestamp);
+	log_record.sigmeta = ep_net_ntoh16(log_record.sigmeta);
+	log_record.data_length = ep_net_ntoh64(log_record.data_length);
+
+	ep_dbg_cprintf(Dbg, 29, "gcl_physread: recno %" PRIgdp_recno
+				", sigmeta 0x%x, dlen %" PRId64 ", offset %" PRId64 "\n",
+				log_record.recno, log_record.sigmeta, log_record.data_length,
+				offset);
+
+	datum->recno = log_record.recno;
 	memcpy(&datum->ts, &log_record.timestamp, sizeof datum->ts);
+	datum->sigmdalg = (log_record.sigmeta >> 12) & 0x000f;
+	datum->siglen = log_record.sigmeta & 0x0fff;
+
 
 	// read data in chunks and add it to the evbuffer
 	int64_t data_length = log_record.data_length;
+	char *phase = "data";
 	while (data_length >= sizeof(read_buffer))
 	{
-		if (fread(&read_buffer, sizeof(read_buffer), 1, gcl->x->fp) < 1)
+		if (fread(read_buffer, sizeof(read_buffer), 1, gcl->x->fp) < 1)
 			goto fail2;
-		gdp_buf_write(datum->dbuf, &read_buffer, sizeof(read_buffer));
-		data_length -= sizeof(read_buffer);
+		gdp_buf_write(datum->dbuf, read_buffer, sizeof read_buffer);
+		data_length -= sizeof read_buffer;
 	}
 	if (data_length > 0)
 	{
-		if (fread(&read_buffer, data_length, 1, gcl->x->fp) < 1)
+		if (fread(read_buffer, data_length, 1, gcl->x->fp) < 1)
 			goto fail2;
-		gdp_buf_write(datum->dbuf, &read_buffer, data_length);
+		gdp_buf_write(datum->dbuf, read_buffer, data_length);
+	}
+
+	// read signature
+	if (datum->siglen > 0)
+	{
+		phase = "signature";
+		if (datum->siglen > sizeof read_buffer)
+		{
+			fprintf(stderr, "datum->siglen = %d, sizeof read_buffer = %zd\n",
+					datum->siglen, sizeof read_buffer);
+			EP_ASSERT_INSIST(datum->siglen <= sizeof read_buffer);
+		}
+		if (datum->sig == NULL)
+			datum->sig = gdp_buf_new();
+		else
+			gdp_buf_reset(datum->sig);
+		if (fread(read_buffer, datum->siglen, 1, gcl->x->fp) < 1)
+			goto fail2;
+		gdp_buf_write(datum->sig, read_buffer, datum->siglen);
 	}
 
 	// done
@@ -745,8 +806,8 @@ gcl_physread(gdp_gcl_t *gcl,
 	if (false)
 	{
 fail2:
-		ep_dbg_cprintf(Dbg, 1, "gcl_physread: data fread failed: %s\n",
-				strerror(errno));
+		ep_dbg_cprintf(Dbg, 1, "gcl_physread: %s fread failed: %s\n",
+				phase, strerror(errno));
 		estat = ep_stat_from_errno(errno);
 	}
 fail1:
@@ -767,8 +828,8 @@ gcl_physappend(gdp_gcl_t *gcl,
 {
 	gcl_log_record log_record;
 	gcl_index_record index_record;
-	size_t dlen = gdp_buf_getlength(datum->dbuf);
-	int64_t record_size = sizeof(gcl_log_record) + dlen;
+	size_t dlen = evbuffer_get_length(datum->dbuf);
+	int64_t record_size = sizeof(gcl_log_record);
 	gcl_log_index_t *entry = gcl->x->log_index;
 
 	if (ep_dbg_test(Dbg, 14))
@@ -780,23 +841,39 @@ gcl_physappend(gdp_gcl_t *gcl,
 	ep_thr_rwlock_wrlock(&entry->lock);
 
 	memset(&log_record, 0, sizeof log_record);
-	log_record.recno = entry->max_recno + 1;
+	log_record.recno = ep_net_hton64(entry->max_recno + 1);
 	log_record.timestamp = datum->ts;
-	log_record.data_length = dlen;
+	ep_net_hton_timespec(&log_record.timestamp);
+	log_record.data_length = ep_net_hton64(dlen);
+	log_record.sigmeta = (datum->siglen & 0x0fff) |
+				((datum->sigmdalg & 0x000f) << 12);
+	log_record.sigmeta = ep_net_hton16(log_record.sigmeta);
 
 	// write log record header
 	fwrite(&log_record, sizeof(log_record), 1, gcl->x->fp);
 
 	// write log record data
+	if (dlen > 0)
 	{
-		size_t dlen = evbuffer_get_length(datum->dbuf);
 		unsigned char *p = evbuffer_pullup(datum->dbuf, dlen);
 		if (p != NULL)
 			fwrite(p, dlen, 1, gcl->x->fp);
+		record_size += dlen;
+	}
+
+	// write signature
+	{
+		size_t slen = evbuffer_get_length(datum->sig);
+		unsigned char *p = evbuffer_pullup(datum->sig, slen);
+		EP_ASSERT_INSIST(datum->siglen == slen);
+		if (slen > 0 && p != NULL)
+			fwrite(p, slen, 1, gcl->x->fp);
+		record_size += slen;
 	}
 
 	index_record.recno = log_record.recno;
-	index_record.offset = entry->max_data_offset;
+	index_record.offset = ep_net_hton64(entry->max_data_offset);
+	index_record.extent = 0;		//XXX someday
 
 	// write index record
 	fwrite(&index_record, sizeof(index_record), 1, entry->fp);
@@ -811,7 +888,6 @@ gcl_physappend(gdp_gcl_t *gcl,
 
 	ep_thr_rwlock_unlock(&entry->lock);
 
-	datum->recno = log_record.recno;
 	return EP_STAT_OK;
 }
 

@@ -381,7 +381,7 @@ gdp_gclmd_print(gdp_gclmd_t *gmd, FILE *fp, int detail)
 
 			for (i = 0; i < gmd->nused; i++)
 			{
-				fprintf(fp, "\tid = %08x, len = %zd, flags = ",
+				fprintf(fp, "\tid = %08x, len = %" PRIu32 ", flags = ",
 						gmd->mds[i].md_id, gmd->mds[i].md_len);
 				ep_prflags(gmd->mds[i].md_flags, MdatumFlags, fp);
 				fprintf(fp, "\n");
@@ -397,7 +397,7 @@ gdp_gclmd_print(gdp_gclmd_t *gmd, FILE *fp, int detail)
 		int i;
 
 		for (i = 0; i < gmd->nused; i++)
-			fprintf(fp, "\tMetadata %2d, id %8x, length %zd\n",
+			fprintf(fp, "\tMetadata %2d, id %8x, length %" PRIu32 "\n",
 					i, gmd->mds[i].md_id, gmd->mds[i].md_len);
 	}
 }

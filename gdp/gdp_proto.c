@@ -200,6 +200,21 @@ fail0:
 	return estat;
 }
 
+static EP_STAT
+ack_data_content(gdp_req_t *req)
+{
+	EP_STAT estat;
+
+	estat = ack_success(req);
+	EP_STAT_CHECK(estat, return estat);
+
+	// do read filtering if requested
+	if (req->gcl->readfilter != NULL)
+		estat = req->gcl->readfilter(req->pdu->datum, req->gcl->readfpriv);
+
+	return estat;
+}
+
 
 /*
 **  NAK_CLIENT, NAK_SERVER --- handle NAKs (negative acknowlegements)
@@ -380,7 +395,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	{ ack_success,		"ACK_DATA_DEL"			},			// 130
 	{ ack_success,		"ACK_DATA_VALID"		},			// 131
 	{ ack_success,		"ACK_DATA_CHANGED"		},			// 132
-	{ ack_success,		"ACK_DATA_CONTENT"		},			// 133
+	{ ack_data_content,	"ACK_DATA_CONTENT"		},			// 133
 	NOENT,				// 134
 	NOENT,				// 135
 	NOENT,				// 136

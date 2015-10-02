@@ -25,13 +25,16 @@
 .function {
   font-family: monospace;
 }
+.manifest {
+  font-family: monospace;
+}
 
 </style></head>
   <body>
     <h1>Global Data Plane Programmatic API<br>
     </h1>
     <h4>Editor: Eric Allman, U.C. Berkeley Swarm Lab, eric@cs.berkeley.edu<br>
-      Version 0.72, 2015-09-18</h4>
+      Version 0.74, 2015-09-30</h4>
     <br>
     <p>This document describes the procedural programmatic interface to the
       Global Data Plane.&nbsp; The native code is written in C for maximum
@@ -62,8 +65,9 @@
       <dd>A unit of data in the GDP; essentially a record.&nbsp; Each datum has
         associated with it a record number (numbered sequentially from one), a
         commit timestamp (the time the record was committed into the GDP, as
-        distinct from the time that the data originated), and an associated blob
-        containing the data itself, which we expect to be encrypted.<br>
+        distinct from the time that the data originated), an associated blob
+        containing the data itself, which we expect to be encrypted, and in most
+        cases a signature.<br>
       </dd>
       <dt>GDP Channel/Log</dt>
       <dd>Global Data Plane Channel/Log.&nbsp; This represents an addressable
@@ -809,11 +813,11 @@ void (*cbfunc)(gdp_event_t *gev)
 
 
 
-      Each record has a record number, a commit timestamp, and associated
-      data.&nbsp; Record numbers are of type <code>gdp_recno_t</code> and count
-      up by one as records are added (i.e., record numbers are unique within a
-      GCL and dense).&nbsp; Data is represented in dynamic buffers, as described
-      below.<br>
+      Each record has a record number, a commit timestamp, associated data, and
+      possible signature information if the record was signed.&nbsp; Record
+      numbers are of type <code>gdp_recno_t</code> and count up by one as
+      records are added (i.e., record numbers are unique within a GCL and
+      dense).&nbsp; Data is represented in dynamic buffers, as described below.<br>
     </p>
     <h3>5.1&nbsp; Datum Headers</h3>
     <hr size="2" width="100%">
@@ -829,10 +833,12 @@ void (*cbfunc)(gdp_event_t *gev)
       <li><code>gdp_datum_free</code> frees a datum.</li>
       <li><code>gdp_datum_print</code> writes a description of the datum
         (including the data contents) to the given file.&nbsp; If flags includes
-        the GDP_DATUM_PRTEXT bit, it shows the datum as plain text (the default
-        shows it as a hex dump).&nbsp; It is up to the caller to determine that
-        the datum is printable.&nbsp; If the GDP_DATUM_PRDEBUG flag is set,
-        additional information about the datum is printed.</li>
+        the <span class="manifest">GDP_DATUM_PRTEXT</span> bit, it shows the
+        datum as plain text (the default shows it as a hex dump).&nbsp; It is up
+        to the caller to determine that the datum is printable.&nbsp; If the <span
+          class="manifest">GDP_DATUM_PRSIG</span> bit is set, signature
+        information is included.&nbsp; If the <span class="manifest">GDP_DATUM_PRDEBUG</span>
+        flag is set, additional information about the datum is printed.</li>
     </ul>
     <hr size="2" width="100%">
     <h4>Name</h4>
@@ -851,10 +857,42 @@ void (*cbfunc)(gdp_event_t *gev)
     <h4>Notes</h4>
     <hr size="2" width="100%">
     <h4>Name</h4>
+    gdp_datum_getdlen &mdash; get the data length from a datum<br>
+    <h4>Synopsis</h4>
+    <pre>    size_t gdp_datum_getdlen(const gdp_datum_t *datum)</pre>
+    <h4>Notes</h4>
+    <p><br>
+    </p>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
     gdp_datum_getdbuf &mdash; get the data buffer from a datum<br>
     <h4>Synopsis</h4>
     <pre>    gdp_buf_t *gdp_datum_getdbuf(const gdp_datum_t *datum)</pre>
     <h4>Notes</h4>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    gdp_datum_getsigmdalg &mdash; get the signature message digest algorithm
+    from a datum<br>
+    <h4>Synopsis</h4>
+    <pre>    int gdp_datum_getmdalg(const gdp_datum_t *datum)</pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>Returns the type of the signature digest algorithm (if a signature
+        exists).</li>
+      <li>The values are defined by the libep.&nbsp; They consist of the major
+        SHA algorithms in various sizes, e.g., <span class="manifest">EP_CRYPTO_MD_SHA1</span>,
+        <span class="manifest">EP_CRYPTO_MD_SHA224</span>, etc. through <span class="manifest">SHA512</span>.</li>
+    </ul>
+    <hr size="2" width="100%">
+    <h4>Name</h4>
+    gdp_datum_getsig &mdash; get the signature from a datum<br>
+    <h4>Synopsis</h4>
+    <pre>    gdp_buf_t *gdp_datum_getsig(const gdp_datum_t *datum)</pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>Can return <span class="manifest">NULL</span> or an empty buffer if
+        there is no signature.</li>
+    </ul>
     <p><br>
     </p>
     <hr size="2" width="100%">
@@ -1006,7 +1044,46 @@ typedef struct
         the GCL (using gdp_gcl_read) and check the record number in the returned
         datum.</li>
     </ul>
+    <p> </p>
     <hr>
+    <h4>Name</h4>
+    <p>gdp_gcl_set_append_filter &mdash; filter appended data</p>
+    <h4>Synopsis</h4>
+    <code>void gdp_gcl_set_append_filter(gdp_gcl_t *gcl,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      EP_STAT (*filter(gdp_datum_t *, void *),<br>
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; void *filterdata)</code><br>
+    <h4>Notes</h4>
+    <ul>
+      <li>All data appended to the named <span class="variable">gcl</span> are
+        first run through the <span class="variable">filter</span>.&nbsp; The
+        filter may modify the <span class="variable">datum</span> before it is
+        sent.</li>
+      <li>The <span class="variable">filterdata</span> parameter is passed as
+        the second argument to <span class="variable">filter</span>.</li>
+    </ul>
+    <ul>
+    </ul>
+    <hr><br>
+    <br>
+    <h4>Name</h4>
+    <p>gdp_gcl_set_read_filter &mdash; filter read data</p>
+    <h4>Synopsis</h4>
+    <p><code>void gdp_gcl_set_read_filter(gdp_gcl_t *gcl,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        EP_STAT (*filter(gdp_datum_t *, void *),<br>
+        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; void *filterdata)</code></p>
+    <h4>Notes</h4>
+    <ul>
+      <li>All data read from the named <span class="variable">gcl</span> are
+        passed through this filter before being returned.&nbsp; The filter may
+        modify the <span class="variable">datum</span>.</li>
+      <li>The <span class="variable">filterdata</span> parameter is passed as
+        the second argument to <span class="variable">filter</span>.</li>
+    </ul>
+    <hr>
+    <p><br>
+    </p>
     <h3>To be done</h3>
     <p>Header files<br>
       Version info<br>

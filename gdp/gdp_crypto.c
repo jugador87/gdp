@@ -1,7 +1,9 @@
 /* vim: set ai sw=4 sts=4 ts=4 : */
 
+#include <ep/ep.h>
 #include <ep/ep_crypto.h>
 #include <ep/ep_dbg.h>
+#include <ep/ep_string.h>
 
 #include "gdp.h"
 

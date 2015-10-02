@@ -259,30 +259,40 @@ typedef struct ep_crypto_cipher_ctx	EP_CRYPTO_CIPHER_CTX;
 
 #define EP_CRYPTO_MODE_MASK	0xf00		// mask for cipher mode
 
+/*
+**	The cipher is set to encrypt or decrypt when the context
+**	is created.
+**
+**	ep_crypto_cipher_crypt is just shorthand for a single
+**	call to ep_crypto_cipher_cryptblock followed by a single
+**	call to ep_crypto_cipher_finish.  Finish pads out any
+**	remaining block and returns that data.
+*/
+
 EP_CRYPTO_CIPHER_CTX	*ep_crypto_cipher_new(
-				uint32_t ciphertype,
-				uint8_t *key,
-				uint8_t *iv,
-				bool enc);
+				uint32_t ciphertype,	// mode + keytype & len
+				uint8_t *key,		// the key
+				uint8_t *iv,		// initialization vector
+				bool enc);		// true => encrypt
 void			ep_crypto_cipher_free(
 				EP_CRYPTO_CIPHER_CTX *cipher);
 
 EP_STAT			ep_crypto_cipher_crypt(
 				EP_CRYPTO_CIPHER_CTX *cipher,
-				void *in,
-				size_t inlen,
-				void *out,
-				size_t outlen);
+				void *in,		// input data
+				size_t inlen,		// input length
+				void *out,		// output buffer
+				size_t outlen);		// output buf size
 EP_STAT			ep_crypto_cipher_cryptblock(
 				EP_CRYPTO_CIPHER_CTX *cipher,
-				void *in,
-				size_t inlen,
-				void *out,
-				size_t outlen);
+				void *in,		// input data
+				size_t inlen,		// input length
+				void *out,		// output buffer
+				size_t outlen);		// output buf size
 EP_STAT			ep_crypto_cipher_finish(
 				EP_CRYPTO_CIPHER_CTX *cipher,
-				void *out,
-				size_t outlen);
+				void *out,		// output buffer
+				size_t outlen);		// output buf size
 
 
 /*

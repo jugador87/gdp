@@ -45,13 +45,13 @@ void			gcl_physforeach(
 
 #define GCL_DIR				"/var/swarm/gcls"
 
-#define GCL_LOG_MAGIC		UINT32_C(0x07434C31)	// 'GCL1'
-#define GCL_LOG_VERSION		UINT32_C(0)
-#define GCL_LOG_MINVERS		UINT32_C(0)			// lowest version we can read
-#define GCL_LOG_MAXVERS		UINT32_C(0)			// highest version we can read
+#define GCL_LOG_MAGIC		UINT32_C(0x47434C31)	// 'GCL1'
+#define GCL_LOG_VERSION		UINT32_C(20151001)		// on-disk version
+#define GCL_LOG_MINVERS		UINT32_C(20151001)		// lowest readable version
+#define GCL_LOG_MAXVERS		UINT32_C(20151001)		// highest readable version
 
-#define GCL_DATA_SUFFIX		".data"
-#define GCL_INDEX_SUFFIX	".index"
+#define GCL_DATA_SUFFIX		".gdplog"
+#define GCL_INDEX_SUFFIX	".gdpndx"
 
 #define GCL_READ_BUFFER_SIZE 4096
 
@@ -64,10 +64,12 @@ typedef struct gcl_log_record
 {
 	gdp_recno_t		recno;
 	EP_TIME_SPEC	timestamp;
-	int32_t			reserved1;			// reserved for future use
+	uint16_t		sigmeta;			// signature metadata (size & hash alg)
+	int16_t			reserved1;			// reserved for future use
 	int32_t			reserved2;			// reserved for future use
 	int64_t			data_length;
 	char			data[];
+										// signature is after the data
 } gcl_log_record;
 
 /*
@@ -84,12 +86,17 @@ typedef struct gcl_log_record
 
 typedef struct gcl_log_header
 {
-	int32_t magic;
-	int32_t version;
-	int32_t header_size; 	// the total size of the header such that
-							// the data records begin at offset header_size
-	int16_t num_metadata_entries;
-	int16_t log_type;		// directory, indirect, data, etc.
+	uint32_t	magic;
+	uint32_t	version;
+	uint32_t	header_size; 	// the total size of the header such that
+								// the data records begin at offset header_size
+	uint32_t	reserved1;		// reserved for future use
+	uint16_t	num_metadata_entries;
+	uint16_t	log_type;		// directory, indirect, data, etc. (unused)
+	uint32_t	extent;			// extent number
+	uint64_t	reserved2;		// reserved for future use
+	gdp_name_t	gname;			// the name of this log
+	gdp_recno_t	recno_offset;	// record number offset (first stored recno - 1)
 } gcl_log_header;
 
 
@@ -99,8 +106,9 @@ typedef struct gcl_log_header
 
 typedef struct gcl_index_record
 {
-	gdp_recno_t recno;
-	int64_t offset;
+	gdp_recno_t	recno;			// record number
+	int64_t		offset;			// offset into extent file
+	uint32_t	extent;			// id of extent (for segmented logs)
 } gcl_index_record;
 
 // return maximum record number for a given GCL
