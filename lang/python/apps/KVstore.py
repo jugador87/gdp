@@ -5,10 +5,12 @@
 A key value store with checkpoints. All persistent data is stored in a log
 called the root. For performance, an in-memory copy is maintained. At the
 initilization, the name of the rootlog is to be supplied by a user.
-If the assumption of a single-writer is violated, things won't work anymore.
+It is the user's responsibility to make sure that a single log is written
+to by a single writer, the behavior is undefined otherwise.
 
-Individual records are serialized versions of python data structures.  There
-are multiple kinds of records in the log itself, as described later.
+Individual records in the root log are serialized versions of python data 
+structures. There are multiple kinds of records in the log itself, as 
+described later.
 
 
 ### Usage ###
@@ -22,13 +24,39 @@ val1
 >
 
 Public interface:
-* Initialization: Single writer mode vs Read only mode. You can specify
-  certain optional parameters for tweaking the performance. 
-* [] can be used it to treat Key-Value store like a python dictionary.
-  - A timestamp value is attached whenever a key is changed/deleted/modified
-  - if using [] interface, the timestamp is not made visible, so as to
-    maintain compatibility with a true dictionary
-* len(<kv object>) returns the number of keys.
+
+* Initialization: 
+  Required parameter: name of the log.
+  Optional parameters: I/O mode (single writer mode vs Read only mode.) 
+  You can specify more optional parameters for tweaking the performance. 
+  Example: to create a Read/Write key-value store backed by an existing
+    log 'example_log', use the following:
+  >>> kvstore = KVstore(exmaple_log, KVstore.MODE_RW)
+
+* Querying existing keys:
+  - either use kvstore[key] to fetch value of 'key' in object 'kvstore'.
+  - OR, use kvstore.get(key,ts) to fetch most recent value of 'key' before
+    timestamp 'ts'. 'ts' is a float value representing seconds since epoch
+  *NOTE*: when using .get(), a tuple (write_ts, value) is returned, where
+    'write_ts' is the timestamp associated with 'value'. However, just 'value'
+    is returned when using the '[]' interface, in order to maintain 
+    compatibility with a dictionary interface.
+
+* Adding new keys/updating existing keys:
+  - either use kvstore[key] = value to set 'key' to 'value'.
+  - OR use kvstore.set(key,value).
+  *NOTE*: A timestamp is automatically generated and included in the data
+    appended to the underlying log. This timestamp is different than the 
+    commit timestamp for a particular record set by the log server.
+
+* Additional usefule properties:
+  - len(kvstore) returns the number of keys in an object 'kvstore'.
+  - The `in` operator could be used to do a presence test: 
+    `key in kvstore` is True if 'key' exists in 'kvstore', False otherwise
+  - It is possible to iterate over all the keys similar to other iterable 
+    data structures (like list).
+  - keys() returns all unique keys, similar behavior as a dictionary
+  - values() returns values of all keys, similar behavior as a dictionary
 
 
 
