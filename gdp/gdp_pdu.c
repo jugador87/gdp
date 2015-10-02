@@ -327,7 +327,7 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *basemd)
 	// send signature
 	if (pdu->datum->siglen > 0)
 	{
-		uint8_t *sigp;
+		uint8_t *sigp = NULL;
 
 		if (use_sigbuf)
 			sigp = sigbuf;

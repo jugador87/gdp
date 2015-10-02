@@ -295,14 +295,21 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	header.header_size = ep_net_ntoh32(header.header_size);
 	header.num_metadata_entries = ep_net_ntoh16(header.num_metadata_entries);
 	header.log_type = ep_net_ntoh16(header.log_type);
+	header.extent = ep_net_ntoh16(header.log_type);
 	header.recno_offset = ep_net_ntoh64(header.recno_offset);
 
 	if (plev >= GDP_PR_BASIC)
 	{
+		gdp_pname_t pname;
+
 		printf("Header: magic = 0x%08" PRIx32
 				", version = %" PRIi32
 				", type = %" PRIi16 "\n",
 				header.magic, header.version, header.log_type);
+		printf("\tname = %s\n",
+				gdp_printable_name(header.gname, pname));
+		printf("\textent = %" PRIu32 ", recno_offset = %" PRIu64 "\n",
+				header.extent, header.recno_offset);
 		printf("\theader size = %" PRId32 " (0x%" PRIx32 ")"
 				", metadata entries = %d\n",
 				header.header_size, header.header_size,

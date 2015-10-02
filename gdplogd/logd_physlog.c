@@ -308,11 +308,6 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 		size_t metadata_size = 0; // XXX: compute size of metadata
 		int i;
 
-		log_header.magic = ep_net_hton32(GCL_LOG_MAGIC);
-		gcl->x->ver = ep_net_hton32(GCL_LOG_VERSION);
-		log_header.version = ep_net_hton32(GCL_LOG_VERSION);
-
-		log_header.log_type = ep_net_hton16(0); // XXX: unused for now
 		metadata_size = 0;
 		if (gmd == NULL)
 		{
@@ -329,8 +324,19 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 			for (i = 0; i < gmd->nused; i++)
 				metadata_size += gmd->mds[i].md_len;
 		}
+
+		gcl->x->ver = GCL_LOG_VERSION;
 		gcl->x->data_offset = sizeof (gcl_log_header) + metadata_size;
+
+		log_header.magic = ep_net_hton32(GCL_LOG_MAGIC);
+		log_header.version = ep_net_hton32(GCL_LOG_VERSION);
 		log_header.header_size = ep_net_ntoh32(gcl->x->data_offset);
+		log_header.reserved1 = 0;
+		log_header.log_type = ep_net_hton16(0);		//XXX unused for now
+		log_header.extent = ep_net_hton16(0);		//XXX unused for now
+		log_header.reserved2 = 0;
+		memcpy(log_header.gname, gcl->name, sizeof log_header.gname);
+		log_header.recno_offset = 0;
 
 		fwrite(&log_header, sizeof(log_header), 1, data_fp);
 	}
@@ -867,6 +873,7 @@ gcl_physappend(gdp_gcl_t *gcl,
 
 	index_record.recno = log_record.recno;
 	index_record.offset = ep_net_hton64(entry->max_data_offset);
+	index_record.extent = 0;		//XXX someday
 
 	// write index record
 	fwrite(&index_record, sizeof(index_record), 1, entry->fp);
