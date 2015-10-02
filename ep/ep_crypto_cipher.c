@@ -1,5 +1,6 @@
 /* vim: set ai sw=8 sts=8 ts=8 :*/
 
+#include <ep/ep.h>
 #include <ep/ep_crypto.h>
 
 struct ep_crypto_cipher_ctx
