@@ -1,11 +1,11 @@
 apps/gcl-create
 apps/gdp-name-xlate
 apps/gdp-rest
+apps/gdp-reader
+apps/gdp-writer
 apps/log-mirror
 apps/log-view
-apps/reader-test
 apps/rw-bench
-apps/writer-test
 debian/libgdp*
 ep/decode-epstat
 examples/machine-mon
