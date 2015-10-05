@@ -15,7 +15,7 @@
 #include <sys/stat.h>
 
 /*
-**  WRITER-TEST --- writes records to a GCL
+**  GDP-WRITER --- writes records to a GCL
 **
 **		This reads the records one line at a time from standard input
 **		and assumes they are text, but there is no text requirement

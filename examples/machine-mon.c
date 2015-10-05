@@ -24,10 +24,10 @@
 **	    to find the routing node.
 **	(3) start up this program on a program you wish to monitor,
 **	    passing it the name of a log to hold the results.
-**	(4) start up reader-test specifying a text subscription
+**	(4) start up gdp-reader specifying a text subscription
 **	    to the same log:
-**	    	reader-test -s -t logname
-**	(5) you should see the reader-test window spit out JSON
+**	    	gdp-reader -s -t logname
+**	(5) you should see the gdp-reader window spit out JSON
 **	    records every 30 seconds showing a bunch of information
 **	    about the machine being monitored.
 **

@@ -55,7 +55,7 @@
       can return a positive integer as extra information.
     </p>
     <p>The code distribution includes an "apps" directory with two example
-      programs: writer-test.c and reader-test.c, that show simple cases of how
+      programs: gdp-writer.c and gdp-reader.c, that show simple cases of how
       to append to a GCL and read from a GCL (including subscriptions).
     </p>
     <h2>1&nbsp; Terminology</h2>
@@ -1051,12 +1051,12 @@ typedef struct
       PRIgdp_recno macro<br>
     </p>
     <h2>8&nbsp; Examples</h2>
-    <p>The following pseudo-code example excerpts from <tt>apps/writer-test.c</tt>.
+    <p>The following pseudo-code example excerpts from <tt>apps/gdp-writer.c</tt>.
     </p>
     <pre>#include &lt;gdp/gdp.h&gt;<br>#include &lt;stdio.h&gt;<br>#include &lt;string.h&gt;<br><br>int main(int argc, char **argv)<br>{<br>	gdp_tcl_t *gcl;<br>	EP_STAT estat;<br>	gdp_name_t gcliname;	// internal name of GCL<br>	gdp_datum_t *d;<br><br>	// general startup and initialization<br>	if (argc &lt; 2)<br>		usage_error();<br>	estat = gdp_init();<br>	if (!EP_STAT_ISOK(estat))<br>		initialization_error(estat);<br>	d = gdp_datum_new();
 <br><br>	// parse command line name to internal format<br>	estat = gdp_gcl_parse_name(argv[1], gcliname);<br>	if (!EP_STAT_ISOK(estat))<br>		name_syntax_error();<br><br>	// attempt to create that name<br>	estat = gdp_gcl_create(gcliname, &amp;gcl);<br>	if (!EP_STAT_ISOK(estat))<br>		creation_error(estat);<br><br>	// read lines from standard input<br>	while (fgets(buf, sizeof buf, stdin) != NULL)<br>	{<br>		char *p = strchr(buf, '\n');<br>		if (p != NULL)<br>			*p = '\0';<br><br>		// write them to the dataplane<br>		if (gdp_buf_write(gdp_datum_getbuf(datum), buf, strlen(buf)) &lt; 0)<br>                        estat = GDP_STAT_BUFFER_FAILURE;<br>                else<br>                        estat = gdp_gcl_append(gcl, datum);<br>		EP_STAT_CHECK(estat, break);<br>	}<br><br>	// cleanup and exit<br>	gdp_gcl_close(gcl);<br>	exit(!EP_STAT_ISOK(estat));<br>}</pre>
     <hr size="2" width="100%">
-    <p>This example is a similar excerpt from apps/reader-test.c (without using
+    <p>This example is a similar excerpt from apps/gdp-reader.c (without using
       subscriptions):</p>
     <pre>#include &lt;gdp/gdp.h&gt;<br><br>int main(int argc, char **argv)<br>{<br>	gdp_tcl_t *gcl;<br>	EP_STAT estat;<br>	gdp_name_t gcliname;	// internal name of GCL<br>	gdp_datum_t *d;<br>	gdp_recno_t recno;<br><br>	// general startup and initialization<br>	if (argc &lt; 2)<br>		usage_error();<br>	estat = gdp_init();<br>	if (!EP_STAT_ISOK(estat))<br>		initialization_error(estat);<br>	d = gdp_datum_new();
 <br><br>	// parse command line name to internal format<br>	estat = gdp_gcl_parse_name(argv[1], gcliname);<br>	if (!EP_STAT_ISOK(estat))<br>		name_syntax_error();

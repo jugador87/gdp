@@ -25,9 +25,9 @@ At the moment all users share a namespace, but in the future the
 user's public key will be included.
 
 
-WRITER-TEST
+GDP-WRITER
 
-The writer-test program creates or appends to a GCL.  Although
+The gdp-writer program creates or appends to a GCL.  Although
 the GDP accepts binary input, this program reads newline terminated
 text from the standard input.  Each line is written to the GCL
 named on the command line, or if no name is given, to a GCL with
@@ -36,9 +36,9 @@ a random name (which will be printed).
 GCLs are created unless the -a (append) flag is included.
 
 
-READER-TEST
+GDP-READER
 
-The reader-test program (unsurprisingly) reads and prints data from
+The gdp-reader program (unsurprisingly) reads and prints data from
 a GCL.  It assumes that the data is text; if not it will print random
 binary gibberish.
 
@@ -65,12 +65,12 @@ In -s mode the read will will continue to wait for more data to be
 published to the GCL.  For example, the following commands will act
 as a transmission channel:
 
-	Window 1>	writer-test xyzzy
-	Window 2>	reader-test -s xyzzy
+	Window 1>	gdp-writer xyzzy
+	Window 2>	gdp-reader -s xyzzy
 	Window 1>	(input data)
 
-Note that the writer-test has to be started first so that xyzzy
-exists when reader-test starts up.
+Note that the gdp-writer has to be started first so that xyzzy
+exists when gdp-reader starts up.
 
 
 GDP-REST

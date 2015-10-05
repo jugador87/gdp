@@ -61,12 +61,12 @@ Getting Started:
 	log.  If the second parameter is omitted an internal name is
 	used.
 
-   8.	Run apps/writer-test giving it the name of the log you just
+   8.	Run apps/gdp-writer giving it the name of the log you just
 	created to add data to the log.  It will ask for lines of input
 	that are appended ot the log.  There is no need to give the
 	name of the log daemon; gdp_router will find it for you.
 
-   9.	Check success by running apps/reader-test giving it the
+   9.	Check success by running apps/gdp-reader giving it the
 	same name as you used in the previous step.
 
 
@@ -310,8 +310,8 @@ Create a GCL:
 	the name of the log server.
 
 Running GDP-based Programs:
-	There are two test programs included with the GDP: reader-test
-	and writer-test.  There are also some demo programs you can
+	There are two test programs included with the GDP: gdp-reader
+	and gdp-writer.  There are also some demo programs you can
 	copy and adapt for your own use.  The descriptions given
 	below do not include all of the command line flags; these are
 	just the ones that are most useful.
@@ -322,10 +322,10 @@ Running GDP-based Programs:
 	down, but they must all be up and running before they will start
 	in the first place.
 
-	The writer-test program reads records from the standard input
+	The gdp-writer program reads records from the standard input
 	and writes to the target log.  It is invoked as:
 
-	    writer-test [-D dbgspec] [-G router-addr] gcl-name
+	    gdp-writer [-D dbgspec] [-G router-addr] gcl-name
 
 	The -D flag turns on debugging output and is described below.
 	The -G flag overrides the swarm.gdp.routers parameter.  The
@@ -333,16 +333,16 @@ Running GDP-based Programs:
 	read from the input and written to the log, where each input
 	line creates one log record.
 
-	The reader-test program reads records from the log and writes
+	The gdp-reader program reads records from the log and writes
 	them to the standard output.  It is invoked as:
 
-	    reader-test [-D dbgspec] [-f firstrec] [-G router-addr] \
+	    gdp-reader [-D dbgspec] [-f firstrec] [-G router-addr] \
 		[-m] [-M] [-n nrecs] [-s] [-v] gcl-name
 
-	The -D and -G flags are the same as writer-test.  The -f and
+	The -D and -G flags are the same as gdp-writer.  The -f and
 	-n flags specify the first record number (starting from 1) and
 	the maximum number of records to read.  There are three ways
-	reader-test can operate.  By default, it reads the records
+	gdp-reader can operate.  By default, it reads the records
 	one at a time in separate read requests.  The -m flag changes
 	this to "multiread" mode, where the records are delivered in
 	a more efficient way --- essentially, the multiread command
@@ -353,7 +353,7 @@ Running GDP-based Programs:
 	subscribers.  The -v flag prints signature information associated
 	with the record.  For example:
 
-	    reader-test -f 1 -s eric/sensor45
+	    gdp-reader -f 1 -s eric/sensor45
 
 	will return all the data already recorded in the log and then
 	wait until more data is written; the new data will be

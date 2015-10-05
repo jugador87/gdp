@@ -15,7 +15,7 @@
 #include <sysexits.h>
 
 /*
-**  READER-TEST --- read and prints records from a GCL
+**  GDP-READER --- read and prints records from a GCL
 **
 **		This makes the naive assumption that all data values are ASCII
 **		text.  Ultimately they should all be encrypted, but for now
@@ -36,7 +36,7 @@
 **		another client.
 */
 
-static EP_DBG	Dbg = EP_DBG_INIT("reader-test", "GDP Reader Test Program");
+static EP_DBG	Dbg = EP_DBG_INIT("gdp-reader", "GDP Reader Application");
 
 
 /*

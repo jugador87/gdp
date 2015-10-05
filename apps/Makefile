@@ -1,9 +1,9 @@
-#ALL=	gcl-create writer-test reader-test gdp-rest rw-bench log-view
+#ALL=	gcl-create gdp-writer gdp-reader gdp-rest rw-bench log-view
 BINALL=		gcl-create \
 		log-mirror \
 		log-view \
-		reader-test \
-		writer-test\
+		gdp-reader \
+		gdp-writer\
 
 SBINALL=	gdp-rest \
 		log-view \
@@ -51,11 +51,11 @@ all:	${ALL}
 gcl-create:	gcl-create.o
 	${CC} -o $@ gcl-create.o ${LDFLAGS}
 
-writer-test:	writer-test.o
-	${CC} -o $@ writer-test.o ${LDFLAGS}
+gdp-writer:	gdp-writer.o
+	${CC} -o $@ gdp-writer.o ${LDFLAGS}
 
-reader-test:	reader-test.o
-	${CC} -o $@ reader-test.o ${LDFLAGS}
+gdp-reader:	gdp-reader.o
+	${CC} -o $@ gdp-reader.o ${LDFLAGS}
 
 gdp-rest:	gdp-rest.o ../scgilib/scgilib.o
 	${CC} -o $@ gdp-rest.o ${LDFLAGS} ../scgilib/scgilib.o

@@ -44,8 +44,8 @@ GDPALL=		adm/start-* \
 		adm/run-* \
 		apps/gcl-create \
 		apps/gdp-rest \
-		apps/reader-test \
-		apps/writer-test \
+		apps/gdp-reader \
+		apps/gdp-writer \
 		gdplogd/gdplogd \
 
 init-gdp:
