@@ -35,8 +35,8 @@ typedef struct gdp_gcl		gdp_gcl_t;
 typedef struct gdp_gclmd	gdp_gclmd_t;
 typedef uint32_t			gdp_gclmd_id_t;
 
-// QoS requirements
-typedef struct gdp_qos_req	gdp_qos_req_t;
+// additional information when opening logs (e.g., keys, qos, hints)
+typedef struct gdp_gcl_open_info	gdp_gcl_open_info_t;
 
 /**********************************************************************
 **	Other data types
@@ -165,7 +165,7 @@ extern EP_STAT	gdp_gcl_create(
 extern EP_STAT	gdp_gcl_open(
 					gdp_name_t name,		// GCL name to open
 					gdp_iomode_t rw,		// read/write (append)
-					gdp_qos_req_t *qos,		// QoS requirements (placeholder)
+					gdp_gcl_open_info_t *info,	// additional open info
 					gdp_gcl_t **gcl);		// pointer to result GCL handle
 
 // close an open GCL

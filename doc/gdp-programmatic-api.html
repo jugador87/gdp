@@ -184,28 +184,22 @@
     gdp_gcl_open &mdash; Open an existing GCL
     <h4> Synopsis</h4>
     <pre>EP_STAT gdp_gcl_open(gdp_name_t name,
-		gcl_iomode_t rw,<br>                gdp_qos_req_t *qos,<br>               &nbsp;gdp_gcl_t **gclp)
+		gcl_iomode_t rw,
+                gdp_gcl_open_info_t *info,
+                gdp_gcl_t **gclp)
 </pre>
     <h4> Notes</h4>
     <ul>
       <li> Opens the GCL with the indicated name for the mode indicated by <code>rw</code>,
         which may be <code>GDP_MODE_RO</code> (read only), <code>GDP_MODE_AO</code>
         (append only), or <code>GDP_MODE_RA</code> (read and append).</li>
-      <li>QoS requirements are for future use.&nbsp; For now pass in NULL.</li>
+      <li>Open information is for future use.&nbsp; For now pass in NULL.&nbsp;
+        Eventually it will be used to convey signing keys, quality of service
+        requests, payment information, authorization tokens, etc.</li>
       <li>The handle itself is returned indirectly through <code>*gclp</code>.</li>
       <li>If a signing key associated with the GCL is found, all writes to this
-        GCL will automatically be signed.</li>
-      <li><i> Do we have to pass in a permission token? This could be a key. If
-          GCLes are named by their public key then this will be implicit, but if
-          ACLs are used then the identity (more likely some proxy for the
-          identity) will have to be passed in. Some applications might even want
-          to have multiple identities based on their roles.</i></li>
-      <li><i> It may be useful to pass in a "payment" parameter. See discussion
-          below.</i></li>
-      <li> <span class="warning">This interface should take a cryptographic
-          signing key as a parameter.&nbsp; As it is, it locates the signing key
-          using a search path as detailed below.&nbsp; As a result this
-          interface will probably change in the future.</span> </li>
+        GCL will automatically be signed.&nbsp; See the section on Signing and
+        Encryption below for details.</li>
     </ul>
     <hr size="2" width="100%">
     <h4> Name</h4>

@@ -292,7 +292,7 @@ gdp_gcl_create(gdp_name_t gclname,
 EP_STAT
 gdp_gcl_open(gdp_name_t name,
 			gdp_iomode_t mode,
-			gdp_qos_req_t *qos,
+			gdp_gcl_open_info_t *info,
 			gdp_gcl_t **pgcl)
 {
 	EP_STAT estat;
