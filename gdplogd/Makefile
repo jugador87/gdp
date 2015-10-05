@@ -60,7 +60,7 @@ LIBDEPS= \
 
 all: ${ALL}
 
-gdplogd: ${OBJS}
+gdplogd: ${OBJS} ${LIBDEPS}
 	${CC} -o $@ ${OBJS} ${LDFLAGS}
 
 clean:
@@ -72,4 +72,4 @@ install:	${SBINDIR} ${ALL}
 ${SBINDIR}:
 	${MKDIR} $@
 
-${OBJS}: ${HDEPS} ${LIBDEPS}
+${OBJS}: ${HDEPS}
