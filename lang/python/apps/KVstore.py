@@ -448,7 +448,7 @@ class KVstore:
                 assert False
 
         # special case, when timestamp value is less than the oldest record
-        if rec_no == 0: return None
+        if rec_no <= 0: return None
 
         for (metadata, data) in self.__record_iterator(rec_no): 
             if key in data:
