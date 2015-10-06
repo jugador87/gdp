@@ -315,6 +315,7 @@ _gdp_gclmd_deserialize(struct evbuffer *evb)
 		gmd->mds[i].md_id = ntohl(t32);
 		evbuffer_remove(evb, &t32, sizeof t32);
 		tlen += gmd->mds[i].md_len = ntohl(t32);
+		gmd->mds[i].md_flags = 0;
 	}
 
 	// and now for the data....
