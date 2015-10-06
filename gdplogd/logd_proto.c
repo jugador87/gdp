@@ -13,7 +13,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.proto", "GDP Log Daemon protocol");
 */
 
 EP_STAT
-gdpd_gcl_error(gdp_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
+gdpd_gcl_error(gdp_name_t gcl_name, char *msg, EP_STAT logstat, EP_STAT estat)
 {
 	gdp_pname_t pname;
 
@@ -27,7 +27,7 @@ gdpd_gcl_error(gdp_name_t gcl_name, char *msg, EP_STAT logstat, int nak)
 	{
 		ep_dbg_cprintf(Dbg, 1, "%s: %s", msg, pname);
 	}
-	return logstat;
+	return estat;
 }
 
 void
@@ -141,7 +141,6 @@ cmd_create(gdp_req_t *req)
 	if (memcmp(req->pdu->dst, _GdpMyRoutingName, sizeof _GdpMyRoutingName) != 0)
 	{
 		// this is directed to a GCL, not to the daemon
-		req->pdu->cmd = GDP_NAK_C_BADREQ;
 		return GDP_STAT_NAK_BADREQ;
 	}
 
@@ -253,7 +252,7 @@ cmd_open(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		estat = gdpd_gcl_error(req->pdu->dst, "cmd_openxx: could not open GCL",
-							estat, GDP_NAK_C_BADREQ);
+							estat, GDP_STAT_NAK_BADREQ);
 		goto fail0;
 	}
 
@@ -352,7 +351,7 @@ cmd_close(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pdu->dst, "cmd_close: GCL not open",
-							estat, GDP_NAK_C_BADREQ);
+							estat, GDP_STAT_NAK_BADREQ);
 	}
 	req->pdu->datum->recno = gcl_max_recno(req->gcl);
 	_gdp_gcl_decref(req->gcl);
@@ -383,7 +382,7 @@ cmd_read(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pdu->dst, "cmd_read: GCL open failure",
-							estat, GDP_NAK_C_BADREQ);
+							estat, GDP_STAT_NAK_BADREQ);
 	}
 
 	// handle record numbers relative to the end
@@ -437,7 +436,7 @@ cmd_append(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pdu->dst, "cmd_append: GCL not open",
-							estat, GDP_NAK_C_BADREQ);
+							estat, GDP_STAT_NAK_BADREQ);
 	}
 
 	// validate sequence number and signature
@@ -453,7 +452,7 @@ cmd_append(gdp_req_t *req)
 		if (GDP_PROTO_MIN_VERSION > 2 || req->pdu->ver > 2)
 			return gdpd_gcl_error(req->pdu->dst,
 						"cmd_append: record sequence error",
-						GDP_STAT_RECNO_SEQ_ERROR, GDP_NAK_C_FORBIDDEN);
+						GDP_STAT_RECNO_SEQ_ERROR, GDP_STAT_NAK_FORBIDDEN);
 	}
 
 	// check the signature in the PDU
@@ -491,6 +490,7 @@ cmd_append(gdp_req_t *req)
 			if (!EP_STAT_ISOK(estat))
 			{
 				// error: signature failure
+				estat = GDP_STAT_NAK_FORBIDDEN;
 				ep_dbg_cprintf(Dbg, 1, "cmd_append: signature failure\n");
 				if (EP_UT_BITSET(GDP_SIG_MUSTVERIFY, GdpSignatureStrictness))
 					goto fail0;
@@ -649,7 +649,7 @@ cmd_subscribe(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pdu->dst, "cmd_subscribe: GCL not open",
-							estat, GDP_NAK_C_BADREQ);
+							estat, GDP_STAT_NAK_BADREQ);
 	}
 
 	// get the additional parameters: number of records and timeout
@@ -668,8 +668,7 @@ cmd_subscribe(gdp_req_t *req)
 
 	if (req->numrecs < 0)
 	{
-		req->pdu->cmd = GDP_NAK_C_BADOPT;
-		return GDP_STAT_FROM_C_NAK(req->pdu->cmd);
+		return GDP_STAT_NAK_BADOPT;
 	}
 
 	// mark this as persistent and upgradable
@@ -736,7 +735,7 @@ cmd_multiread(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pdu->dst, "cmd_multiread: GCL not open",
-							estat, GDP_NAK_C_BADREQ);
+							estat, GDP_STAT_NAK_BADREQ);
 	}
 
 	// get the additional parameters: number of records and timeout
@@ -765,8 +764,7 @@ cmd_multiread(gdp_req_t *req)
 
 	if (req->numrecs < 0)
 	{
-		req->pdu->cmd = GDP_NAK_C_BADOPT;
-		return GDP_STAT_FROM_C_NAK(req->pdu->cmd);
+		return GDP_STAT_NAK_BADOPT;
 	}
 
 	// get our starting point, which may be relative to the end
@@ -834,7 +832,7 @@ cmd_getmetadata(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pdu->dst, "cmd_read: GCL open failure",
-							estat, GDP_NAK_C_BADREQ);
+							estat, GDP_STAT_NAK_BADREQ);
 	}
 
 	// get the metadata into memory
