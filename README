@@ -310,7 +310,7 @@ Create a GCL:
 	the name of the log server.
 
 Running GDP-based Programs:
-	There are two test programs included with the GDP: gdp-reader
+	There are two sample programs included with the GDP: gdp-reader
 	and gdp-writer.  There are also some demo programs you can
 	copy and adapt for your own use.  The descriptions given
 	below do not include all of the command line flags; these are
@@ -331,7 +331,8 @@ Running GDP-based Programs:
 	The -G flag overrides the swarm.gdp.routers parameter.  The
 	gcl-name is the name of the GCL to be appended to.  Lines are
 	read from the input and written to the log, where each input
-	line creates one log record.
+	line creates one log record.  See the gdp-writer(1) man page
+	for more details.
 
 	The gdp-reader program reads records from the log and writes
 	them to the standard output.  It is invoked as:
@@ -360,7 +361,8 @@ Running GDP-based Programs:
 	immediately printed.  If -m were used instead of -s then
 	all the existing data would be returned, and then it would
 	exit.  If -s were used without -f, no existing data would
-	be printed, only new data.
+	be printed, only new data.  See the gdp-reader(1) man page for
+	more details.
 
 Running the GDP RESTful Interface:
 	(In these instructions, <gcl-name> is a URI-base-64-encoded
