@@ -204,7 +204,13 @@ main(int argc, char **argv)
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// dump the internal version of the GCL to facilitate testing
-	gdp_gcl_print(gcl, stdout);
+	{
+		gdp_pname_t pname;
+
+		printf("GDPname: %s (%" PRIu64 " recs)\n",
+				gdp_printable_name(*gdp_gcl_getname(gcl), pname),
+				gdp_gcl_getnrecs(gcl));
+	}
 
 	// OK, ready to go!
 	fprintf(stdout, "\nStarting to read input\n");
