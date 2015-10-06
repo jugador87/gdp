@@ -120,7 +120,7 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 	}
 
 	// not in cache?  create a new one.
-	if (ep_dbg_test(Dbg, 40))
+	if (ep_dbg_test(Dbg, 10))
 	{
 		gdp_pname_t pname;
 
