@@ -55,7 +55,7 @@ _gdp_gcl_newhandle(gdp_name_t gcl_name, gdp_gcl_t **pgcl)
 
 	// create a name if we don't have one passed in
 	if (gcl_name == NULL || !gdp_name_is_valid(gcl_name))
-		_gdp_newname(gcl->name, gcl->gclmd);
+		_gdp_newname(gcl->name, gcl->gclmd);	//XXX bogus: gcl->gclmd isn't set yet
 	else
 		memcpy(gcl->name, gcl_name, sizeof gcl->name);
 	gdp_printable_name(gcl->name, gcl->pname);
