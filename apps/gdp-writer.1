@@ -9,6 +9,7 @@
 .Op Fl a
 .Op Fl D debug-spec
 .Op Fl G router-ip
+.Op Fl F key-file
 .Op Fl L log-file
 .Ar log-name
 .Sh DESCRIPTION
@@ -16,6 +17,7 @@
 reads data from the standard input and writes it to the GDP log
 .Ar log-name .
 The log must already exist.
+Each line read from the standard input becomes one record in the log.
 .Pp
 If the log has a public key included in the metadata
 (see
@@ -35,6 +37,9 @@ See the description of the
 parameter in
 .Sx ADMINISTRATIVE PARAMETERS
 for details on the search path.
+This search can be overridden using the
+.Fl K
+flag.
 .Sh OPTIONS
 .Bl -tag
 .It Fl a
@@ -61,6 +66,12 @@ If set, write a very simplistic performance log to the given
 This can be used together with the companion flag on
 .Xr gdp-reader 1
 to produce crude round-trip performance numbers.
+.It Fl K key-file
+Names the file containing the secret key to be used for signing.
+This must be a
+.Sy \&.pem
+format file.
+This overrides the default search path.
 .El
 .\".Sh EXIT STATUS
 .Sh ADMINISTRATIVE PARAMETERS
@@ -82,4 +93,6 @@ KEYS
 .Xr gdp-reader 1 ,
 .Xr gcl-create 8
 .\".Sh EXAMPLES
-.\".Sh BUGS
+.Sh BUGS
+There should be some way to put binary or multiline data into the log.
+At the moment this requires writing a separate application.

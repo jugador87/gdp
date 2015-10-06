@@ -86,10 +86,12 @@ void
 usage(void)
 {
 	fprintf(stderr,
-			"Usage: %s [-a] [-D dbgspec] [-G router_addr] [-L log_file] log_name\n"
+			"Usage: %s [-a] [-D dbgspec] [-G router_addr] [-K key_file]\n"
+			"\t[-L log_file] log_name\n"
 			"    -a  use asynchronous I/O\n"
 			"    -D  set debugging flags\n"
 			"    -G  IP host to contact for gdp_router\n"
+			"    -K  signing key file\n"
 			"    -L  set logging file name (for debugging)\n",
 			ep_app_getprogname());
 	exit(EX_USAGE);
@@ -108,9 +110,11 @@ main(int argc, char **argv)
 	bool show_usage = false;
 	char *log_file_name = NULL;
 	bool async_io = false;
+	char *signing_key_file = NULL;
+	gdp_gcl_open_info_t *info;
 
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "aD:G:L:")) > 0)
+	while ((opt = getopt(argc, argv, "aD:G:K:L:")) > 0)
 	{
 		switch (opt)
 		{
@@ -124,6 +128,10 @@ main(int argc, char **argv)
 
 		 case 'G':
 			gdpd_addr = optarg;
+			break;
+
+		 case 'K':
+			signing_key_file = optarg;
 			break;
 
 		 case 'L':
@@ -163,9 +171,36 @@ main(int argc, char **argv)
 	// allow thread to settle to avoid interspersed debug output
 	ep_time_nanosleep(INT64_C(100000000));
 
+	// set up any open information
+	info = gdp_gcl_open_info_new();
+
+	if (signing_key_file != NULL)
+	{
+		FILE *fp;
+		EP_CRYPTO_KEY *skey;
+
+		fp = fopen(signing_key_file, "r");
+		if (fp == NULL)
+		{
+			ep_app_error("cannot open signing key file %s", signing_key_file);
+			goto fail1;
+		}
+
+		skey = ep_crypto_key_read_fp(fp, signing_key_file,
+				0, EP_CRYPTO_KEYFORM_PEM, EP_CRYPTO_F_SECRET);
+		if (skey == NULL)
+		{
+			ep_app_error("cannot read signing key file %s", signing_key_file);
+			goto fail1;
+		}
+
+		estat = gdp_gcl_open_info_set_signing_key(info, skey);
+		EP_STAT_CHECK(estat, goto fail1);
+	}
+
 	// open a GCL with the provided name
 	gdp_parse_name(argv[0], gcliname);
-	estat = gdp_gcl_open(gcliname, GDP_MODE_AO, NULL, &gcl);
+	estat = gdp_gcl_open(gcliname, GDP_MODE_AO, info, &gcl);
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// dump the internal version of the GCL to facilitate testing
@@ -223,6 +258,8 @@ fail2:
 	gdp_gcl_close(gcl);
 
 fail1:
+	if (info != NULL)
+		gdp_gcl_open_info_free(info);
 
 fail0:
 	// OK status can have values; hide that from the user
