@@ -53,7 +53,7 @@ ep_assert_failure(
 //			"expr",		expr,
 //			NULL,	NULL);
 
-	fprintf(stderr, "%s%sAssertion failed at %s:%d: %s: %s%s\n",
+	fprintf(stderr, "%s%sAssertion failed at %s:%d: %s:\n\t%s%s\n",
 			EpVid->vidfgcyan, EpVid->vidbgred,
 			file, line, type, expr,
 			EpVid->vidnorm);

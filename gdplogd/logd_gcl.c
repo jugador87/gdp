@@ -130,6 +130,8 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 	estat = gcl_open(req->pdu->dst, iomode, &req->gcl);
 	if (EP_STAT_ISOK(estat))
 		_gdp_gcl_cache_add(req->gcl, iomode);
+	req->gcl->flags |= GCLF_DEFER_FREE;
+
 	if (ep_dbg_test(Dbg, 40))
 	{
 		gdp_pname_t pname;

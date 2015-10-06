@@ -201,7 +201,7 @@ _gdp_gcl_cache_drop(gdp_gcl_t *gcl)
 		ep_thr_mutex_unlock(&GclCacheMutex);
 
 	gcl->flags &= ~GCLF_INCACHE;
-	ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_drop: dropping %s => %p\n",
+	ep_dbg_cprintf(Dbg, 42, "_gdp_gcl_cache_drop: %s => %p\n",
 			gcl->pname, gcl);
 }
 
