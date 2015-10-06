@@ -540,6 +540,8 @@ gcl_physopen(gdp_gcl_t *gcl)
 	index->max_recno = (index->max_index_offset - SIZEOF_INDEX_HEADER)
 								/ SIZEOF_INDEX_RECORD;
 
+	gcl->nrecs = index->max_recno;
+
 	return estat;
 
 fail5:
@@ -598,18 +600,6 @@ gcl_physclose(gdp_gcl_t *gcl)
 	gcl->x = NULL;
 
 	return estat;
-}
-
-
-/*
-**  GCL_MAX_RECNO --- return maximum record number in GCL
-*/
-
-gdp_recno_t
-gcl_max_recno(gdp_gcl_t *gcl)
-{
-	gcl_log_index_t *ix = gcl->x->log_index;
-	return ix->max_recno;
 }
 
 

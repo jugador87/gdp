@@ -257,7 +257,6 @@ cmd_open(gdp_req_t *req)
 	}
 
 	gcl = req->gcl;
-	gcl->nrecs = req->pdu->datum->recno = gcl_max_recno(gcl);
 	gcl->flags |= GCLF_DEFER_FREE;
 	gcl->iomode |= iomode;
 	if (gcl->gclmd != NULL)
@@ -265,6 +264,8 @@ cmd_open(gdp_req_t *req)
 		// send metadata as payload
 		_gdp_gclmd_serialize(gcl->gclmd, req->pdu->datum->dbuf);
 	}
+
+	req->pdu->datum->recno = gcl->nrecs;
 
 	if (EP_UT_BITSET(GDP_MODE_AO, iomode))
 	{
@@ -353,7 +354,7 @@ cmd_close(gdp_req_t *req)
 		return gdpd_gcl_error(req->pdu->dst, "cmd_close: GCL not open",
 							estat, GDP_STAT_NAK_BADREQ);
 	}
-	req->pdu->datum->recno = gcl_max_recno(req->gcl);
+	req->pdu->datum->recno = req->gcl->nrecs;
 	_gdp_gcl_decref(req->gcl);
 	req->gcl = NULL;
 
@@ -388,7 +389,7 @@ cmd_read(gdp_req_t *req)
 	// handle record numbers relative to the end
 	if (req->pdu->datum->recno <= 0)
 	{
-		req->pdu->datum->recno += gcl_max_recno(req->gcl) + 1;
+		req->pdu->datum->recno += req->gcl->nrecs + 1;
 		if (req->pdu->datum->recno <= 0)
 		{
 			// can't read before the beginning
@@ -556,7 +557,7 @@ post_subscribe(gdp_req_t *req)
 	while (req->numrecs >= 0)
 	{
 		// see if data pre-exists in the GCL
-		if (req->pdu->datum->recno > gcl_max_recno(req->gcl))
+		if (req->pdu->datum->recno > req->gcl->nrecs)
 		{
 			// no, it doesn't; convert to long-term subscription
 			break;
@@ -677,7 +678,7 @@ cmd_subscribe(gdp_req_t *req)
 	// get our starting point, which may be relative to the end
 	if (req->pdu->datum->recno <= 0)
 	{
-		req->pdu->datum->recno += gcl_max_recno(req->gcl) + 1;
+		req->pdu->datum->recno += req->gcl->nrecs + 1;
 		if (req->pdu->datum->recno <= 0)
 		{
 			// still starts before beginning; start from beginning
@@ -690,7 +691,7 @@ cmd_subscribe(gdp_req_t *req)
 			req->pdu->datum->recno, req->numrecs);
 
 	// if some of the records already exist, arrange to return them
-	if (req->pdu->datum->recno <= gcl_max_recno(req->gcl))
+	if (req->pdu->datum->recno <= req->gcl->nrecs)
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: doing post processing\n");
 		req->postproc = &post_subscribe;
@@ -754,7 +755,7 @@ cmd_multiread(gdp_req_t *req)
 	// get our starting point, which may be relative to the end
 	if (req->pdu->datum->recno <= 0)
 	{
-		req->pdu->datum->recno += gcl_max_recno(req->gcl) + 1;
+		req->pdu->datum->recno += req->gcl->nrecs + 1;
 		if (req->pdu->datum->recno <= 0)
 		{
 			// still starts before beginning; start from beginning
@@ -770,7 +771,7 @@ cmd_multiread(gdp_req_t *req)
 	// get our starting point, which may be relative to the end
 	if (req->pdu->datum->recno <= 0)
 	{
-		req->pdu->datum->recno += gcl_max_recno(req->gcl) + 1;
+		req->pdu->datum->recno += req->gcl->nrecs + 1;
 		if (req->pdu->datum->recno <= 0)
 		{
 			// still starts before beginning; start from beginning
@@ -783,13 +784,13 @@ cmd_multiread(gdp_req_t *req)
 			req->pdu->datum->recno, req->numrecs);
 
 	// if some of the records already exist, arrange to return them
-	if (req->pdu->datum->recno <= gcl_max_recno(req->gcl))
+	if (req->pdu->datum->recno <= req->gcl->nrecs)
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_multiread: doing post processing\n");
 		req->postproc = &post_subscribe;
 
 		// make this a "snapshot", i.e., don't read additional records
-		int32_t nrec = gcl_max_recno(req->gcl) - req->pdu->datum->recno;
+		int32_t nrec = req->gcl->nrecs - req->pdu->datum->recno;
 		if (nrec < req->numrecs || req->numrecs == 0)
 			req->numrecs = nrec + 1;
 
