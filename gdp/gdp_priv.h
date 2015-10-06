@@ -270,6 +270,16 @@ EP_STAT			_gdp_gcl_getmetadata(		// retrieve metadata
 
 
 /*
+**  GCL Open Information
+*/
+
+struct gdp_gcl_open_info
+{
+	EP_CRYPTO_KEY		*signkey;		// signing key
+};
+
+
+/*
 **  A Work Request (and associated Response)
 **
 **		A GDP request is packaged up in one of these things and

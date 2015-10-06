@@ -11,6 +11,7 @@
 #include <gdp/gdp_stat.h>
 
 #include <ep/ep.h>
+#include <ep/ep_crypto.h>
 #include <ep/ep_mem.h>
 #include <ep/ep_stat.h>
 #include <ep/ep_time.h>
@@ -266,6 +267,23 @@ EP_STAT			gdp_parse_name(
 // get the number of records in the log
 extern gdp_recno_t	gdp_gcl_getnrecs(
 					const gdp_gcl_t *gcl);	// open GCL handle
+
+
+/*
+**  GCL Open Information
+*/
+
+// get a new open information structure
+gdp_gcl_open_info_t	*gdp_gcl_open_info_new(void);
+
+// free that structure
+void				gdp_gcl_open_info_free(
+						gdp_gcl_open_info_t *info);
+
+// set the signing key
+EP_STAT				gdp_gcl_open_info_set_signing_key(
+						gdp_gcl_open_info_t *info,
+						EP_CRYPTO_KEY *skey);
 
 /*
 **  Metadata handling

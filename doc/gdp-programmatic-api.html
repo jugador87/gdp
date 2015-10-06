@@ -28,6 +28,9 @@
 .manifest {
   font-family: monospace;
 }
+.datatype {
+  font-family: monospace;
+}
 
 </style></head>
   <body>
@@ -139,7 +142,8 @@
         example, 20150217UL.&nbsp; It can be used during compilation.</li>
     </ul>
     <hr>
-    <h2>3&nbsp; GCL Synchronous Operation</h2>
+    <h2>3&nbsp; GCL Operations</h2>
+    <h3>3.1&nbsp; GCL Synchronous Operations</h3>
     <p>Synchronous operations block until the operation is complete.&nbsp; They
       are the easiest interface for simple programs. </p>
     <hr size="2" width="100%">
@@ -310,8 +314,8 @@
     <ul>
     </ul>
     <hr size="2" width="100%">
-    <h2>4&nbsp; GCL Asynchronous Operation (Asynchronous I/O, Subscriptions, and
-      Events) </h2>
+    <h3>3.2&nbsp; GCL Asynchronous Operations (Asynchronous I/O, Subscriptions,
+      and Events) </h3>
     <p>Asynchronous operations allow an application to subscribe to one or more
       GCLs and receive events as those GCLs see activity.&nbsp; The event
       mechanism is intended to be extensible for possible future expansion. </p>
@@ -684,7 +688,52 @@ void (*cbfunc)(gdp_event_t *gev)
         from the call that initiated the asynchronous operation. </li>
     </ul>
     <hr size="2" width="100%">
-    <h2>5&nbsp; Datums (Records)</h2>
+    <h3>3.3&nbsp; GCL Open Information</h3>
+    <p>There is potentially a huge amount of information that might be provided
+      when a GCL is opened.&nbsp; Because this set is open-ended, it is
+      abstracted out into a separate API.&nbsp; The <code class="datatype">gdp_gcl_open_info_t</code>
+      datastructure encapsulates this information and can be passed into <code
+        class="function">gdp_gcl_open</code>.</p>
+    <hr>
+    <h4>Name</h4>
+    <p>gdp_gcl_open_info_new &mdash; create new open information datastructure</p>
+    <h4>Synopsis</h4>
+    <pre><span>gdp_gcl_open_info_t *gdp_gcl_open_info_new(void)</span></pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>Allocates a new <code class="datatype">gdp_gcl_open_info_t</code>
+        datastructure.</li>
+    </ul>
+    <hr>
+    <h4>Name</h4>
+    <p>gdp_gcl_open_info_free &mdash; free an existing open information
+      datastructure</p>
+    <h4>Synopsis</h4>
+    <pre>void gdp_gcl_open_info_free(gdp_gcl_open_info_t *info)</pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>Frees an existing <code class="datatype">gdp_gcl_open_info_t</code>
+        datastructure.</li>
+    </ul>
+    <hr>
+    <h4>Name</h4>
+    <p>gdp_gcl_open_info_set_signing_key &mdash; set the signing key in an open
+      information datastructure</p>
+    <h4>Synopsis</h4>
+    <pre>EP_STAT gdp_gcl_open_info_set_signing_key(
+		gdp_gcl_open_info_t *info,
+		EP_CRYPTO_KEY *skey)</pre>
+    <h4>Notes</h4>
+    <ul>
+      <li>Uses the indicated secret signing key <code class="variable">skey</code>
+        to do the signing for any GCL opened using this datastructure.</li>
+      <li>When <code class="variable">info</code> is freed, the signing key
+        will be freed as well.</li>
+    </ul>
+    <hr><br>
+    <p><br>
+    </p>
+    <h2>4&nbsp; Datums (Records)</h2>
     <p>GCLs are represented as a series of records of type <code>gdp_datum_t</code>.&nbsp;
       Each record has a record number, a commit timestamp, associated data, and
       possible signature information if the record was signed.&nbsp; Record
@@ -692,7 +741,7 @@ void (*cbfunc)(gdp_event_t *gev)
       records are added (i.e., record numbers are unique within a GCL and
       dense).&nbsp; Data is represented in dynamic buffers, as described below.
     </p>
-    <h3>5.1&nbsp; Datum Headers</h3>
+    <h3>4.1&nbsp; Datum Headers</h3>
     <hr size="2" width="100%">
     <h4>Name</h4>
     <p>gdp_datum_new, gdp_datum_free, gdp_datum_print &mdash;
@@ -767,7 +816,7 @@ void gdp_datum_print(const gdp_datum_t *datum,
         there is no signature.</li>
     </ul>
     <hr size="2" width="100%">
-    <h3>5.2&nbsp; Data Buffers</h3>
+    <h3>4.2&nbsp; Data Buffers</h3>
     <p>Data buffers grow dynamically as needed. </p>
     <hr size="2" width="100%">
     <h4>Name</h4>
@@ -845,7 +894,7 @@ void gdp_datum_print(const gdp_datum_t *datum,
       <li>This is not intended for end user presentation.</li>
     </ul>
     <hr size="2" width="100%">
-    <h3>5.3&nbsp; Timestamps</h3>
+    <h3>4.3&nbsp; Timestamps</h3>
     <p>The time abstraction is imported directly from the ep library.&nbsp;
       Times are represented as follows: </p>
     <blockquote>
@@ -862,8 +911,8 @@ typedef struct
     NTP this value is likely to be on the order of a few tens to a few hundreds
     of milliseconds, but if you set your clock manually it is likely to be
     several seconds or worse.
-    <h2>6&nbsp; Signing and Encryption</h2>
-    <h3> 6.1&nbsp; Signing</h3>
+    <h2>5&nbsp; Signing and Encryption</h2>
+    <h3> 5.1&nbsp; Signing</h3>
     <p>Each log should have a public key in the metadata which is used to verify
       writes to the log.&nbsp; The library hides most of the details of this,
       but some still appear.</p>
@@ -888,12 +937,12 @@ typedef struct
     <p>Once the secret key has been located and decrypted, all further append
       requests will be signed using the secret key and verified by the log
       daemon against the public key in the log metadata.</p>
-    <h3>6.2&nbsp; Encryption</h3>
+    <h3>5.2&nbsp; Encryption</h3>
     <p>Encryption is explicitly not part of the GDP.&nbsp; Ideally the GDP will
       never see unencrypted data.&nbsp; However, read and write filters (see the
       next section) can be used to set encryption and decryption hooks for
       externally implemented encryption.</p>
-    <h2>7&nbsp; Miscellaneous and Utilities</h2>
+    <h2>6&nbsp; Miscellaneous and Utilities</h2>
     <hr>
     <h4>Name</h4>
     <p>gdp_gcl_getnrecs &mdash; return the number of records in an existing GCL</p>
@@ -950,7 +999,7 @@ typedef struct
       Version info<br>
       PRIgdp_recno macro<br>
     </p>
-    <h2>8&nbsp; Examples</h2>
+    <h2>Appendix A:&nbsp; Examples</h2>
     <p>The following pseudo-code example excerpts from <tt>apps/gdp-writer.c</tt>.
     </p>
     <pre>#include &lt;gdp/gdp.h&gt;<br>#include &lt;stdio.h&gt;<br>#include &lt;string.h&gt;<br><br>int main(int argc, char **argv)<br>{<br>	gdp_tcl_t *gcl;<br>	EP_STAT estat;<br>	gdp_name_t gcliname;	// internal name of GCL<br>	gdp_datum_t *d;<br><br>	// general startup and initialization<br>	if (argc &lt; 2)<br>		usage_error();<br>	estat = gdp_init();<br>	if (!EP_STAT_ISOK(estat))<br>		initialization_error(estat);<br>	d = gdp_datum_new();
@@ -969,7 +1018,7 @@ typedef struct
     <pre>	// enable the subscription<br>	estat = gdp_gcl_subscribe(gcl, 1, -1, NULL, NULL);<br>	if (!EP_STAT_ISOK(estat))<br>		subscribe_error(estat, argv[1]);<br><br>	for (;;)<br>	{<br>		gdp_event_t *gev = gdp_event_next(true);<br>		if (gdp_event_gettype(gev) != GDP_EVENT_DATA)<br>			continue;<br>		gdp_datum_print(gdp_event_getdatum(gev), stdout);<br>		gdp_event_free(gev);<br>	}</pre>
     <br>
     <hr size="2" width="100%">
-    <h2>9&nbsp; Compiling and Linking</h2>
+    <h2>Appendix B:&nbsp; Compiling and Linking</h2>
     <p>The GDP library uses a reduced version of libep and also uses the
       libevent library version 2.1. These will need to be included both during
       compilation and linking.</p>
@@ -989,11 +1038,11 @@ typedef struct
     original (full) library, see <a href="http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtime">http://www.neophilic.com/blogs/eric.php/2014/05/12/libep-portable-c-runtime</a>.
     <p>For additional information, see the <tt>README</tt> file in the
       distribution directory. </p>
-    <h2> Appendix A: Open Questions</h2>
+    <h2> Appendix C: Open Questions</h2>
     <p>This section is really an addendum to the document &mdash; a "scratch
       area" to keep track of issues that we still need to consider.&nbsp; It may
       not be up to date. </p>
-    <h3>A.1 Access Control</h3>
+    <h3>C.1 Access Control</h3>
     <p> Do this using Access Control Lists (so each user/app has a keypair) or
       by passing public/secret keys around (so each GCL has a secret keypair).
       The latter makes revocation impossible (even for write access), so I
@@ -1013,7 +1062,7 @@ typedef struct
       untrusted. See the extensive work in email sender reputation. However,
       when a bad player creates a new identity/keypair they do not get access to
       any previous grants, so this may be sufficient.</p>
-    <h3> A.2 Naming</h3>
+    <h3> C.2 Naming</h3>
     <p> If each GCL has a secret keypair, then the public key is sufficient to
       name the entity. If not, then assigning a GCL a GUID on creation seems
       like the best approach. Having the user assign a name seems like a
@@ -1021,7 +1070,7 @@ typedef struct
     <p> There will probably be some need for external naming, e.g., some overlay
       directory structure. That might be a different gcl_type.</p>
     <p> This seems like an open research topic.</p>
-    <h3> A.3 Orphans, Expiration, Charging, and Accounting</h3>
+    <h3> C.3 Orphans, Expiration, Charging, and Accounting</h3>
     <p> If a GCL isn't linked into a directory structure and everyone forgets
       its name then it will live forever (or until it expires). This could be
       quite common if a GCL is temporary, that is, not a candidate for long-term
@@ -1047,7 +1096,7 @@ typedef struct
     <p> Note that none of this is dependent on the form of payment. It does
       however assume that there is a mutually agreed upon form of payment, i.e.,
       a universal currency.</p>
-    <h3> A.4 Quality of Service</h3>
+    <h3> C.4 Quality of Service</h3>
     <p> Is Quality of Service specified on a particular GCL, a particular open
       instance of a GCL, or between a pair of endpoints?</p>
     <p> What does QoS actually mean? For example, in a live media stream it
@@ -1060,7 +1109,7 @@ typedef struct
       sync, and may be higher or lower than the bandwidth required to send a
       real-time version of the stream &mdash; for example, over a slow network
       link.</p>
-    <h2> Appendix B: References</h2>
+    <h2> Appendix D: References</h2>
     <table border="1" cellpadding="2" cellspacing="2" width="100%">
       <tbody>
         <tr>

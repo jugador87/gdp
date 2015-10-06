@@ -298,6 +298,7 @@ gdp_gcl_open(gdp_name_t name,
 	EP_STAT estat;
 	gdp_gcl_t *gcl = NULL;
 	int cmd;
+	EP_CRYPTO_KEY *skey = NULL;
 
 	if (mode == GDP_MODE_RO)
 		cmd = GDP_CMD_OPEN_RO;
@@ -312,6 +313,11 @@ gdp_gcl_open(gdp_name_t name,
 		return GDP_STAT_BAD_IOMODE;
 	}
 
+	if (info != NULL)
+	{
+		skey = info->signkey;
+	}
+
 	if (!gdp_name_is_valid(name))
 	{
 		// illegal GCL name
@@ -323,7 +329,7 @@ gdp_gcl_open(gdp_name_t name,
 	EP_STAT_CHECK(estat, goto fail0);
 	gcl->iomode = mode;
 
-	estat = _gdp_gcl_open(gcl, cmd, NULL, _GdpChannel, GDP_REQ_ALLOC_RID);
+	estat = _gdp_gcl_open(gcl, cmd, skey, _GdpChannel, GDP_REQ_ALLOC_RID);
 	if (EP_STAT_ISOK(estat))
 	{
 		*pgcl = gcl;
@@ -495,4 +501,34 @@ gdp_gcl_set_read_filter(gdp_gcl_t *gcl,
 {
 	gcl->readfilter = readfilter;
 	gcl->readfpriv = filterdata;
+}
+
+
+/*
+**  GDP GCL Open Information handling
+*/
+
+gdp_gcl_open_info_t *
+gdp_gcl_open_info_new(void)
+{
+	gdp_gcl_open_info_t *info;
+
+	info = ep_mem_zalloc(sizeof*info);
+	return info;
+}
+
+void
+gdp_gcl_open_info_free(gdp_gcl_open_info_t *info)
+{
+	if (info->signkey != NULL)
+		ep_crypto_key_free(info->signkey);
+	ep_mem_free(info);
+}
+
+EP_STAT
+gdp_gcl_open_info_set_signing_key(gdp_gcl_open_info_t *info,
+		EP_CRYPTO_KEY *skey)
+{
+	info->signkey = skey;
+	return EP_STAT_OK;
 }
