@@ -56,7 +56,7 @@ gdp-router-docker-image: $(GDP_ROUTER_ROOT) $(GDP_ROUTER_DOCKERFILE)
 
 gdp-logd-docker-image: $(GDP_ROOT) $(GDP_LOGD_DOCKERFILE)
 	$(GDP_ROOT)/deb-pkg/package-server.sh $(GDP_LOGD_VERSION)
-	cp $(GDP_ROOT)/gdp-server_$(GDP_LOGD_VERSION)_amd64.deb .
+	mv $(GDP_ROOT)/gdp-server_$(GDP_LOGD_VERSION)_amd64.deb .
 	cp $(GDP_LOGD_DOCKERFILE) Dockerfile
 	docker build -t gdplogd .
 	rm -f Dockerfile
