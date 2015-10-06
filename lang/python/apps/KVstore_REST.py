@@ -61,12 +61,15 @@ class KVstoreResource(Resource):
 
     def __get_to_dict(self, key, ts):
         temp = self.kvstore.get(key, ts)
-        t = {'key': key, 'value': temp[1], 'ts': temp[0]}
+        if temp is not None:
+            t = {'key': key, 'value': temp[1], 'ts': temp[0]}
+        else:
+            t = {'key': key, 'value': None, 'ts': None}
         return t
 
 
     def render_GET(self, request):
-
+        print "Received request:", request.uri
         if request.uri == "/":
             t = self.kvstore.keys()
         else:
@@ -79,6 +82,7 @@ class KVstoreResource(Resource):
 
     def render_PUT(self, request):
         val =  request.content.read()
+        print "Received request:", request.uri, val
         key = request.uri[1:]
         self.kvstore[key] = val
         t = self.__get_to_dict(key, time.time()+86400)
@@ -99,5 +103,6 @@ if __name__ == '__main__':
     mode = KVstore.MODE_RW if args.write else KVstore.MODE_RO
     site = Site(KVstoreResource(args.logname[0], mode))
     reactor.listenTCP(args.port, site)
+    print "Starting REST interface on port", args.port
     reactor.run()
 
