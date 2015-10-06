@@ -769,8 +769,14 @@ EP_STAT
 ep_crypto_key_compat(const EP_CRYPTO_KEY *pubkey, const EP_CRYPTO_KEY *seckey)
 {
 	int istat = EVP_PKEY_cmp(pubkey, seckey);
+	int icheck;
 
-	if (istat == 1)
+	// setting this param to false is mostly for debugging
+	if (ep_adm_getboolparam("libep.crypto.key.compat.strict", true))
+		icheck = 1;	// check to see that key halves match
+	else
+		icheck = 0;	// just check to see if they are the same type
+	if (istat >= icheck)
 		return EP_STAT_OK;
 	return EP_STAT_CRYPTO_KEYCOMPAT;
 }
