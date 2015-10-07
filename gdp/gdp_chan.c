@@ -233,8 +233,10 @@ _gdp_chan_open(const char *gdp_addr,
 		}
 		if (port == NULL || *port == '\0')
 		{
+			int portno = ep_adm_getintparam("swarm.gdp.router.port",
+							GDP_PORT_DEFAULT);
 			port = pbuf;
-			snprintf(pbuf, sizeof pbuf, "%d", GDP_PORT_DEFAULT);
+			snprintf(pbuf, sizeof pbuf, "%d", portno);
 		}
 
 		ep_dbg_cprintf(Dbg, 20, "_gdp_chan_open: trying host %s port %s\n",
