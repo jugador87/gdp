@@ -75,7 +75,12 @@ populate_info(json_t *json)
 **  BSD/MacOS version of data collection
 */
 
+#include <sys/resource.h>
 #include <sys/sysctl.h>
+
+#if !__APPLE__
+#include <vm/vm_param.h>
+#endif
 
 void
 do_sysctl(int mib0,
