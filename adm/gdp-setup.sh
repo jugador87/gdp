@@ -143,6 +143,7 @@ case "$OS" in
 	package openssl
 	package lighttpd
 	package jansson
+	package avahi-devel.x86_64
 	;;
 
     *)
