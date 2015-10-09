@@ -8,5 +8,4 @@ Depends: libevent-dev (>= 2.0.5),
     libjansson-dev (>= 2.3.1),
     avahi-daemon (>=0.6.31)
 Description: GDP log daemon (gdplogd) without REST 
-  interface. Also includes machine-mon, as an example
-  program that utilizes the local log server
+  interface. 
