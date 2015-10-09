@@ -46,7 +46,7 @@ void
 ep_dbg_init(void)
 {
 	if (DebugFile == NULL)
-		ep_dbg_setfile(stderr);
+		ep_dbg_setfile(NULL);
 	EP_ASSERT(DebugFile != NULL);
 }
 
@@ -252,8 +252,8 @@ ep_dbg_setfile(
 		return;
 
 	// close the old stream
-//	if (DebugFile != NULL)
-//		(void) fclose(DebugFile);
+	if (DebugFile != NULL && DebugFile != stdout && DebugFile != stderr)
+		(void) fclose(DebugFile);
 
 	// if fp is NULL, switch to the default
 	if (fp != NULL)
@@ -279,6 +279,7 @@ ep_dbg_setfile(
 				DebugFile = stderr;
 			}
 		}
+		setlinebuf(DebugFile);
 	}
 }
 
