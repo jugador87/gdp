@@ -92,6 +92,9 @@ _gdp_gcl_freehandle(gdp_gcl_t *gcl)
 	// drop it from the name -> handle cache
 	_gdp_gcl_cache_drop(gcl);
 
+	// should still be in use, but now no other way to reach the GCL
+	EP_ASSERT_INSIST(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
+
 	// release any remaining requests
 	if (!LIST_EMPTY(&gcl->reqs))
 	{

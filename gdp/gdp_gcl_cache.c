@@ -183,9 +183,15 @@ void
 _gdp_gcl_cache_drop(gdp_gcl_t *gcl)
 {
 	GDP_ASSERT_GOOD_GCL(gcl);
+
+	// lock the GCL cache and the GCL for the duration
+	ep_thr_mutex_lock(&GclCacheMutex);
+	ep_thr_mutex_lock(&gcl->mutex);
+
 	if (!EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
 	{
 		ep_dbg_cprintf(Dbg, 8, "_gdp_gcl_cache_drop(%p): uncached\n", gcl);
+		ep_thr_mutex_unlock(&GclCacheMutex);
 		return;
 	}
 
@@ -194,13 +200,12 @@ _gdp_gcl_cache_drop(gdp_gcl_t *gcl)
 						NULL);
 
 	// ... and the LRU list
-	if (!EP_UT_BITSET(GCLF_ISLOCKED, gcl->flags))
-		ep_thr_mutex_lock(&GclCacheMutex);
 	LIST_REMOVE(gcl, ulist);
-	if (!EP_UT_BITSET(GCLF_ISLOCKED, gcl->flags))
-		ep_thr_mutex_unlock(&GclCacheMutex);
-
 	gcl->flags &= ~GCLF_INCACHE;
+
+	ep_thr_mutex_unlock(&gcl->mutex);
+	ep_thr_mutex_unlock(&GclCacheMutex);
+
 	ep_dbg_cprintf(Dbg, 42, "_gdp_gcl_cache_drop: %s => %p\n",
 			gcl->pname, gcl);
 }
