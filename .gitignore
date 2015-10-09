@@ -29,3 +29,5 @@ tags
 !libs/*.so*
 !doc/Libep.pdf
 doc/*.pdf
+*.deb
+lang/python/temp.apps/*
