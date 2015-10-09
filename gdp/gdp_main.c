@@ -487,13 +487,13 @@ run_as(const char *runasuser)
 		{
 			ep_app_warn("User %s unknown; running as 1:1 (daemon)",
 					runasuser);
-			setgid(1);
-			setuid(1);
+			(void) setgid(1);
+			(void) setuid(1);
 		}
 		else
 		{
-			setgid(pw->pw_gid);
-			setuid(pw->pw_uid);
+			(void) setgid(pw->pw_gid);
+			(void) setuid(pw->pw_uid);
 		}
 	}
 }
