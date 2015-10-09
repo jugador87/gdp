@@ -199,9 +199,10 @@ getparamval(
 	const char *pname)
 {
 	static bool recurse = false;
+	extern bool _EpLibInitialized;
 
-	// don't allow recursive calls into this routine
-	if (recurse)
+	// don't allow recursive calls or use before initialization
+	if (recurse | !_EpLibInitialized)
 		return NULL;
 
 	// if we have no data, read it in

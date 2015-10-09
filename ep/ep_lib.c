@@ -14,12 +14,12 @@
 extern void	_ep_stat_init(void);
 extern void	_ep_thr_init(void);
 
+bool	_EpLibInitialized = false;
+
 EP_STAT
 ep_lib_init(uint32_t flags)
 {
-	static bool initialized = false;
-
-	if (initialized)
+	if (_EpLibInitialized)
 		return EP_STAT_OK;
 	if (EP_UT_BITSET(EP_LIB_USEPTHREADS, flags))
 		_ep_thr_init();
@@ -27,6 +27,6 @@ ep_lib_init(uint32_t flags)
 	ep_adm_readparams("defaults");
 	ep_str_vid_set(NULL);
 	ep_str_char_set(NULL);
-	initialized = true;
+	_EpLibInitialized = true;
 	return EP_STAT_OK;
 }

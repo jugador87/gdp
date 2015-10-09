@@ -374,7 +374,7 @@ ep_stat_reg_strings(struct ep_stat_to_string *r)
 {
 	if (EpStatStrings == NULL)
 	{
-		EpStatStrings = ep_hash_new("EP_STAT to string", NULL, 0);
+		EpStatStrings = ep_hash_new("EP_STAT to string", NULL, 173);
 		if (EpStatStrings == NULL)
 			return;
 	}
