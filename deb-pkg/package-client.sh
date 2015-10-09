@@ -46,7 +46,7 @@ install -m 0644 $topdir/examples/*      $tmpdir/usr/share/doc/gdp/examples/
 
 # programs
 mkdir -p $tmpdir/usr/bin/
-for file in gcl-create writer-test reader-test log-view; do
+for file in gcl-create gdp-writer gdp-reader log-view; do
     install -D  $topdir/apps/$file      $tmpdir/usr/bin/$file
 done
 

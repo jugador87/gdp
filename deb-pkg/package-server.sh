@@ -25,10 +25,7 @@ cd $topdir && make all
 
 # copy files
 install -D -m 0644  $topdir/deb-pkg/server/gdplogd.conf                $tmpdir/etc/init/gdplogd.conf
-install -D -m 0644  $topdir/deb-pkg/server/gdp-machine-mon.conf        $tmpdir/etc/init/gdp-machine-mon.conf
 install -D          $topdir/gdplogd/gdplogd       $tmpdir/usr/bin/gdplogd
-install -D          $topdir/apps/gcl-create       $tmpdir/usr/bin/gcl-create
-install -D          $topdir/examples/machine-mon  $tmpdir/usr/bin/gdp-machine-mon
 
 # deb package control files
 cp -a $topdir/deb-pkg/server/DEBIAN $tmpdir/.
