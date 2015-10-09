@@ -16,28 +16,15 @@ echo "Creating appropriate directories..."
 
 # Make sure the ownerships are set up properly
 touch $LOGDIR/gdplogd.log 
-touch $LOGDIR/gdp-machine-mon.log 
 chown -R gdp:root $LOGDIR
 chown -R gdp:root $GCLDIR
 
 # Get list of routers <hardcoded for now>
 echo "Figuring out router information..."
 hostname=`hostname`
-if echo $hostname | grep -q '^gdp-0'
-then
-    routers="127.0.0.1"
-    for i in 01 02 03
-    do
-        if [ $hostname != "gdp-$i" ]
-        then
-            routers="$routers; gdp-$i.eecs.berkeley.edu"
-        fi
-    done
-else
-    routers="gdp-01.eecs.berkeley.edu; gdp-02.eecs.berkeley.edu; gdp-03.eecs.berkeley.edu"
-    t=`echo $routers | sed "s/; /\n/g" | shuf | tr -s '\n' ';' | sed "s/;/; /g"`
-    routers=$t
-fi
+routers="gdp-01.eecs.berkeley.edu; gdp-02.eecs.berkeley.edu; gdp-03.eecs.berkeley.edu"
+t=`echo $routers | sed "s/; /\n/g" | shuf | tr -s '\n' ';' | sed "s/;/; /g"`
+routers="127.0.0.1; $t"
 
 # Set up GDP params for, say gdp-machine-mon
 echo "Setting up general GDP parameters..."
@@ -66,4 +53,3 @@ fi
 # finally start the service
 echo "Starting the service..."
 service gdplogd restart
-service gdp-machine-mon restart
