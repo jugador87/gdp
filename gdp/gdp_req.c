@@ -81,6 +81,8 @@ _gdp_req_new(int cmd,
 	gdp_req_t *req;
 	bool newpdu = pdu == NULL;
 
+	EP_ASSERT_REQUIRE(gcl == NULL || EP_UT_BITSET(GCLF_INUSE, gcl->flags));
+
 	// get memory, off free list if possible
 	ep_thr_mutex_lock(&ReqFreeListMutex);
 	if ((req = LIST_FIRST(&ReqFreeList)) != NULL)
@@ -357,6 +359,7 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 
 	ep_dbg_cprintf(Dbg, 50, "_gdp_req_find(gcl=%p, rid=%" PRIgdp_rid")\n",
 			gcl, rid);
+	GDP_ASSERT_GOOD_GCL(gcl);
 
 	for (;;)
 	{

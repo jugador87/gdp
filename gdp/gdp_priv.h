@@ -143,6 +143,10 @@ struct gdp_gcl
 #define GCLF_INUSE			0x0008		// handle is allocated
 #define GCLF_DEFER_FREE		0x0010		// defer actual free until reclaim
 
+#define GDP_ASSERT_GOOD_GCL(gcl) \
+				(EP_ASSERT_REQUIRE((gcl) != NULL && \
+				EP_UT_BITSET(GCLF_INUSE, (gcl)->flags)))
+
 /*
 **  GCL cache.
 **

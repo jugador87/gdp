@@ -78,9 +78,8 @@ void
 _gdp_gcl_cache_add(gdp_gcl_t *gcl, gdp_iomode_t mode)
 {
 	// sanity checks
-	EP_ASSERT_POINTER_VALID(gcl);
+	GDP_ASSERT_GOOD_GCL(gcl);
 	EP_ASSERT_REQUIRE(gdp_name_is_valid(gcl->name));
-	EP_ASSERT_REQUIRE(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
 
 	if (EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
 	{
@@ -183,6 +182,7 @@ done:
 void
 _gdp_gcl_cache_drop(gdp_gcl_t *gcl)
 {
+	GDP_ASSERT_GOOD_GCL(gcl);
 	if (!EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
 	{
 		ep_dbg_cprintf(Dbg, 8, "_gdp_gcl_cache_drop(%p): uncached\n", gcl);
@@ -215,7 +215,7 @@ _gdp_gcl_touch(gdp_gcl_t *gcl)
 {
 	struct timeval tv;
 
-	EP_ASSERT_REQUIRE(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
+	GDP_ASSERT_GOOD_GCL(gcl);
 
 	if (!EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
 	{
@@ -309,6 +309,7 @@ _gdp_gcl_cache_shutdown(void (*shutdownfunc)(gdp_req_t *))
 void
 _gdp_gcl_incref(gdp_gcl_t *gcl)
 {
+	GDP_ASSERT_GOOD_GCL(gcl);
 	ep_thr_mutex_lock(&gcl->mutex);
 	gcl->refcnt++;
 	_gdp_gcl_touch(gcl);
@@ -325,6 +326,7 @@ void
 _gdp_gcl_decref(gdp_gcl_t *gcl)
 {
 	ep_dbg_cprintf(Dbg, 70, "_gdp_gcl_decref(%p)...\n", gcl);
+	GDP_ASSERT_GOOD_GCL(gcl);
 	ep_thr_mutex_lock(&gcl->mutex);
 	if (gcl->refcnt > 0)
 	{

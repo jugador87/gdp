@@ -29,6 +29,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl.ops", "GCL operations for GDP");
 void
 _gdp_gcl_newname(gdp_gcl_t *gcl)
 {
+	GDP_ASSERT_GOOD_GCL(gcl);
 	_gdp_newname(gcl->name, gcl->gclmd);
 	gdp_printable_name(gcl->name, gcl->pname);
 }
@@ -86,8 +87,7 @@ void
 _gdp_gcl_freehandle(gdp_gcl_t *gcl)
 {
 	ep_dbg_cprintf(Dbg, 28, "_gdp_gcl_freehandle(%p)\n", gcl);
-
-	EP_ASSERT(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
+	GDP_ASSERT_GOOD_GCL(gcl);
 
 	// drop it from the name -> handle cache
 	_gdp_gcl_cache_drop(gcl);
@@ -266,6 +266,8 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 	int pktype;
 	int pkbits;
 
+	GDP_ASSERT_GOOD_GCL(gcl);
+
 	// send the request across to the log daemon
 	errno = 0;				// avoid spurious messages
 	estat = _gdp_req_new(cmd, gcl, chan, NULL, reqflags, &req);
@@ -399,7 +401,7 @@ _gdp_gcl_close(gdp_gcl_t *gcl,
 
 	errno = 0;				// avoid spurious messages
 
-	EP_ASSERT_POINTER_VALID(gcl);
+	GDP_ASSERT_GOOD_GCL(gcl);
 
 	estat = _gdp_req_new(GDP_CMD_CLOSE, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -431,7 +433,7 @@ append_common(gdp_gcl_t *gcl,
 
 	errno = 0;				// avoid spurious messages
 
-	EP_ASSERT_POINTER_VALID(gcl);
+	GDP_ASSERT_GOOD_GCL(gcl);
 	EP_ASSERT_POINTER_VALID(datum);
 	if (!EP_UT_BITSET(GDP_MODE_AO, gcl->iomode))
 		goto fail0;
@@ -574,7 +576,7 @@ _gdp_gcl_read(gdp_gcl_t *gcl,
 
 	errno = 0;				// avoid spurious messages
 
-	EP_ASSERT_POINTER_VALID(gcl);
+	GDP_ASSERT_GOOD_GCL(gcl);
 	EP_ASSERT_POINTER_VALID(datum);
 	if (!EP_UT_BITSET(GDP_MODE_RO, gcl->iomode))
 		goto fail0;
@@ -606,8 +608,9 @@ _gdp_gcl_getmetadata(gdp_gcl_t *gcl,
 	EP_STAT estat;
 	gdp_req_t *req;
 
-	errno = 0;				// avoid spurious messages
+	GDP_ASSERT_GOOD_GCL(gcl);
 
+	errno = 0;				// avoid spurious messages
 	estat = _gdp_req_new(GDP_CMD_GETMETADATA, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 

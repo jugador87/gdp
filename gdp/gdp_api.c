@@ -182,6 +182,7 @@ gdp_name_is_valid(const gdp_name_t name)
 gdp_recno_t
 gdp_gcl_getnrecs(const gdp_gcl_t *gcl)
 {
+	GDP_ASSERT_GOOD_GCL(gcl);
 	return gcl->nrecs;
 }
 
@@ -485,6 +486,7 @@ gdp_gcl_set_append_filter(gdp_gcl_t *gcl,
 		EP_STAT (*appendfilter)(gdp_datum_t *, void *),
 		void *filterdata)
 {
+	GDP_ASSERT_GOOD_GCL(gcl);
 	gcl->apndfilter = appendfilter;
 	gcl->apndfpriv = filterdata;
 }
@@ -499,6 +501,7 @@ gdp_gcl_set_read_filter(gdp_gcl_t *gcl,
 		EP_STAT (*readfilter)(gdp_datum_t *, void *),
 		void *filterdata)
 {
+	GDP_ASSERT_GOOD_GCL(gcl);
 	gcl->readfilter = readfilter;
 	gcl->readfpriv = filterdata;
 }
