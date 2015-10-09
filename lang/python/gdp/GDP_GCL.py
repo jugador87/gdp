@@ -47,7 +47,8 @@ class GDP_GCL:
 
         name=<name-of-gcl>, iomode=<mode>
         name is a GDP_NAME object
-        mode is one of the following: GDP_MODE_ANY, GDP_MODE_RO, GDP_MODE_AO
+        mode is one of the following: GDP_MODE_ANY, GDP_MODE_RO, GDP_MODE_AO,
+                                      GDP_MODE_RA
         """
 
         # self.ptr is just a C style pointer, that we will assign to something
