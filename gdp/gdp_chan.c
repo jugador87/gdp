@@ -208,6 +208,8 @@ _gdp_chan_open(const char *gdp_addr,
 			ZCInfo **list;
 			char *info = NULL;
 
+			ep_dbg_cprintf(DemoMode, 1, "Trying Zeroconf:\n");
+
 			if (gdp_zc_scan())
 			{
 				list = gdp_zc_get_infolist();
