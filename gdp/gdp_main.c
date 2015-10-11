@@ -4,6 +4,7 @@
 #include "gdp_event.h"
 #include "gdp_priv.h"
 
+#include <ep/ep.h>
 #include <ep/ep_app.h>
 #include <ep/ep_dbg.h>
 #include <ep/ep_log.h>
@@ -482,19 +483,23 @@ run_as(const char *runasuser)
 {
 	if (runasuser != NULL && *runasuser != '\0')
 	{
+		uid_t uid;
+		gid_t gid;
 		struct passwd *pw = getpwnam(runasuser);
 		if (pw == NULL)
 		{
 			ep_app_warn("User %s unknown; running as 1:1 (daemon)",
 					runasuser);
-			(void) setgid(1);
-			(void) setuid(1);
+			gid = 1;
+			uid = 1;
 		}
 		else
 		{
-			(void) setgid(pw->pw_gid);
-			(void) setuid(pw->pw_uid);
+			gid = setgid(pw->pw_gid);
+			uid = setuid(pw->pw_uid);
 		}
+		if (setgid(gid) < 0 || setuid(uid) < 0)
+			ep_app_warn("Cannot set user/group id (%d:%d)", uid, gid);
 	}
 }
 

@@ -80,11 +80,15 @@ ep_assert_abort(const char *msg)
 
 	// no?  OK then, let's bail out near line 1
 	strerror_r(errno, msg1, sizeof msg1);
-	(void) write(2, msg0, strlen(msg0));
-	(void) write(2, msg1, strlen(msg1));
-	(void) write(2, msg2, strlen(msg2));
-	(void) write(2, msg, strlen(msg));
-	(void) write(2, "\n", 1);
+	if (write(2, msg0, strlen(msg0)) <= 0 ||
+		write(2, msg1, strlen(msg1)) <= 0 ||
+		write(2, msg2, strlen(msg2)) <= 0 ||
+		write(2, msg, strlen(msg)) <= 0 ||
+		write(2, "\n", 1) <= 0)
+	{
+		// um, not much to do here; we just did this to make GCC happy
+		abort();
+	}
 	abort();
 
 	// if abort fails, what to do, what to do?

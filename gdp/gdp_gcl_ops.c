@@ -267,7 +267,6 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 	const uint8_t *pkbuf;
 	int md_alg;
 	int pktype;
-	int pkbits;
 
 	GDP_ASSERT_GOOD_GCL(gcl);
 
@@ -300,7 +299,6 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 
 	md_alg = pkbuf[0];
 	pktype = pkbuf[1];
-	pkbits = (pkbuf[2] << 8) | pkbuf[3];
 
 	if (secretkey == NULL)
 	{
