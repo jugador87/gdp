@@ -309,12 +309,18 @@ cmd_open(gdp_req_t *req)
 		if (false)
 		{
 nopubkey:
-			ep_dbg_cprintf(Dbg, 1, "WARNING: no public key for %s\n",
-						gcl->pname);
 			if (EP_UT_BITSET(GDP_SIG_PUBKEYREQ, GdpSignatureStrictness))
+			{
+				ep_dbg_cprintf(Dbg, 1, "ERROR: no public key for %s\n",
+							gcl->pname);
 				estat = GDP_STAT_CRYPTO_SIGFAIL;
+			}
 			else
+			{
+				ep_dbg_cprintf(Dbg, 51, "WARNING: no public key for %s\n",
+							gcl->pname);
 				estat = EP_STAT_OK;
+			}
 		}
 	}
 
@@ -459,47 +465,54 @@ cmd_append(gdp_req_t *req)
 	// check the signature in the PDU
 	if (req->gcl->digest == NULL)
 	{
-		ep_dbg_cprintf(Dbg, 1, "cmd_append: no public key\n");
+		// error (maybe): no public key
 		if (EP_UT_BITSET(GDP_SIG_PUBKEYREQ, GdpSignatureStrictness))
+		{
+			ep_dbg_cprintf(Dbg, 1, "cmd_append: no public key (fail)\n");
 			goto fail1;
+		}
+		ep_dbg_cprintf(Dbg, 51, "cmd_append: no public key (warn)\n");
+	}
+	else if (req->pdu->datum->sig == NULL)
+	{
+		// error (maybe): signature required
+		if (EP_UT_BITSET(GDP_SIG_REQUIRED, GdpSignatureStrictness))
+		{
+			ep_dbg_cprintf(Dbg, 1, "cmd_append: missing signature (fail)\n");
+			goto fail1;
+		}
+		ep_dbg_cprintf(Dbg, 1, "cmd_append: missing signature (warn)\n");
 	}
 	else
 	{
-		if (req->pdu->datum->sig == NULL)
+		// check the signature
+		uint8_t recnobuf[8];		// 64 bits
+		uint8_t *pbp = recnobuf;
+		size_t len;
+		gdp_datum_t *datum = req->pdu->datum;
+		EP_CRYPTO_MD *md = ep_crypto_md_clone(req->gcl->digest);
+
+		PUT64(datum->recno);
+		ep_crypto_vrfy_update(md, &recnobuf, sizeof recnobuf);
+		len = gdp_buf_getlength(datum->dbuf);
+		ep_crypto_vrfy_update(md, gdp_buf_getptr(datum->dbuf, len), len);
+		len = gdp_buf_getlength(datum->sig);
+		estat = ep_crypto_vrfy_final(md,
+						gdp_buf_getptr(datum->sig, len), len);
+		ep_crypto_md_free(md);
+		if (!EP_STAT_ISOK(estat))
 		{
-			// error: signature required
-			ep_dbg_cprintf(Dbg, 1, "cmd_append: missing signature\n");
-			if (EP_UT_BITSET(GDP_SIG_REQUIRED, GdpSignatureStrictness))
+			// error: signature failure
+			if (EP_UT_BITSET(GDP_SIG_MUSTVERIFY, GdpSignatureStrictness))
+			{
+				ep_dbg_cprintf(Dbg, 1, "cmd_append: signature failure (fail)\n");
 				goto fail1;
+			}
+			ep_dbg_cprintf(Dbg, 51, "cmd_append: signature failure (warn)\n");
 		}
 		else
 		{
-			uint8_t recnobuf[8];		// 64 bits
-			uint8_t *pbp = recnobuf;
-			size_t len;
-			gdp_datum_t *datum = req->pdu->datum;
-			EP_CRYPTO_MD *md = ep_crypto_md_clone(req->gcl->digest);
-
-			PUT64(datum->recno);
-			ep_crypto_vrfy_update(md, &recnobuf, sizeof recnobuf);
-			len = gdp_buf_getlength(datum->dbuf);
-			ep_crypto_vrfy_update(md, gdp_buf_getptr(datum->dbuf, len), len);
-			len = gdp_buf_getlength(datum->sig);
-			estat = ep_crypto_vrfy_final(md,
-							gdp_buf_getptr(datum->sig, len), len);
-			ep_crypto_md_free(md);
-			if (!EP_STAT_ISOK(estat))
-			{
-				// error: signature failure
-				estat = GDP_STAT_NAK_FORBIDDEN;
-				ep_dbg_cprintf(Dbg, 1, "cmd_append: signature failure\n");
-				if (EP_UT_BITSET(GDP_SIG_MUSTVERIFY, GdpSignatureStrictness))
-					goto fail0;
-			}
-			else
-			{
-				ep_dbg_cprintf(Dbg, 20, "cmd_append: good signature\n");
-			}
+			ep_dbg_cprintf(Dbg, 51, "cmd_append: good signature\n");
 		}
 	}
 
@@ -517,10 +530,10 @@ cmd_append(gdp_req_t *req)
 	if (false)
 	{
 fail1:
-		estat = EP_STAT_CRYPTO_BADSIG;
+		estat = GDP_STAT_NAK_FORBIDDEN;
 	}
 
-fail0:
+//fail0:
 	// we can now let the data in the request go
 	evbuffer_drain(req->pdu->datum->dbuf,
 			evbuffer_get_length(req->pdu->datum->dbuf));
