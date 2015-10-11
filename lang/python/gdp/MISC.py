@@ -71,6 +71,20 @@ class EP_STAT(Structure):
 EP_STAT._fields_ = [("code", c_ulong)]
 
 
+# converting EP_STAT error codes to string
+def ep_stat_tostr(ep): 
+    """ returns string representation of estat """
+    buf = create_string_buffer(200)
+
+    __func = gdp.ep_stat_tostr
+    __func.argtypes = [EP_STAT, c_void_p, c_size_t]
+    __func.restype = c_void_p
+
+    __func(ep, buf, 200)
+
+    return string_at(buf)
+
+
 # Handling EP_STAT and error code checking
 class EP_STAT_SEV_WARN(Exception):
     pass
@@ -100,7 +114,8 @@ def check_EP_STAT(ep_stat):
     shiftbits = 29
     t = ep_stat.code >> shiftbits
     if t >= 4:
-        print hex(t), hex(ep_stat.code)
+        # print hex(t), hex(ep_stat.code)
+        print ep_stat_tostr(ep_stat)
     if t == 4:
         raise EP_STAT_SEV_WARN
     if t == 5:
