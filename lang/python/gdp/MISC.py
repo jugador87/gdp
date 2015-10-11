@@ -11,8 +11,8 @@ package_directory = os.path.dirname(os.path.abspath(__file__))
 # Load the DLLs. Make sure that the files actually exist ###
 gdp = CDLL(os.path.join(package_directory,
            "..", "..", "..", "libs",  "libgdp.so"))
-ep = CDLL(os.path.join(package_directory,
-          "..", "..", "..", "libs", "libep.so"))
+#ep = CDLL(os.path.join(package_directory,
+#          "..", "..", "..", "libs", "libep.so"))
 try:
     evb = CDLL("libevent.so")       # On linux
 except OSError:
@@ -117,7 +117,6 @@ class event_base(Structure):
 # XXX: I don't think this is used anywhere, Remove, maybe?
 GdpIoEventBase = POINTER(event_base)
 
-
 def gdp_init(*args):
     """
     initialize the library, takes an optional argument of the form "HOST:PORT"
@@ -134,6 +133,19 @@ def gdp_init(*args):
         estat = __func(buf)
 
     check_EP_STAT(estat)
+
+
+def dbg_set(level):
+    """
+    Set debug level to a specified value. This is equivalent to the
+        -D option in C example programs
+    """
+    dbg_string = create_string_buffer(level)
+
+    __func = gdp.ep_dbg_set
+    __func.argtypes = [c_void_p]
+
+    __func(dbg_string)
 
 
 def gdp_run_accept_event_loop(arg):
