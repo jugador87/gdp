@@ -253,11 +253,16 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *basemd)
 	PUT32(pdu->rid);
 
 	// signature digest algorithm and size
+	if (pdu->datum != NULL)
 	{
 		uint16_t sigtmp;
 		sigtmp = (pdu->datum->siglen & 0x0fff) |
 				((pdu->datum->sigmdalg & 0x0f) << 12);
 		PUT16(sigtmp);
+	}
+	else
+	{
+		PUT16(0);
 	}
 
 	// length of options (filled in later)
