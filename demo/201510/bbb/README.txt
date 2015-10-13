@@ -14,9 +14,24 @@ Steps to be followed:
 3. (Optionally) use lang/python/deb-pkg/package.sh to create a Python package.
    This is optional on the BBB, since this is architecture independent.
 
-### Installation of Bluetooth packages:
-This is simple:
-apt-get install bluez
+
+### Installation of necessary packages:
+apt-get install python-pexpect
+
+## Install relatively newer version of bluez, this needs compilation from source
+## More or less copied from
+## http://mike.saunby.net/2013/04/raspberry-pi-and-ti-cc2541-sensortag.html?showComment=1366548609286#c6159475368411851381
+
+apt-get install libusb-dev libdbus-1-dev libglib2.0-dev automake \
+    libudev-dev libical-dev libreadline-dev
+
+wget https://www.kernel.org/pub/linux/bluetooth/bluez-5.4.tar.xz
+tar xvf bluez-5.4.tar.xz
+cd bluez-5.4
+./configure --disable-systemd
+make
+cp attrib/gatttool /usr/local/bin/
+
 
 ### Get SensorTag library:
 git clone https://github.com/niteshmor/SensorTag2.git
