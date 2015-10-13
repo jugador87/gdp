@@ -15,8 +15,8 @@ make
 
 # install debian packages
 sudo dpkg -r python-gdp gdp-client
-sudo dpkg -i $gdp/gdp-client*deb
-sudo dpkg -i $gdp/python-gdp*deb
+sudo dpkg -i $gdp/gdp-client_0.3-1_amd64.deb
+sudo dpkg -i $gdp/python-gdp_0.3-1_all.deb
 sudo apt-get -f install
 
 # make java stuff
