@@ -29,6 +29,7 @@
 package org.terraswarm.gdp.apps;
 
 import java.nio.ByteBuffer;
+import java.util.Date;
 
 import org.terraswarm.gdp.EP_TIME_SPEC;
 import org.terraswarm.gdp.EP_STAT;
@@ -172,10 +173,20 @@ public class ReaderTest {
         }
 
         for (;;) {
+
+            Date d = new Date();
+            long tv_sec = d.getTime()/1000;
+            int tv_nsec = (int) (d.getTime()%1000);
+            float tv_accuracy = (float)0.0;
+
             // Was: gdp_event_t *gev = gdp_event_next(true);
             PointerByReference gev = Gdp02Library.INSTANCE
                 // .gdp_event_next(true ? (byte) 1 : (byte) 0);
-                .gdp_event_next((PointerByReference)null, new EP_TIME_SPEC());
+                .gdp_event_next((PointerByReference)null,
+                                 new EP_TIME_SPEC(tv_sec+1, tv_nsec, tv_accuracy));
+            //Pointer t = gev.getValue();
+            //System.out.println(t==Pointer.NULL);
+
             switch (Gdp02Library.INSTANCE.gdp_event_gettype(gev)) {
             case GdpUtilities.GDP_EVENT_DATA:
                 System.out.print(" >>> ");
