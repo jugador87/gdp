@@ -38,7 +38,7 @@ LOGD_CMDLINE_ARGS = -D *=10       # this is in addition to '-G <router>'
 
 ROUTER_IPS = $(foreach num,$(shell seq 1 $(NUM_ROUTERS)),$(ROUTER_IP_PREFIX)$(num))
 ROUTER_CMDLINE_ARGS_ROUTERS = $(shell echo "$(foreach router,$(ROUTER_IPS),$(router):$(ROUTER_PORT))" | sed -e 's/ /,/g')
-ROUTER_CMDLINE_ARGS = -w 120 -r $(ROUTER_CMDLINE_ARGS_ROUTERS)
+ROUTER_CMDLINE_ARGS = -w 10 -r $(ROUTER_CMDLINE_ARGS_ROUTERS)
 TMP_FILE = /tmp/.gdp-test-launched-routers
 
 
