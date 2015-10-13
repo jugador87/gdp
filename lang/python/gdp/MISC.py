@@ -137,6 +137,9 @@ def gdp_init(*args):
     initialize the library, takes an optional argument of the form "HOST:PORT"
     """
 
+    # XXX: only for the demo
+    dbg_set("_demo=1")
+
     __func = gdp.gdp_init
     __func.argtypes = [c_void_p]
     __func.restype = EP_STAT
