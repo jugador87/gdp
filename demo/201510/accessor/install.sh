@@ -52,6 +52,7 @@ ln -s $gdp/demo/201510/accessor/GDP.accessor
 ln -s $gdp/demo/201510/accessor/demo
 
 # Now compile ptolemy
+rm -f config.status config.cache
 autoconf
 ./configure
 ant

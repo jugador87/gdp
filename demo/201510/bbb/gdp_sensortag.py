@@ -47,7 +47,7 @@ if __name__=="__main__":
     # this is where we should get a little more creative.
     # for now, logname = address, and we assume that the logs are precreated
 
-    sensors = ["temperature", "humidity", "barometer", "imu", "optical"]
+    sensors = ["optical"]
     tags = {}
     for addr in sys.argv[1:]:
         tags[addr] = "KV:"+addr
