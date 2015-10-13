@@ -428,11 +428,12 @@ class KVstore:
                     if cp_ts_dict[r]>timestamp: break
 
                 # by now, r should be a record number that is just bigger
-                #   than timestamp
+                #   than timestamp, or the last record in cp_rec_nos
 
                 (_m, _d) = self.__read(r)
                 assert _m["rec_no"] == r and _m["type"] == "checkpoint"
-                assert _m["timestamp"] > timestamp
+                # XXX: there is a corner case for timestamp assertion.
+                # assert _m["timestamp"] > timestamp
 
                 ts_dict = _m["ts_dict"]
                 rec_nos = sorted(ts_dict.keys())
