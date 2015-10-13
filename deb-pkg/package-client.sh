@@ -24,7 +24,7 @@ rm -rf $tmpdir
 mkdir $tmpdir
 
 # invoke 'make'
-cd $topdir && make clean && make GDPLIBMAJVER=$MAJVER GDPLIBMINVER=$MINVER all 
+cd $topdir && make clean && make all 
 
 # copy files
 
