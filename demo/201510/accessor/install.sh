@@ -1,7 +1,12 @@
 #!/bin/bash
 
-gdp=../../../
-PTII=$gdp/../ptII
+echo "Not very safe to be executed as a script. Just use as a rough"
+echo "guideline of commands and execute manually, fixing each error"
+echo "before moving to the next step"
+exit 0
+
+gdp=~/gdp
+PTII=~ptII
 
 #### GDP compilation/setup
 
