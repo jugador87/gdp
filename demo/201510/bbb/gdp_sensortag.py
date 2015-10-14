@@ -20,7 +20,7 @@ def workerThread(addr, log, sensors):
         try:
             print datetime.now(), "Connecting to " + addr
             tag = SensorTag(addr)
-            for s in sensors: tag.enable_sensor(s, 2000)
+            for s in sensors: tag.enable_sensor(s, 250)
             tag.start(process)
         except SensorTag.ConnectionFailure:
             print datetime.now(), "Connection lost with " + addr

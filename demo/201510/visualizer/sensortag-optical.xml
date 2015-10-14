@@ -8,7 +8,7 @@
         <property name="_location" class="ptolemy.kernel.util.Location" value="[105.0, 150.0]">
         </property>
     </property>
-    <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={0, 24, 1366, 744}, maximized=true}">
+    <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={0, -4, 1366, 772}, maximized=true}">
     </property>
     <property name="_vergilSize" class="ptolemy.actor.gui.SizeAttribute" value="[1152, 655]">
     </property>
@@ -55,7 +55,7 @@
         </port>
     </entity>
     <entity name="DiscreteClock" class="ptolemy.actor.lib.DiscreteClock">
-        <property name="period" class="ptolemy.actor.parameters.PortParameter" value="1.0">
+        <property name="period" class="ptolemy.actor.parameters.PortParameter" value="0.25">
         </property>
         <doc>Create periodic timed events.</doc>
         <property name="_location" class="ptolemy.kernel.util.Location" value="[85.0, 250.0]">
@@ -79,9 +79,9 @@
     <entity name="TimedPlotter" class="ptolemy.actor.lib.gui.TimedPlotter">
         <property name="automaticRescale" class="ptolemy.data.expr.Parameter" value="true">
         </property>
-        <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={453, 227, 500, 349}, maximized=false}">
+        <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={229, 198, 773, 462}, maximized=false}">
         </property>
-        <property name="_plotSize" class="ptolemy.actor.gui.SizeAttribute" value="[500, 300]">
+        <property name="_plotSize" class="ptolemy.actor.gui.SizeAttribute" value="[773, 413]">
         </property>
         <property name="_location" class="ptolemy.kernel.util.Location" value="[595.0, 260.0]">
         </property>
@@ -90,8 +90,8 @@
 "http://ptolemy.eecs.berkeley.edu/xml/dtd/PlotML_1.dtd">
 <plot>
 <title>TimedPlotter</title>
-<xRange min="1.0" max="82.0"/>
-<yRange min="107.16" max="109.24"/>
+<xRange min="0.25" max="132.0"/>
+<yRange min="-108.56000000000002" max="5479.2"/>
 </plot>?>
         </configure>
     </entity>
