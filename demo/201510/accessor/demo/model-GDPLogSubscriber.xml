@@ -4,7 +4,7 @@
 <entity name="model-GDPLogSubscriber" class="ptolemy.actor.TypedCompositeActor">
     <property name="_createdBy" class="ptolemy.kernel.attributes.VersionAttribute" value="11.0.devel">
     </property>
-    <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={0, 52, 724, 716}, maximized=false}">
+    <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={85, 25, 724, 744}, maximized=false}">
     </property>
     <property name="_vergilSize" class="ptolemy.actor.gui.SizeAttribute" value="[510, 627]">
     </property>
@@ -30,13 +30,13 @@
         </property>
     </entity>
     <entity name="GDPLogSubscribe" class="org.terraswarm.accessor.JSAccessor">
-        <property name="script" class="ptolemy.actor.parameters.PortParameter" value="/* Accessor for a log */&#10;&#10;var GDP = require('GDP');&#10;var log = null;&#10;var handle = null;&#10;&#10;exports.setup = function() {&#10;    input('trigger');&#10;    output('data', {'type': 'string'});&#10;    parameter('logname', {'type': 'string'});&#10;    parameter('startrec', {'type': 'int', 'value': 0});&#10;    parameter('numrec', {'type': 'int', 'value':0});&#10;};&#10;&#10;exports.get_next_data = function() {&#10;    // this blocks&#10;    var data = log.get_next_data(0);&#10;    send('data', data); &#10;}&#10;&#10;&#10;exports.initialize = function() {&#10;&#10;    var logname = getParameter('logname');&#10;    log = GDP.GDP(logname, 1);&#10;    log.subscribe(getParameter('startrec'), getParameter('numrec'));&#10;    handle = addInputHandler('trigger', this.get_next_data);&#10;}&#10;&#10;exports.wrapup = function() {&#10;    if (handle != null) {&#10;        removeInputHandler(handle);&#10;    }&#10;}&#10;">
+        <property name="script" class="ptolemy.actor.parameters.PortParameter" value="/* Accessor for a log */&#10;&#10;var GDP = require('GDP');&#10;var log = null;&#10;var handle = null;&#10;&#10;exports.setup = function() {&#10;    input('trigger');&#10;    output('data', {'type': 'string'});&#10;    parameter('logname', {'type': 'string'});&#10;    parameter('startrec', {'type': 'int', 'value': 0});&#10;    parameter('numrec', {'type': 'int', 'value':0});&#10;};&#10;&#10;exports.get_next_data = function() {&#10;    // this blocks&#10;    while (true) {&#10;        var data = log.get_next_data(100);&#10;        if (data != null) {&#10;            send('data', data); &#10;            break;&#10;        }&#10;    }&#10;}&#10;&#10;&#10;exports.initialize = function() {&#10;&#10;    var logname = getParameter('logname');&#10;    log = GDP.GDP(logname, 1);&#10;    log.subscribe(getParameter('startrec'), getParameter('numrec'));&#10;    handle = addInputHandler('trigger', this.get_next_data);&#10;}&#10;&#10;exports.wrapup = function() {&#10;    if (handle != null) {&#10;        removeInputHandler(handle);&#10;    }&#10;}&#10;">
             <property name="style" class="ptolemy.actor.gui.style.NoteStyle">
                 <property name="note" class="ptolemy.kernel.util.StringAttribute" value="NOTE: To see the script, invoke Open Actor">
                 </property>
             </property>
         </property>
-        <property name="accessorSource" class="org.terraswarm.accessor.JSAccessor$ActionableAttribute" value="/home/mor/works/ptolemy/ptII/org/terraswarm/accessor/accessors/web/GDP/GDPLogSubscribe.js">
+        <property name="accessorSource" class="org.terraswarm.accessor.JSAccessor$ActionableAttribute" value="/home/mor/works/gdp/gdp/demo/201510/accessor/GDP.accessor/GDPLogSubscribe.js">
         </property>
         <property name="_tableauFactory" class="ptolemy.vergil.toolbox.TextEditorTableauFactory">
             <property name="attributeName" class="ptolemy.kernel.util.StringAttribute" value="script">

@@ -14,8 +14,13 @@ exports.setup = function() {
 
 exports.get_next_data = function() {
     // this blocks
-    var data = log.get_next_data(0);
-    send('data', data); 
+    while (true) {
+        var data = log.get_next_data(100);
+        if (data != null) {
+            send('data', data); 
+            break;
+        }
+    }
 }
 
 
