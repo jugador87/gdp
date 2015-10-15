@@ -16,7 +16,7 @@ import com.sun.jna.Native;
 import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.PointerByReference;
-import com.ochafik.lang.jnaerator.runtime.NativeSize;
+import org.terraswarm.gdp.NativeSize; // Fixed by cxh in makefile.
 
 
 public class GDP_GCL {

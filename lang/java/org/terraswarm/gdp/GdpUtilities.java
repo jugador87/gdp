@@ -32,7 +32,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 
-import com.ochafik.lang.jnaerator.runtime.NativeSize;
+import org.terraswarm.gdp.NativeSize; // Fixed by cxh in makefile.
 //import org.terraswarm.gdp.NativeSize;
 
 import com.sun.jna.Pointer;
