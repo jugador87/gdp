@@ -29,7 +29,10 @@
 # 						COPYRIGHTENDKEY
 ##########################################################################
 
+GDP_JAR=gdp-0.3-1.jar
 all: jclass
+install: all
+	jar cf $(GDP_JAR) org/terraswarm/gdp/*.class
 
 ##############################
 JNA_JAR = jna-4.1.0.jar
@@ -87,11 +90,12 @@ jna: clean $(JNAERATOR_JAR) $(JNAERATOR_RUNTIME_JAR) $(GDP_H_FILES)
 		-o . -library event2 -I/usr/include -I/usr/local/include \
                 -package org.terraswarm.gdp  -v  -noJar -noComp
 	# Fix up some issues:
-	for file in org/terraswarm/gdp/*.java; do \
+	for file in org/terraswarm/gdp/*.java org/terraswarm/gdp/*/*.java; do \
 	echo "Fixing $$file"; \
 	sed \
 	    -e 's@public static final Pointer EP_GEN_DEADBEEF = (Pointer)0xDEADBEEF;@public static final Pointer EP_GEN_DEADBEEF = new Pointer(0xDEADBEEF); // Fixed by cxh in makefile.@' \
 	    -e 's@\(public static final GlobalInt\)@// \1 // Fixed by cxh in makefile.@' \
+	    -e 's@com.ochafik.lang.jnaerator.runtime.NativeSize@org.terraswarm.gdp.NativeSize@' \
 		$$file > /tmp/gdp.fix; \
 	mv /tmp/gdp.fix $$file; \
         done
