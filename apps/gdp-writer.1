@@ -6,11 +6,13 @@
 .Nd write to a GDP log
 .Sh SYNOPSIS
 .Nm
+.Op Fl 1
 .Op Fl a
 .Op Fl D debug-spec
 .Op Fl G router-ip
 .Op Fl F key-file
 .Op Fl L log-file
+.Op Fl q
 .Ar log-name
 .Sh DESCRIPTION
 .Nm
@@ -42,6 +44,17 @@ This search can be overridden using the
 flag.
 .Sh OPTIONS
 .Bl -tag
+.It Fl 1
+Normally
+.Nm
+reads lines from standard input and writes each line as a record
+with the newline stripped.
+The
+.Fl 1
+flag reads the entire standard input (to an end of file)
+and writes it all as a single record.
+This can be used to log binary input or input with newlines
+(albeit not terribly efficiently if multiple records need to be written).
 .It Fl a
 Use asynchronous writes.
 This is primarily for testing.
@@ -72,8 +85,15 @@ This must be a
 .Sy \&.pem
 format file.
 This overrides the default search path.
+.It Fl q
+Run quietly, suppressing all output that isn't error text.
 .El
-.\".Sh EXIT STATUS
+.Sh EXIT STATUS
+.Bl -tag
+.It 0
+Success
+.It 1
+Some failure occurred.
 .Sh ADMINISTRATIVE PARAMETERS
 .Bl -tag
 .It Sy swarm.gdp.crypto.key.path

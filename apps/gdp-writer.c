@@ -3,6 +3,7 @@
 #include <ep/ep.h>
 #include <ep/ep_app.h>
 #include <ep/ep_dbg.h>
+#include <ep/ep_hexdump.h>
 #include <ep/ep_string.h>
 #include <gdp/gdp.h>
 
@@ -22,6 +23,9 @@
 **		implied by the GDP.
 */
 
+bool	AsyncIo = false;		// use asynchronous I/O
+bool	Quiet = false;			// be silent (no chatty messages)
+bool	Hexdump = false;		// echo input in hex instead of ASCII
 
 /*
 **  DO_LOG --- log a timestamp (for performance checking).
@@ -82,17 +86,60 @@ showstat(gdp_event_t *gev)
 }
 
 
+EP_STAT
+write_record(gdp_datum_t *datum, gdp_gcl_t *gcl)
+{
+	EP_STAT estat;
+
+	// echo the input for that warm fuzzy feeling
+	if (!Quiet)
+	{
+		gdp_buf_t *dbuf = gdp_datum_getbuf(datum);
+		int l = gdp_buf_getlength(dbuf);
+		unsigned char *buf = gdp_buf_getptr(dbuf, l);
+
+		if (!Hexdump)
+			fprintf(stdout, "Got input %s%.*s%s\n",
+					EpChar->lquote, l, buf, EpChar->rquote);
+		else
+			ep_hexdump(buf, l, stdout, EP_HEXDUMP_ASCII, 0);
+	}
+
+	// then send the buffer to the GDP
+	LOG("W");
+	if (AsyncIo)
+	{
+		estat = gdp_gcl_append_async(gcl, datum, showstat, NULL);
+		EP_STAT_CHECK(estat, return estat);
+
+		// return value will be printed asynchronously
+	}
+	else
+	{
+		estat = gdp_gcl_append(gcl, datum);
+		EP_STAT_CHECK(estat, return estat);
+
+		// print the return value (shows the record number assigned)
+		if (!Quiet)
+			gdp_datum_print(datum, stdout, 0);
+	}
+	return estat;
+}
+
+
 void
 usage(void)
 {
 	fprintf(stderr,
-			"Usage: %s [-a] [-D dbgspec] [-G router_addr] [-K key_file]\n"
-			"\t[-L log_file] log_name\n"
+			"Usage: %s [-1] [-a] [-D dbgspec] [-G router_addr] [-K key_file]\n"
+			"\t[-L log_file] [-q] log_name\n"
+			"    -1  write all input as one record\n"
 			"    -a  use asynchronous I/O\n"
 			"    -D  set debugging flags\n"
 			"    -G  IP host to contact for gdp_router\n"
 			"    -K  signing key file\n"
-			"    -L  set logging file name (for debugging)\n",
+			"    -L  set logging file name (for debugging)\n"
+			"    -q  run quietly (no non-error output)\n",
 			ep_app_getprogname());
 	exit(EX_USAGE);
 }
@@ -106,21 +153,25 @@ main(int argc, char **argv)
 	int opt;
 	EP_STAT estat;
 	char *gdpd_addr = NULL;
-	char buf[200];
 	bool show_usage = false;
+	bool one_record = false;
 	char *log_file_name = NULL;
-	bool async_io = false;
 	char *signing_key_file = NULL;
 	gdp_gcl_open_info_t *info;
 
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "aD:G:K:L:")) > 0)
+	while ((opt = getopt(argc, argv, "1aD:G:K:L:q")) > 0)
 	{
 		switch (opt)
 		{
+		 case '1':
+			one_record = true;
+			Hexdump = true;
+			break;
+
 		 case 'a':
-			 async_io = true;
-			 break;
+			AsyncIo = true;
+			break;
 
 		 case 'D':
 			ep_dbg_set(optarg);
@@ -136,6 +187,10 @@ main(int argc, char **argv)
 
 		 case 'L':
 			log_file_name = optarg;
+			break;
+
+		 case 'q':
+			Quiet = true;
 			break;
 
 		 default:
@@ -203,61 +258,59 @@ main(int argc, char **argv)
 	estat = gdp_gcl_open(gcliname, GDP_MODE_AO, info, &gcl);
 	EP_STAT_CHECK(estat, goto fail1);
 
-	// dump the internal version of the GCL to facilitate testing
+	if (!Quiet)
 	{
 		gdp_pname_t pname;
 
+		// dump the internal version of the GCL to facilitate testing
 		printf("GDPname: %s (%" PRIu64 " recs)\n",
 				gdp_printable_name(*gdp_gcl_getname(gcl), pname),
 				gdp_gcl_getnrecs(gcl));
-	}
 
-	// OK, ready to go!
-	fprintf(stdout, "\nStarting to read input\n");
+		// OK, ready to go!
+		fprintf(stdout, "\nStarting to read input\n");
+	}
 
 	// we need a place to buffer the input
 	gdp_datum_t *datum = gdp_datum_new();
 
-	// start reading...
-	while (fgets(buf, sizeof buf, stdin) != NULL)
+	if (one_record)
 	{
-		// strip off newlines
-		char *p = strchr(buf, '\n');
-		if (p != NULL)
-			*p++ = '\0';
+		// read the entire stdin into a single datum
+		char buf[8 * 1024];
+		int l;
 
-		// echo the input for that warm fuzzy feeling
-		fprintf(stdout, "Got input %s%s%s\n", EpChar->lquote, buf,
-				EpChar->rquote);
+		while ((l = fread(buf, 1, sizeof buf, stdin)) > 0)
+			gdp_buf_write(gdp_datum_getbuf(datum), buf, l);
 
-		// send it to the GDP: first copy it into the buffer
-		gdp_buf_write(gdp_datum_getbuf(datum), buf, strlen(buf));
+		estat = write_record(datum, gcl);
+	}
+	else
+	{
+		// write lines into multiple datums
+		char buf[200];
 
-		// then send the buffer to the GDP
-		LOG("W");
-		if (async_io)
+		while (fgets(buf, sizeof buf, stdin) != NULL)
 		{
-			estat = gdp_gcl_append_async(gcl, datum, showstat, NULL);
-			EP_STAT_CHECK(estat, goto fail2);
+			// strip off newlines
+			char *p = strchr(buf, '\n');
+			if (p != NULL)
+				*p++ = '\0';
 
-			// return value will be printed asynchronously
-		}
-		else
-		{
-			estat = gdp_gcl_append(gcl, datum);
-			EP_STAT_CHECK(estat, goto fail2);
+			// first copy the text buffer into the datum buffer
+			gdp_buf_write(gdp_datum_getbuf(datum), buf, strlen(buf));
 
-			// print the return value (shows the record number assigned)
-			gdp_datum_print(datum, stdout, 0);
+			// write the record to the log
+			estat = write_record(datum, gcl);
+			EP_STAT_CHECK(estat, break);
 		}
 	}
 
 	// OK, all done.  Free our resources and exit
 	gdp_datum_free(datum);
 
-fail2:
 	// give a chance to collect async results
-	if (async_io)
+	if (AsyncIo)
 		sleep(1);
 
 	// tell the GDP that we are done
@@ -271,7 +324,13 @@ fail0:
 	// OK status can have values; hide that from the user
 	if (EP_STAT_ISOK(estat))
 		estat = EP_STAT_OK;
-	fprintf(stderr, "exiting with status %s\n",
-			ep_stat_tostr(estat, buf, sizeof buf));
+	if (!Quiet || !EP_STAT_ISOK(estat))
+	{
+		char buf[200];
+
+		fprintf(stderr, "%s: exiting with status %s\n",
+				ep_app_getprogname(),
+				ep_stat_tostr(estat, buf, sizeof buf));
+	}
 	return !EP_STAT_ISOK(estat);
 }
