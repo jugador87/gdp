@@ -33,7 +33,7 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 
 //iimport org.ptolemy.fmi.NativeSize;
-import com.ochafik.lang.jnaerator.runtime.NativeSize;
+import org.terraswarm.gdp.NativeSize;
 import org.terraswarm.gdp.EP_STAT;
 import org.terraswarm.gdp.Gdp02Library;
 import org.terraswarm.gdp.GdpUtilities;

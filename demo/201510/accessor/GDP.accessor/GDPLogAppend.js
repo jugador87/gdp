@@ -1,6 +1,6 @@
 /* Accessor for a log */
 
-var GDP = require('GDP');
+var GDP = require('gdp');
 var log = null;
 var handle = null;
 
