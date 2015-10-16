@@ -212,12 +212,11 @@ gdp_gcl_print(
 EP_STAT
 gdp_init(const char *router_addr)
 {
-	static bool inited = false;
 	EP_STAT estat;
 
-	if (inited)
+	if (_GdpLibInitialized)
 		return EP_STAT_OK;
-	inited = true;
+	_GdpLibInitialized = true;
 
 	// set up global state, event loop, etc.
 	estat = gdp_lib_init(NULL);
@@ -268,6 +267,8 @@ gdp_gcl_create(gdp_name_t gclname,
 	char ebuf[100];
 	gdp_name_t namebuf;
 
+	GDP_CHECK_INITIALIZED;				// make sure gdp_init is done
+
 	if (gclname == NULL)
 	{
 		gclname = namebuf;
@@ -300,6 +301,8 @@ gdp_gcl_open(gdp_name_t name,
 	gdp_gcl_t *gcl = NULL;
 	int cmd;
 	EP_CRYPTO_KEY *skey = NULL;
+
+	GDP_CHECK_INITIALIZED;				// make sure gdp_init is done
 
 	if (mode == GDP_MODE_RO)
 		cmd = GDP_CMD_OPEN_RO;
