@@ -85,20 +85,33 @@ def ep_stat_tostr(ep):
     return string_at(buf)
 
 
+class EP_STAT_Exception(Exception):
+    """
+    A custom execption class to handle various ep library return values
+    """ 
+
+    def __init__(self, ep_stat):
+        self.ep_stat = ep_stat
+        self.msg = ep_stat_tostr(ep_stat)
+
+    def __str__(self):
+        return repr(self.msg)
+
+
 # Handling EP_STAT and error code checking
-class EP_STAT_SEV_WARN(Exception):
+class EP_STAT_SEV_WARN(EP_STAT_Exception):
     pass
 
 
-class EP_STAT_SEV_ERROR(Exception):
+class EP_STAT_SEV_ERROR(EP_STAT_Exception):
     pass
 
 
-class EP_STAT_SEV_SEVERE(Exception):
+class EP_STAT_SEV_SEVERE(EP_STAT_Exception):
     pass
 
 
-class EP_STAT_SEV_ABORT(Exception):
+class EP_STAT_SEV_ABORT(EP_STAT_Exception):
     pass
 
 
@@ -113,17 +126,14 @@ def check_EP_STAT(ep_stat):
     # else: shiftbits = 29
     shiftbits = 29
     t = ep_stat.code >> shiftbits
-    if t >= 4:
-        # print hex(t), hex(ep_stat.code)
-        print ep_stat_tostr(ep_stat)
     if t == 4:
-        raise EP_STAT_SEV_WARN
+        raise EP_STAT_SEV_WARN(ep_stat)
     if t == 5:
-        raise EP_STAT_SEV_ERROR
+        raise EP_STAT_SEV_ERROR(ep_stat)
     if t == 6:
-        raise EP_STAT_SEV_SEVERE
+        raise EP_STAT_SEV_SEVERE(ep_stat)
     if t == 7:
-        raise EP_STAT_SEV_ABORT
+        raise EP_STAT_SEV_ABORT(ep_stat)
 
 
 class event_base(Structure):
@@ -136,9 +146,6 @@ def gdp_init(*args):
     """
     initialize the library, takes an optional argument of the form "HOST:PORT"
     """
-
-    # XXX: only for the demo
-    dbg_set("_demo=1")
 
     __func = gdp.gdp_init
     __func.argtypes = [c_void_p]
