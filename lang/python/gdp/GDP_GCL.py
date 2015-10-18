@@ -218,7 +218,8 @@ class GDP_GCL:
 
     def append_async(self, datum_dict):
         """
-        XXX: This is still work in progress. Async version of append
+        Async version of append. A writer ought to check return status by
+            invoking get_next_event, potentially in a different thread
         """
         datum = GDP_DATUM()
 
@@ -423,18 +424,27 @@ class GDP_GCL:
 
         event_type = __func4(event_ptr)
 
-        # also free the event
-        __func5 = gdp.gdp_event_free
+        # get the status code
+        __func5 = gdp.gdp_event_getstat
         __func5.argtypes = [POINTER(cls.gdp_event_t)]
         __func5.restype = EP_STAT
 
-        estat = __func5(event_ptr)
+        event_ep_stat = __func5(event_ptr)
+        check_EP_STAT(event_ep_stat)
+
+        # also free the event
+        __func6 = gdp.gdp_event_free
+        __func6.argtypes = [POINTER(cls.gdp_event_t)]
+        __func6.restype = EP_STAT
+
+        estat = __func6(event_ptr)
         check_EP_STAT(estat)
 
         gdp_event = {}
         gdp_event["gcl_handle"] = gcl_handle
         gdp_event["datum"] = datum_dict
         gdp_event["type"] = event_type
+        gdp_event["stat"] = event_ep_stat
 
         return gdp_event
 
