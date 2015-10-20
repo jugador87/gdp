@@ -80,9 +80,9 @@ _gdp_pdu_dump(gdp_pdu_t *pdu, FILE *fp)
 		ep_time_print(&pdu->datum->ts, fp, EP_TIME_FMT_HUMAN);
 		if (EP_TIME_ISVALID(&pdu->datum->ts))
 			len += sizeof pdu->datum->ts;
+		fprintf(fp, "\n\tsigmdalg=0x%x, siglen=%d, sig=%p",
+				pdu->datum->sigmdalg, pdu->datum->siglen, pdu->datum->sig);
 	}
-	fprintf(fp, "\n\tsigmdalg=0x%x, siglen=%d, sig=%p",
-			pdu->datum->sigmdalg, pdu->datum->siglen, pdu->datum->sig);
 	fprintf(fp, "\n\ttotal header=%d\n", len);
 done:
 	funlockfile(fp);
@@ -461,8 +461,13 @@ _gdp_pdu_hdr_in(gdp_pdu_t *pdu,
 	// no point in continuing if we don't recognize the PDU
 	if (pdu->ver < GDP_PROTO_MIN_VERSION || pdu->ver > GDP_PROTO_CUR_VERSION)
 	{
-		ep_dbg_cprintf(Dbg, 1, "_gdp_pdu_in: version %d out of range (%d-%d)\n",
-				pdu->ver, GDP_PROTO_MIN_VERSION, GDP_PROTO_CUR_VERSION);
+		if (ep_dbg_test(Dbg, 1))
+		{
+			ep_dbg_printf("_gdp_pdu_in: version %d out of range (%d-%d)\n",
+					pdu->ver, GDP_PROTO_MIN_VERSION, GDP_PROTO_CUR_VERSION);
+			ep_hexdump(pbuf, _GDP_PDU_FIXEDHDRSZ, ep_dbg_getfile(),
+					EP_HEXDUMP_ASCII, 0);
+		}
 
 		// throw away everything we can in the hopes we can re-sync
 		gdp_buf_reset(ibuf);

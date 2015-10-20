@@ -25,7 +25,7 @@ gdpd_gcl_error(gdp_name_t gcl_name, char *msg, EP_STAT logstat, EP_STAT estat)
 	}
 	else
 	{
-		ep_dbg_cprintf(Dbg, 1, "%s: %s", msg, pname);
+		ep_dbg_cprintf(Dbg, 1, "%s: %s\n", msg, pname);
 	}
 	return estat;
 }
