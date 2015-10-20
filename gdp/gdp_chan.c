@@ -45,9 +45,9 @@ gdp_read_cb(struct bufferevent *bev, void *ctx)
 	{
 		pdu = _gdp_pdu_new();
 		estat = _gdp_pdu_in(pdu, chan);
-		if (EP_STAT_IS_SAME(estat, GDP_STAT_KEEP_READING))
+		if (!EP_STAT_ISOK(estat))
 		{
-			// only have a partial PDU; wait for the rest of it
+			// bad PDU (too short, version mismatch, whatever)
 			_gdp_pdu_free(pdu);
 			return;
 		}
