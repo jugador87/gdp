@@ -182,7 +182,7 @@ ep_time_nanosleep(int64_t nsec)
 **  EP_TIME_FORMAT --- format a time/date for printing
 */
 
-void
+char *
 ep_time_format(const EP_TIME_SPEC *tv, char *tbuf, size_t tbsiz, uint32_t flags)
 {
 	bool human = EP_UT_BITSET(EP_TIME_FMT_HUMAN, flags);
@@ -191,7 +191,7 @@ ep_time_format(const EP_TIME_SPEC *tv, char *tbuf, size_t tbsiz, uint32_t flags)
 	if (!EP_TIME_ISVALID(tv))
 	{
 		snprintf(tbuf, tbsiz, "%s", human ? "(none)" : "-");
-		return;
+		return tbuf;
 	}
 
 	struct tm tm;
@@ -219,6 +219,7 @@ ep_time_format(const EP_TIME_SPEC *tv, char *tbuf, size_t tbsiz, uint32_t flags)
 		ybuf[0] = '\0';
 	}
 	snprintf(tbuf, tbsiz, "%s.%09" PRIu32 "Z%s", xbuf, tv->tv_nsec, ybuf);
+	return tbuf;
 }
 
 

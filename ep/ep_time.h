@@ -48,7 +48,7 @@ extern float	ep_time_accuracy(void);
 extern void	ep_time_setaccuracy(float acc);
 
 // format a time string into a buffer
-extern void	ep_time_format(const EP_TIME_SPEC *tv,
+extern char	*ep_time_format(const EP_TIME_SPEC *tv,
 				char *buf,
 				size_t bz,
 				uint32_t flags);
