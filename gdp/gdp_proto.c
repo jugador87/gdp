@@ -49,7 +49,7 @@ _gdp_invoke(gdp_req_t *req)
 
 	EP_ASSERT_POINTER_VALID(req);
 	cmdname = _gdp_proto_cmd_name(req->pdu->cmd);
-	if (ep_dbg_test(Dbg, 22))
+	if (ep_dbg_test(Dbg, 11))
 	{
 		ep_dbg_printf("\n*** _gdp_invoke(%p): %s (%d), gcl@%p:\n\t",
 				req,
@@ -58,6 +58,7 @@ _gdp_invoke(gdp_req_t *req)
 				req->gcl);
 		_gdp_datum_dump(req->pdu->datum, ep_dbg_getfile());
 	}
+	EP_ASSERT(req->state == GDP_REQ_ACTIVE);
 
 	// scale timeout to milliseconds
 	ep_time_from_nsec(delta_to * INT64_C(1000000), &delta_ts);
@@ -136,6 +137,7 @@ _gdp_invoke(gdp_req_t *req)
 		ep_dbg_printf("gdp_invoke(%s) <<< %s\n  ",
 				cmdname, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
+		ep_dbg_printf("\n");
 		funlockfile(ep_dbg_getfile());
 	}
 	return estat;
@@ -186,6 +188,9 @@ ack_success(gdp_req_t *req)
 		estat = GDP_STAT_FROM_ACK(req->pdu->cmd);
 	EP_STAT_CHECK(estat, goto fail0);
 
+	// mark this request as active (for subscriptions)
+	ep_time_now(&req->act_ts);
+
 	//	If we started with no gcl id, adopt from incoming PDU.
 	//	This can happen when creating a GCL.
 	gcl = req->gcl;
@@ -207,6 +212,10 @@ ack_data_content(gdp_req_t *req)
 
 	estat = ack_success(req);
 	EP_STAT_CHECK(estat, return estat);
+
+	// keep track of how many more records we expect
+	if (req->numrecs > 0)
+		req->numrecs--;
 
 	// do read filtering if requested
 	if (req->gcl->readfilter != NULL)
@@ -265,7 +274,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	{ NULL,				"CMD_KEEPALIVE"			},			// 0
 	{ NULL,				"CMD_ADVERTISE"			},			// 1
 	{ NULL,				"CMD_WITHDRAW"			},			// 2
-	{ NULL,				"CMD_POKE_SUBSCR"		},			// 3
+	NOENT,				// 3
 	NOENT,				// 4
 	NOENT,				// 5
 	NOENT,				// 6

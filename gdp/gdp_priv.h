@@ -58,6 +58,7 @@ struct gdp_chan
 	EP_THR_MUTEX		mutex;			// lock before changes
 	EP_THR_COND			cond;			// wake up after state change
 	int16_t				state;			// current state of channel
+	uint16_t			flags;			// status flags
 	struct bufferevent	*bev;			// associated bufferevent (socket)
 	struct req_head		reqs;			// reqs associated with this channel
 	void				(*close_cb)(	// called on channel close
@@ -67,6 +68,7 @@ struct gdp_chan
 	void				(*process)(		// called to process a PDU
 							gdp_pdu_t *pdu,
 							gdp_chan_t *chan);
+	pthread_t			sub_thr_id;		// subscription poker thread id
 };
 
 /* Channel states */
@@ -75,6 +77,9 @@ struct gdp_chan
 #define GDP_CHAN_CONNECTED		2		// channel is connected and active
 #define GDP_CHAN_ERROR			3		// channel has had error
 #define GDP_CHAN_CLOSING		4		// channel is closing
+
+/* Channel flags */
+#define GDP_CHAN_HAS_SUB_THR	0x0001	// subscription poker thread is running
 
 EP_STAT			_gdp_chan_open(				// open channel to routing layer
 						const char *gdpd_addr,
@@ -379,7 +384,7 @@ struct gdp_req
 	int32_t				numrecs;	// remaining number of records to return
 	uint16_t			state;		// see below
 	uint32_t			flags;		// see below
-	EP_TIME_SPEC		sub_ts;		// timestamp of last subscription activity
+	EP_TIME_SPEC		act_ts;		// timestamp of last successful activity
 	void				(*postproc)(struct gdp_req *);
 									// do post processing after ack sent
 	gdp_event_cbfunc_t	sub_cb;		// callback function (subscribe & async I/O)

@@ -231,6 +231,9 @@ gdp_pdu_proc_resp(void *pdu_)
 
 	// request is locked
 
+	// mark this request as active (for subscriptions)
+	ep_time_now(&req->act_ts);
+
 	// we want to re-use caller's datum for (e.g.) read commands
 	if (req->pdu != pdu)
 	{

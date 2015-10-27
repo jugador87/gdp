@@ -214,33 +214,14 @@ fail0:
 /*
 **  CMD_OPEN --- open for read-only, append-only, or read-append
 **
-**		We cheat and look at the command to decode.
+**		From the point of view of gdplogd these are the same command.
 */
 
 EP_STAT
 cmd_open(gdp_req_t *req)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gdp_iomode_t iomode;
 	gdp_gcl_t *gcl = NULL;
-
-	switch (req->pdu->cmd)
-	{
-		case GDP_CMD_OPEN_RO:
-			iomode = GDP_MODE_RO;
-			break;
-
-		case GDP_CMD_OPEN_AO:
-			iomode = GDP_MODE_AO;
-			break;
-
-		case GDP_CMD_OPEN_RA:
-			iomode = GDP_MODE_RA;
-			break;
-
-		default:
-			ep_assert_failure("bad iomode", "require", __FILE__, __LINE__);
-	}
 
 	req->pdu->cmd = GDP_ACK_SUCCESS;
 
@@ -251,14 +232,14 @@ cmd_open(gdp_req_t *req)
 	estat = get_open_handle(req, GDP_MODE_ANY);
 	if (!EP_STAT_ISOK(estat))
 	{
-		estat = gdpd_gcl_error(req->pdu->dst, "cmd_openxx: could not open GCL",
+		estat = gdpd_gcl_error(req->pdu->dst, "cmd_open: could not open GCL",
 							estat, GDP_STAT_NAK_BADREQ);
 		goto fail0;
 	}
 
 	gcl = req->gcl;
 	gcl->flags |= GCLF_DEFER_FREE;
-	gcl->iomode |= iomode;
+	gcl->iomode = GDP_MODE_ANY;
 	if (gcl->gclmd != NULL)
 	{
 		// send metadata as payload
@@ -266,63 +247,6 @@ cmd_open(gdp_req_t *req)
 	}
 
 	req->pdu->datum->recno = gcl->nrecs;
-
-	if (EP_UT_BITSET(GDP_MODE_AO, iomode))
-	{
-		EP_STAT estat;
-		size_t pklen;
-		uint8_t *pkbuf;
-		int pktype;
-		int mdtype;
-		EP_CRYPTO_KEY *key;
-
-		// assuming we have a public key, set up the message digest context
-		if (gcl->gclmd == NULL)
-			goto nopubkey;
-		estat = gdp_gclmd_find(gcl->gclmd, GDP_GCLMD_PUBKEY, &pklen,
-						(const void **) &pkbuf);
-		if (!EP_STAT_ISOK(estat) || pklen < 5)
-			goto nopubkey;
-
-		mdtype = pkbuf[0];
-		pktype = pkbuf[1];
-		//pkbits = (pkbuf[2] << 8) | pkbuf[3];
-		ep_dbg_cprintf(Dbg, 40, "cmd_open: mdtype=%d, pktype=%d, pklen=%zd\n",
-				mdtype, pktype, pklen);
-		key = ep_crypto_key_read_mem(pkbuf + 4, pklen - 4, pktype,
-				EP_CRYPTO_KEYFORM_DER, EP_CRYPTO_F_PUBLIC);
-		if (key == NULL)
-			goto nopubkey;
-
-		gcl->digest = ep_crypto_vrfy_new(key, mdtype);
-
-		// include the GCL name
-		ep_crypto_vrfy_update(gcl->digest, gcl->name, sizeof gcl->name);
-
-		// and the metadata (re-serialized)
-		struct evbuffer *evb = evbuffer_new();
-		_gdp_gclmd_serialize(gcl->gclmd, evb);
-		size_t evblen = evbuffer_get_length(evb);
-		ep_crypto_vrfy_update(gcl->digest, evbuffer_pullup(evb, evblen), evblen);
-		evbuffer_free(evb);
-
-		if (false)
-		{
-nopubkey:
-			if (EP_UT_BITSET(GDP_SIG_PUBKEYREQ, GdpSignatureStrictness))
-			{
-				ep_dbg_cprintf(Dbg, 1, "ERROR: no public key for %s\n",
-							gcl->pname);
-				estat = GDP_STAT_CRYPTO_SIGFAIL;
-			}
-			else
-			{
-				ep_dbg_cprintf(Dbg, 51, "WARNING: no public key for %s\n",
-							gcl->pname);
-				estat = EP_STAT_OK;
-			}
-		}
-	}
 
 
 fail0:
@@ -415,6 +339,78 @@ cmd_read(gdp_req_t *req)
 
 
 /*
+**  Initialize the digest field
+**
+**		This needs to be done during the append rather than the open
+**		so if gdplogd is restarted, existing connections will heal.
+*/
+
+static EP_STAT
+init_sig_digest(gdp_gcl_t *gcl)
+{
+	EP_STAT estat;
+	size_t pklen;
+	uint8_t *pkbuf;
+	int pktype;
+	int mdtype;
+	EP_CRYPTO_KEY *key;
+
+	if (gcl->digest != NULL)
+		return EP_STAT_OK;
+
+	// assuming we have a public key, set up the message digest context
+	if (gcl->gclmd == NULL)
+		goto nopubkey;
+	estat = gdp_gclmd_find(gcl->gclmd, GDP_GCLMD_PUBKEY, &pklen,
+					(const void **) &pkbuf);
+	if (!EP_STAT_ISOK(estat) || pklen < 5)
+		goto nopubkey;
+
+	mdtype = pkbuf[0];
+	pktype = pkbuf[1];
+	//pkbits = (pkbuf[2] << 8) | pkbuf[3];
+	ep_dbg_cprintf(Dbg, 40, "init_sig_data: mdtype=%d, pktype=%d, pklen=%zd\n",
+			mdtype, pktype, pklen);
+	key = ep_crypto_key_read_mem(pkbuf + 4, pklen - 4, pktype,
+			EP_CRYPTO_KEYFORM_DER, EP_CRYPTO_F_PUBLIC);
+	if (key == NULL)
+		goto nopubkey;
+
+	gcl->digest = ep_crypto_vrfy_new(key, mdtype);
+
+	// include the GCL name
+	ep_crypto_vrfy_update(gcl->digest, gcl->name, sizeof gcl->name);
+
+	// and the metadata (re-serialized)
+	struct evbuffer *evb = evbuffer_new();
+	_gdp_gclmd_serialize(gcl->gclmd, evb);
+	size_t evblen = evbuffer_get_length(evb);
+	ep_crypto_vrfy_update(gcl->digest, evbuffer_pullup(evb, evblen), evblen);
+	evbuffer_free(evb);
+
+	if (false)
+	{
+nopubkey:
+		if (EP_UT_BITSET(GDP_SIG_PUBKEYREQ, GdpSignatureStrictness))
+		{
+			ep_dbg_cprintf(Dbg, 1, "ERROR: no public key for %s\n",
+						gcl->pname);
+			estat = GDP_STAT_CRYPTO_SIGFAIL;
+		}
+		else
+		{
+			ep_dbg_cprintf(Dbg, 52, "WARNING: no public key for %s\n",
+						gcl->pname);
+			estat = EP_STAT_OK;
+		}
+	}
+
+	return estat;
+}
+
+
+
+/*
 **  CMD_APPEND --- append a datum to a GCL
 **
 **		This will have side effects if there are subscriptions pending.
@@ -460,6 +456,12 @@ cmd_append(gdp_req_t *req)
 			return gdpd_gcl_error(req->pdu->dst,
 						"cmd_append: record sequence error",
 						GDP_STAT_RECNO_SEQ_ERROR, GDP_STAT_NAK_FORBIDDEN);
+	}
+
+	if (req->gcl->digest == NULL)
+	{
+		estat = init_sig_digest(req->gcl);
+		EP_STAT_CHECK(estat, goto fail1);
 	}
 
 	// check the signature in the PDU
@@ -623,8 +625,8 @@ post_subscribe(gdp_req_t *req)
 
 		// link this request into the GCL so the subscription can be found
 		ep_thr_mutex_lock(&req->gcl->mutex);
-		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
-		LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
+		if (!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
+			LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
 		req->flags |= GDP_REQ_ON_GCL_LIST;
 		ep_thr_mutex_unlock(&req->gcl->mutex);
 	}
@@ -685,9 +687,6 @@ cmd_subscribe(gdp_req_t *req)
 		return GDP_STAT_NAK_BADOPT;
 	}
 
-	// mark this as persistent and upgradable
-	req->flags |= GDP_REQ_PERSIST | GDP_REQ_SUBUPGRADE;
-
 	// get our starting point, which may be relative to the end
 	if (req->pdu->datum->recno <= 0)
 	{
@@ -703,10 +702,47 @@ cmd_subscribe(gdp_req_t *req)
 			", %d records\n",
 			req->pdu->datum->recno, req->numrecs);
 
+	// see if this is refreshing an existing subscription
+	{
+		gdp_req_t *r1;
+
+		for (r1 = LIST_FIRST(&req->gcl->reqs);
+				r1 != NULL;
+				r1 = LIST_NEXT(r1, gcllist))
+		{
+			if (ep_dbg_test(Dbg, 50))
+			{
+				ep_dbg_printf("cmd_subscribe: comparing to ");
+				_gdp_req_dump(r1, ep_dbg_getfile(), 0, 0);
+			}
+			if (GDP_NAME_SAME(r1->pdu->dst, req->pdu->src))
+			{
+				ep_dbg_cprintf(Dbg, 20, "cmd_subscribe: refreshing sub\n");
+				break;
+			}
+		}
+		if (r1 != NULL)
+		{
+			// this overlaps a previous subscription; just update
+			r1->pdu->datum->recno = req->pdu->datum->recno;
+			r1->gcl->nrecs = req->gcl->nrecs;
+			r1->numrecs = req->numrecs;
+
+			// abandon new request
+			_gdp_gcl_decref(req->gcl);
+			req->gcl = NULL;
+			req = r1;
+		}
+	}
+
+	// mark this as persistent and upgradable
+	req->flags |= GDP_REQ_PERSIST | GDP_REQ_SUBUPGRADE;
+
 	// if some of the records already exist, arrange to return them
 	if (req->pdu->datum->recno <= req->gcl->nrecs)
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: doing post processing\n");
+		req->flags &= ~GDP_REQ_SRV_SUBSCR;
 		req->postproc = &post_subscribe;
 	}
 	else
@@ -717,8 +753,8 @@ cmd_subscribe(gdp_req_t *req)
 
 		// link this request into the GCL so the subscription can be found
 		ep_thr_mutex_lock(&req->gcl->mutex);
-		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags));
-		LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
+		if (!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
+			LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
 		req->flags |= GDP_REQ_ON_GCL_LIST;
 		ep_thr_mutex_unlock(&req->gcl->mutex);
 	}

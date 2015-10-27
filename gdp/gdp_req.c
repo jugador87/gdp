@@ -35,10 +35,15 @@ static const char *ReqStates[] =
 */
 
 static const char *
-statestr(int state)
+statestr(gdp_req_t *req)
 {
 	static char sbuf[20];
+	int state;
 
+	if (req == NULL)
+		return "(NONE)";
+
+	state = req->state;
 	if (state >= 0 && state < sizeof ReqStates)
 	{
 		return ReqStates[state];
@@ -384,7 +389,7 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 
 		// it's in the wrong state; wait for a change and then try again
 		ep_dbg_cprintf(Dbg, 20, "_gdp_req_find: wrong state: %s\n",
-				statestr(req->state));
+				statestr(req));
 		//XXX should have a timeout here
 		ep_thr_cond_wait(&req->cond, &req->mutex, NULL);
 	}
@@ -400,7 +405,7 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 
 	ep_dbg_cprintf(Dbg, 48,
 			"gdp_req_find(gcl=%p, rid=%" PRIgdp_rid ") => %p, state %s\n",
-			gcl, rid, req, statestr(req->state));
+			gcl, rid, req, statestr(req));
 	return req;
 }
 
@@ -438,21 +443,17 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp, int detail, int indent)
 		fprintf(fp, "req@%p: null\n", req);
 		return;
 	}
-
-	if (req == NULL)
-	{
-		fprintf(fp, "req@%p: null\n", req);
-		return;
-	}
 	flockfile(fp);
-	fprintf(fp, "req@%p: ", req);
-	fprintf(fp, "\n    numrecs=%" PRIu32
+	fprintf(fp, "req@%p:\n", req);
+	fprintf(fp, "    numrecs=%" PRIu32
 			", chan=%p, postproc=%p, sub_cb=%p, udata=%p\n"
 			"    state=%s, stat=%s\n",
 			req->numrecs, req->chan, req->postproc,
-			req->sub_cb, req->udata, statestr(req->state),
+			req->sub_cb, req->udata, statestr(req),
 			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
-	fprintf(fp, "    flags=");
+	fprintf(fp, "    act_ts=");
+	ep_time_print(&req->act_ts, fp, EP_TIME_FMT_HUMAN);
+	fprintf(fp, "\n    flags=");
 	ep_prflags(req->flags, ReqFlags, fp);
 	fprintf(fp, "\n    ");
 	_gdp_gcl_dump(req->gcl, fp, GDP_PR_BASIC, 0);
