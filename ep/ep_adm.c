@@ -326,15 +326,3 @@ ep_adm_getstrparam(
 	else
 		return p;
 }
-
-
-/***********************************************************************
-**
-**  Currently known parameters
-**
-**	eplib.rpool.quantum		Size of minimum memory chunk for rpools
-**	eplib.stream.hfile.bsize	Default buffer size for host file I/O
-**					buffers
-**	eplib.stream.netsock.XXX
-**
-***********************************************************************/
