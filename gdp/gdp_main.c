@@ -124,6 +124,12 @@ gdp_pdu_proc_cmd(void *pdu_)
 
 	estat = _gdp_req_dispatch(req);
 
+	if (ep_dbg_test(Dbg, 59))
+	{
+		ep_dbg_printf("gdp_pdu_proc_cmd: after dispatch, ");
+		_gdp_req_dump(req, ep_dbg_getfile(), 0, 0);
+	}
+
 	// figure out potential response code
 	// we compute even if unused so we can log server errors
 	resp = acknak_from_estat(estat, req->pdu->cmd);

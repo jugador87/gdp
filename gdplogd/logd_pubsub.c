@@ -56,7 +56,7 @@ sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 
 	if (ep_dbg_test(Dbg, 32))
 	{
-		ep_dbg_printf("sub_notify_all_subscribers(%s):\n  ",
+		ep_dbg_printf("sub_notify_all_subscribers(%s) of ",
 				_gdp_proto_cmd_name(cmd));
 		_gdp_req_dump(pubreq, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
@@ -69,12 +69,15 @@ sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 
 		if (ep_dbg_test(Dbg, 59))
 		{
+			ep_dbg_printf("sub_notify_all_subscribers: checking ");
 			_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 		}
 
 		// notify subscribers
 		if (EP_UT_BITSET(GDP_REQ_SRV_SUBSCR, req->flags))
 			sub_send_message_notification(req, pubreq->pdu->datum, cmd);
+		else
+			ep_dbg_cprintf(Dbg, 59, "   ... not a subscription\n");
 	}
 }
 

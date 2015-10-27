@@ -45,12 +45,14 @@ subscr_resub(gdp_req_t *req)
 
 	EP_ASSERT(req->gcl != NULL);
 	EP_ASSERT(req->pdu != NULL);
-	EP_ASSERT(req->pdu->datum != NULL);
+	EP_ASSERT(req->pdu->datum == NULL);
 
 	req->state = GDP_REQ_ACTIVE;
 	req->pdu->cmd = GDP_CMD_SUBSCRIBE;
 	memcpy(req->pdu->dst, req->gcl->name, sizeof req->pdu->dst);
 	memcpy(req->pdu->src, _GdpMyRoutingName, sizeof req->pdu->src);
+	req->pdu->datum = gdp_datum_new();
+	req->pdu->datum->recno = req->gcl->nrecs + 1;
 	gdp_buf_put_uint32(req->pdu->datum->dbuf, req->numrecs);
 
 	estat = _gdp_invoke(req);
@@ -65,6 +67,8 @@ subscr_resub(gdp_req_t *req)
 	}
 
 	req->state = GDP_REQ_IDLE;
+	gdp_datum_free(req->pdu->datum);
+	req->pdu->datum = NULL;
 
 	return estat;
 }
@@ -79,8 +83,8 @@ static void *
 subscr_poker_thread(void *chan_)
 {
 	gdp_chan_t *chan = chan_;
-	long delta_poke = ep_adm_getlongparam("swarm.gdp.subscr.pokeintvl", 10L);
-	long delta_dead = ep_adm_getlongparam("swarm.gdp.subscr.deadintvl", 60L);
+	long delta_poke = ep_adm_getlongparam("swarm.gdp.subscr.pokeintvl", 60L);
+	long delta_dead = ep_adm_getlongparam("swarm.gdp.subscr.deadintvl", 180L);
 
 	ep_dbg_cprintf(Dbg, 10, "Starting subscription poker thread\n");
 	chan->flags |= GDP_CHAN_HAS_SUB_THR;
@@ -95,13 +99,13 @@ subscr_poker_thread(void *chan_)
 		EP_TIME_SPEC t_dead;	// abort if older than this
 
 		// wait for a while to avoid hogging CPU
-		ep_time_nanosleep(delta_poke SECONDS);
+		ep_time_nanosleep(delta_poke / 2 SECONDS);
 		ep_dbg_cprintf(Dbg, 40, "\nsubscr_poker_thread: poking\n");
 
 		ep_time_now(&now);
-		ep_time_from_nsec(delta_poke SECONDS, &t_poke);
+		ep_time_from_nsec(-delta_poke SECONDS, &t_poke);
 		ep_time_add_delta(&now, &t_poke);
-		ep_time_from_nsec(delta_dead SECONDS, &t_dead);
+		ep_time_from_nsec(-delta_dead SECONDS, &t_dead);
 		ep_time_add_delta(&now, &t_dead);
 
 		for (req = LIST_FIRST(&chan->reqs); req != NULL; req = nextreq)
@@ -127,7 +131,7 @@ subscr_poker_thread(void *chan_)
 			{
 				// we've seen activity recently, no need to poke
 			}
-			else if (ep_time_before(&t_dead, &req->act_ts))
+			else if (ep_time_before(&req->act_ts, &t_dead))
 			{
 				// this subscription is dead
 				//XXX should be impossible: subscription refreshed each time
@@ -194,13 +198,16 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 	{
 		// now waiting for other events; go ahead and unlock
 		req->state = GDP_REQ_IDLE;
+		gdp_datum_free(req->pdu->datum);
+		req->pdu->datum = NULL;
 		ep_thr_cond_signal(&req->cond);
 		_gdp_req_unlock(req);
 
 		// the req is still on the channel list
 
 		// start a subscription poker thread if needed
-		if (!EP_UT_BITSET(GDP_CHAN_HAS_SUB_THR, chan->flags))
+		long poke = ep_adm_getlongparam("swarm.gdp.subscr.pokeintvl", 60L);
+		if (poke > 0 && !EP_UT_BITSET(GDP_CHAN_HAS_SUB_THR, chan->flags))
 		{
 			int istat = pthread_create(&chan->sub_thr_id, NULL,
 								subscr_poker_thread, chan);

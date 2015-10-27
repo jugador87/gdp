@@ -340,8 +340,10 @@ gdp_gcl_open(gdp_name_t name,
 	}
 	else
 	{
-		_gdp_gcl_freehandle(gcl);
+		// no need to free the GCL on error; _gdp_req_free (called from
+		// _gdp_gcl_open) has done this already
 	}
+
 fail0:
 	return estat;
 }

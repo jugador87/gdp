@@ -381,6 +381,7 @@ struct gdp_req
 	gdp_pdu_t			*pdu;		// PDU buffer
 	gdp_chan_t			*chan;		// the network channel for this req
 	EP_STAT				stat;		// status code from last operation
+	gdp_recno_t			nextrec;	// next record to return (subscriptions)
 	int32_t				numrecs;	// remaining number of records to return
 	uint16_t			state;		// see below
 	uint32_t			flags;		// see below

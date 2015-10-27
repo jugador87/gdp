@@ -174,13 +174,21 @@ _gdp_req_free(gdp_req_t *req)
 
 	// remove the request from the channel subscription list
 	if (EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags))
+	{
+		ep_thr_mutex_lock(&req->chan->mutex);
 		LIST_REMOVE(req, chanlist);
-	req->flags &= ~GDP_REQ_ON_CHAN_LIST;
+		req->flags &= ~GDP_REQ_ON_CHAN_LIST;
+		ep_thr_mutex_unlock(&req->chan->mutex);
+	}
 
 	// remove the request from the GCL list
 	if (EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
+	{
+		ep_thr_mutex_lock(&req->gcl->mutex);
 		LIST_REMOVE(req, gcllist);
-	req->flags &= ~GDP_REQ_ON_GCL_LIST;
+		req->flags &= ~GDP_REQ_ON_GCL_LIST;
+		ep_thr_mutex_unlock(&req->gcl->mutex);
+	}
 
 	// free the associated PDU
 	if (req->pdu != NULL)
@@ -445,12 +453,12 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp, int detail, int indent)
 	}
 	flockfile(fp);
 	fprintf(fp, "req@%p:\n", req);
-	fprintf(fp, "    numrecs=%" PRIu32
-			", chan=%p, postproc=%p, sub_cb=%p, udata=%p\n"
+	fprintf(fp, "    nextrec=%" PRIgdp_recno ", numrecs=%" PRIu32 ", chan=%p\n"
+			"    postproc=%p, sub_cb=%p, udata=%p\n"
 			"    state=%s, stat=%s\n",
-			req->numrecs, req->chan, req->postproc,
-			req->sub_cb, req->udata, statestr(req),
-			ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
+			req->nextrec, req->numrecs, req->chan,
+			req->postproc, req->sub_cb, req->udata,
+			statestr(req), ep_stat_tostr(req->stat, ebuf, sizeof ebuf));
 	fprintf(fp, "    act_ts=");
 	ep_time_print(&req->act_ts, fp, EP_TIME_FMT_HUMAN);
 	fprintf(fp, "\n    flags=");

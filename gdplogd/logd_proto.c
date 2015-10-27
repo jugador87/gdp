@@ -191,7 +191,7 @@ cmd_create(gdp_req_t *req)
 
 	// cache the open GCL Handle for possible future use
 	EP_ASSERT_INSIST(gdp_name_is_valid(gcl->name));
-	_gdp_gcl_cache_add(gcl, GDP_MODE_AO);
+	_gdp_gcl_cache_add(gcl, gcl->iomode);
 
 	// pass any creation info back to the caller
 	// (none at this point)
@@ -239,7 +239,7 @@ cmd_open(gdp_req_t *req)
 
 	gcl = req->gcl;
 	gcl->flags |= GCLF_DEFER_FREE;
-	gcl->iomode = GDP_MODE_ANY;
+	gcl->iomode = GDP_MODE_RA;
 	if (gcl->gclmd != NULL)
 	{
 		// send metadata as payload
@@ -563,8 +563,8 @@ post_subscribe(gdp_req_t *req)
 	EP_STAT estat;
 
 	ep_dbg_cprintf(Dbg, 38,
-			"post_subscribe: numrecs = %d, recno = %"PRIgdp_recno"\n",
-			req->numrecs, req->pdu->datum->recno);
+			"post_subscribe: numrecs = %d, nextrec = %"PRIgdp_recno"\n",
+			req->numrecs, req->nextrec);
 
 	// make sure the request has the right command
 	req->pdu->cmd = GDP_ACK_CONTENT;
@@ -572,13 +572,14 @@ post_subscribe(gdp_req_t *req)
 	while (req->numrecs >= 0)
 	{
 		// see if data pre-exists in the GCL
-		if (req->pdu->datum->recno > req->gcl->nrecs)
+		if (req->nextrec > req->gcl->nrecs)
 		{
 			// no, it doesn't; convert to long-term subscription
 			break;
 		}
 
 		// get the next record and return it as an event
+		req->pdu->datum->recno = req->nextrec;
 		estat = gcl_physread(req->gcl, req->pdu->datum);
 		if (EP_STAT_ISOK(estat))
 		{
@@ -595,7 +596,7 @@ post_subscribe(gdp_req_t *req)
 				// numrecs was positive, now zero, but zero means infinity
 				req->numrecs--;
 			}
-			req->pdu->datum->recno++;
+			req->nextrec++;
 		}
 		else if (!EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
 		{
@@ -624,11 +625,13 @@ post_subscribe(gdp_req_t *req)
 		req->flags |= GDP_REQ_SRV_SUBSCR;
 
 		// link this request into the GCL so the subscription can be found
-		ep_thr_mutex_lock(&req->gcl->mutex);
 		if (!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
+		{
+			ep_thr_mutex_lock(&req->gcl->mutex);
 			LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
-		req->flags |= GDP_REQ_ON_GCL_LIST;
-		ep_thr_mutex_unlock(&req->gcl->mutex);
+			req->flags |= GDP_REQ_ON_GCL_LIST;
+			ep_thr_mutex_unlock(&req->gcl->mutex);
+		}
 	}
 }
 
@@ -688,19 +691,20 @@ cmd_subscribe(gdp_req_t *req)
 	}
 
 	// get our starting point, which may be relative to the end
-	if (req->pdu->datum->recno <= 0)
+	req->nextrec = req->pdu->datum->recno;
+	if (req->nextrec <= 0)
 	{
-		req->pdu->datum->recno += req->gcl->nrecs + 1;
-		if (req->pdu->datum->recno <= 0)
+		req->nextrec += req->gcl->nrecs + 1;
+		if (req->nextrec <= 0)
 		{
 			// still starts before beginning; start from beginning
-			req->pdu->datum->recno = 1;
+			req->nextrec = 1;
 		}
 	}
 
-	ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: starting from %" PRIgdp_recno
-			", %d records\n",
-			req->pdu->datum->recno, req->numrecs);
+	ep_dbg_cprintf(Dbg, 24,
+			"cmd_subscribe: starting from %" PRIgdp_recno ", %d records\n",
+			req->nextrec, req->numrecs);
 
 	// see if this is refreshing an existing subscription
 	{
@@ -724,8 +728,7 @@ cmd_subscribe(gdp_req_t *req)
 		if (r1 != NULL)
 		{
 			// this overlaps a previous subscription; just update
-			r1->pdu->datum->recno = req->pdu->datum->recno;
-			r1->gcl->nrecs = req->gcl->nrecs;
+			r1->nextrec = req->nextrec;
 			r1->numrecs = req->numrecs;
 
 			// abandon new request
@@ -739,7 +742,7 @@ cmd_subscribe(gdp_req_t *req)
 	req->flags |= GDP_REQ_PERSIST | GDP_REQ_SUBUPGRADE;
 
 	// if some of the records already exist, arrange to return them
-	if (req->pdu->datum->recno <= req->gcl->nrecs)
+	if (req->nextrec <= req->gcl->nrecs)
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_subscribe: doing post processing\n");
 		req->flags &= ~GDP_REQ_SRV_SUBSCR;
@@ -752,11 +755,13 @@ cmd_subscribe(gdp_req_t *req)
 		req->flags |= GDP_REQ_SRV_SUBSCR;
 
 		// link this request into the GCL so the subscription can be found
-		ep_thr_mutex_lock(&req->gcl->mutex);
 		if (!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
+		{
+			ep_thr_mutex_lock(&req->gcl->mutex);
 			LIST_INSERT_HEAD(&req->gcl->reqs, req, gcllist);
-		req->flags |= GDP_REQ_ON_GCL_LIST;
-		ep_thr_mutex_unlock(&req->gcl->mutex);
+			req->flags |= GDP_REQ_ON_GCL_LIST;
+			ep_thr_mutex_unlock(&req->gcl->mutex);
+		}
 	}
 
 	// we don't drop the GCL reference until the subscription is satisified
@@ -802,13 +807,14 @@ cmd_multiread(gdp_req_t *req)
 	flush_input_data(req, "cmd_multiread");
 
 	// get our starting point, which may be relative to the end
-	if (req->pdu->datum->recno <= 0)
+	req->nextrec = req->pdu->datum->recno;
+	if (req->nextrec <= 0)
 	{
-		req->pdu->datum->recno += req->gcl->nrecs + 1;
-		if (req->pdu->datum->recno <= 0)
+		req->nextrec += req->gcl->nrecs + 1;
+		if (req->nextrec <= 0)
 		{
 			// still starts before beginning; start from beginning
-			req->pdu->datum->recno = 1;
+			req->nextrec = 1;
 		}
 	}
 
@@ -818,28 +824,28 @@ cmd_multiread(gdp_req_t *req)
 	}
 
 	// get our starting point, which may be relative to the end
-	if (req->pdu->datum->recno <= 0)
+	if (req->nextrec <= 0)
 	{
-		req->pdu->datum->recno += req->gcl->nrecs + 1;
-		if (req->pdu->datum->recno <= 0)
+		req->nextrec += req->gcl->nrecs + 1;
+		if (req->nextrec <= 0)
 		{
 			// still starts before beginning; start from beginning
-			req->pdu->datum->recno = 1;
+			req->nextrec = 1;
 		}
 	}
 
 	ep_dbg_cprintf(Dbg, 24, "cmd_multiread: starting from %" PRIgdp_recno
 			", %d records\n",
-			req->pdu->datum->recno, req->numrecs);
+			req->nextrec, req->numrecs);
 
 	// if some of the records already exist, arrange to return them
-	if (req->pdu->datum->recno <= req->gcl->nrecs)
+	if (req->nextrec <= req->gcl->nrecs)
 	{
 		ep_dbg_cprintf(Dbg, 24, "cmd_multiread: doing post processing\n");
 		req->postproc = &post_subscribe;
 
 		// make this a "snapshot", i.e., don't read additional records
-		int32_t nrec = req->gcl->nrecs - req->pdu->datum->recno;
+		int32_t nrec = req->gcl->nrecs - req->nextrec;
 		if (nrec < req->numrecs || req->numrecs == 0)
 			req->numrecs = nrec + 1;
 

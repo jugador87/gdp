@@ -20,7 +20,7 @@ gcl_alloc(gdp_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
 	// get the standard handle
 	estat = _gdp_gcl_newhandle(gcl_name, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
-	gcl->iomode = iomode;
+	gcl->iomode = GDP_MODE_ANY;		// might change mode later: be permissive
 
 	// add the gdpd-specific information
 	gcl->x = ep_mem_zalloc(sizeof *gcl->x);
@@ -102,21 +102,15 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 	if (req->gcl != NULL ||
 		(req->gcl = _gdp_gcl_cache_get(req->pdu->dst, iomode)) != NULL)
 	{
-		if (iomode == GDP_MODE_ANY || EP_UT_BITSET(iomode, req->gcl->iomode))
-			estat = EP_STAT_OK;
-		else
-			estat = GDP_STAT_BAD_IOMODE;
 		if (ep_dbg_test(Dbg, 40))
 		{
 			gdp_pname_t pname;
-			char ebuf[100];
 
 			gdp_printable_name(req->pdu->dst, pname);
-			ep_dbg_printf("get_open_handle: using existing GCL:\n\t%s => %p\n"
-					"\t%s\n",
-					pname, req->gcl, ep_stat_tostr(estat, ebuf, sizeof ebuf));
+			ep_dbg_printf("get_open_handle: using existing GCL:\n\t%s => %p\n",
+					pname, req->gcl);
 		}
-		return estat;
+		return EP_STAT_OK;
 	}
 
 	// not in cache?  create a new one.
