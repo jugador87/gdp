@@ -253,7 +253,8 @@ ep_thr_cond_wait(EP_THR_COND *cv, EP_THR_MUTEX *mtx, EP_TIME_SPEC *timeout)
 {
 	int err;
 
-	TRACE(cv, "cond_wait");
+	TRACE(cv, "cond_wait-cv");
+	TRACE(mtx, "cond-wait-mtx");
 	if (!_EpThrUsePthreads)
 		return 0;
 	CHECKMTX(mtx, "wait >>>");
