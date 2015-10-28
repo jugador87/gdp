@@ -451,6 +451,8 @@ Full List of Administrative Parameters:
 		request when no response is received.  Defaults to 3
 		(meaning that the request may be sent up to 4 times
 		total).
+	swarm.gdp.invoke.retrydelay --- the number of milliseconds
+		between retry attempts.  Defaults to 5000 (five seconds).
 	swarm.gdp.crypto.key.path --- path name to search for secret
 		keys when writing a log.  Defaults to ".:KEYS:
 		~/.swarm/gdp/keys:/usr/local/etc/swarm/gdp/keys:
