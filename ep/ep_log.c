@@ -89,6 +89,7 @@ ep_log_syslog(EP_STAT estat, const char *fmt, va_list ap)
 	int sev = EP_STAT_SEVERITY(estat);
 	int logsev;
 	static bool inited = false;
+	const char *logline = "%s: %s";
 
 	// initialize log if necessary
 	if (!inited)
@@ -102,6 +103,7 @@ ep_log_syslog(EP_STAT estat, const char *fmt, va_list ap)
 	{
 	  case EP_STAT_SEV_OK:
 		logsev = LOG_INFO;
+		logline = "%s";
 		break;
 
 	  case EP_STAT_SEV_WARN:
@@ -132,7 +134,7 @@ ep_log_syslog(EP_STAT estat, const char *fmt, va_list ap)
 	else
 		ep_stat_tostr(estat, ebuf, sizeof ebuf);
 	vsnprintf(mbuf, sizeof mbuf, fmt, ap);
-	syslog(logsev, "%s: %s", ebuf, mbuf);
+	syslog(logsev, logline, ebuf, mbuf);
 }
 
 
