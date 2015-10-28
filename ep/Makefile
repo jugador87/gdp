@@ -18,7 +18,7 @@ CRYPTOROOT=	/usr/local/ssl
 
 CURDIR=	.
 
-OBJS=	\
+OBJS_MOST=	\
 	ep_adm.o \
 	ep_app.o \
 	ep_assert.o \
@@ -52,6 +52,9 @@ OBJS=	\
 	ep_thr_pool.o \
 	ep_time.o \
 	ep_xlate.o \
+
+OBJS=	\
+	${OBJS_MOST} \
 	ep_version.o \
 
 OBJS_NOTYET=	\
@@ -182,7 +185,7 @@ libep.a: ${OBJS}
 libep.so.${EPLIBVER}: ${OBJS}
 	${CC} ${SHARED} -o $@ ${OBJS} ${LIBS}
 
-ep_version.o: ep_version.c FORCE
+ep_version.o: ep_version.c ${OBJS_MOST} Makefile
 	${CC} ${CFLAGS} -D_CURRENT_DATE_=\"`date +'%Y-%m-%d_%H:%M'`\" -c ep_version.c
 
 #ep_stat.h: ep_status_codes.stat procstatus.py
@@ -190,11 +193,6 @@ ep_version.o: ep_version.c FORCE
 #	./procstatus.py < ep_status_codes.stat > ep_stat.h
 #	chmod 444 ep_stat.h
 
-#
-#  Utilities
-#
-
-FORCE:
 
 #
 #  Administrative stuff
