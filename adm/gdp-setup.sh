@@ -108,7 +108,7 @@ case "$OS" in
 
     "darwin")
 	pkgmgr=none
-	if type brew > /dev/null 2>&1 && [ ! -z `brew list` ]; then
+	if type brew > /dev/null 2>&1 && [ ! -z "`brew list`" ]; then
 	    pkgmgr=brew
 	    brew update
 	fi
