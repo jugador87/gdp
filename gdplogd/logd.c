@@ -74,8 +74,11 @@ shutdown_req(gdp_req_t *req)
 void
 logd_shutdown(void)
 {
-	ep_dbg_cprintf(Dbg, 1, "\n\n*** Shutting down GCL cache ***\n");
-	_gdp_gcl_cache_shutdown(&shutdown_req);
+	if (ep_adm_getboolparam("gdplogd.shutdown.flushcache", false))
+	{
+		ep_dbg_cprintf(Dbg, 1, "\n\n*** Shutting down GCL cache ***\n");
+		_gdp_gcl_cache_shutdown(&shutdown_req);
+	}
 
 	ep_dbg_cprintf(Dbg, 1, "\n\n*** Withdrawing all advertisements ***\n");
 	logd_advertise_all(GDP_CMD_WITHDRAW);
