@@ -89,7 +89,7 @@ logd_shutdown(void)
 void
 sigterm(int sig)
 {
-	ep_log(EP_STAT_ABORT, "Terminating on signal %d", sig);
+	ep_log(EP_STAT_OK, "Terminating on signal %d", sig);
 	signal(sig, SIG_DFL);
 	exit(EX_UNAVAILABLE);		// this will do cleanup
 }
