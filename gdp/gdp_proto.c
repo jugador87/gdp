@@ -7,6 +7,7 @@
 #include <ep/ep_log.h>
 
 #include <string.h>
+#include <sys/errno.h>
 
 /*
 **	This implements the GDP Protocol.
@@ -37,13 +38,16 @@ static uint8_t	RoutingLayerAddr[32] =
 **		where a command can return multiple values (e.g., subscribe).
 */
 
+#define MILLISECONDS		* INT64_C(1000000)
+
 EP_STAT
 _gdp_invoke(gdp_req_t *req)
 {
 	EP_STAT estat = EP_STAT_OK;
 	EP_TIME_SPEC abs_to;
-	long delta_to = ep_adm_getlongparam("swarm.gdp.invoke.timeout", 10000L);
-	int retries = ep_adm_getintparam("swarm.gdp.invoke.retries", 3);
+	long delta_to;				// how long to wait for a response
+	int retries;				// how many times to retry
+	long retry_delay;			// how long to delay between retries
 	EP_TIME_SPEC delta_ts;
 	const char *cmdname;
 
@@ -61,9 +65,12 @@ _gdp_invoke(gdp_req_t *req)
 	EP_ASSERT(req->state == GDP_REQ_ACTIVE);
 
 	// scale timeout to milliseconds
+	delta_to = ep_adm_getlongparam("swarm.gdp.invoke.timeout", 10000L);
 	ep_time_from_nsec(delta_to * INT64_C(1000000), &delta_ts);
+	retry_delay = ep_adm_getlongparam("swarm.gdp.invoke.retrydelay", 5000L);
 
 	// loop to allow for retransmissions
+	retries = ep_adm_getintparam("swarm.gdp.invoke.retries", 3);
 	if (retries < 1)
 		retries = 1;
 	while (retries-- > 0)
@@ -101,7 +108,8 @@ _gdp_invoke(gdp_req_t *req)
 			if (e != 0)
 			{
 				estat = ep_stat_from_errno(e);
-				retries = 0;
+				if (e != ETIMEDOUT)			// retry on timeouts
+					retries = 0;
 				break;
 			}
 		}
@@ -109,12 +117,30 @@ _gdp_invoke(gdp_req_t *req)
 		if (EP_STAT_ISOK(estat))
 		{
 			estat = req->stat;
-			retries = 0;			// we're done, don't retry
+			if (EP_STAT_ISOK(estat))
+			{
+				retries = 0;			// we're done, don't retry
+			}
+			else if (EP_STAT_IS_SAME(estat, GDP_STAT_NAK_NOROUTE) &&
+					EP_UT_BITSET(GDP_REQ_ROUTEFAIL, req->flags))
+			{
+				// route failure on open: don't retry
+				retries = 0;
+			}
+			else if (retries > 0)
+			{
+				ep_time_nanosleep(retry_delay MILLISECONDS);
+			}
 		}
 		else
 		{
-			// if the invoke failed, we have to pull the req off the gcl list
+			// if the cond_wait failed, we have to pull the req off the gcl list
 			_gdp_req_unsend(req);
+
+			// if ETIMEDOUT, maybe the router had a glitch:
+			//   wait and try again
+			if (retries > 0)
+				ep_time_nanosleep(retry_delay MILLISECONDS);
 		}
 
 #if 0

@@ -272,6 +272,7 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 
 	// send the request across to the log daemon
 	errno = 0;				// avoid spurious messages
+	reqflags |= GDP_REQ_ROUTEFAIL;			// don't retry on router errors
 	estat = _gdp_req_new(cmd, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 	estat = _gdp_invoke(req);

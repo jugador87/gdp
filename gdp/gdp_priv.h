@@ -410,6 +410,7 @@ struct gdp_req
 #define GDP_REQ_ON_GCL_LIST		0x00000080	// this is on a GCL list
 #define GDP_REQ_ON_CHAN_LIST	0x00000100	// this is on a channel list
 #define GDP_REQ_CORE			0x00000200	// internal to the core code
+#define GDP_REQ_ROUTEFAIL		0x00000400	// fail immediately on route failure
 
 EP_STAT			_gdp_req_new(				// create new request
 						int cmd,
