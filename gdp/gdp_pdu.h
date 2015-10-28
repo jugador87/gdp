@@ -53,25 +53,24 @@
 **			"seq" since this is a lower-level concept that is
 **			subsumed by TCP.
 **
-**		The structure of an on-the-wire PDU is:
-**			1	protocol version and format
-**			1	time to live (in hops)
-**			1	reserved
-**			1	command or ack/nak
-**			32	destination address
-**			32	source address
-**			4	request id
-**			1	signature algorithm
-**			1	signature length (in 32 bit words)
-**			1	optionals length (in 32 bit words)
-**			1	flags (indicate presence/lack of optional fields)
-**			4	length of data portion
-**			[8	record number (optional)]
-**			[8	sequence number (optional)]
-**			[16	commit timestamp (optional)]
-**			V	additional optional data
-**			V	data (length indicated above)
-**			V	signature (length indicated above)
+**		The structure of an on-the-wire PDU is (showing length & offset):
+**			1	0	protocol version and format
+**			1	1	time to live (in hops)
+**			1	2	reserved
+**			1	3	command or ack/nak
+**			32	4	destination address
+**			32	36	source address
+**			4	68	request id
+**			2	72	signature length & digest algorithm
+**			1	74	optionals length (in 32 bit words)
+**			1	75	flags (indicate presence/lack of optional fields)
+**			4	76	length of data portion
+**			[8	__	record number (optional)]
+**			[8	__	sequence number (optional)]
+**			[16	__	commit timestamp (optional)]
+**			V	__	additional optional data
+**			V	__	data (length indicated above)
+**			V	__	signature (length indicated above)
 **		The structure shown below is the in-memory version and does
 **		not correspond 1::1 to the on-wire format.
 */
@@ -88,16 +87,16 @@ typedef struct gdp_pdu
 	bool					inuse:1;	// indicates that this is allocated
 
 	// PDU data
-	uint8_t				ver;		// protocol version and format
-	uint8_t				ttl;		// time to live
-	uint8_t				rsvd1;		// reserved
-	uint8_t				cmd;		// command or ack/nak
-	gdp_name_t			dst;		// destination address
-	gdp_name_t			src;		// source address
-	uint16_t			olen;		// optionals length (in octets)
-	uint8_t				flags;		// see below
-	gdp_rid_t			rid;		// request id (GDP_PDU_NO_RID => none)
-	gdp_seqno_t			seqno;		// sequence number
+	uint8_t				ver;		//  0 protocol version and format
+	uint8_t				ttl;		//  1 time to live
+	uint8_t				rsvd1;		//  2 reserved
+	uint8_t				cmd;		//  3 command or ack/nak
+	gdp_name_t			dst;		//  4 destination address
+	gdp_name_t			src;		// 36 source address
+	gdp_rid_t			rid;		// 68 request id (GDP_PDU_NO_RID => none)
+	uint8_t				olen;		// 74 optionals length (in 32-bit words)
+	uint8_t				flags;		// 75 see below
+	gdp_seqno_t			seqno;		// ?? sequence number (XXX used?)
 
 	// data length, recno, timestamp, signature, and data are in the datum
 	gdp_datum_t			*datum;		// pointer to data record

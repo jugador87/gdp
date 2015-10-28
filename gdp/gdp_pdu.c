@@ -158,8 +158,8 @@ send_data(struct evbuffer *obuf,
 			*pbp++ = ((v) & 0xff); \
 		}
 
-#define OOFF		74		// ofset of olen from beginning of pdu
-#define FOFF		75		// offet of flags from beginning of pdu
+#define OOFF		74		// offset of olen from beginning of pdu
+#define FOFF		75		// offset of flags from beginning of pdu
 
 EP_STAT
 _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *basemd)
@@ -306,7 +306,9 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *basemd)
 
 	hdrlen = pbp - pbuf;
 	offset = 0;
-	pbuf[OOFF] = ((hdrlen - _GDP_PDU_FIXEDHDRSZ) + 3) / 4;
+	// convert length of optional fields to words; should never require padding
+	EP_ASSERT(((hdrlen - _GDP_PDU_FIXEDHDRSZ) & 0x03) == 0);
+	pbuf[OOFF] = (hdrlen - _GDP_PDU_FIXEDHDRSZ) / 4;
 
 	ep_dbg_cprintf(Dbg, 32, "_gdp_pdu_out: sending PDU:\n");
 
@@ -343,13 +345,13 @@ _gdp_pdu_out(gdp_pdu_t *pdu, gdp_chan_t *chan, EP_CRYPTO_MD *basemd)
 		estat = send_data(obuf, sigp, pdu->datum->siglen,
 						"signature", offset, EP_HEXDUMP_HEX);
 		offset += pdu->datum->siglen;
-		EP_STAT_CHECK(estat, goto fail0);
+		//EP_STAT_CHECK(estat, goto fail0);
 	}
 
 fail0:
 	if (!EP_STAT_ISOK(estat))
 	{
-		// flush buffer so we send nothing
+		// flush buffer so we send nothing once the buffer is unlocked
 		evbuffer_drain(obuf, evbuffer_get_length(obuf));
 	}
 	evbuffer_unlock(obuf);
