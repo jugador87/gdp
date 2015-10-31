@@ -19,6 +19,8 @@ extern void		_gdp_stat_init(void);
 
 #define GDP_STAT_NEW(sev, det)		EP_STAT_NEW(EP_STAT_SEV_ ## sev,	\
 										EP_REGISTRY_UCB, GDP_MODULE, det)
+#define GDP_STAT_IS_GDP(estat)		(EP_STAT_REGISTRY(estat) == EP_REGISTRY_UCB && \
+									 EP_STAT_MODULE(estat) == GDP_MODULE)
 
 #define GDP_STAT_MSGFMT					GDP_STAT_NEW(ERROR, 1)
 #define GDP_STAT_SHORTMSG				GDP_STAT_NEW(ERROR, 2)
@@ -98,6 +100,10 @@ extern void		_gdp_stat_init(void);
 #define GDP_COAP_PROXYNOTSUP	505		// Proxying Not Supported (N/E)
 										// (N/E: 505 HTTP Version Not Supported)
 
+#define GDP_STAT_IS_ACK(estat)		(GDP_STAT_IS_GDP(estat) && \
+									 EP_STAT_DETAIL(estat) >= 200 && \
+									 EP_STAT_DETAIL(estat) <= 299)
+
 #define GDP_STAT_ACK_SUCCESS		GDP_STAT_NEW(OK, GDP_COAP_SUCCESS)
 #define GDP_STAT_ACK_CREATED		GDP_STAT_NEW(OK, GDP_COAP_CREATED)
 #define GDP_STAT_ACK_DELETED		GDP_STAT_NEW(OK, GDP_COAP_DELETED)
@@ -105,6 +111,9 @@ extern void		_gdp_stat_init(void);
 #define GDP_STAT_ACK_CHANGED		GDP_STAT_NEW(OK, GDP_COAP_CHANGED)
 #define GDP_STAT_ACK_CONTENT		GDP_STAT_NEW(OK, GDP_COAP_CONTENT)
 
+#define GDP_STAT_IS_C_NAK(estat)	(GDP_STAT_IS_GDP(estat) && \
+									 EP_STAT_DETAIL(estat) >= 400 && \
+									 EP_STAT_DETAIL(estat) <= 499)
 #define GDP_STAT_NAK_BADREQ			GDP_STAT_NEW(ERROR, GDP_COAP_BADREQ)
 #define GDP_STAT_NAK_UNAUTH			GDP_STAT_NEW(ERROR, GDP_COAP_UNAUTH)
 #define GDP_STAT_NAK_BADOPT			GDP_STAT_NEW(ERROR, GDP_COAP_BADOPT)
@@ -117,6 +126,9 @@ extern void		_gdp_stat_init(void);
 #define GDP_STAT_NAK_TOOLARGE		GDP_STAT_NEW(ERROR, GDP_COAP_TOOLARGE)
 #define GDP_STAT_NAK_UNSUPMEDIA		GDP_STAT_NEW(ERROR, GDP_COAP_UNSUPMEDIA)
 
+#define GDP_STAT_IS_C_NACK(estat)	(GDP_STAT_IS_GDP(estat) && \
+									 EP_STAT_DETAIL(estat) >= 500 && \
+									 EP_STAT_DETAIL(estat) <= 599)
 #define GDP_STAT_NAK_INTERNAL		GDP_STAT_NEW(SEVERE, GDP_COAP_INTERNAL)
 #define GDP_STAT_NAK_NOTIMPL		GDP_STAT_NEW(SEVERE, GDP_COAP_NOTIMPL)
 #define GDP_STAT_NAK_BADGATEWAY		GDP_STAT_NEW(SEVERE, GDP_COAP_BADGATEWAY)
@@ -124,4 +136,7 @@ extern void		_gdp_stat_init(void);
 #define GDP_STAT_NAK_GWTIMEOUT		GDP_STAT_NEW(SEVERE, GDP_COAP_GWTIMEOUT)
 #define GDP_STAT_NAK_PROXYNOTSUP	GDP_STAT_NEW(SEVERE, GDP_COAP_PROXYNOTSUP)
 
+#define GDP_STAT_IS_R_NACK(estat)	(GDP_STAT_IS_GDP(estat) && \
+									 EP_STAT_DETAIL(estat) >= 600 && \
+									 EP_STAT_DETAIL(estat) <= 699)
 #define GDP_STAT_NAK_NOROUTE		GDP_STAT_NEW(ERROR, 600)

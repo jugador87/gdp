@@ -235,45 +235,13 @@ gdp_pdu_proc_resp(void *pdu_)
 		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
+	// save the response PDU for further processing
+	req->rpdu = pdu;
+
 	// request is locked
 
 	// mark this request as active (for subscriptions)
 	ep_time_now(&req->act_ts);
-
-	// we want to re-use caller's datum for (e.g.) read commands
-	if (req->pdu != pdu)
-	{
-		if (req->pdu->datum != NULL)
-		{
-			if (ep_dbg_test(Dbg, 43))
-			{
-				ep_dbg_printf("gdp_pdu_proc_resp: reusing old datum "
-						"for req %p\n   ",
-						req);
-				_gdp_datum_dump(req->pdu->datum, ep_dbg_getfile());
-			}
-
-			// don't need the old dbuf
-			gdp_buf_free(req->pdu->datum->dbuf);
-
-			// copy the contents of the new message over the old
-			memcpy(req->pdu->datum, pdu->datum, sizeof *req->pdu->datum);
-
-			// we no longer need the new message
-			pdu->datum->dbuf = NULL;
-			gdp_datum_free(pdu->datum);
-
-			// point the new PDU at the old datum
-			pdu->datum = req->pdu->datum;
-			EP_ASSERT(pdu->datum->inuse);
-		}
-
-		// can now drop the old pdu and switch to the new one
-		req->pdu->datum = NULL;
-		_gdp_pdu_free(req->pdu);
-		req->pdu = pdu;
-		pdu = NULL;
-	}
 
 	ep_dbg_cprintf(Dbg, 40, "gdp_pdu_proc_resp >>> req=%p\n", req);
 

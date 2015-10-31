@@ -379,6 +379,7 @@ struct gdp_req
 	LIST_ENTRY(gdp_req)	chanlist;	// reqs associated with a given channel
 	gdp_gcl_t			*gcl;		// the corresponding GCL handle
 	gdp_pdu_t			*pdu;		// PDU buffer
+	gdp_pdu_t			*rpdu;		// PDU for ack/nak responses
 	gdp_chan_t			*chan;		// the network channel for this req
 	EP_STAT				stat;		// status code from last operation
 	gdp_recno_t			nextrec;	// next record to return (subscriptions)

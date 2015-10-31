@@ -113,10 +113,9 @@ _gdp_req_new(int cmd,
 	_gdp_req_lock(req);
 
 	// initialize request
-	if (pdu != NULL)
-		req->pdu = pdu;
-	else
-		req->pdu = pdu = _gdp_pdu_new();
+	if (pdu == NULL)
+		pdu = _gdp_pdu_new();
+	req->pdu = pdu;
 	req->gcl = gcl;
 	req->stat = EP_STAT_OK;
 	req->flags = flags;
@@ -190,10 +189,12 @@ _gdp_req_free(gdp_req_t *req)
 		ep_thr_mutex_unlock(&req->gcl->mutex);
 	}
 
-	// free the associated PDU
+	// free the associated PDU(s)
+	if (req->rpdu != NULL && req->rpdu != req->pdu)
+		_gdp_pdu_free(req->rpdu);
 	if (req->pdu != NULL)
 		_gdp_pdu_free(req->pdu);
-	req->pdu = NULL;
+	req->pdu = req->rpdu = NULL;
 
 	// dereference the gcl
 	if (req->gcl != NULL)
@@ -468,6 +469,11 @@ _gdp_req_dump(gdp_req_t *req, FILE *fp, int detail, int indent)
 	_gdp_gcl_dump(req->gcl, fp, GDP_PR_BASIC, 0);
 	fprintf(fp, "    ");
 	_gdp_pdu_dump(req->pdu, fp);
+	if (req->rpdu != NULL)
+	{
+		fprintf(fp, "    r");
+		_gdp_pdu_dump(req->rpdu, fp);
+	}
 	funlockfile(fp);
 }
 

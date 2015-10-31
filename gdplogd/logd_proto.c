@@ -710,8 +710,7 @@ cmd_subscribe(gdp_req_t *req)
 	{
 		gdp_req_t *r1;
 
-		for (r1 = LIST_FIRST(&req->gcl->reqs);
-				r1 != NULL;
+		for (r1 = LIST_FIRST(&req->gcl->reqs); r1 != NULL;
 				r1 = LIST_NEXT(r1, gcllist))
 		{
 			if (ep_dbg_test(Dbg, 50))

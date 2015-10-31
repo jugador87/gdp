@@ -117,7 +117,9 @@ _gdp_invoke(gdp_req_t *req)
 		if (EP_STAT_ISOK(estat))
 		{
 			estat = req->stat;
-			if (EP_STAT_ISOK(estat))
+
+			// if we succeeded or it's our fault, don't try again
+			if (EP_STAT_ISOK(estat) || GDP_STAT_IS_C_NAK(estat))
 			{
 				retries = 0;			// we're done, don't retry
 			}
@@ -188,9 +190,52 @@ _gdp_invoke(gdp_req_t *req)
 **  Common code for ACKs and NAKs
 */
 
-static void
-acknak(gdp_req_t *req)
+static EP_STAT
+acknak(gdp_req_t *req, const char *where, bool reuse_pdu)
 {
+	// we require a request
+	if (req == NULL)
+	{
+		ep_log(GDP_STAT_PROTOCOL_FAIL, "%s: null request", where);
+		return GDP_STAT_PROTOCOL_FAIL;
+	}
+
+	ep_dbg_cprintf(Dbg, 8, "%s: received %d\n", where, req->pdu->cmd);
+
+	// we want to re-use caller's datum for (e.g.) read commands
+	if (req->rpdu != NULL && req->rpdu != req->pdu && reuse_pdu)
+	{
+		if (req->pdu->datum != NULL)
+		{
+			if (ep_dbg_test(Dbg, 43))
+			{
+				ep_dbg_printf("%s: reusing old datum for req %p\n   ",
+						where, req);
+				_gdp_datum_dump(req->pdu->datum, ep_dbg_getfile());
+			}
+
+			// don't need the old dbuf
+			gdp_buf_free(req->pdu->datum->dbuf);
+
+			// copy the contents of the new message over the old
+			memcpy(req->pdu->datum, req->rpdu->datum, sizeof *req->pdu->datum);
+
+			// we no longer need the new message
+			req->rpdu->datum->dbuf = NULL;
+			gdp_datum_free(req->rpdu->datum);
+
+			// point the new PDU at the old datum
+			req->rpdu->datum = req->pdu->datum;
+			EP_ASSERT(req->rpdu->datum->inuse);
+		}
+
+		// can now drop the old pdu and switch to the new one
+		req->pdu->datum = NULL;
+		_gdp_pdu_free(req->pdu);
+		req->pdu = req->rpdu;
+		req->rpdu = NULL;
+	}
+	return EP_STAT_OK;
 }
 
 
@@ -199,19 +244,33 @@ acknak(gdp_req_t *req)
 */
 
 static EP_STAT
+ack(gdp_req_t *req, const char *where)
+{
+	EP_STAT estat;
+
+	estat = acknak(req, where, true);
+	EP_STAT_CHECK(estat, return estat);
+
+	if (req->pdu->datum == NULL)
+	{
+		ep_log(estat, "ack: null datum");
+		estat = EP_STAT_OK;
+	}
+	else
+	{
+		estat = GDP_STAT_FROM_ACK(req->pdu->cmd);
+	}
+	return estat;
+}
+
+
+static EP_STAT
 ack_success(gdp_req_t *req)
 {
 	EP_STAT estat;
 	gdp_gcl_t *gcl;
 
-	// we require a request
-	estat = GDP_STAT_PROTOCOL_FAIL;
-	if (req == NULL)
-		ep_log(estat, "ack_success: null request");
-	else if (req->pdu->datum == NULL)
-		ep_log(estat, "ack_success: null datum");
-	else
-		estat = GDP_STAT_FROM_ACK(req->pdu->cmd);
+	estat = ack(req, "ack_success");
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// mark this request as active (for subscriptions)
@@ -227,7 +286,6 @@ ack_success(gdp_req_t *req)
 	}
 
 fail0:
-	acknak(req);
 	return estat;
 }
 
@@ -255,14 +313,23 @@ ack_data_content(gdp_req_t *req)
 
 
 /*
-**  NAK_CLIENT, NAK_SERVER --- handle NAKs (negative acknowlegements)
+**  NAKs (failures)
 */
+
+static EP_STAT
+nak(gdp_req_t *req, const char *where)
+{
+	EP_STAT estat;
+
+	estat = acknak(req, where, true);
+	return estat;
+}
+
 
 static EP_STAT
 nak_client(gdp_req_t *req)
 {
-	ep_dbg_cprintf(Dbg, 8, "nak_client: received %d\n", req->pdu->cmd);
-	acknak(req);
+	nak(req, "nak_client");
 	return GDP_STAT_FROM_C_NAK(req->pdu->cmd);
 }
 
@@ -270,8 +337,7 @@ nak_client(gdp_req_t *req)
 static EP_STAT
 nak_server(gdp_req_t *req)
 {
-	ep_dbg_cprintf(Dbg, 8, "nak_server: received %d\n", req->pdu->cmd);
-	acknak(req);
+	nak(req, "nak_server");
 	return GDP_STAT_FROM_S_NAK(req->pdu->cmd);
 }
 
@@ -279,9 +345,8 @@ nak_server(gdp_req_t *req)
 static EP_STAT
 nak_router(gdp_req_t *req)
 {
-	ep_dbg_cprintf(Dbg, 8, "nak_router: received %d\n", req->pdu->cmd);
-	acknak(req);
-	return GDP_STAT_FROM_R_NAK(req->pdu->cmd);
+	acknak(req, "nak_router", false);
+	return GDP_STAT_FROM_R_NAK(req->rpdu->cmd);
 }
 
 
@@ -609,7 +674,7 @@ cmd_not_implemented(gdp_req_t *req)
 	// just ignore unknown commands
 	if (ep_dbg_test(Dbg, 1))
 	{
-		ep_dbg_printf("gdp_req_dispatch: Unknown cmd, req:\n");
+		ep_dbg_printf("_gdp_req_dispatch: Unknown cmd, req:\n");
 		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
@@ -626,7 +691,13 @@ _gdp_req_dispatch(gdp_req_t *req)
 {
 	EP_STAT estat;
 	dispatch_ent_t *d;
-	int cmd = req->pdu->cmd;
+	int cmd;
+
+	// if this is a response, rpdu will be set
+	if (req->rpdu == NULL)
+		cmd = req->pdu->cmd;
+	else
+		cmd = req->rpdu->cmd;
 
 	if (ep_dbg_test(Dbg, 18))
 	{
@@ -652,7 +723,7 @@ _gdp_req_dispatch(gdp_req_t *req)
 		if (ep_dbg_test(Dbg, 70))
 		{
 			ep_dbg_printf("    ");
-			_gdp_pdu_dump(req->pdu, ep_dbg_getfile());
+			_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 		}
 	}
 
