@@ -423,7 +423,10 @@ static int start(Config *config) {
     return 0;
 }
 
-static void client_callback(AvahiClient *c, AvahiClientState state, AVAHI_GCC_UNUSED void * userdata) {
+static int create_new_simple_poll_client(Config *config);
+
+static void client_callback(AvahiClient *c, AvahiClientState state, AVAHI_GCC_UNUSED void * userdata)
+{
     Config *config = userdata;
 
     /* This function might be called when avahi_client_new() has not
@@ -451,11 +454,7 @@ static void client_callback(AvahiClient *c, AvahiClientState state, AVAHI_GCC_UN
 
                 Browsing = 0;
 
-                if (!(Client = avahi_client_new(avahi_simple_poll_get(SimplePoll), AVAHI_CLIENT_NO_FAIL, client_callback, config, &error))) {
-                    fprintf(stderr, "Failed to create client object: %s\n", avahi_strerror(error));
-                    avahi_simple_poll_quit(SimplePoll);
-                }
-
+				error = create_new_simple_poll_client(config);
             } else {
                 fprintf(stderr, "Client failure, exiting: %s\n", avahi_strerror(avahi_client_errno(c)));
                 avahi_simple_poll_quit(SimplePoll);
@@ -503,6 +502,26 @@ static int init_config(Config *c) {
     return 0;
 }
 
+static int
+create_new_simple_poll_client(Config *config)
+{
+	int error = 0;
+
+	Client = avahi_client_new(avahi_simple_poll_get(SimplePoll),
+			config->no_fail ? AVAHI_CLIENT_NO_FAIL : 0,
+			client_callback,
+			config,
+			&error);
+	if (Client == NULL)
+	{
+		if (config->verbose)
+			fprintf(stderr, "Failed to create client object: %s\n",
+					avahi_strerror(error));
+		avahi_simple_poll_quit(SimplePoll);
+	}
+	return error;
+}
+
 /////////////////////// Public API below ///////////////////////
 
 
@@ -520,10 +539,9 @@ int gdp_zc_scan() {
         goto fail;
     }
 
-    if (!(Client = avahi_client_new(avahi_simple_poll_get(SimplePoll), config.no_fail ? AVAHI_CLIENT_NO_FAIL : 0, client_callback, &config, &error))) {
-        fprintf(stderr, "Failed to create client object: %s\n", avahi_strerror(error));
-        goto fail;
-    }
+	error = create_new_simple_poll_client(&config);
+	if (error != 0)
+		goto fail;
 
 
     InfoList = (ZCInfo**) malloc(sizeof(ZCInfo*));
