@@ -51,6 +51,9 @@
 			? ((void) 0)		\
 			: ep_assert_failure(#e, "assert", __FILE__, __LINE__))
 
+#define EP_ASSERT_FAILURE(m)			\
+			ep_assert_failure(m, "failure", __FILE__, __LINE__)
+
 // called if the assertion failed
 extern void	ep_assert_failure(
 			const char *expr,

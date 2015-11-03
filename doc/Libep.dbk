@@ -1703,7 +1703,7 @@ EP_STAT                 ep_crypto_cipher_finish(
     EP_ASSERT_INVARIANT(expression)     // loop invariants
     EP_ASSERT(expression)               // miscellaneous assertions
 
-    ep_assert_abort(char *msg);         // abort process</programlisting>
+    EP_ASSERT_FAILURE(char *msg);       // abort process with message</programlisting>
   </section>
 
   <section>
