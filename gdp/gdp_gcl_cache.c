@@ -186,7 +186,8 @@ _gdp_gcl_cache_drop(gdp_gcl_t *gcl)
 
 	// lock the GCL cache and the GCL for the duration
 	ep_thr_mutex_lock(&GclCacheMutex);
-	ep_thr_mutex_lock(&gcl->mutex);
+	if (ep_thr_mutex_trylock(&gcl->mutex) != 0)
+		EP_ASSERT_FAILURE("_gdp_gcl_cache_drop: gcl locked");
 
 	if (!EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
 	{
