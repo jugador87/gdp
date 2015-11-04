@@ -216,7 +216,6 @@ gdp_init(const char *router_addr)
 
 	if (_GdpLibInitialized)
 		return EP_STAT_OK;
-	_GdpLibInitialized = true;
 
 	// set up global state, event loop, etc.
 	estat = gdp_lib_init(NULL);
@@ -240,7 +239,10 @@ gdp_init(const char *router_addr)
 			bufferevent_free(_GdpChannel->bev);
 		ep_mem_free(_GdpChannel);
 		_GdpChannel = NULL;
+		goto fail0;
 	}
+
+	_GdpLibInitialized = true;
 
 fail0:
 	{
