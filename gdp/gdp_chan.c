@@ -1,8 +1,8 @@
 /* vim: set ai sw=4 sts=4 ts=4 :*/
 
 /*
-**  I/O CHANNEL HANDLING
-**  	This communicates between the client and the routing layer.
+**	I/O CHANNEL HANDLING
+**		This communicates between the client and the routing layer.
 */
 
 #include "gdp.h"
@@ -142,7 +142,7 @@ gdp_event_cb(struct bufferevent *bev, short events, void *ctx)
 
 
 /*
-**  _GDP_CHAN_OPEN --- open channel to the routing layer
+**	_GDP_CHAN_OPEN --- open channel to the routing layer
 */
 
 EP_STAT
@@ -175,8 +175,8 @@ _gdp_chan_open(const char *gdp_addr,
 	else
 	{
 		ep_dbg_cprintf(Dbg, 12, "Re-using channel @ %p\n"
-				"    process = %p\n"
-				"    advertise = %p\n",
+				"	 process = %p\n"
+				"	 advertise = %p\n",
 				chan, chan->process, chan->advertise);
 	}
 	if (chan->bev == NULL)
@@ -378,7 +378,7 @@ fail0:
 
 
 /*
-**  _GDP_CHAN_CLOSE --- close a channel (e.g., on error)
+**	_GDP_CHAN_CLOSE --- close a channel (e.g., on error)
 */
 
 void
@@ -403,3 +403,5 @@ _gdp_chan_close(gdp_chan_t **pchan)
 	ep_thr_mutex_destroy(&chan->mutex);
 	ep_mem_free(chan);
 }
+
+/* vim: set noexpandtab : */

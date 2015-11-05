@@ -7,12 +7,14 @@
 #include <avahi-client/lookup.h>
 
 typedef struct ZCInfo {
-    char *address;
-    uint16_t port;
-    struct ZCInfo *info_next;
+	char *address;
+	uint16_t port;
+	struct ZCInfo *info_next;
 } ZCInfo;
 
 int gdp_zc_scan();
 ZCInfo **gdp_zc_get_infolist();
 char *gdp_zc_addr_str(ZCInfo **list);
 int gdp_zc_free_infolist(ZCInfo **list);
+
+/* vim: set noexpandtab : */

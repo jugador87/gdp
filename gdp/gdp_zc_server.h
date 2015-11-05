@@ -12,3 +12,5 @@
 #include <avahi-common/timeval.h>
 
 int gdp_zc_publish(const char *instance, uint16_t port_no);
+
+/* vim: set noexpandtab : */

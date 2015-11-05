@@ -1,7 +1,7 @@
 /* vim: set ai sw=4 sts=4 ts=4 :*/
 
 /*
-**  Advertise (publish) information about the GDP router
+**	Advertise (publish) information about the GDP router
 **
 **		This should really be done automatically by the GDP Router
 **		itself, but for the time being this is a stop-gap.
@@ -36,14 +36,14 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    uint16_t port;
+	uint16_t port;
 	char *instance = NULL;
 	char instancebuf[120];
 	int opt;
 
 	ep_lib_init(0);
 	ep_adm_readparams("gdp");
-    port = ep_adm_getintparam("swarm.gdp.router.port", GDP_PORT_DEFAULT);
+	port = ep_adm_getintparam("swarm.gdp.router.port", GDP_PORT_DEFAULT);
 	while ((opt = getopt(argc, argv, "i:p:")) > 0)
 	{
 		switch (opt)
@@ -71,10 +71,12 @@ main(int argc, char **argv)
 		instance = instancebuf;
 	}
 
-    printf("advertise gdp '%s' on %d\n", instance, port);
-    gdp_zc_publish(instance, port);
-    printf("do other stuff here\n");
-    sleep(300);
-    printf("terminating...\n");
-    return 0;
+	printf("advertise gdp '%s' on %d\n", instance, port);
+	gdp_zc_publish(instance, port);
+	printf("do other stuff here\n");
+	sleep(300);
+	printf("terminating...\n");
+	return 0;
 }
+
+/* vim: set noexpandtab : */
