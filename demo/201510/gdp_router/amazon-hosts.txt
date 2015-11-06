@@ -1,0 +1,4 @@
+ec2-54-247-3-111.eu-west-1.compute.amazonaws.com - Ireland
+ec2-52-64-231-250.ap-southeast-2.compute.amazonaws.com - Sydney
+ec2-177-71-139-206.sa-east-1.compute.amazonaws.com - Sao Paulo
+ec2-54-248-9-141.ap-northeast-1.compute.amazonaws.com - Tokyo

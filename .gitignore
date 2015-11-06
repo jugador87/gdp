@@ -12,7 +12,7 @@ debian/libgdp*
 ep/decode-epstat
 examples/machine-mon
 gdplogd/gdplogd
-gdp_router
+test-net/gdp_router
 KEYS
 lang/js/apps/gdpREST_server/node_modules
 scgilib/helloworld
