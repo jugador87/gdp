@@ -41,7 +41,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl.cache",
 static EP_HASH			*OpenGCLCache;		// associative cache
 LIST_HEAD(gcl_use_head, gdp_gcl)			// LRU cache
 						GclsByUse		= LIST_HEAD_INITIALIZER(GclByUse);
-static EP_THR_MUTEX		GclCacheMutex	EP_THR_MUTEX_INITIALIZER;
+static EP_THR_MUTEX		GclCacheMutex;
 
 
 /*
@@ -52,19 +52,36 @@ EP_STAT
 _gdp_gcl_cache_init(void)
 {
 	EP_STAT estat = EP_STAT_OK;
+	int istat;
+	const char *err;
 
 	if (OpenGCLCache == NULL)
 	{
+		istat = ep_thr_mutex_init(&GclCacheMutex, EP_THR_MUTEX_RECURSIVE);
+		if (istat != 0)
+		{
+			estat = ep_stat_from_errno(istat);
+			err = "could not initialize GclCacheMutex";
+			goto fail0;
+		}
+
 		OpenGCLCache = ep_hash_new("OpenGCLCache", NULL, 0);
 		if (OpenGCLCache == NULL)
 		{
 			estat = ep_stat_from_errno(errno);
-			ep_log(estat, "gdp_gcl_cache_init: could not create OpenGCLCache");
-			ep_app_fatal("gdp_gcl_cache_init: could not create OpenGCLCache");
+			err = "could not create OpenGCLCache";
+			goto fail0;
 		}
 	}
 
 	// Nothing to do for LRU cache
+
+	if (false)
+	{
+fail0:
+		ep_log(estat, "gdp_gcl_cache_init: %s", err);
+		ep_app_fatal("gdp_gcl_cache_init: %s", err);
+	}
 
 	return estat;
 }
