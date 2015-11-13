@@ -128,7 +128,7 @@ show_metadata(int nmds, FILE *dfp, size_t *foffp, int plev)
 
 						key = ep_crypto_key_read_mem(mdata + 4,
 								mdhdrs[i].md_len - 4,
-								mdata[1], EP_CRYPTO_KEYFORM_DER,
+								EP_CRYPTO_KEYFORM_DER,
 								EP_CRYPTO_F_PUBLIC);
 						ep_crypto_key_print(key, stdout, EP_CRYPTO_F_PUBLIC);
 						ep_crypto_key_free(key);

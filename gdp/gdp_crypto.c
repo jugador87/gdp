@@ -31,7 +31,6 @@ _gdp_crypto_skey_read(const char *basename, const char *ext)
 	char pbuf[1024];
 	char *p = NULL;
 	char *dir;
-	int keytype = EP_CRYPTO_KEYTYPE_RSA;
 	int keyform = EP_CRYPTO_KEYFORM_PEM;
 	int i;
 
@@ -92,8 +91,7 @@ _gdp_crypto_skey_read(const char *basename, const char *ext)
 		if (fp == NULL)
 			continue;
 
-		key = ep_crypto_key_read_fp(fp, fnbuf, keytype, keyform,
-				EP_CRYPTO_F_SECRET);
+		key = ep_crypto_key_read_fp(fp, fnbuf, keyform, EP_CRYPTO_F_SECRET);
 		ep_dbg_cprintf(Dbg, 40,
 				"_gdp_crypto_skey_read: found file, key = %p\n",
 				key);

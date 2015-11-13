@@ -108,19 +108,16 @@ void			ep_crypto_key_free(
 
 EP_CRYPTO_KEY		*ep_crypto_key_read_file(
 				const char *filename,
-				int keytype,
 				int keyform,
 				uint32_t flags);
 EP_CRYPTO_KEY		*ep_crypto_key_read_fp(
 				FILE *fp,
 				const char *filename,
-				int keytype,
 				int keyform,
 				uint32_t flags);
 EP_CRYPTO_KEY		*ep_crypto_key_read_mem(
 				const void *buf,
 				size_t buflen,
-				int keytype,
 				int keyform,
 				uint32_t flags);
 

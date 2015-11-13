@@ -242,7 +242,7 @@ main(int argc, char **argv)
 		}
 
 		skey = ep_crypto_key_read_fp(fp, signing_key_file,
-				0, EP_CRYPTO_KEYFORM_PEM, EP_CRYPTO_F_SECRET);
+				EP_CRYPTO_KEYFORM_PEM, EP_CRYPTO_F_SECRET);
 		if (skey == NULL)
 		{
 			ep_app_error("cannot read signing key file %s", signing_key_file);

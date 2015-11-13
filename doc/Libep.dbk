@@ -15,7 +15,7 @@
       <year>2008, 2014&ndash;2015 Eric P. Allman. All rights reserved.</year>
     </copyright>
 
-    <date>2015-09-30</date>
+    <date>2015-11-12</date>
   </articleinfo>
 
   <section>
@@ -27,6 +27,13 @@
     entire I/O subsystem. It was originally intended to be used in sendmail,
     so some of the terminology is geared toward the email world; none the
     less, it should be generally useful.</para>
+
+    <para>Programs using <symbol>libep</symbol> should be able to minimize
+    <symbol>#ifdef</symbol> since often non-portable functionality is wrapped
+    in portability routines; for example, BSD-derived systems and
+    Linux-derived systems differ in how you get the name of the currently
+    running program. These differences are hidden if the application calls
+    <function>ep_app_getprogname</function>.</para>
 
     <section>
       <title>Design Goals</title>
@@ -71,7 +78,10 @@
             "static" in a file) shall be named ep_* (for routine names) or Ep*
             (for variable names). In a few cases, the names may begin with
             __ep or __Ep; such names would be in the global namespace, but
-            would be intended for use internal to the library only.</para>
+            would be intended for use internal to the library only. There are
+            a few cases where "standard" names (such as
+            <function>strlcpy</function>) are defined if they are not included
+            in the standard library.</para>
           </listitem>
         </itemizedlist></para>
     </section>
@@ -1166,19 +1176,16 @@ EP_TIME_INVALIDATE(                  // invalidate a timestamp
 
       <programlisting>EP_CRYPTO_KEY           *ep_crypto_key_read_file(
                                 const char *filename,
-                                int keytype,
                                 int keyform,
                                 uint32_t flags);
 EP_CRYPTO_KEY           *ep_crypto_key_read_fp(
                                 FILE *fp,
                                 const char *filename,
-                                int keytype,
                                 int keyform,
                                 uint32_t flags);
 EP_CRYPTO_KEY           *ep_crypto_key_read_mem(
                                 const void *buf,
                                 size_t buflen,
-                                int keytype,
                                 int keyform,
                                 uint32_t flags);
 EP_STAT                 ep_crypto_key_write_file(

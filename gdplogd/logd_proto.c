@@ -371,7 +371,7 @@ init_sig_digest(gdp_gcl_t *gcl)
 	//pkbits = (pkbuf[2] << 8) | pkbuf[3];
 	ep_dbg_cprintf(Dbg, 40, "init_sig_data: mdtype=%d, pktype=%d, pklen=%zd\n",
 			mdtype, pktype, pklen);
-	key = ep_crypto_key_read_mem(pkbuf + 4, pklen - 4, pktype,
+	key = ep_crypto_key_read_mem(pkbuf + 4, pklen - 4,
 			EP_CRYPTO_KEYFORM_DER, EP_CRYPTO_F_PUBLIC);
 	if (key == NULL)
 		goto nopubkey;

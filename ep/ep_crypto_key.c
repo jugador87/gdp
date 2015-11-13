@@ -300,7 +300,6 @@ ep_crypto_key_print(
 static EP_CRYPTO_KEY *
 key_read_bio(BIO *bio,
 		const char *filename,
-		int keytype,
 		int keyform,
 		uint32_t flags)
 {
@@ -308,9 +307,8 @@ key_read_bio(BIO *bio,
 	const char *pubsec = EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags) ?
 		"secret" : "public";
 
-	ep_dbg_cprintf(Dbg, 20, "key_read_bio: name %s, type %d, form %d,"
-			" flags %x\n",
-			filename, keytype, keyform, flags);
+	ep_dbg_cprintf(Dbg, 20, "key_read_bio: name %s, form %d, flags %x\n",
+			filename, keyform, flags);
 	EP_ASSERT(bio != NULL);
 	if (keyform <= 0)
 		return _ep_crypto_error("keyform must be specified");
@@ -322,134 +320,23 @@ key_read_bio(BIO *bio,
 			key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
 		else
 			key = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
-		if (key == NULL)
-			return _ep_crypto_error("cannot read %s key", pubsec);
-		goto finis;
 	}
-	else if (keyform != EP_CRYPTO_KEYFORM_DER)
+	else if (keyform == EP_CRYPTO_KEYFORM_DER)
+	{
+		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
+			key = d2i_PrivateKey_bio(bio, NULL);
+		else
+			key = d2i_PUBKEY_bio(bio, NULL);
+	}
+	else
 	{
 		return _ep_crypto_error("unknown key format %d", keyform);
 	}
 
-#if _EP_CRYPTO_INCLUDE_DER
-	// for DER we have to do separate decoding based on key type
-	key = EVP_PKEY_new();
-	switch (keytype)
-	{
-# if _EP_CRYPTO_INCLUDE_RSA
-	  case EP_CRYPTO_KEYTYPE_RSA:
-		;					// compiler glitch
-		RSA *rsakey;
-
-		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
-			rsakey = d2i_RSAPrivateKey_bio(bio, NULL);
-		else
-			rsakey = d2i_RSA_PUBKEY_bio(bio, NULL);
-		if (rsakey == NULL)
-		{
-			_ep_crypto_error("cannot decode RSA %s DER key",
-					pubsec);
-			goto fail0;
-		}
-		if (EVP_PKEY_assign_RSA(key, rsakey) != 1)
-		{
-			_ep_crypto_error("cannot assign RSA %s DER key",
-					pubsec);
-			goto fail0;
-		}
-		break;
-# endif
-
-# if _EP_CRYPTO_INCLUDE_DSA
-	  case EP_CRYPTO_KEYTYPE_DSA:
-		;					// compiler glitch
-		DSA *dsakey;
-
-		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
-			dsakey = d2i_DSAPrivateKey_bio(bio, NULL);
-		else
-			dsakey = d2i_DSA_PUBKEY_bio(bio, NULL);
-		if (dsakey == NULL)
-		{
-			_ep_crypto_error("cannot decode DSA %s DER key",
-					pubsec);
-			goto fail0;
-		}
-		if (EVP_PKEY_assign_DSA(key, dsakey) != 1)
-		{
-			_ep_crypto_error("cannot assign DSA %s DER key",
-					pubsec);
-			goto fail0;
-		}
-		break;
-# endif
-
-# if _EP_CRYPTO_INCLUDE_EC
-	  case EP_CRYPTO_KEYTYPE_EC:
-		;					// compiler glitch
-		EC_KEY *eckey;
-
-		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
-			eckey = d2i_ECPrivateKey_bio(bio, NULL);
-		else
-			eckey = d2i_EC_PUBKEY_bio(bio, NULL);
-		if (eckey == NULL)
-		{
-			_ep_crypto_error("cannot decode EC %s DER key",
-					pubsec);
-			goto fail0;
-		}
-		if (EVP_PKEY_assign_EC_KEY(key, eckey) != 1)
-		{
-			_ep_crypto_error("cannot save EC %s DER key",
-					pubsec);
-			goto fail0;
-		}
-		break;
-# endif
-
-# if _EP_CRYPTO_INCLUDE_DH
-	  case EP_CRYPTO_KEYTYPE_DH:
-		;					// compiler glitch
-		DH *dhkey;
-
-		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
-			dhkey = d2i_DHPrivateKey_bio(bio, NULL);
-		else
-			dhkey = d2i_DH_PUBKEY_bio(bio, NULL);
-		if (dhkey == NULL)
-		{
-			_ep_crypto_error("cannot decode DH %s DER key",
-					pubsec);
-			goto fail0;
-		}
-		if (EVP_PKEY_assign_DH_KEY(key, dhkey) != 1)
-		{
-			_ep_crypto_error("cannot save DH %s DER key",
-					pubsec);
-			goto fail0;
-		}
-		break;
-# endif
-
-	  default:
-		_ep_crypto_error("unknown key type %d", keytype);
-		goto fail0;
-	}
-#else
-	_ep_crypto_error("DER format not (yet) supported");
-	goto fail0;
-#endif // _EP_CRYPTO_INCLUDE_DER
-
-finis:
 	if (key == NULL)
 		return _ep_crypto_error("cannot read %s key from %s",
 				pubsec, filename);
 	return key;
-
-fail0:
-	EVP_PKEY_free(key);
-	return NULL;
 }
 
 
@@ -457,14 +344,13 @@ EP_CRYPTO_KEY *
 ep_crypto_key_read_fp(
 		FILE *fp,
 		const char *filename,
-		int keytype,
 		int keyform,
 		uint32_t flags)
 {
 	EP_CRYPTO_KEY *key;
 	BIO *bio = BIO_new_fp(fp, BIO_NOCLOSE);
 
-	key = key_read_bio(bio, filename, keytype, keyform, flags);
+	key = key_read_bio(bio, filename, keyform, flags);
 	BIO_free(bio);
 	return key;
 }
@@ -473,7 +359,6 @@ ep_crypto_key_read_fp(
 EP_CRYPTO_KEY *
 ep_crypto_key_read_file(
 		const char *filename,
-		int keytype,
 		int keyform,
 		uint32_t flags)
 {
@@ -494,7 +379,7 @@ ep_crypto_key_read_file(
 	fp = fopen(filename, "r");
 	if (fp == NULL)
 		return _ep_crypto_error("cannot open key file %s", filename);
-	key = ep_crypto_key_read_fp(fp, filename, keytype, keyform, flags);
+	key = ep_crypto_key_read_fp(fp, filename, keyform, flags);
 	fclose(fp);
 	return key;
 }
@@ -504,14 +389,13 @@ EP_CRYPTO_KEY *
 ep_crypto_key_read_mem(
 		const void *buf,
 		size_t buflen,
-		int keytype,
 		int keyform,
 		uint32_t flags)
 {
 	EP_CRYPTO_KEY *key;
 	BIO *bio = BIO_new_mem_buf((void *) buf, buflen);
 
-	key = key_read_bio(bio, "memory", keytype, keyform, flags);
+	key = key_read_bio(bio, "memory", keyform, flags);
 	BIO_free(bio);
 	return key;
 }

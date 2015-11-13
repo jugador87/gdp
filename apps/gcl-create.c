@@ -307,7 +307,7 @@ main(int argc, char **argv)
 		}
 		else
 		{
-			key = ep_crypto_key_read_fp(key_fp, keyfile, keytype,
+			key = ep_crypto_key_read_fp(key_fp, keyfile,
 						keyform, EP_CRYPTO_F_SECRET);
 			if (key == NULL)
 			{
