@@ -4,6 +4,7 @@ from MISC import *
 from GDP_NAME import *
 from GDP_DATUM import *
 from GDP_GCLMD import *
+from GDP_GCL_OPEN_INFO import *
 
 
 class GDP_GCL:
@@ -40,7 +41,7 @@ class GDP_GCL:
         pass
 
 
-    def __init__(self, name, iomode):
+    def __init__(self, name, iomode, open_info={}):
         """
         Open a GCL with given name and io-mode
         Creating new GCL's is no longer supported.
@@ -49,6 +50,12 @@ class GDP_GCL:
         name is a GDP_NAME object
         mode is one of the following: GDP_MODE_ANY, GDP_MODE_RO, GDP_MODE_AO,
                                       GDP_MODE_RA
+        open_info is a dictionary. It contains extra information, such as the
+            private signature key, etc. The key may be optional, depending on
+            how the log was created and if a log-server is set up to reject 
+            unsigned appends, for example.
+            Here is the (incomplete) list of keys and their description:
+            'skey': an instance of EP_CRYPTO_KEY containing the signature key
         """
 
         # self.ptr is just a C style pointer, that we will assign to something
@@ -62,13 +69,21 @@ class GDP_GCL:
         gcl_name_ctypes_ptr = cast(byref(buf), POINTER(GDP_NAME.name_t))
         gcl_name_ctypes = gcl_name_ctypes_ptr.contents
 
+        # (optional) Do a quick sanity checking on open_info 
+        #   use it to get a GDP_GCL_OPEN_INFO structure
+        self.gdp_gcl_open_info = GDP_GCL_OPEN_INFO(open_info)
+
+
         # open an existing gcl
         __func = gdp.gdp_gcl_open
         __func.argtypes = [GDP_NAME.name_t, c_int,
-                           c_void_p, POINTER(POINTER(self.gdp_gcl_t))]
+                           POINTER(GDP_GCL_OPEN_INFO.gdp_gcl_open_info_t),
+                           POINTER(POINTER(self.gdp_gcl_t))]
         __func.restype = EP_STAT
 
-        estat = __func(gcl_name_ctypes, iomode, None, pointer(self.ptr))
+        estat = __func(gcl_name_ctypes, iomode,
+                            self.gdp_gcl_open_info.gdp_gcl_open_info_ptr,
+                            pointer(self.ptr))
         check_EP_STAT(estat)
 
         # Also add itself to the global list of objects
@@ -133,17 +148,20 @@ class GDP_GCL:
                                 POINTER(POINTER(cls.gdp_gcl_t))]
         __func.restype = EP_STAT
 
-        estat = __func(gcl_name_ctypes, logd_name_ctypes, md.gdp_gclmd_ptr, throwaway_ptr)
+        estat = __func(gcl_name_ctypes, logd_name_ctypes,
+                            md.gdp_gclmd_ptr, throwaway_ptr)
         check_EP_STAT(estat)
         return
 
     def getmetadata(self):
         """
-        return the metadata included at creation time. Represented as a python dict
+        return the metadata included at creation time.
+            Represented as a python dict
         """
 
         __func = gdp.gdp_gcl_getmetadata
-        __func.argtypes = [POINTER(self.gdp_gcl_t), POINTER(POINTER(GDP_GCLMD.gdp_gclmd_t))]
+        __func.argtypes = [POINTER(self.gdp_gcl_t),
+                                POINTER(POINTER(GDP_GCLMD.gdp_gclmd_t))]
         __func.restype = EP_STAT
 
         gmd = POINTER(GDP_GCLMD.gdp_gclmd_t)()
@@ -180,8 +198,8 @@ class GDP_GCL:
         __recno = gdp_recno_t(recno)
 
         __func = gdp.gdp_gcl_read
-        __func.argtypes = [
-            POINTER(self.gdp_gcl_t), gdp_recno_t, POINTER(GDP_DATUM.gdp_datum_t)]
+        __func.argtypes = [POINTER(self.gdp_gcl_t), gdp_recno_t,
+                                POINTER(GDP_DATUM.gdp_datum_t)]
         __func.restype = EP_STAT
 
         estat = __func(self.ptr, __recno, datum.gdp_datum)
@@ -272,13 +290,13 @@ class GDP_GCL:
 
         __func = gdp.gdp_gcl_subscribe
         if cbfunc == None:
-            __func.argtypes = [POINTER(
-                self.gdp_gcl_t), gdp_recno_t, c_int32, POINTER(GDP_DATUM.EP_TIME_SPEC),
-                c_void_p, c_void_p]
+            __func.argtypes = [POINTER(self.gdp_gcl_t), gdp_recno_t,
+                                c_int32, POINTER(GDP_DATUM.EP_TIME_SPEC),
+                                c_void_p, c_void_p]
         else:
-            __func.argtypes = [POINTER(
-                self.gdp_gcl_t), gdp_recno_t, c_int32, POINTER(GDP_DATUM.EP_TIME_SPEC),
-                self.gdp_gcl_sub_cbfunc_t, c_void_p]
+            __func.argtypes = [POINTER(self.gdp_gcl_t), gdp_recno_t,
+                                c_int32, POINTER(GDP_DATUM.EP_TIME_SPEC),
+                                self.gdp_gcl_sub_cbfunc_t, c_void_p]
 
         __func.restype = EP_STAT
 
@@ -392,7 +410,7 @@ class GDP_GCL:
         __func1.restype = POINTER(cls.gdp_event_t)
 
         event_ptr = __func1(__gcl_handle, __timeout)
-        if bool(event_ptr) == False:  # Null pointers have a false boolean value
+        if bool(event_ptr) == False:  # Null pointers have false boolean value
             return None
 
         # now get the associated GCL handle
