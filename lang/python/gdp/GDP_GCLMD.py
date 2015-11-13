@@ -73,13 +73,15 @@ class GDP_GCLMD:
         """
 
         __func = gdp.gdp_gclmd_add
-        __func.argtypes = [POINTER(self.gdp_gclmd_t), c_uint32, c_size_t, c_void_p]
+        __func.argtypes = [POINTER(self.gdp_gclmd_t), c_uint32,
+                                c_size_t, c_void_p]
         __func.restype = EP_STAT
 
         size = c_size_t(len(data))
         tmp_buf = create_string_buffer(data, len(data))        
         
-        estat = __func(self.gdp_gclmd_ptr, c_uint32(gclmd_id), size, byref(tmp_buf))
+        estat = __func(self.gdp_gclmd_ptr, c_uint32(gclmd_id),
+                                size, byref(tmp_buf))
         check_EP_STAT(estat)
 
         return
@@ -100,7 +102,8 @@ class GDP_GCLMD:
         data_ptr = c_void_p()
         _index = c_int(index)
 
-        estat = __func(self.gdp_gclmd_ptr, _index, byref(gclmd_id), byref(dlen), byref(data_ptr))
+        estat = __func(self.gdp_gclmd_ptr, _index, byref(gclmd_id),
+                                byref(dlen), byref(data_ptr))
         check_EP_STAT(estat)
 
         data = string_at(data_ptr, dlen.value)
@@ -121,7 +124,8 @@ class GDP_GCLMD:
         dlen = c_size_t()
         data_ptr = c_void_p()
 
-        estat = __func(self.gdp_gclmd_ptr, c_uint32(gclmd_id), byref(dlen), byref(data_ptr))
+        estat = __func(self.gdp_gclmd_ptr, c_uint32(gclmd_id),
+                                byref(dlen), byref(data_ptr))
         check_EP_STAT(estat)
 
         data = string_at(data_ptr, dlen.value)

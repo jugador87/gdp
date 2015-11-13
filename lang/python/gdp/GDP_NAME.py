@@ -62,7 +62,8 @@ class GDP_NAME:
             return string_at(name_t_ptr.contents, 32)
 
         def __is_binary_string(s):
-            textchars = bytearray([7,8,9,10,12,13,27]) + bytearray(range(0x20, 0x100))
+            textchars = bytearray([7,8,9,10,12,13,27]) + \
+                            bytearray(range(0x20, 0x100))
             return bool(s.translate(None, textchars))
 
 
