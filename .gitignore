@@ -31,3 +31,4 @@ tags
 doc/*.pdf
 *.deb
 lang/python/temp.apps/*
+cscope.*
