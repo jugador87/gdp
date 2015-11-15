@@ -15,7 +15,7 @@ used (something like cPickle).
 Use as follows:
 
 Step 1: Start serving REST requests:
-./<this-program-name> [-w] [-p port] logname
+./<this-program-name> [-w] [-p port] logname keyfile
     -w: enable writes
     -p: TCP port to listen on
 
@@ -55,9 +55,9 @@ class KVstoreResource(Resource):
 
 
     isLeaf = True
-    def __init__(self, logroot, iomode):
+    def __init__(self, logroot, keyfile, iomode):
         Resource.__init__(self)
-        self.kvstore = KVstore(logroot, iomode)
+        self.kvstore = KVstore(logroot, keyfile, iomode)
 
     def __get_to_dict(self, key, ts):
         temp = self.kvstore.get(key, ts)
@@ -97,11 +97,12 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--port", type=int, default=8811,
                         help="TCP port to serve requests on")
     parser.add_argument("logname", nargs='+', help="Name of the log")
+    parser.add_argument("keyfile", nargs='+', help="Signing key file")
 
     args = parser.parse_args()
 
     mode = KVstore.MODE_RW if args.write else KVstore.MODE_RO
-    site = Site(KVstoreResource(args.logname[0], mode))
+    site = Site(KVstoreResource(args.logname[0], args.keyfile[0], mode))
     reactor.listenTCP(args.port, site)
     print "Starting REST interface on port", args.port
     reactor.run()

@@ -16,7 +16,7 @@ described later.
 ### Usage ###
 
 Simplified example:
-> kv = KVstore('rootlog', KVstore.MODE_RW)
+> kv = KVstore('rootlog', 'keyfile.pem', KVstore.MODE_RW)
 > kv['key1'] = 'val1'
 > p = kv['key1']
 > print p
@@ -26,12 +26,12 @@ val1
 Public interface:
 
 * Initialization: 
-  Required parameter: name of the log.
+  Required parameter: name of the log. A private signature key
   Optional parameters: I/O mode (single writer mode vs Read only mode.) 
   You can specify more optional parameters for tweaking the performance. 
   Example: to create a Read/Write key-value store backed by an existing
     log 'example_log', use the following:
-  >>> kvstore = KVstore(exmaple_log, KVstore.MODE_RW)
+  >>> kvstore = KVstore('exmaple_log', 'keyfile.pem', KVstore.MODE_RW)
 
 * Querying existing keys:
   - either use kvstore[key] to fetch value of 'key' in object 'kvstore'.
@@ -180,12 +180,14 @@ class KVstore:
         return ds
 
 
-    def __init__(self, root, mode=MODE_RO, freq=100, cache_size=1000,
+    def __init__(self, root, keyfile=None, mode=MODE_RO,
+                            freq=100, cache_size=1000,
                             size_factor=2, X_factor=0.8):
         """
         Initialize the instance with the root log. By default, we open 
              log in read only mode.
           Parameters name: description
+        - keyfile        : A private signing key for the log (PEM format)
         - mode           : Read-only or Read-Write mode
         - freq           : checkpoint frequency
         - cache_size     : max records to hold in in-memory cache
@@ -206,8 +208,18 @@ class KVstore:
         gdp_iomode = gdp.GDP_MODE_RO if mode==self.MODE_RO else gdp.GDP_MODE_RA
     
         gdp.gdp_init()  ## XXX: Not sure if this is the best idea
+
+        # Setup the key
+
+        open_info = {}
+        if keyfile is not None:
+            skey = gdp.EP_CRYPTO_KEY(filename=keyfile,
+                                        keyform=gdp.EP_CRYPTO_KEYFORM_PEM,
+                                        flags=gdp.EP_CRYPTO_F_SECRET)
+            open_info['skey'] = skey
+
         self.__root = gdp.GDP_NAME(root)
-        self.__root_handle = gdp.GDP_GCL(self.__root, gdp_iomode)
+        self.__root_handle = gdp.GDP_GCL(self.__root, gdp_iomode, open_info)
 
         # a cache for records. recno => datum
         # datum may or may not contain a timestamp and recno
@@ -344,7 +356,7 @@ class KVstore:
 
     def __delitem__(self, key):
         "remove an existing entry in the log"
-        return self.__setitem__({key: None})
+        return self.__setitems__({key: None})
 
 
     def __record_iterator(self, start_rec=0):
