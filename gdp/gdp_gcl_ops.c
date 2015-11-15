@@ -286,7 +286,7 @@ _gdp_gcl_open(gdp_gcl_t *gcl,
 	gcl->gclmd = _gdp_gclmd_deserialize(req->pdu->datum->dbuf);
 
 	// if read-only, we're done
-	if (cmd != GDP_CMD_OPEN_AO)
+	if (cmd != GDP_CMD_OPEN_AO && cmd != GDP_CMD_OPEN_RA)
 		goto finis;
 
 	// see if we have a public key; if not we're done

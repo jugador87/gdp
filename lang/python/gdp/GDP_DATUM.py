@@ -171,3 +171,50 @@ class GDP_DATUM:
         tmp_buf = create_string_buffer(data, len(data))
         written_bytes = __func_write(gdp_buf_ptr, byref(tmp_buf), size)
         return
+
+
+    def getsig(self):
+        """ Return the signature as a binary string.
+        As of current, the signature is over (recno|data)"""
+
+        # get a pointer to signature buffer
+        __func = gdp.gdp_datum_getsig
+        __func.argtypes = [POINTER(self.gdp_datum_t)]
+        __func.restype = POINTER(self.gdp_buf_t)
+
+        sig_buf_ptr = __func(self.gdp_datum)
+
+        if bool(sig_buf_ptr)==False:  # Null pointers have false boolean value
+            return ""
+
+        # Get the length of this buffer
+        __func_len = gdp.gdp_buf_getlength
+        __func_len.argtypes = [POINTER(self.gdp_buf_t)]
+        __func_len.restype = c_size_t
+
+        sig_buf_len = __func_len(sig_buf_ptr)
+
+        # Okay, let's just copy the data without draining. But, we first
+        #   need a place to store that data
+        sig_string = create_string_buffer(int(sig_buf_len))
+
+        __func_peek = gdp.gdp_buf_peek
+        __func_peek.argtypes = [POINTER(self.gdp_buf_t), c_void_p, c_size_t]
+        __func_peek.restype = c_size_t
+
+        t = __func_peek(sig_buf_ptr, sig_string, sig_buf_len)
+        assert t == sig_buf_len
+
+        return string_at(sig_string)
+
+    def getsigmdalg(self):
+        """ Return the signature algorithm as read from the GCL metadata"""
+
+        __func = gdp.gdp_datum_getsigmdalg
+        __func.argtypes = [POINTER(self.gdp_datum_t)]
+        __func.restype = c_short
+
+        ret = __func(self.gdp_datum)
+
+        return int(ret)
+        

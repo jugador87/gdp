@@ -73,7 +73,6 @@ class GDP_GCL:
         #   use it to get a GDP_GCL_OPEN_INFO structure
         self.gdp_gcl_open_info = GDP_GCL_OPEN_INFO(open_info)
 
-
         # open an existing gcl
         __func = gdp.gdp_gcl_open
         __func.argtypes = [GDP_NAME.name_t, c_int,
@@ -209,6 +208,8 @@ class GDP_GCL:
         datum_dict["recno"] = datum.getrecno()
         datum_dict["ts"] = datum.getts()
         datum_dict["data"] = datum.getbuf()
+        datum_dict["sig"] = datum.getsig()
+        datum_dict["sigalg"] = datum.getsigmdalg()
 
         return datum_dict
 
@@ -434,6 +435,8 @@ class GDP_GCL:
         datum_dict["recno"] = datum.getrecno()
         datum_dict["ts"] = datum.getts()
         datum_dict["data"] = datum.getbuf()
+        datum_dict["sig"] = datum.getsig()
+        datum_dict["sigalg"] = datum.getsigmdalg()
 
         # find the type of the event
         __func4 = gdp.gdp_event_gettype
