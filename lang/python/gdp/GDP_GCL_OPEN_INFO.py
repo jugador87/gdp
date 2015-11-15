@@ -47,6 +47,7 @@ class GDP_GCL_OPEN_INFO:
             __func2.restype = EP_STAT
 
             estat = __func2(self.gdp_gcl_open_info_ptr, skey.key_ptr)
+            check_EP_STAT(estat)
 
 
     def __del__(self):
