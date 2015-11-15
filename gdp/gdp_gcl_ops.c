@@ -432,6 +432,7 @@ append_common(gdp_gcl_t *gcl,
 		gdp_req_t **reqp)
 {
 	EP_STAT estat = GDP_STAT_BAD_IOMODE;
+	gdp_req_t *req;
 
 	errno = 0;				// avoid spurious messages
 
@@ -443,14 +444,15 @@ append_common(gdp_gcl_t *gcl,
 	// create a new request structure
 	estat = _gdp_req_new(GDP_CMD_APPEND, gcl, chan, NULL, reqflags, reqp);
 	EP_STAT_CHECK(estat, goto fail0);
+	req = *reqp;
 
 	// ignore the new datum: use the one passed in
-	gdp_datum_free((*reqp)->pdu->datum);
-	(*reqp)->pdu->datum = datum;
+	gdp_datum_free(req->pdu->datum);
+	req->pdu->datum = datum;
 	EP_ASSERT(datum->inuse);
 
 	// set up for signing (req->md will be updated with data part)
-	(*reqp)->md = gcl->digest;
+	req->md = gcl->digest;
 	datum->recno = gcl->nrecs + 1;
 
 	// if doing append filtering (e.g., encryption), call it now.
