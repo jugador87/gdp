@@ -487,6 +487,7 @@ Full List of Administrative Parameters:
 		value that applies only to that program, e.g.,
 		"swarm.gdplogd.log.facility".  If both are set, the more
 		specific name wins.  Defaults to "local4".
+
 	swarm.gdplogd.gcl.dir --- the directory in which log data will
 		be stored.  Defaults to "/var/swarm/gcls".
 	swarm.gdplogd.reclaim.interval --- how often to wake up to
@@ -513,6 +514,11 @@ Full List of Administrative Parameters:
 		exists), "required" (signature must be present if the
 		GCL has a public key), and/or "pubkeyreq" (public
 		key is required).  For now, defaults to "verify".
+	swarm.gdplogd.subscr.timeout --- how long a subscription will
+		be kept active without being refreshed (essentially,
+		the length of a "lease" on the subscription).  Defaults
+		to 600 (seconds).
+
 	swarm.rest.kv.gclname --- the name of the GCL to use for the
 		key-value store.  Defaults to "swarm.rest.kv.gcl".
 	swarm.rest.prefix --- the REST prefix (e.g., /gdp/v1/).
@@ -522,6 +528,7 @@ Full List of Administrative Parameters:
 	swarm.rest.scgi.pollinterval --- how often to poll for SCGI
 		connections (in microseconds).  Defaults to 100000
 		(100 msec).
+
 	libep.crypto.dev --- whether or not to try to use /dev/crypto
 		for hardware acceleration.  Defaults to true.
 	libep.time.accuracy --- the value filled in for the "accuracy"

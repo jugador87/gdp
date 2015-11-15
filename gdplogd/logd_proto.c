@@ -740,6 +740,9 @@ cmd_subscribe(gdp_req_t *req)
 	// mark this as persistent and upgradable
 	req->flags |= GDP_REQ_PERSIST | GDP_REQ_SUBUPGRADE;
 
+	// note that the subscription is active
+	ep_time_now(&req->act_ts);
+
 	// if some of the records already exist, arrange to return them
 	if (req->nextrec <= req->gcl->nrecs)
 	{

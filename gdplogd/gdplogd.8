@@ -134,6 +134,14 @@ that might be cleared (in seconds).
 Defaults to 15.
 This should generally be less than
 .Va swarm.gdplogd.reclaim.age .
+.It swarm.gdplogd.subscr.timeout
+How old a subscription can be (in seconds) without being refreshed
+and still be considered active.
+Any subscriptions that are not renewed in this interval
+are considered dead and are removed from the subscription list.
+Should be greater than two times
+.Va swarm.gdp.subscr.pokeintvl .
+Defaults to 600 (ten minutes).
 .El
 
 .Sh SEE ALSO
@@ -144,3 +152,6 @@ This should generally be less than
 The
 .Fl S
 flag is a horrible thing indeed.
+.Pp
+Subscription leases should be per-subscription
+and negotiated between the clients and the log servers.

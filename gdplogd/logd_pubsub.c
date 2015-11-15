@@ -13,6 +13,8 @@
 static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.pubsub",
 								"GDP Log Daemon pub/sub handling");
 
+#define SECONDS					* INT64_C(1000000000)
+
 
 /*
 **  SUB_SEND_MESSAGE_NOTIFICATION --- inform a subscriber of a new message
@@ -53,6 +55,8 @@ void
 sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 {
 	gdp_req_t *req;
+	gdp_req_t *nextreq;
+	EP_TIME_SPEC sub_timeout;
 
 	if (ep_dbg_test(Dbg, 32))
 	{
@@ -61,8 +65,18 @@ sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 		_gdp_req_dump(pubreq, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 	}
 
-	LIST_FOREACH(req, &pubreq->gcl->reqs, gcllist)
 	{
+		EP_TIME_SPEC sub_delta;
+		long timeout = ep_adm_getlongparam("swarm.gdplogd.subscr.timeout", 600);
+
+		ep_time_from_nsec(-timeout SECONDS, &sub_delta);
+		ep_time_deltanow(&sub_delta, &sub_timeout);
+	}
+
+	for (req = LIST_FIRST(&pubreq->gcl->reqs); req != NULL; req = nextreq)
+	{
+		nextreq = LIST_NEXT(req, gcllist);
+
 		// make sure we don't tell ourselves
 		if (req == pubreq)
 			continue;
@@ -74,10 +88,29 @@ sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 		}
 
 		// notify subscribers
-		if (EP_UT_BITSET(GDP_REQ_SRV_SUBSCR, req->flags))
-			sub_send_message_notification(req, pubreq->pdu->datum, cmd);
-		else
+		if (!EP_UT_BITSET(GDP_REQ_SRV_SUBSCR, req->flags))
+		{
 			ep_dbg_cprintf(Dbg, 59, "   ... not a subscription\n");
+		}
+		else if (!ep_time_before(&req->act_ts, &sub_timeout))
+		{
+			sub_send_message_notification(req, pubreq->pdu->datum, cmd);
+		}
+		else
+		{
+			// this subscription seems to be dead
+			if (ep_dbg_test(Dbg, 18))
+			{
+				ep_dbg_printf("sub_notify_allsubscribers: subscription timeout: ");
+				_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
+			}
+
+			// actually remove the subscription
+			ep_thr_mutex_lock(&pubreq->gcl->mutex);
+			LIST_REMOVE(req, gcllist);
+			ep_thr_mutex_unlock(&pubreq->gcl->mutex);
+			_gdp_req_free(req);
+		}
 	}
 }
 
