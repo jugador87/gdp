@@ -536,19 +536,23 @@ int gdp_zc_scan() {
 
 	if (!(SimplePoll = avahi_simple_poll_new())) {
 		fprintf(stderr, "Failed to create simple poll object.\n");
-		goto fail;
+		goto fail0;
 	}
 
 	error = create_new_simple_poll_client(&config);
 	if (error != 0)
-		goto fail;
+		goto fail1;
 
 
 	InfoList = (ZCInfo**) malloc(sizeof(ZCInfo*));
 	*InfoList = NULL;
 	avahi_simple_poll_loop(SimplePoll);
 	return 1;
-fail:
+
+fail1:
+	avahi_simple_poll_free(SimplePoll);
+	SimplePoll = NULL;
+fail0:
 	// stub
 	return 0;
 }
