@@ -35,7 +35,7 @@ Getting Started:
 
    2.	Compile the code as described below.
 
-   3.	Create the directory /var/swarm/gcls.  This is where the data
+   3.	Create the directory /var/swarm/gdp/gcls.  This is where the data
 	files are kept.  It should be owned by whatever user will be
 	running gdplogd.  For security reasons, this should NOT be root!!
 	(Although you will probably have to be root in order to create
@@ -153,9 +153,10 @@ Create Log Directory:
 	You'll have to select a location to store the log data.  For
 	obvious reasons this should be on a filesystem that has a
 	reasonable amount of free space.  The default is
-	/var/swarm/gcls.  You'll probably have to be root to
+	/var/swarm/gdp/gcls.  You'll probably have to be root to
 	create this directory:
-		sudo mkdir -p /var/swarm/gcls
+		sudo mkdir -p /var/swarm/gdp/gcls
+		sudo chown -R gdp:gdp /var/swarm
 
 	Create a user (or choose an existing user) to own the on-disk
 	files.  These instructions will assume a new user named
@@ -163,8 +164,7 @@ Create Log Directory:
 		sudo adduser --system --group gdp
 
 	The directory should be mode 700 or 750, owned by gdp:gdp:
-		sudo chmod 750 /var/swarm/gcls
-		sudo chown gdp:gdp /var/swarm/gcls
+		sudo chmod 750 /var/swarm/gdp/gcls
 	Mode 750 is just to allow users in the gdp group to be able
 	to peek into the directory.  This should be limited to
 	people who are maintaining the GDP.
@@ -489,7 +489,7 @@ Full List of Administrative Parameters:
 		specific name wins.  Defaults to "local4".
 
 	swarm.gdplogd.gcl.dir --- the directory in which log data will
-		be stored.  Defaults to "/var/swarm/gcls".
+		be stored.  Defaults to "/var/swarm/gdp/gcls".
 	swarm.gdplogd.reclaim.interval --- how often to wake up to
 		reclaim unused resources.  Defaults to 15 (seconds).
 	swarm.gdplogd.reclaim.age --- how long a GCL is permitted to

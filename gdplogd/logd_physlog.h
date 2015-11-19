@@ -43,7 +43,7 @@ void			gcl_physforeach(
 							void *ctx),
 						void *ctx);
 
-#define GCL_DIR				"/var/swarm/gcls"
+#define GCL_DIR				"/var/swarm/gdp/gcls"
 
 #define GCL_LOG_MAGIC		UINT32_C(0x47434C31)	// 'GCL1'
 #define GCL_LOG_VERSION		UINT32_C(20151001)		// on-disk version

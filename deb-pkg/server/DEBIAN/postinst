@@ -3,7 +3,7 @@
 set -e
 
 LOGDIR="/var/log/gdp"
-GCLDIR="/var/gdp/gcls"
+GCLDIR="/var/swarm/gdp/gcls"
 ETCDIR="/etc/ep_adm_params"
 
 echo "Creating the 'gdp' user..."
@@ -44,7 +44,6 @@ echo "Setting up parameters specific to gdplogd..."
 if [ ! -f $ETCDIR/gdplogd ]
 then (
     echo "swarm.gdplogd.gdpname=edu.berkeley.eecs.$hostname.gdplogd"
-    echo "swarm.gdplogd.gcl.dir=$GCLDIR"
     ) > $ETCDIR/gdplogd
 else
     echo "Warning: $ETCDIR/gdplogd already exists; check consistency" 2>&1
