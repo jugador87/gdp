@@ -1,7 +1,16 @@
 /* vim: set ai sw=8 sts=8 ts=8 : */
 
+/*
+**  Wrappers for cryptographic signature verification
+*/
+
 #include <ep/ep.h>
 #include <ep_crypto.h>
+
+
+/*
+**  Create a new cryptographic verification context.
+*/
 
 EP_CRYPTO_MD *
 ep_crypto_vrfy_new(EP_CRYPTO_KEY *pkey, int md_alg_id)
@@ -27,6 +36,10 @@ ep_crypto_vrfy_new(EP_CRYPTO_KEY *pkey, int md_alg_id)
 }
 
 
+/*
+**  Add data to verification context.
+*/
+
 EP_STAT
 ep_crypto_vrfy_update(EP_CRYPTO_MD *md, void *dbuf, size_t dbufsize)
 {
@@ -41,6 +54,14 @@ ep_crypto_vrfy_update(EP_CRYPTO_MD *md, void *dbuf, size_t dbufsize)
 	return EP_STAT_OK;
 }
 
+
+/*
+**  Finalize a verification context.
+**
+**	The caller passes in an existing signature.  This routine
+**	checks to make sure that signature matches the data that has
+**	been passed into the context.
+*/
 
 EP_STAT
 ep_crypto_vrfy_final(EP_CRYPTO_MD *md, void *obuf, size_t obufsize)
@@ -65,4 +86,15 @@ ep_crypto_vrfy_final(EP_CRYPTO_MD *md, void *obuf, size_t obufsize)
 		(void) _ep_crypto_error("cannot finalize verify digest");
 		return EP_STAT_CRYPTO_VRFY;
 	}
+}
+
+
+/*
+**  Free the verification context.
+*/
+
+void
+ep_crypto_vrfy_free(EP_CRYPTO_MD *md)
+{
+	EVP_MD_CTX_destroy(md);
 }

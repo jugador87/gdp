@@ -16,6 +16,12 @@
 */
 
 
+/*
+**  Initialize crypto support.
+**		This basically loads everything.  If running in a small
+**		address space you might want to adjust this.
+*/
+
 void
 ep_crypto_init(uint32_t flags)
 {
@@ -31,6 +37,10 @@ ep_crypto_init(uint32_t flags)
 	initialized = true;
 }
 
+
+/*
+**  Internal helper for printing errors.
+*/
 
 void *
 _ep_crypto_error(const char *msg, ...)

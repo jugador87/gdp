@@ -164,9 +164,13 @@ const char		*ep_crypto_keytype_name(
 
 /*
 **  Message Digests
+**
+**	Note that the cryptographic context (EP_CRYPTO_MD) is
+**	also used for signing and verification.
 */
 
 # define EP_CRYPTO_MD		EVP_MD_CTX
+# define EP_CRYPTO_MD_MAXSIZE	EVP_MAX_MD_SIZE
 
 // digest algorithms (no more than 4 bits)
 # define EP_CRYPTO_MD_NULL	0
@@ -210,6 +214,8 @@ const EVP_MD		*_ep_crypto_md_getalg_byid(
 
 /*
 **  Signing and Verification
+**
+**	Note that these operate on EP_CRYPTO_MD structures.
 */
 
 # define EP_CRYPTO_MAX_SIG	(1024 * 8)
@@ -227,6 +233,8 @@ EP_STAT			ep_crypto_sign_final(
 				EP_CRYPTO_MD *md,
 				void *sbuf,
 				size_t *sbufsize);
+void			ep_crypto_sign_free(
+				EP_CRYPTO_MD *md);
 
 EP_CRYPTO_MD		*ep_crypto_vrfy_new(
 				EP_CRYPTO_KEY *pkey,
@@ -241,6 +249,8 @@ EP_STAT			ep_crypto_vrfy_final(
 				EP_CRYPTO_MD *md,
 				void *obuf,
 				size_t obufsize);
+void			ep_crypto_vrfy_free(
+				EP_CRYPTO_MD *md);
 
 
 /*

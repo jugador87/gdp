@@ -27,16 +27,14 @@ static EP_DBG	Dbg = EP_DBG_INIT("libep.crypto.key", "Cryptographic key utilities
 #define BIO_s_secmem	BIO_s_mem
 
 
+#if _EP_CRYPTO_INCLUDE_RSA
 /*
-**  Create new key pair
+**  Create new RSA key pair
 **
 **	The keyexp parameter is the exponent parameter for RSA.
-**	The curve parameter is for EC.
-**	Both of these can be used by other types for other reasons.
-**	If these are 0/NULL then a default is used.
+**	If zero a default is used.
 */
 
-#if _EP_CRYPTO_INCLUDE_RSA
 static EP_STAT
 generate_rsa_key(EP_CRYPTO_KEY *key, int keylen, int keyexp)
 {
@@ -71,6 +69,10 @@ fail0:
 #endif
 
 #if _EP_CRYPTO_INCLUDE_DSA
+/*
+**  Generate new DSA key pair.
+*/
+
 static EP_STAT
 generate_dsa_key(EP_CRYPTO_KEY *key, int keylen)
 {
@@ -104,6 +106,11 @@ fail0:
 #endif
 
 #if _EP_CRYPTO_INCLUDE_DH
+/*
+**  Generate new Diffie-Hellman key.
+**	XXX NOT IMPLEMENTED AT THIS TIME
+*/
+
 static EP_STAT
 generate_dh_key(EP_CRYPTO_KEY *key, ...)
 {
@@ -116,6 +123,12 @@ generate_dh_key(EP_CRYPTO_KEY *key, ...)
 #endif
 
 #if _EP_CRYPTO_INCLUDE_EC
+/*
+**  Generate new elliptic curve key pair.
+**	The curve parameter is passed in as a string.
+**	If NULL then a default is used.
+*/
+
 static EP_STAT
 generate_ec_key(EP_CRYPTO_KEY *key, const char *curve)
 {
@@ -200,12 +213,21 @@ ep_crypto_key_create(int keytype, int keylen, int keyexp, const char *curve)
 }
 
 
+/*
+**  Free a cryptographic key
+*/
+
 void
 ep_crypto_key_free(EP_CRYPTO_KEY *key)
 {
 	EVP_PKEY_free(key);
 }
 
+
+/*
+**  Generic routines to map external to internal names and back.
+**	Assumes short tables --- linear search.
+*/
 
 struct name_to_format
 {
@@ -240,6 +262,11 @@ get_name(struct name_to_format *table, int code)
 	return "unknown";
 }
 
+
+/*
+**  Map key format external->internal
+*/
+
 static struct name_to_format	KeyFormStrings[] =
 {
 	{ "pem",		EP_CRYPTO_KEYFORM_PEM,		},
@@ -253,6 +280,10 @@ ep_crypto_keyform_fromstring(const char *fmt)
 	return get_byname(KeyFormStrings, fmt);
 }
 
+
+/*
+**  Map EP cipher index to OpenSSL cipher structure
+*/
 
 static const EVP_CIPHER *
 cipher_byid(int id)
@@ -271,6 +302,12 @@ cipher_byid(int id)
 }
 
 
+/*
+**  Print a key to a given file
+**
+**	If EP_CRYPTO_F_SECRET bit is set in flags, it prints the
+**	secret key; otherwise it prints the public key.
+*/
 
 void
 ep_crypto_key_print(
@@ -296,6 +333,10 @@ ep_crypto_key_print(
 	BIO_free(bio);
 }
 
+
+/*
+**  Read a key in either PEM or DER format from an OpenSSL bio structure.
+*/
 
 static EP_CRYPTO_KEY *
 key_read_bio(BIO *bio,
@@ -339,6 +380,13 @@ key_read_bio(BIO *bio,
 	return key;
 }
 
+
+/*
+**  Read a key from a file pointer, a file, or memory
+**
+**	The filename passed in to the file pointer version is used
+**	only for printing errors.
+*/
 
 EP_CRYPTO_KEY *
 ep_crypto_key_read_fp(
@@ -536,6 +584,13 @@ fail1:
 }
 
 
+/*
+**  Write keys to files or memory.
+**
+**	If EP_CRYPTO_F_SECRET bit is set in flags, it writes the
+**	secret key; otherwise it writes the public key.
+*/
+
 EP_STAT
 ep_crypto_key_write_fp(EP_CRYPTO_KEY *key,
 		FILE *fp,
@@ -602,6 +657,10 @@ ep_crypto_key_write_mem(EP_CRYPTO_KEY *key,
 }
 
 
+/*
+**  Extract the EP key type from an EP key.
+*/
+
 int
 ep_crypto_keytype_fromkey(EP_CRYPTO_KEY *key)
 {
@@ -626,6 +685,11 @@ ep_crypto_keytype_fromkey(EP_CRYPTO_KEY *key)
 	}
 }
 
+
+/*
+**  Convert an EP key type from or to a printable name
+*/
+
 static struct name_to_format	KeyTypeStrings[] =
 {
 	{ "rsa",		EP_CRYPTO_KEYTYPE_RSA,		},
@@ -649,6 +713,17 @@ ep_crypto_keytype_name(int keytype)
 }
 
 
+/*
+**  Check to see if two keys are compatible.
+**
+**	By default this checks to see if the public and secret key
+**	are two halves of the same key pair.  If you set the
+**	libep.crypto-key.compat.strict admin parameter to false it
+**	just checks to make sure they are the same type (e.g.,
+**	both EC rather than one EC and one RSA).  This is really
+**	only used for debugging.
+*/
+
 EP_STAT
 ep_crypto_key_compat(const EP_CRYPTO_KEY *pubkey, const EP_CRYPTO_KEY *seckey)
 {
@@ -664,6 +739,11 @@ ep_crypto_key_compat(const EP_CRYPTO_KEY *pubkey, const EP_CRYPTO_KEY *seckey)
 		return EP_STAT_OK;
 	return EP_STAT_CRYPTO_KEYCOMPAT;
 }
+
+
+/*
+**  Convert a symmetric key name to or from an internal EP type.
+*/
 
 static struct name_to_format	KeyEncStrings[] =
 {

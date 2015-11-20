@@ -1,10 +1,24 @@
 /* vim: set ai sw=8 sts=8 ts=8 : */
 
+/*
+**  Do cryptographic signatures
+**
+**	Note that the internal structure while computing a signature
+**	is an EP_CRYPTO_MD; thus you may see a mix of calls to (for
+**	example) ep_crypto_md_clone and ep_crypto_sign_final.
+*/
+
 #include <ep/ep.h>
 #include <ep_crypto.h>
 #include <ep_dbg.h>
 
 //static EP_DBG	Dbg = EP_DBG_INIT("libep.crypto.sign", "cryptographic signatures");
+
+
+/*
+**  Create a new signing context.  Note that this returns a message
+**  digest type; there isn't a separate type for signing.
+*/
 
 EP_CRYPTO_MD *
 ep_crypto_sign_new(EP_CRYPTO_KEY *skey, int md_alg_id)
@@ -30,6 +44,9 @@ ep_crypto_sign_new(EP_CRYPTO_KEY *skey, int md_alg_id)
 }
 
 
+/*
+**  Update a signing context.  This adds data to be signed.
+*/
 
 EP_STAT
 ep_crypto_sign_update(EP_CRYPTO_MD *md, void *dbuf, size_t dbufsize)
@@ -46,6 +63,16 @@ ep_crypto_sign_update(EP_CRYPTO_MD *md, void *dbuf, size_t dbufsize)
 }
 
 
+/*
+**  Finalize a signing context.
+**
+**	This returns the signature in sbuf and sbufsize, with
+**	*sbufsize set to the size of sbuf on call, and modified
+**	to be the number of bytes actually used.
+**
+**	The context cannot be used again.
+*/
+
 EP_STAT
 ep_crypto_sign_final(EP_CRYPTO_MD *md, void *sbuf, size_t *sbufsize)
 {
@@ -60,6 +87,10 @@ ep_crypto_sign_final(EP_CRYPTO_MD *md, void *sbuf, size_t *sbufsize)
 	return EP_STAT_OK;
 }
 
+
+/*
+**  Free the signing context.
+*/
 
 void
 ep_crypto_sign_free(EP_CRYPTO_MD *md)

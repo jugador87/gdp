@@ -9,6 +9,29 @@
 static EP_DBG	Dbg = EP_DBG_INIT("libep.crypto.md", "message digests");
 
 
+/*
+**  Message Digest (Cryptographic Hash) support
+**
+**	The model is that you create a new digest and then update
+**	it as data comes along.
+**
+**	When done, you finalize it, which gives you the final hash.
+**
+**	If you have some fixed data at the beginning of multiple
+**	data blocks, you can hash that and then "clone" the
+**	digest; the clone then picks up where the original part
+**	of the digest left off.
+*/
+
+
+/*
+**  Convert EP algorithm code to an OpenSSL algorithm.
+**
+**	Unfortunately this loads in all the algorithms to all
+**	processes.  A better implementation would somehow dynamically
+**	load them as needed.
+*/
+
 const EVP_MD *
 _ep_crypto_md_getalg_byid(int md_alg_id)
 {
@@ -35,6 +58,10 @@ _ep_crypto_md_getalg_byid(int md_alg_id)
 }
 
 
+/*
+**  Create a new EP Message Digest structure
+*/
+
 EP_CRYPTO_MD *
 ep_crypto_md_new(int md_alg_id)
 {
@@ -58,6 +85,10 @@ ep_crypto_md_new(int md_alg_id)
 }
 
 
+/*
+**  Clone (duplicate) a partially completed digest
+*/
+
 EP_CRYPTO_MD *
 ep_crypto_md_clone(EP_CRYPTO_MD *oldmd)
 {
@@ -75,6 +106,10 @@ ep_crypto_md_clone(EP_CRYPTO_MD *oldmd)
 }
 
 
+/*
+**  Update (extend) an existing digest
+*/
+
 EP_STAT
 ep_crypto_md_update(EP_CRYPTO_MD *md, void *data, size_t dsize)
 {
@@ -89,6 +124,14 @@ ep_crypto_md_update(EP_CRYPTO_MD *md, void *data, size_t dsize)
 	return EP_STAT_OK;
 }
 
+
+/*
+**  Finalize and return a message digest.
+**
+**	The passed in buffer must be large enough to hold the hash.
+**	It can be too large, in which case the actual length is
+**	returned.  The size will never exceed EP_CRYPTO_MD_MAXSIZE.
+*/
 
 EP_STAT
 ep_crypto_md_final(EP_CRYPTO_MD *md, void *dbuf, size_t *dbufsize)
@@ -107,6 +150,10 @@ ep_crypto_md_final(EP_CRYPTO_MD *md, void *dbuf, size_t *dbufsize)
 }
 
 
+/*
+**  Free a message digest context
+*/
+
 void
 ep_crypto_md_free(EP_CRYPTO_MD *md)
 {
@@ -114,12 +161,23 @@ ep_crypto_md_free(EP_CRYPTO_MD *md)
 }
 
 
+/*
+**  Return the SHA256 of a buffer.
+**
+**	This can be done using the primitives above, but this makes
+**	it easier.
+*/
+
 void
 ep_crypto_md_sha256(const void *data, size_t dlen, uint8_t *out)
 {
 	SHA256(data, dlen, out);
 }
 
+
+/*
+**  Extract the EP digest type code from a digest context
+*/
 
 int
 ep_crypto_md_type(EP_CRYPTO_MD *md)
@@ -157,6 +215,10 @@ ep_crypto_md_type(EP_CRYPTO_MD *md)
 	return mdtype;
 }
 
+
+/*
+**  Convert message digest names to and from internal EP codes.
+*/
 
 struct name_to_format
 {
