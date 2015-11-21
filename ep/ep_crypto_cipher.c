@@ -1,5 +1,9 @@
 /* vim: set ai sw=8 sts=8 ts=8 :*/
 
+/*
+**  Symmetric cipher support.
+*/
+
 #include <ep/ep.h>
 #include <ep/ep_crypto.h>
 
@@ -10,6 +14,10 @@ struct ep_crypto_cipher_ctx
 //	uint8_t		iv[EVP_MAX_IV_LENGTH];
 };
 
+
+/*
+**  Convert EP cipher code to OpenSSL cipher (helper routine)
+*/
 
 static const EVP_CIPHER *
 evp_cipher_type(uint32_t cipher)
@@ -38,9 +46,21 @@ evp_cipher_type(uint32_t cipher)
 		return EVP_aes_256_ofb();
 	}
 
-	return _ep_crypto_error("unknown cipher type 0x%x", cipher);
+	return _ep_crypto_error("ep_crypto_cipher_new: "
+			"unknown cipher type 0x%x",
+			cipher);
 }
 
+
+/*
+**  Create a new cipher context.  This is used by most of the
+**  rest of the cipher routines.
+**
+**	The 'enc' parameter tells whether this is an encryption or a
+**	description operation (true == encrypt).
+**
+**	XXX need to explain iv.
+*/
 
 EP_CRYPTO_CIPHER_CTX *
 ep_crypto_cipher_new(
@@ -62,21 +82,42 @@ ep_crypto_cipher_new(
 	if (EVP_CipherInit_ex(&ctx->ctx, ciphertype, engine, key, iv, enc) <= 0)
 	{
 		ep_crypto_cipher_free(ctx);
-		return _ep_crypto_error("cannot initialize for encryption");
+		return _ep_crypto_error("ep_crypto_cipher_new: "
+				"cannot initialize for encryption");
 	}
 
 	return ctx;
 }
 
 
+/*
+**  Free a cipher context
+**
+**	This makes sure that sensitive information is cleared from
+**	memory before it is released.
+*/
+
 void
 ep_crypto_cipher_free(EP_CRYPTO_CIPHER_CTX *ctx)
 {
 	if (EVP_CIPHER_CTX_cleanup(&ctx->ctx) <= 0)
-		_ep_crypto_error("cannot cleanup cipher context");
+		(void) _ep_crypto_error("cannot cleanup cipher context");
 	ep_mem_free(ctx);
 }
 
+
+/*
+**  Do symmetric encryption
+**
+**	This can be done using ep_crypto_cipher_crypt, which
+**	encrypts or decrypts a block of memory and does the final
+**	padding in one operation, or by calling ep_crypto_cipher_update
+**	on multiple blocks followed by ep_crypto_cipher_final to
+**	do the padding.
+**
+**	In all cases, the value of a successful status code contains
+**	the number of bytes actually written to the output.
+*/
 
 EP_STAT
 ep_crypto_cipher_crypt(
@@ -93,22 +134,24 @@ ep_crypto_cipher_crypt(
 	if (outlen < inlen + EVP_CIPHER_CTX_key_length(&ctx->ctx))
 	{
 		// potential buffer overflow
-		_ep_crypto_error("cp_crypto_cipher_crypt: short output buffer "
-				"(%d < %d + %d)",
+		_ep_crypto_error("cp_crypto_cipher_crypt: "
+				"short output buffer (%d < %d + %d)",
 			outlen, inlen, EVP_CIPHER_CTX_key_length(&ctx->ctx));
 		return EP_STAT_BUF_OVERFLOW;
 	}
 
 	if (EVP_CipherUpdate(&ctx->ctx, out, &olen, in, inlen) <= 0)
 	{
-		_ep_crypto_error("cannot encrypt/decrypt");
+		_ep_crypto_error("ep_crypto_cipher_crypt: "
+				"cannot encrypt/decrypt");
 		return EP_STAT_CRYPTO_CIPHER;
 	}
 	rval = olen;
 	out += olen;
 	if (EVP_CipherFinal_ex(&ctx->ctx, out, &olen) <= 0)
 	{
-		_ep_crypto_error("cannot finalize encrypt/decrypt");
+		_ep_crypto_error("ep_crypto_cipher_crypt: "
+				"cannot finalize encrypt/decrypt");
 		return EP_STAT_CRYPTO_CIPHER;
 	}
 
@@ -119,7 +162,7 @@ ep_crypto_cipher_crypt(
 
 
 EP_STAT
-ep_crypto_cipher_cryptblock(
+ep_crypto_cipher_update(
 		EP_CRYPTO_CIPHER_CTX *ctx,
 		void *in,
 		size_t inlen,
@@ -130,7 +173,8 @@ ep_crypto_cipher_cryptblock(
 
 	if (EVP_CipherUpdate(&ctx->ctx, out, &olen, in, inlen) <= 0)
 	{
-		_ep_crypto_error("cannot encrypt/decrypt");
+		_ep_crypto_error("ep_crypto_cipher_update: "
+				"cannot encrypt/decrypt");
 		return EP_STAT_CRYPTO_CIPHER;
 	}
 
@@ -140,7 +184,7 @@ ep_crypto_cipher_cryptblock(
 
 
 EP_STAT
-ep_crypto_cipher_finish(
+ep_crypto_cipher_final(
 		EP_CRYPTO_CIPHER_CTX *ctx,
 		void *out,
 		size_t outlen)
@@ -151,14 +195,16 @@ ep_crypto_cipher_finish(
 	if (outlen < EVP_CIPHER_CTX_key_length(&ctx->ctx))
 	{
 		// potential buffer overflow
-		_ep_crypto_error("cp_crypto_cipher_finish: short output buffer (%d < %d)",
+		_ep_crypto_error("ep_crypto_cipher_final: "
+				"short output buffer (%d < %d)",
 				outlen, EVP_CIPHER_CTX_key_length(&ctx->ctx));
 		return EP_STAT_BUF_OVERFLOW;
 	}
 
 	if (EVP_CipherFinal_ex(&ctx->ctx, out, &olen) <= 0)
 	{
-		_ep_crypto_error("cannot finalize encrypt/decrypt");
+		_ep_crypto_error("ep_crypto_cipher_final: "
+				"cannot finalize encrypt/decrypt");
 		return EP_STAT_CRYPTO_CIPHER;
 	}
 

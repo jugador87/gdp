@@ -472,7 +472,6 @@ key_write_bio(EP_CRYPTO_KEY *key,
 		const char *passwd,
 		uint32_t flags)
 {
-	int keytype = ep_crypto_keytype_fromkey(key);
 	const char *pubsec = EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags) ?
 		"secret" : "public";
 	int istat;
@@ -507,80 +506,39 @@ key_write_bio(EP_CRYPTO_KEY *key,
 		}
 		goto finis;
 	}
-	else if (keyform != EP_CRYPTO_KEYFORM_DER)
+#if _EP_CRYPTO_INCLUDE_DER
+	else if (keyform == EP_CRYPTO_KEYFORM_DER)
+	{
+		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
+		{
+			if (keyenc != EP_CRYPTO_SYMKEY_NONE &&
+			    ep_dbg_test(Dbg, 1))
+			{
+				ep_dbg_printf("WARNING: writing unencrypted "
+						"private key DER file\n");
+			}
+			istat = i2d_PrivateKey_bio(bio, key);
+		}
+		else
+		{
+			istat = i2d_PUBKEY_bio(bio, key);
+		}
+		if (istat != 1)
+		{
+			(void) _ep_crypto_error("cannot write %s DER key",
+					pubsec);
+			return EP_STAT_CRYPTO_CONVERT;
+		}
+	}
+#endif // _EP_CRYPTO_INCLUDE_DER
+	else
 	{
 		(void) _ep_crypto_error("unknown key format %d", keyform);
 		return EP_STAT_CRYPTO_KEYFORM;
 	}
 
-#if _EP_CRYPTO_INCLUDE_DER
-	const char *type;
-	switch (keytype)
-	{
-# if _EP_CRYPTO_INCLUDE_RSA
-	  case EP_CRYPTO_KEYTYPE_RSA:
-		type = "RSA";
-		RSA *rsakey = EVP_PKEY_get1_RSA(key);
-
-		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
-			istat = i2d_RSAPrivateKey_bio(bio, rsakey);
-		else
-			istat = i2d_RSA_PUBKEY_bio(bio, rsakey);
-		if (istat != 1)
-			goto fail1;
-		break;
-# endif
-
-# if _EP_CRYPTO_INCLUDE_DSA
-	  case EP_CRYPTO_KEYTYPE_DSA:
-		type = "DSA";
-		DSA *dsakey = EVP_PKEY_get1_DSA(key);
-
-		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
-			istat = i2d_DSAPrivateKey_bio(bio, dsakey);
-		else
-			istat = i2d_DSA_PUBKEY_bio(bio, dsakey);
-		if (istat != 1)
-			goto fail1;
-		break;
-# endif
-
-# if _EP_CRYPTO_INCLUDE_EC
-	  case EP_CRYPTO_KEYTYPE_EC:
-		type = "ECDSA";
-		EC_KEY *eckey = EVP_PKEY_get1_EC_KEY(key);
-
-		if (EP_UT_BITSET(EP_CRYPTO_F_SECRET, flags))
-			istat = i2d_ECPrivateKey_bio(bio, eckey);
-		else
-			istat = i2d_EC_PUBKEY_bio(bio, eckey);
-		if (istat != 1)
-			goto fail1;
-		break;
-# endif
-
-# if _EP_CRYPTO_INCLUDE_DH
-	  case EP_CRYPTO_KEYTYPE_DH:
-		type = "DH";
-		DH *dhkey = EVP_PKEY_get1_DH(key);
-		do what is needed
-		if (istat != 1)
-			goto fail1;
-		break;
-# endif
-
-	  default:
-		_ep_crypto_error("unknown key type %d", keytype);
-		return EP_STAT_CRYPTO_KEYTYPE;
-	}
-#endif // _EP_CRYPTO_INCLUDE_DER
-
 finis:
 	return EP_STAT_FROM_INT(BIO_ctrl_pending(bio));
-
-fail1:
-	(void) _ep_crypto_error("cannot encode %s %s DER key", type, pubsec);
-	return EP_STAT_CRYPTO_CONVERT;
 }
 
 
@@ -589,6 +547,11 @@ fail1:
 **
 **	If EP_CRYPTO_F_SECRET bit is set in flags, it writes the
 **	secret key; otherwise it writes the public key.
+**
+**	On successful return, the value part of the status code
+**	contains the number of bytes written.
+**
+**	NOTE WELL: DER files do not support encryption of private keys.
 */
 
 EP_STAT
@@ -604,7 +567,8 @@ ep_crypto_key_write_fp(EP_CRYPTO_KEY *key,
 
 	if (fp == NULL)
 	{
-		(void) _ep_crypto_error("file must be specified");
+		(void) _ep_crypto_error("ep_crypto_key_write_fp: "
+				"file pointer must be specified");
 		return EP_STAT_CRYPTO_CONVERT;
 	}
 

@@ -2,6 +2,8 @@
 
 /*
 **  Wrappers for cryptographic signature verification
+**
+**	These are direct analogues to the signing routines.
 */
 
 #include <ep/ep.h>

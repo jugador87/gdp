@@ -271,8 +271,8 @@ typedef struct ep_crypto_cipher_ctx	EP_CRYPTO_CIPHER_CTX;
 **	is created.
 **
 **	ep_crypto_cipher_crypt is just shorthand for a single
-**	call to ep_crypto_cipher_cryptblock followed by a single
-**	call to ep_crypto_cipher_finish.  Finish pads out any
+**	call to ep_crypto_cipher_update followed by a single
+**	call to ep_crypto_cipher_final.  Final pads out any
 **	remaining block and returns that data.
 */
 
@@ -290,13 +290,13 @@ EP_STAT			ep_crypto_cipher_crypt(
 				size_t inlen,		// input length
 				void *out,		// output buffer
 				size_t outlen);		// output buf size
-EP_STAT			ep_crypto_cipher_cryptblock(
+EP_STAT			ep_crypto_cipher_update(
 				EP_CRYPTO_CIPHER_CTX *cipher,
 				void *in,		// input data
 				size_t inlen,		// input length
 				void *out,		// output buffer
 				size_t outlen);		// output buf size
-EP_STAT			ep_crypto_cipher_finish(
+EP_STAT			ep_crypto_cipher_final(
 				EP_CRYPTO_CIPHER_CTX *cipher,
 				void *out,		// output buffer
 				size_t outlen);		// output buf size
