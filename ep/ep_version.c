@@ -15,4 +15,4 @@
 */
 
 const char	EpVersion[] = "@(#)Libep " EP_VER_STRING " (" _CURRENT_DATE_
-				") Copyright (c) 2003-2014 Eric P. Allman";
+				") Copyright (c) 2003-2015 Eric P. Allman";
