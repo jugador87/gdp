@@ -1,3 +1,8 @@
+#
+#  ----- BEGIN LICENSE BLOCK -----
+#  ----- END LICENSE BLOCK -----
+#
+
 ALL=		machine-mon
 
 DESTDIR=

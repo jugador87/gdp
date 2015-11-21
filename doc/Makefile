@@ -1,3 +1,8 @@
+#
+#  ----- BEGIN LICENSE BLOCK -----
+#  ----- END LICENSE BLOCK -----
+#
+
 ALL= \
 		gdp-gcl-metadata.html \
 		gdp-programmatic-api.html \
