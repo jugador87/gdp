@@ -49,7 +49,6 @@
 #include <unistd.h>
 #include <string.h>
 
-EP_SRC_ID("@(#)$Id: ep_rpool.c 286 2014-04-29 18:15:22Z eric $");
 
 /***********************************************************************
 **
@@ -636,7 +635,6 @@ ep_rpool_mfree(EP_RPOOL *rp,
 
 
 
-#if 0
 /***********************************************************************
 **
 ** EP_RPOOL_ATTACH -- attach a resource to a pool
@@ -678,6 +676,5 @@ ep_rpool_attach(EP_RPOOL *rp,
 	ep_funclist_push(rp->ffuncs, freefunc, arg);
 }
 
-#endif
 
 /***********************************************************************/

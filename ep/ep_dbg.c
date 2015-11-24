@@ -45,7 +45,6 @@
 #include <fnmatch.h>
 #include <pthread.h>
 
-EP_SRC_ID("@(#)$Id: ep_dbg.c 287 2014-04-29 18:18:23Z eric $");
 
 typedef struct FLAGPAT	FLAGPAT;
 
@@ -194,46 +193,6 @@ ep_dbg_flaglevel(EP_DBG *flag)
 
 	return flag->level;
 }
-
-
-#if 0
-/*
-**  EP_DBG_CPRINTF -- print debug info conditionally on flag match
-**
-**	Parameters:
-**		flag -- the flag to test
-**		level -- the level that flag must be at (or higher)
-**		fmt -- the message to print
-**		... -- parameters to that fmt
-**
-**	Returns:
-**		none
-*/
-
-bool
-ep_dbg_cprintf(
-	EP_DBG *flag,
-	int level,
-	const char *fmt,
-	...)
-{
-	if (DebugFile == NULL)
-		ep_dbg_init();
-
-	if (ep_dbg_test(flag, level))
-	{
-		va_list av;
-
-		fprintf(DebugFile, "%s", EpVid->vidfgyellow);
-		va_start(av, fmt);
-		vfprintf(DebugFile, fmt, av);
-		va_end(av);
-		fprintf(DebugFile, "%s", EpVid->vidnorm);
-		return true;
-	}
-	return false;
-}
-#endif
 
 
 /*

@@ -119,67 +119,6 @@ system_mfree(void *p)
 }
 
 
-#if 0
-/*
-**  BUNNY_MALLOC -- it keeps on trying, and trying, and trying...
-**
-**	Parameters:
-**		nbytes -- the number of bytes to allocate
-**		curmem -- a pointer to current memory (for realloc)
-**		flags -- behavior modifier bits
-**
-**	Returns:
-**		A pointer to memory (cannot return NULL).
-*/
-
-static void *
-bunny_malloc(
-	size_t nbytes,
-	void *curmem,
-	uint32_t flags)
-{
-	EP_STAT stat = EP_STAT_OK;
-	int triesleft = N_MALLOC_TRIES;
-
-	while (triesleft-- > 0)
-	{
-		void *p;
-		bool aligned = EP_UT_BITSET(EP_MEM_F_ALIGN, flags);
-		char e1buf[64];
-
-		// try allocating the memory (assume it does its own mutex)
-		p = system_malloc(nbytes, curmem, aligned);
-
-		// did it work?
-		if (p != NULL)
-		{
-			// yep, return that memory
-			return p;
-		}
-
-		// no, post an error
-		// XXX errno shouldn't be visible at this level
-		stat = ep_stat_post(EP_STAT_MEM_NOMEM,
-				"ep_mem_malloc: out of memory: %1",
-				ep_unix_errno_to_str(errno,
-						e1buf, sizeof e1buf),
-				NULL);
-
-		// if we did some recovery, try again
-		if (!EP_STAT_IS_SAME(stat, EP_STAT_MEM_TRYAGAIN))
-			break;
-	}
-
-	// we are out of luck after a couple of tries
-	if (!EP_UT_BITSET(EP_MEM_F_FAILOK, flags))
-		ep_assert_abort("ep_mem_malloc: Out of memory: aborting");
-
-	return NULL;
-}
-
-#endif
-
-
 /*
 **  EP_MEM_IALLOC -- allocate memory from the heap (internal)
 **

@@ -66,7 +66,6 @@
 #include <fcntl.h>
 #include <ctype.h>
 
-EP_SRC_ID("@(#)$Id: ep_adm.c 252 2008-09-16 21:24:42Z eric $");
 
 static EP_HASH	*ParamHash;
 

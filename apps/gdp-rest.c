@@ -392,11 +392,11 @@ error501(scgi_request *req, const char *detail)
 
 
 
+#if 0		// deleted until we have a creation service
+
 /*
 **  A_NEW_GCL --- create new GCL
 */
-
-#if 0
 
 EP_STAT
 a_new_gcl(scgi_request *req, const char *name)
@@ -715,7 +715,7 @@ pfx_gcl(scgi_request *req, char *uri)
 		// no GCL name included
 		switch (req->request_method)
 		{
-#if 0
+#if 0		// deleted until we have a creation service
 		case SCGI_METHOD_POST:
 			// create a new GCL
 			estat = a_new_gcl(req, NULL);
@@ -755,7 +755,7 @@ pfx_gcl(scgi_request *req, char *uri)
 			}
 			break;
 
-#if 0
+#if 0		// deleted until we have a creation service
 		case SCGI_METHOD_PUT:
 			// create a new named GCL
 			estat = a_new_gcl(req, uri);

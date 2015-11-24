@@ -44,7 +44,6 @@
 #include <ep_xlate.h>
 #include <ctype.h>
 
-EP_SRC_ID("@(#)$Id: ep_xlate.c 252 2008-09-16 21:24:42Z eric $");
 
 
 /*

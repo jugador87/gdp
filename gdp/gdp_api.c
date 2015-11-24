@@ -486,28 +486,6 @@ gdp_gcl_multiread(gdp_gcl_t *gcl,
 
 
 /*
-**  GDP_GCL_UNSUBSCRIBE --- cancel a current subscription.
-**
-**		Unfortunately these parameters are not unique.  We have to
-**		figure out a better way to deal with this.
-*/
-
-#if 0
-
-EP_STAT
-gdp_gcl_unsubscribe(gdp_gcl_t *gcl,
-		void (*cbfunc)(gdp_gcl_t *, void *),
-		void *arg)
-{
-	EP_ASSERT_POINTER_VALID(gcl);
-	EP_ASSERT_POINTER_VALID(cbfunc);
-
-	XXX;
-}
-#endif
-
-
-/*
 **  GDP_GCL_GETMETADATA --- return the metadata associated with a GCL
 */
 

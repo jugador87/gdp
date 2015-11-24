@@ -52,7 +52,6 @@
 #include <ep_thr.h>
 #include <ep_assert.h>
 
-EP_SRC_ID("@(#)$Id: ep_funclist.c 286 2014-04-29 18:15:22Z eric $");
 
 /**************************  BEGIN PRIVATE  **************************/
 
@@ -135,31 +134,6 @@ ep_funclist_push(EP_FUNCLIST *flp,
 	ep_thr_mutex_unlock(&flp->mutex);
 }
 
-#if 0
-
-void
-ep_funclist_pop(EP_FUNCLIST *flp)
-{
-	struct fseg *fsp;
-
-	EP_ASSERT_POINTER_VALID(flp);
-
-	//  XXX  Is this worth anything?
-	//  XXX  If so, implement it
-}
-
-void
-ep_funclist_clear(EP_FUNCLIST *flp)
-{
-	struct fseg *fsp;
-
-	EP_ASSERT_POINTER_VALID(flp);
-
-	//  XXX  Is this worth anything?
-	//  XXX  If so, implement it
-}
-
-#endif /* 0 */
 
 void
 ep_funclist_invoke(EP_FUNCLIST *flp)

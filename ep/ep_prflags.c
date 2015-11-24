@@ -41,7 +41,6 @@
 #include <ep_prflags.h>
 #include <stdio.h>
 
-EP_SRC_ID("@(#)$Id: ep_prflags.c 252 2008-09-16 21:24:42Z eric $");
 
 /*
 **  EP_PRFLAGS -- print out a flags word in a user-friendly manner

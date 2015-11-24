@@ -180,15 +180,6 @@ _gdp_invoke(gdp_req_t *req)
 				ep_time_nanosleep(retry_delay MILLISECONDS);
 		}
 
-#if 0
-		//XXX what status will/should we return?
-		if (event_base_got_exit(GdpIoEventBase))
-		{
-			ep_dbg_cprintf(Dbg, 1, "gdp_invoke: exiting on loopexit\n");
-			estat = GDP_STAT_INTERNAL_ERROR;
-		}
-#endif
-
 		// ok, done!
 	}
 
