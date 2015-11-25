@@ -147,8 +147,6 @@ subscr_poker_thread(void *chan_)
 
 		for (req = LIST_FIRST(&chan->reqs); req != NULL; req = nextreq)
 		{
-			EP_STAT estat;
-
 			_gdp_req_lock(req);
 			nextreq = LIST_NEXT(req, chanlist);
 			if (ep_dbg_test(Dbg, 51))
@@ -177,13 +175,17 @@ subscr_poker_thread(void *chan_)
 			else
 			{
 				// t_dead < act_ts <= t_poke: refresh this subscription
-				estat = subscr_resub(req);
+				(void) subscr_resub(req);
 			}
 
 			// if _gdp_invoke failed, try again at the next poke interval
 			_gdp_req_unlock(req);
 		}
 	}
+
+	// not reached; keep gcc happy
+	ep_log(EP_STAT_SEVERE, "subscr_poker_thread: fell out of loop");
+	return NULL;
 }
 
 
