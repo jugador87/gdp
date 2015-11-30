@@ -180,7 +180,7 @@ class KVstore:
         return ds
 
 
-    def __init__(self, root, keyfile=None, mode=MODE_RO,
+    def __init__(self, root, mode=MODE_RO, keyfile=None,
                             freq=100, cache_size=1000,
                             size_factor=2, X_factor=0.8):
         """
@@ -208,7 +208,6 @@ class KVstore:
         gdp_iomode = gdp.GDP_MODE_RO if mode==self.MODE_RO else gdp.GDP_MODE_RA
     
         gdp.gdp_init()  ## XXX: Not sure if this is the best idea
-
         # Setup the key
 
         open_info = {}
