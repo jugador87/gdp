@@ -324,7 +324,8 @@ ack_data_content(gdp_req_t *req)
 	EP_STAT_CHECK(estat, return estat);
 
 	// keep track of the latest record number we've read
-	req->gcl->nrecs = req->pdu->datum->recno;
+	if (req->gcl->nrecs < req->pdu->datum->recno)
+		req->gcl->nrecs = req->pdu->datum->recno;
 
 	// keep track of how many more records we expect
 	if (req->numrecs > 0)
