@@ -323,7 +323,7 @@ ack_data_content(gdp_req_t *req)
 	estat = ack_success(req);
 	EP_STAT_CHECK(estat, return estat);
 
-	// keep track of the latest record number we've read
+	// keep track of the highest record number we've read
 	if (req->gcl->nrecs < req->pdu->datum->recno)
 		req->gcl->nrecs = req->pdu->datum->recno;
 
