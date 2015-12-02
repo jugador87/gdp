@@ -36,7 +36,7 @@ SBINDIR=	${INSTALLROOT}/sbin
 LIBDIR=		${INSTALLROOT}/lib
 INCDIR=		${INSTALLROOT}/include
 INSTALL=	install
-CRYPTOROOT=	/usr/local
+CRYPTOROOT=	/opt/local
 
 CURDIR=	.
 
