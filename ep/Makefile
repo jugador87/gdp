@@ -36,7 +36,7 @@ SBINDIR=	${INSTALLROOT}/sbin
 LIBDIR=		${INSTALLROOT}/lib
 INCDIR=		${INSTALLROOT}/include
 INSTALL=	install
-CRYPTOROOT=	/usr/local/ssl
+CRYPTOROOT=	/usr/local
 
 CURDIR=	.
 
@@ -187,8 +187,8 @@ MV=	mv
 CP=	cp
 MKDIR=	mkdir -p
 RANLIB=	ranlib
-SHARED=	-shared
-#SHARED=	-shared -Wl,-soname,$@
+SHARED=	-shared ${CRYPTOLFLAGS}
+#SHARED=	-shared ${CRYPTOLFLAGS} -Wl,-soname,$@
 TIME=
 
 EPLIBMAJVER=	2
