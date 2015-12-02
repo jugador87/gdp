@@ -1,0 +1,3 @@
+[submodule "examples/SensorTag2/SensorTag2"]
+	path = examples/SensorTag2/SensorTag2
+	url = https://github.com/niteshmor/SensorTag2.git
