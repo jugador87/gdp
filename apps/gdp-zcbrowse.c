@@ -32,28 +32,34 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-int main() {
-	ZCInfo *i, **list;
+int main()
+{
+	zcinfo_t *i, **list;
 	char *zcstr;
 
 	printf("start browse\n");
-	if (gdp_zc_scan()) {
+	if (gdp_zc_scan())
+	{
 		printf("getting info\n");
 		/* always need to retrieve list */
 		list = gdp_zc_get_infolist();
 
 		/* you can access info as a linked list */
-		for (i = *list; i; i = i->info_next) {
+		for (i = *list; i; i = i->info_next)
+		{
 			printf("host:%s port: %d\n", i->address, i->port);
 		}
 
 		/* or you can access info as a string */
 		zcstr = gdp_zc_addr_str(list);
-		if (zcstr) {
+		if (zcstr)
+		{
 			printf("list: %s\n", zcstr);
 			/* need to free the string after you're done */
 			free(zcstr);
-		} else {
+		}
+		else
+		{
 			printf("list fail\n");
 		}
 
@@ -61,7 +67,9 @@ int main() {
 		printf("freeing info\n");
 		gdp_zc_free_infolist(list);
 		return 0;
-	} else {
+	}
+	else
+	{
 		return 1;
 	}
 }

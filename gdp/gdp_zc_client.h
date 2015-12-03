@@ -35,15 +35,15 @@
 #include <avahi-client/client.h>
 #include <avahi-client/lookup.h>
 
-typedef struct ZCInfo {
+typedef struct zcinfo {
 	char *address;
 	uint16_t port;
-	struct ZCInfo *info_next;
-} ZCInfo;
+	struct zcinfo *info_next;
+} zcinfo_t;
 
 int gdp_zc_scan();
-ZCInfo **gdp_zc_get_infolist();
-char *gdp_zc_addr_str(ZCInfo **list);
-int gdp_zc_free_infolist(ZCInfo **list);
+zcinfo_t **gdp_zc_get_infolist();
+char *gdp_zc_addr_str(zcinfo_t **list);
+int gdp_zc_free_infolist(zcinfo_t **list);
 
 /* vim: set noexpandtab : */
