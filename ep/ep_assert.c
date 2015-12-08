@@ -43,11 +43,11 @@
 **  EP_ASSERT_FAILURE -- internal routine to raise an assertion failure
 **
 **	Parameters:
-**		expr -- what was the actual text of the assertion
-**			expression
 **		type -- the assertion type -- require, ensure, etc.
 **		file -- which file contained the assertion
 **		line -- which line was it on
+**		msg -- the message to print (printf format)
+**		... -- arguments
 **
 **	Returns:
 **		never
@@ -59,26 +59,29 @@ static void	(*EpAbortFunc)(void) = 0;
 
 void
 ep_assert_failure(
-	const char *expr,
 	const char *type,
 	const char *file,
-	int line)
+	int line,
+	const char *msg,
+	...)
 {
+	va_list av;
+
 	if (EpAssertNesting++ > 0)
 		ep_assert_abort("Nested assertion failure");
 
-	// should log something here
-//	ep_log_propl(NULL, EP_STAT_SEV_ABORT, "Assert Failure",
-//			"file",		file,
-//			"line",		buf,
-//			"type",		type,
-//			"expr",		expr,
-//			NULL,	NULL);
+	// log something here?
 
-	fprintf(stderr, "%s%sAssertion failed at %s:%d: %s:\n\t%s%s\n",
+	flockfile(stderr);
+	fprintf(stderr, "%s%sAssertion failed at %s:%d: %s:\n\t",
 			EpVid->vidfgcyan, EpVid->vidbgred,
-			file, line, type, expr,
-			EpVid->vidnorm);
+			file, line, type);
+	va_start(av, msg);
+	vfprintf(stderr, msg, av);
+	va_end(av);
+	fprintf(stderr, "%s\n", EpVid->vidnorm);
+	funlockfile(stderr);
+
 	abort();
 	/*NOTREACHED*/
 }

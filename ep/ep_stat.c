@@ -44,34 +44,6 @@
 #include <string.h>
 
 
-
-/***********************************************************************
-**
-**  EP_STAT_ABORT -- abort process due to status
-**
-**	This should only be called after a call to ep_stat_[v]post
-**	with an EP_STAT_SEV_ABORT or higher status.  It never returns.
-**
-**	Parameters:
-**		stat -- the status code causing the abort
-**
-**	Returns:
-**		never
-*/
-
-void
-ep_stat_abort(EP_STAT stat)
-{
-	char sbuf[100];
-
-	fprintf(stderr,
-		"Process aborted due to severe status: %s",
-		ep_stat_tostr(stat, sbuf, sizeof sbuf));
-	ep_assert_abort("Severe status");
-	/*NOTREACHED*/
-}
-
-
 /***********************************************************************
 **
 **  EP_STAT_FROM_ERRNO -- create a status encoding errno
