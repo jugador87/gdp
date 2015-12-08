@@ -190,49 +190,4 @@ char		*ep_stat_tostr(
 const char	*ep_stat_sev_tostr(
 			int sev);
 
-// print and abort (never returns)
-void		ep_stat_abort(
-			EP_STAT c);
-
-#if 0
-
-// handle on status handler -- to release later
-typedef struct EP_STAT_HANDLE	EP_STAT_HANDLE;
-
-// status handling function
-typedef EP_STAT	(*EP_STAT_HANDLER_FUNCP)
-			(EP_STAT estat,		// status code
-			//char *module,		// calling module
-			const char *defmsg,	// default message
-			va_list av);		// string arguments
-
-// register/deregister a status handler
-EP_STAT_HANDLE	*ep_stat_register(
-			EP_STAT estat,
-			EP_STAT mask,
-			EP_STAT_HANDLER_FUNCP f);
-
-EP_STAT		ep_stat_unregister(
-			EP_STAT_HANDLE *h);
-// post a status
-EP_STAT		ep_stat_post(
-			EP_STAT c,
-			const char *defmsg,
-			...);
-EP_STAT		ep_stat_vpost(
-			EP_STAT c,
-			const char *defmsg,
-			va_list av);
-// print a status
-void		ep_stat_print(
-			EP_STAT c,
-			const char *defmsg,
-			FILE *fp, ...);
-void		ep_stat_vprint(
-			EP_STAT c,
-			const char *defmsg,
-			FILE *fp,
-			va_list av);
-#endif // 0
-
 #endif // _EP_STAT_H

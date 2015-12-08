@@ -166,8 +166,8 @@ ep_mem_ialloc(
 			goto done;
 
 		strerror_r(errno, e1buf, sizeof e1buf);
-		fprintf(stderr, "Out of memory: %s\n", e1buf);
-		ep_assert_abort("Out of Memory");
+		ep_assert_failure("memory", file, line, "Out of memory: %s",
+				e1buf);
 		/*NOTREACHED*/
 	}
 
