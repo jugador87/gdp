@@ -50,18 +50,20 @@
 
 static EP_DBG	DemoMode = EP_DBG_INIT("_demo", "Demo Mode");
 
-typedef enum {
+typedef enum
+{
 	COMMAND_HELP,
 	COMMAND_VERSION,
 	COMMAND_BROWSE_SERVICES,
 	COMMAND_BROWSE_ALL_SERVICES,
-	COMMAND_BROWSE_DOMAINS
+	COMMAND_BROWSE_DOMAINS,
 #if defined(HAVE_GDBM) || defined(HAVE_DBM)
-	, COMMAND_DUMP_STDB
+	COMMAND_DUMP_STDB,
 #endif
 } command;
 
-typedef struct config {
+typedef struct config
+{
 	int verbose;
 	int terminate_on_all_for_now;
 	int terminate_on_cache_exhausted;
@@ -79,7 +81,8 @@ typedef struct config {
 
 typedef struct service_info service_info_t;
 
-struct service_info {
+struct service_info
+{
 	AvahiIfIndex interface;
 	AvahiProtocol protocol;
 	char *name, *type, *domain;
@@ -163,7 +166,7 @@ print_service_line(config_t *conf,
 			c,
 			interface != AVAHI_IF_UNSPEC ? if_indextoname(interface, ifname) : "n/a",
 			protocol != AVAHI_PROTO_UNSPEC ? avahi_proto_to_string(protocol) : "n/a",
-			NColumns-35, label, type, domain);
+			NColumns - 35, label, type, domain);
 	}
 	fflush(stdout);
 }
@@ -238,7 +241,6 @@ service_resolver_callback(AvahiServiceResolver *r,
 		AVAHI_GCC_UNUSED AvahiLookupResultFlags flags,
 		void *userdata)
 {
-
 	service_info_t *i = userdata;
 
 	assert(r);
@@ -249,7 +251,7 @@ service_resolver_callback(AvahiServiceResolver *r,
 		case AVAHI_RESOLVER_FOUND:
 		{
 			char address[AVAHI_ADDRESS_STR_MAX], *t;
-			zcinfo_t *info = malloc(sizeof(zcinfo_t));
+			zcinfo_t *info = avahi_malloc(sizeof(zcinfo_t));
 
 			avahi_address_snprint(address, sizeof(address), a);
 
@@ -637,7 +639,7 @@ gdp_zc_scan()
 		goto fail1;
 
 
-	InfoList = (zcinfo_t**) malloc(sizeof(zcinfo_t*));
+	InfoList = (zcinfo_t**) avahi_malloc(sizeof(zcinfo_t*));
 	*InfoList = NULL;
 	avahi_simple_poll_loop(SimplePoll);
 	return 1;
@@ -658,13 +660,13 @@ list_copy_reverse(zcinfo_t **list)
 {
 	zcinfo_t *i, *k, **newlist;
 
-	newlist = (zcinfo_t**) malloc(sizeof(zcinfo_t*));
+	newlist = (zcinfo_t**) avahi_malloc(sizeof(zcinfo_t*));
 	*newlist = NULL;
 	for (i = *list, k = *newlist; i; i = i->info_next)
 	{
-		k = malloc(sizeof(zcinfo_t));
+		k = avahi_malloc(sizeof(zcinfo_t));
 		k->port = i->port;
-		k->address = strndup(i->address, strlen(i->address)+1);
+		k->address = ep_mem_strdup(i->address);
 		infolist_append_front(newlist, k);
 	}
 	return newlist;
@@ -696,12 +698,12 @@ list_pop_str(zcinfo_t **list, int index)
 
 	length = list_length(list);
 	total_strlen = length * ((MAX_PORT_LEN+2) + MAX_ADDR_LEN) + 1;
-	outstr = malloc(sizeof(char) * total_strlen);
+	outstr = avahi_malloc(sizeof(char) * total_strlen);
 	*outstr = '\0';
 	info = *list;
 	if (length == 0)
 	{
-		free(outstr);
+		avahi_free(outstr);
 		return NULL;
 	}
 	else
@@ -714,8 +716,8 @@ list_pop_str(zcinfo_t **list, int index)
 				*list = info->info_next;
 			}
 			// free old head
-			free(info->address);
-			free(info);
+			avahi_free(info->address);
+			avahi_free(info);
 		}
 		else
 		{
@@ -732,8 +734,8 @@ list_pop_str(zcinfo_t **list, int index)
 			info = info->info_next;
 			tmpinfo->info_next = tmpinfo->info_next->info_next;
 			// free node
-			free(info->address);
-			free(info);
+			avahi_free(info->address);
+			avahi_free(info);
 		}
 	}
 	return outstr;
@@ -749,22 +751,22 @@ gdp_zc_addr_str(zcinfo_t **list)
 	listcopy = list_copy_reverse(list);
 	length = list_length(listcopy);
 	total_strlen = length * (MAX_PORT_LEN + MAX_ADDR_LEN) + 1;
-	outstr = malloc(sizeof(char) * total_strlen);
+	outstr = avahi_malloc(sizeof(char) * total_strlen);
 	*outstr = '\0';
 	srand(time(NULL));
 	while(length > 0)
 	{
-		randnum = rand()%length;
+		randnum = rand() % length;
 		tmpstr = list_pop_str(listcopy, randnum);
 		strlcat(outstr, tmpstr, total_strlen);
-		free(tmpstr);
+		avahi_free(tmpstr);
 		length--;
 	}
-	free(listcopy);
+	avahi_free(listcopy);
 	// if len > 0 then remove last char which will be ';'
 	if (strlen(outstr) > 0)
 	{
-		outstr[strlen(outstr)-1] = '\0';
+		outstr[strlen(outstr) - 1] = '\0';
 	}
 	return outstr;
 }
@@ -781,12 +783,12 @@ gdp_zc_free_infolist(zcinfo_t **list)
 	zcinfo_t *i, *next;
 	for (i = *list; i;)
 	{
-		free(i->address);
+		avahi_free(i->address);
 		next = i->info_next;
-		free(i);
+		avahi_free(i);
 		i = next;
 	}
-	free(list);
+	avahi_free(list);
 	list = NULL;
 	return 1;
 }

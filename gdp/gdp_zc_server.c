@@ -1,3 +1,5 @@
+/* vim: set ai sw=4 sts=4 ts=4 :*/
+
 /*
 **  ----- BEGIN LICENSE BLOCK -----
 **	GDP: Global Data Plane Support Library
@@ -26,12 +28,14 @@
 **  ----- END LICENSE BLOCK -----
 */
 
+#include "gdp_zc_server.h"
+
+#include <ep/ep_assert.h>
+
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 
-#include "gdp_zc_server.h"
 
 static AvahiEntryGroup *AGroup = NULL;
 static AvahiSimplePoll *SimplePoll = NULL;
@@ -52,14 +56,14 @@ entry_group_callback(AvahiEntryGroup *g,
 
 	switch (state)
 	{
-		case AVAHI_ENTRY_GROUP_ESTABLISHED :
+		case AVAHI_ENTRY_GROUP_ESTABLISHED:
 			/* The entry group has been established successfully */
 			fprintf(stderr,
 					"Service '%s' successfully established.\n",
 					SName);
 			break;
 
-		case AVAHI_ENTRY_GROUP_COLLISION :
+		case AVAHI_ENTRY_GROUP_COLLISION:
 		{
 			char *n;
 
@@ -78,8 +82,7 @@ entry_group_callback(AvahiEntryGroup *g,
 			break;
 		}
 
-		case AVAHI_ENTRY_GROUP_FAILURE :
-
+		case AVAHI_ENTRY_GROUP_FAILURE:
 			fprintf(stderr,
 					"Entry group failure: %s\n",
 					avahi_strerror
@@ -93,7 +96,10 @@ entry_group_callback(AvahiEntryGroup *g,
 
 		case AVAHI_ENTRY_GROUP_UNCOMMITED:
 		case AVAHI_ENTRY_GROUP_REGISTERING:
-			;
+			break;
+
+		default:
+			EP_ASSERT_FAILURE("Unknown state %d", state);
 	}
 }
 
@@ -108,6 +114,7 @@ create_services(AvahiClient *c)
 	 * entry group if necessary */
 
 	if (!AGroup)
+	{
 		if (!(AGroup = avahi_entry_group_new(c, entry_group_callback, NULL)))
 		{
 			fprintf(stderr,
@@ -115,6 +122,7 @@ create_services(AvahiClient *c)
 					avahi_strerror(avahi_client_errno(c)));
 			goto fail;
 		}
+	}
 
 	/* If the group is empty (either because it was just created, or
 	 * because it was reset previously, add our entries.  */
@@ -213,7 +221,10 @@ client_callback(AvahiClient *c,
 			break;
 
 		case AVAHI_CLIENT_CONNECTING:
-			;
+			break;
+
+		default:
+			EP_ASSERT_FAILURE("Unknown state %d", state);
 	}
 }
 
@@ -238,7 +249,7 @@ gdp_zc_publish(const char *instance, uint16_t port_no)
 	client = avahi_client_new(avahi_simple_poll_get(SimplePoll),
 			0, client_callback, NULL, &error);
 
-	/* Check wether creating the client object succeeded */
+	/* Check whether creating the client object succeeded */
 	if (!client)
 	{
 		fprintf(stderr, "Failed to create client: %s\n", avahi_strerror(error));

@@ -1,3 +1,4 @@
+/* vim: set ai sw=4 sts=4 ts=4 :*/
 
 /*
 **  ----- BEGIN LICENSE BLOCK -----
@@ -35,7 +36,8 @@
 #include <avahi-client/client.h>
 #include <avahi-client/lookup.h>
 
-typedef struct zcinfo {
+typedef struct zcinfo
+{
 	char *address;
 	uint16_t port;
 	struct zcinfo *info_next;
