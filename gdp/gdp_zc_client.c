@@ -43,6 +43,7 @@
 #include <net/if.h>
 #include <locale.h>
 #include <ctype.h>
+#include <arpa/inet.h>
 
 #include <time.h>
 
@@ -250,7 +251,10 @@ service_resolver_callback(AvahiServiceResolver *r,
 	{
 		case AVAHI_RESOLVER_FOUND:
 		{
-			char address[AVAHI_ADDRESS_STR_MAX], *t;
+			char address[AVAHI_ADDRESS_STR_MAX],
+				 format_addr[AVAHI_ADDRESS_STR_MAX+2],
+				 *t;
+			struct in_addr unused_address;
 			zcinfo_t *info = avahi_malloc(sizeof(zcinfo_t));
 
 			avahi_address_snprint(address, sizeof(address), a);
@@ -279,9 +283,19 @@ service_resolver_callback(AvahiServiceResolver *r,
 						t);
 			}
 
+			/* Assume that if it's not ipv6, then it's ipv4 */
+			if (inet_pton(AF_INET6, address, &unused_address))
+			{
+				snprintf(format_addr, sizeof(format_addr), "[%s]", address);
+				info->address = avahi_strdup(format_addr);
+			}
+			else
+			{
+				info->address = avahi_strdup(address);
+			}
+
 			// append zcinfo here
 			info->port = port;
-			info->address = avahi_strdup(address);
 			infolist_append_front(InfoList, info);
 			avahi_free(t);
 			break;
