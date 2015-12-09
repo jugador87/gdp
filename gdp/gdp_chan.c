@@ -295,7 +295,8 @@ _gdp_chan_open(const char *gdp_addr,
 		// see if we have a port number
 		if (port != NULL)
 		{
-			port = strchr(port, ':');
+			// use strrchr so IPv6 addr:port without [] will work
+			port = strrchr(port, ':');
 			if (port != NULL)
 				*port++ = '\0';
 		}
@@ -324,6 +325,8 @@ _gdp_chan_open(const char *gdp_addr,
 		if (r != 0)
 		{
 			// address resolution failed; try the next one
+			ep_dbg_cprintf(Dbg, 1, "_gdp_chan_open: getaddrinfo(%s, %s) => %s\n",
+					host, port, gai_strerror(r));
 			continue;
 		}
 
