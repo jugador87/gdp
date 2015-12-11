@@ -138,12 +138,12 @@ case "$OS" in
 	package avahi
 	;;
 
-    "gentoo")
-	package libevent
-	package openssl
+    "gentoo"|"centos")
+	package libevent-devel
+	package openssl-devel
 	package lighttpd
-	package jansson
-	package avahi-devel.x86_64
+	package jansson-devel
+	package avahi-devel
 	;;
 
     *)
