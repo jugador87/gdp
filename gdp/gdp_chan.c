@@ -231,7 +231,7 @@ _gdp_chan_open(const char *gdp_addr,
 		if (ep_adm_getboolparam("swarm.gdp.zeroconf.enable", true))
 		{
 			// zeroconf
-			ZCInfo **list;
+			zcinfo_t **list;
 			char *info = NULL;
 
 			ep_dbg_cprintf(DemoMode, 1, "Trying Zeroconf:\n");
