@@ -251,9 +251,8 @@ service_resolver_callback(AvahiServiceResolver *r,
 	{
 		case AVAHI_RESOLVER_FOUND:
 		{
-			char address[AVAHI_ADDRESS_STR_MAX],
-				 format_addr[AVAHI_ADDRESS_STR_MAX+2],
-				 *t;
+			char *t;
+			char address[AVAHI_ADDRESS_STR_MAX];
 			struct in_addr unused_address;
 			zcinfo_t *info = avahi_malloc(sizeof(zcinfo_t));
 
@@ -286,6 +285,7 @@ service_resolver_callback(AvahiServiceResolver *r,
 			/* Assume that if it's not ipv6, then it's ipv4 */
 			if (inet_pton(AF_INET6, address, &unused_address))
 			{
+				char format_addr[AVAHI_ADDRESS_STR_MAX+2];
 				snprintf(format_addr, sizeof(format_addr), "[%s]", address);
 				info->address = avahi_strdup(format_addr);
 			}
@@ -294,7 +294,7 @@ service_resolver_callback(AvahiServiceResolver *r,
 				info->address = avahi_strdup(address);
 			}
 
-			// append zcinfo here
+			/* Append zcinfo here */
 			info->port = port;
 			infolist_append_front(InfoList, info);
 			avahi_free(t);
