@@ -239,7 +239,7 @@ _gdp_chan_open(const char *gdp_addr,
 
 				char zstr[gdp_zc_strlen(&list)];
 				gdp_zc_str(&list, zstr);
-				gdp_zc_free(list);
+				gdp_zc_free();
 				if (zstr[0] != '\0')
 				{
 					ep_dbg_cprintf(DemoMode, 1, "Zeroconf found %s\n",
