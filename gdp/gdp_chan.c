@@ -230,30 +230,21 @@ _gdp_chan_open(const char *gdp_addr,
 	{
 		if (ep_adm_getboolparam("swarm.gdp.zeroconf.enable", true))
 		{
-			// zeroconf
-			zcinfo_t **list;
-			char *info = NULL;
-
 			ep_dbg_cprintf(DemoMode, 1, "Trying Zeroconf:\n");
 
 			if (gdp_zc_scan())
 			{
-				list = gdp_zc_get_infolist();
-				if (list != NULL)
+				zlist_t list;
+				gdp_zc_list(&list);
+
+				char zstr[gdp_zc_strlen(&list)];
+				gdp_zc_str(&list, zstr);
+				gdp_zc_free(list);
+				if (zstr[0] != '\0')
 				{
-					info = gdp_zc_addr_str(list);
-					gdp_zc_free_infolist(list);
-					if (info != NULL)
-					{
-						if (info[0] != '\0')
-						{
-							ep_dbg_cprintf(DemoMode, 1, "Zeroconf found %s\n",
-									info);
-							strlcpy(abuf, info, sizeof abuf);
-							strlcat(abuf, ";", sizeof abuf);
-						}
-						free(info);
-					}
+					ep_dbg_cprintf(DemoMode, 1, "Zeroconf found %s\n",
+							zstr);
+					strlcpy(abuf, zstr, sizeof(abuf));
 				}
 			}
 		}

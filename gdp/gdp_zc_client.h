@@ -36,16 +36,61 @@
 #include <avahi-client/client.h>
 #include <avahi-client/lookup.h>
 
-typedef struct zcinfo
+#include <sys/queue.h>
+
+#define ZC_MAX_PORT_LEN 5
+/* The +2 is for the brackets in an ipv6 address */
+#define ZC_MAX_ADDR_LEN (AVAHI_ADDRESS_STR_MAX + 2)
+
+typedef SLIST_HEAD(zlisthead, zentry) zlisthead_t;
+
+typedef struct
+zentry
 {
 	char *address;
 	uint16_t port;
-	struct zcinfo *info_next;
-} zcinfo_t;
+	SLIST_ENTRY(zentry) entries;
+} zentry_t;
 
+typedef struct
+zlist
+{
+	size_t len;
+	zlisthead_t head;
+} zlist_t;
+
+/*
+ * This runs zeroconf
+ *
+ * Return 1 on success and 0 on failure
+ */
 int gdp_zc_scan();
-zcinfo_t **gdp_zc_get_infolist();
-char *gdp_zc_addr_str(zcinfo_t **list);
-int gdp_zc_free_infolist(zcinfo_t **list);
+
+/*
+ * Get the list of all info found by zeroconf
+ *
+ * You can iterate through it as a linked list
+ */
+void gdp_zc_list(zlist_t *dst);
+
+/*
+ * Get all info from the list as a string
+ *
+ * How to use:
+ * Get the list first, then allocate space for a string greater than or equal
+ * to gdp_zc_strlen() and pass that in as dst
+ */
+void gdp_zc_str(zlist_t *list, char *dst);
+
+/*
+ * Gives how much space should be allocated for gdp_zc_str()
+ */
+size_t gdp_zc_strlen(zlist_t *list);
+
+/*
+ * Frees all zeroconf content after you're done
+ */
+void gdp_zc_free();
+
 
 /* vim: set noexpandtab : */

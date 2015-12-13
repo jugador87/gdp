@@ -99,16 +99,141 @@ static AvahiStringList *BrowsedTypes = NULL;
 static service_info_t *Services = NULL;
 static int NColumns = 80;
 static int Browsing = 0;
-static zcinfo_t **InfoList = NULL;
-#define MAX_PORT_LEN 5
-#define MAX_ADDR_LEN 50
+static zlist_t *ZList = NULL;
 
-static int
-infolist_append_front(zcinfo_t **list, zcinfo_t *info)
+/*
+ * This will modify the passed in pointer
+ *
+ * You need to allocate memory for it
+ */
+static void
+zc_list_init(zlist_t *list)
 {
-	info->info_next = *list;
-	*list = info;
-	return 0;
+	SLIST_INIT(&list->head);
+	list->len = 0;
+}
+
+/*
+ * Adds element to head of list
+ */
+static void
+zc_list_push(zlist_t *list, zentry_t *entry)
+{
+	SLIST_INSERT_HEAD(&list->head, entry, entries);
+	list->len++;
+}
+
+/*
+ * Removes and returns first element
+ *
+ * The caller needs to free the returned value
+ */
+static zentry_t *
+zc_list_pop(zlist_t *list)
+{
+	struct zentry *node = SLIST_FIRST(&list->head);
+	SLIST_REMOVE_HEAD(&list->head, entries);
+	list->len--;
+	return node;
+}
+
+/*
+ * Returns whether or not the list is empty
+ */
+static int
+zc_list_isempty(zlist_t *list)
+{
+	return SLIST_EMPTY(&list->head);
+}
+
+/*
+ * Completely frees a list
+ */
+static void
+zc_list_free(zlist_t *list)
+{
+	zentry_t *np;
+
+	while (!SLIST_EMPTY(&list->head))
+	{
+		np = SLIST_FIRST(&list->head);
+		SLIST_REMOVE_HEAD(&list->head, entries);
+		avahi_free(np->address);
+		avahi_free(np);
+	}
+	avahi_free(ZList);
+}
+
+/*
+ * Fisher-Yates shuffle algorithm
+ * 
+ * Shuffle array of pointers to zentry_t
+ * 
+ * a: array
+ * n: length
+ */
+static void
+shuffle_zentry(zentry_t **a, int n)
+{
+	int i, j;
+	zentry_t *tmp;
+
+	srand(time(NULL));
+
+	for (i = n - 1; i > 0; i--)
+	{
+		j = rand() % (i + 1);
+		tmp = a[i];
+		a[i] = a[j];
+		a[j] = tmp;
+	}
+}
+
+/*
+ * Puts a shuffled array of pointers containing the contents of the list
+ * into dst
+ *
+ * It's a shallow copy
+ */
+static void
+shuffled_array(zlist_t *list, zentry_t **dst)
+{
+	zentry_t *np;
+	int i = 0;
+
+	SLIST_FOREACH(np, &list->head, entries)
+	{
+		dst[i] = np;
+		i++;
+	}
+
+	shuffle_zentry(dst, list->len);
+}
+
+/*
+ * Shuffles the list
+ *
+ * Breaks abstraction on the zlist_t
+ */
+static void
+shuffle_list(zlist_t *list)
+{
+	zentry_t *np;
+	zentry_t *arr[list->len];
+	int i;
+
+	shuffled_array(list, arr);
+
+	while (!SLIST_EMPTY(&list->head))
+	{
+		np = SLIST_FIRST(&list->head);
+		SLIST_REMOVE_HEAD(&list->head, entries);
+	}
+
+	for (i = 0; i < list->len; i++)
+	{
+		SLIST_INSERT_HEAD(&list->head, arr[i], entries);
+	}
 }
 
 static char *
@@ -125,11 +250,8 @@ make_printable(const char *from, char *to)
 	return to;
 }
 
-
-/*
-**	Print something about zeroconf.  It appears to be only for debugging.
-*/
-
+/*Print something about zeroconf.  It appears to be only for debugging.
+ */
 static void
 print_service_line(config_t *conf,
 		char c,
@@ -254,7 +376,7 @@ service_resolver_callback(AvahiServiceResolver *r,
 			char *t;
 			char address[AVAHI_ADDRESS_STR_MAX];
 			struct in_addr unused_address;
-			zcinfo_t *info = avahi_malloc(sizeof(zcinfo_t));
+			zentry_t *entry = (zentry_t*) avahi_malloc(sizeof(zentry_t));
 
 			avahi_address_snprint(address, sizeof(address), a);
 
@@ -287,16 +409,16 @@ service_resolver_callback(AvahiServiceResolver *r,
 			{
 				char format_addr[AVAHI_ADDRESS_STR_MAX+2];
 				snprintf(format_addr, sizeof(format_addr), "[%s]", address);
-				info->address = avahi_strdup(format_addr);
+				entry->address = avahi_strdup(format_addr);
 			}
 			else
 			{
-				info->address = avahi_strdup(address);
+				entry->address = avahi_strdup(address);
 			}
 
 			/* Append zcinfo here */
-			info->port = port;
-			infolist_append_front(InfoList, info);
+			entry->port = port;
+			zc_list_push(ZList, entry);
 			avahi_free(t);
 			break;
 		}
@@ -630,10 +752,38 @@ create_new_simple_poll_client(config_t *conf)
 
 /////////////////////// Public API below ///////////////////////
 
+void
+gdp_zc_list(zlist_t *dst)
+{
+	*dst = *ZList;
+}
 
-/**
- *
- */
+size_t
+gdp_zc_strlen(zlist_t *list)
+{
+	return (ZC_MAX_ADDR_LEN + 2) * list->len + 1;
+}
+
+void
+gdp_zc_str(zlist_t *list, char *dst)
+{
+	zentry_t *np;
+	char buf[ZC_MAX_ADDR_LEN + 3];
+
+	*dst = '\0';
+	SLIST_FOREACH(np, &list->head, entries)
+	{
+		snprintf(buf, sizeof(buf), "%s:%u;", np->address, np->port);
+		strlcat(dst, buf, gdp_zc_strlen(list));
+	}
+}
+
+void
+gdp_zc_free()
+{
+	zc_list_free(ZList);
+}
+
 int
 gdp_zc_scan()
 {
@@ -653,158 +803,28 @@ gdp_zc_scan()
 		goto fail1;
 
 
-	InfoList = (zcinfo_t**) avahi_malloc(sizeof(zcinfo_t*));
-	*InfoList = NULL;
+	ZList = (zlist_t *) avahi_malloc(sizeof(zlist_t));
+	zc_list_init(ZList);
 	avahi_simple_poll_loop(SimplePoll);
+	shuffle_list(ZList);
 	return 1;
 
 fail1:
 	avahi_simple_poll_free(SimplePoll);
 	SimplePoll = NULL;
 fail0:
-	// stub
+	while (Services)
+		remove_service(&conf, Services);
+
+	if (Client)
+		avahi_client_free(Client);
+
+	if (SimplePoll)
+		avahi_simple_poll_free(SimplePoll);
+
+	avahi_free(conf.domain);
+	avahi_free(conf.stype);
 	return 0;
-}
-
-/**
- * reversing isn't on purpose, just the easiest way to copy
- */
-static zcinfo_t **
-list_copy_reverse(zcinfo_t **list)
-{
-	zcinfo_t *i, *k, **newlist;
-
-	newlist = (zcinfo_t**) avahi_malloc(sizeof(zcinfo_t*));
-	*newlist = NULL;
-	for (i = *list, k = *newlist; i; i = i->info_next)
-	{
-		k = avahi_malloc(sizeof(zcinfo_t));
-		k->port = i->port;
-		k->address = ep_mem_strdup(i->address);
-		infolist_append_front(newlist, k);
-	}
-	return newlist;
-}
-
-int
-list_length(zcinfo_t **list)
-{
-	zcinfo_t *i;
-	int count;
-
-	for (i = *list, count = 0; i; i = i->info_next)
-		count++;
-
-	return count;
-}
-
-/**
- * zero indexed linked list pop
- * format is "addr:port;"
- * notice the colon and semicolon
- */
-static char *
-list_pop_str(zcinfo_t **list, int index)
-{
-	zcinfo_t *info, *tmpinfo;
-	char *outstr;
-	int length, total_strlen, i;
-
-	length = list_length(list);
-	total_strlen = length * ((MAX_PORT_LEN+2) + MAX_ADDR_LEN) + 1;
-	outstr = avahi_malloc(sizeof(char) * total_strlen);
-	*outstr = '\0';
-	info = *list;
-	if (length == 0)
-	{
-		avahi_free(outstr);
-		return NULL;
-	}
-	else
-	{
-		if (index == 0)
-		{ // Removing the "head" node
-			snprintf(outstr, total_strlen, "%s:%u;", info->address, info->port);
-			if (length != 1)
-			{
-				*list = info->info_next;
-			}
-			// free old head
-			avahi_free(info->address);
-			avahi_free(info);
-		}
-		else
-		{
-			// reach the node right before the node to remove
-			for (i = 0; i < index-1; i++)
-			{
-				info = info->info_next;
-			}
-			snprintf(outstr, total_strlen, "%s:%u;",
-					info->info_next->address,
-					info->info_next->port);
-			// remove next node from list
-			tmpinfo = info;
-			info = info->info_next;
-			tmpinfo->info_next = tmpinfo->info_next->info_next;
-			// free node
-			avahi_free(info->address);
-			avahi_free(info);
-		}
-	}
-	return outstr;
-}
-
-char *
-gdp_zc_addr_str(zcinfo_t **list)
-{
-	zcinfo_t **listcopy;
-	char *outstr, *tmpstr;
-	int length, total_strlen, randnum;
-
-	listcopy = list_copy_reverse(list);
-	length = list_length(listcopy);
-	total_strlen = length * (MAX_PORT_LEN + MAX_ADDR_LEN) + 1;
-	outstr = avahi_malloc(sizeof(char) * total_strlen);
-	*outstr = '\0';
-	srand(time(NULL));
-	while(length > 0)
-	{
-		randnum = rand() % length;
-		tmpstr = list_pop_str(listcopy, randnum);
-		strlcat(outstr, tmpstr, total_strlen);
-		avahi_free(tmpstr);
-		length--;
-	}
-	avahi_free(listcopy);
-	// if len > 0 then remove last char which will be ';'
-	if (strlen(outstr) > 0)
-	{
-		outstr[strlen(outstr) - 1] = '\0';
-	}
-	return outstr;
-}
-
-zcinfo_t **
-gdp_zc_get_infolist()
-{
-	return InfoList;
-}
-
-int
-gdp_zc_free_infolist(zcinfo_t **list)
-{
-	zcinfo_t *i, *next;
-	for (i = *list; i;)
-	{
-		avahi_free(i->address);
-		next = i->info_next;
-		avahi_free(i);
-		i = next;
-	}
-	avahi_free(list);
-	list = NULL;
-	return 1;
 }
 
 /* vim: set noexpandtab : */

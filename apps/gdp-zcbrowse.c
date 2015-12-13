@@ -34,44 +34,41 @@
 
 int main()
 {
-	zcinfo_t *i, **list;
-	char *zcstr;
+	zlist_t list;
 
 	printf("start browse\n");
 	if (gdp_zc_scan())
 	{
-		printf("getting info\n");
 		/* always need to retrieve list */
-		list = gdp_zc_get_infolist();
+		printf("getting info\n");
+		gdp_zc_list(&list);
+		printf("\n");
 
 		/* you can access info as a linked list */
-		for (i = *list; i; i = i->info_next)
+		zentry_t *np;
+		SLIST_FOREACH(np, &list.head, entries)
 		{
-			printf("host:%s port: %d\n", i->address, i->port);
+			printf("host: %s port: %d\n", np->address, np->port);
 		}
+		printf("\n");
 
 		/* or you can access info as a string */
-		zcstr = gdp_zc_addr_str(list);
-		if (zcstr)
-		{
-			printf("list: %s\n", zcstr);
-			/* need to free the string after you're done */
-			free(zcstr);
-		}
-		else
-		{
-			printf("list fail\n");
-		}
+		char zcstr[gdp_zc_strlen(&list)];
+		gdp_zc_str(&list, zcstr);
+		printf("list: %s\n", zcstr);
+		printf("\n");
 
 		/* you always need to free the list after you're done */
-		printf("freeing info\n");
-		gdp_zc_free_infolist(list);
+		printf("freeing all zeroconf\n");
+		gdp_zc_free(list);
 		return 0;
 	}
 	else
 	{
+		printf("scan failed\n");
 		return 1;
 	}
 }
+
 
 /* vim: set noexpandtab : */
