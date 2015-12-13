@@ -37,36 +37,36 @@ int main()
 	zlist_t list;
 
 	printf("start browse\n");
-	if (gdp_zc_scan())
-	{
-		/* always need to retrieve list */
-		printf("getting info\n");
-		gdp_zc_list(&list);
-		printf("\n");
-
-		/* you can access info as a linked list */
-		zentry_t *np;
-		SLIST_FOREACH(np, &list.head, entries)
+	while (1) {
+		if (gdp_zc_scan())
 		{
-			printf("host: %s port: %d\n", np->address, np->port);
+			/* always need to retrieve list */
+			printf("getting info\n");
+			gdp_zc_list(&list);
+			printf("\n");
+
+			/* you can access the info as a SLIST */
+			zentry_t *np;
+			SLIST_FOREACH(np, &list.head, entries)
+			{
+				printf("host: %s port: %d\n", np->address, np->port);
+			}
+			printf("\n");
+
+			/* or you can access the info as a string */
+			char zcstr[gdp_zc_strlen(&list)];
+			gdp_zc_str(&list, zcstr);
+			printf("list: %s\n", zcstr);
+			printf("\n");
+
+			/* you always need to free the list after you're done */
+			printf("freeing all zeroconf\n");
+			gdp_zc_free();
+			return 0;
 		}
-		printf("\n");
-
-		/* or you can access info as a string */
-		char zcstr[gdp_zc_strlen(&list)];
-		gdp_zc_str(&list, zcstr);
-		printf("list: %s\n", zcstr);
-		printf("\n");
-
-		/* you always need to free the list after you're done */
-		printf("freeing all zeroconf\n");
-		gdp_zc_free(list);
-		return 0;
-	}
-	else
-	{
-		printf("scan failed\n");
-		return 1;
+		printf("scan failed.");
+		sleep(5);
+		printf(" retrying...\n");
 	}
 }
 

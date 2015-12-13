@@ -104,7 +104,7 @@ static zlist_t *ZList = NULL;
 /*
  * This will modify the passed in pointer
  *
- * You need to allocate memory for it
+ * You need to allocate memory for it.
  */
 static void
 zc_list_init(zlist_t *list)
@@ -114,7 +114,7 @@ zc_list_init(zlist_t *list)
 }
 
 /*
- * Adds element to head of list
+ * Adds element to the head of list
  */
 static void
 zc_list_push(zlist_t *list, zentry_t *entry)
@@ -124,7 +124,7 @@ zc_list_push(zlist_t *list, zentry_t *entry)
 }
 
 /*
- * Removes and returns first element
+ * Removes and returns first element of the list
  *
  * The caller needs to free the returned value
  */
@@ -161,7 +161,7 @@ zc_list_free(zlist_t *list)
 		avahi_free(np->address);
 		avahi_free(np);
 	}
-	avahi_free(ZList);
+	avahi_free(list);
 }
 
 /*
@@ -173,7 +173,7 @@ zc_list_free(zlist_t *list)
  * n: length
  */
 static void
-shuffle_zentry(zentry_t **a, int n)
+shuffle_zentry(zentry_t *a[], int n)
 {
 	int i, j;
 	zentry_t *tmp;
@@ -196,7 +196,7 @@ shuffle_zentry(zentry_t **a, int n)
  * It's a shallow copy
  */
 static void
-shuffled_array(zlist_t *list, zentry_t **dst)
+shuffled_array(zlist_t *list, zentry_t *dst[])
 {
 	zentry_t *np;
 	int i = 0;
@@ -416,7 +416,7 @@ service_resolver_callback(AvahiServiceResolver *r,
 				entry->address = avahi_strdup(address);
 			}
 
-			/* Append zcinfo here */
+			/* Append to list */
 			entry->port = port;
 			zc_list_push(ZList, entry);
 			avahi_free(t);
@@ -765,12 +765,12 @@ gdp_zc_strlen(zlist_t *list)
 }
 
 void
-gdp_zc_str(zlist_t *list, char *dst)
+gdp_zc_str(zlist_t *list, char dst[])
 {
 	zentry_t *np;
 	char buf[ZC_MAX_ADDR_LEN + 3];
 
-	*dst = '\0';
+	dst[0] = '\0';
 	SLIST_FOREACH(np, &list->head, entries)
 	{
 		snprintf(buf, sizeof(buf), "%s:%u;", np->address, np->port);
@@ -800,7 +800,9 @@ gdp_zc_scan()
 
 	error = create_new_simple_poll_client(&conf);
 	if (error != 0)
+	{
 		goto fail1;
+	}
 
 
 	ZList = (zlist_t *) avahi_malloc(sizeof(zlist_t));
@@ -810,18 +812,22 @@ gdp_zc_scan()
 	return 1;
 
 fail1:
-	avahi_simple_poll_free(SimplePoll);
-	SimplePoll = NULL;
-fail0:
 	while (Services)
+	{
 		remove_service(&conf, Services);
-
+	}
 	if (Client)
+	{
 		avahi_client_free(Client);
-
+		Client = NULL;
+	}
 	if (SimplePoll)
+	{
 		avahi_simple_poll_free(SimplePoll);
+		SimplePoll = NULL;
+	}
 
+fail0:
 	avahi_free(conf.domain);
 	avahi_free(conf.stype);
 	return 0;

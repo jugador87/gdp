@@ -60,35 +60,42 @@ zlist
 } zlist_t;
 
 /*
- * This runs zeroconf
+ * This runs Zeroconf.
  *
- * Return 1 on success and 0 on failure
+ * Return 1 on success and 0 on failure.
  */
 int gdp_zc_scan();
 
 /*
- * Get the list of all info found by zeroconf
+ * Get the list of all info found by Zeroconf.
  *
- * You can iterate through it as a linked list
+ * The list will be put in dst.
+ * You can iterate through it as a SLIST.
+ *
+ * DO NOT modify the contents of this list.
  */
 void gdp_zc_list(zlist_t *dst);
 
 /*
- * Get all info from the list as a string
+ * Get all info from the list as a string.
  *
  * How to use:
- * Get the list first, then allocate space for a string greater than or equal
- * to gdp_zc_strlen() and pass that in as dst
+ * Pass in the list you want to read as a string. The output will be put in
+ * dst. You should allocate space for at least a gdp_zc_strlen() length string
+ * for dst.
  */
-void gdp_zc_str(zlist_t *list, char *dst);
+void gdp_zc_str(zlist_t *list, char dst[]);
 
 /*
- * Gives how much space should be allocated for gdp_zc_str()
+ * Returns how much space should be allocated for gdp_zc_str().
  */
 size_t gdp_zc_strlen(zlist_t *list);
 
 /*
- * Frees all zeroconf content after you're done
+ * Does all zeroconf cleanup.
+ *
+ * This includes all the elements of the list. All accessor functions only
+ * point to the internal nodes so you should not be freeing those on your own.
  */
 void gdp_zc_free();
 
