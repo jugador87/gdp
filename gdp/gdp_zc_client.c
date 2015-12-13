@@ -100,6 +100,7 @@ static service_info_t *Services = NULL;
 static int NColumns = 80;
 static int Browsing = 0;
 static zlist_t *ZList = NULL;
+static config_t *Config = NULL;
 
 /*
  * This will modify the passed in pointer
@@ -218,7 +219,6 @@ shuffled_array(zlist_t *list, zentry_t *dst[])
 static void
 shuffle_list(zlist_t *list)
 {
-	zentry_t *np;
 	zentry_t *arr[list->len];
 	int i;
 
@@ -226,7 +226,6 @@ shuffle_list(zlist_t *list)
 
 	while (!SLIST_EMPTY(&list->head))
 	{
-		np = SLIST_FIRST(&list->head);
 		SLIST_REMOVE_HEAD(&list->head, entries);
 	}
 
@@ -782,15 +781,32 @@ void
 gdp_zc_free()
 {
 	zc_list_free(ZList);
+	while (Services)
+	{
+		remove_service(Config, Services);
+	}
+	if (Client)
+	{
+		avahi_client_free(Client);
+		Client = NULL;
+	}
+	if (SimplePoll)
+	{
+		avahi_simple_poll_free(SimplePoll);
+		SimplePoll = NULL;
+	}
+	avahi_free(Config->domain);
+	avahi_free(Config->stype);
+	avahi_free(Config);
 }
 
 int
 gdp_zc_scan()
 {
 	int error;
-	config_t conf;
 
-	init_config(&conf);
+	Config = (config_t *) avahi_malloc(sizeof(config_t));
+	init_config(Config);
 
 	if (!(SimplePoll = avahi_simple_poll_new()))
 	{
@@ -798,7 +814,7 @@ gdp_zc_scan()
 		goto fail0;
 	}
 
-	error = create_new_simple_poll_client(&conf);
+	error = create_new_simple_poll_client(Config);
 	if (error != 0)
 	{
 		goto fail1;
@@ -814,7 +830,7 @@ gdp_zc_scan()
 fail1:
 	while (Services)
 	{
-		remove_service(&conf, Services);
+		remove_service(Config, Services);
 	}
 	if (Client)
 	{
@@ -828,8 +844,9 @@ fail1:
 	}
 
 fail0:
-	avahi_free(conf.domain);
-	avahi_free(conf.stype);
+	avahi_free(Config->domain);
+	avahi_free(Config->stype);
+	avahi_free(Config);
 	return 0;
 }
 
