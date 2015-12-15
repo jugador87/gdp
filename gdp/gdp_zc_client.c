@@ -378,7 +378,7 @@ service_resolver_callback(AvahiServiceResolver *r,
 			char *t;
 			char address[AVAHI_ADDRESS_STR_MAX];
 			struct in_addr unused_address;
-			zentry_t *entry = (zentry_t*) avahi_malloc(sizeof(zentry_t));
+			zentry_t *entry = avahi_malloc(sizeof(zentry_t));
 
 			avahi_address_snprint(address, sizeof(address), a);
 
