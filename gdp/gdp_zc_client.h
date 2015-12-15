@@ -40,7 +40,7 @@
 
 #define ZC_MAX_PORT_LEN 5
 /* The +2 is for the brackets in an ipv6 address */
-#define ZC_MAX_ADDR_LEN (AVAHI_ADDRESS_STR_MAX + 2)
+#define ZC_MAX_ADDR_LEN ((AVAHI_ADDRESS_STR_MAX) + 2)
 
 typedef SLIST_HEAD(zlisthead, zentry) zlisthead_t;
 
@@ -81,15 +81,18 @@ void gdp_zc_list(zlist_t *dst);
  *
  * How to use:
  * Pass in the list you want to read as a string. The output will be put in
- * dst. You should allocate space for at least a gdp_zc_strlen() length string
- * for dst.
+ * dst. Only "whole" entries will be copied into dst, where a "whole" entry
+ * is defined as "ipaddr:port;"
+ *
+ * At most len-1 characters will be copied into dst where the last
+ * character will be the null character '\0'.
  */
-void gdp_zc_str(zlist_t *list, char dst[]);
+void gdp_zc_str(zlist_t *list, char *dst, size_t len);
 
 /*
- * Returns how much space should be allocated for gdp_zc_str().
+ * Returns the max buffer size gdp_zc_str() might use.
  */
-size_t gdp_zc_strlen(zlist_t *list);
+size_t gdp_zc_str_bufsize(zlist_t *list);
 
 /*
  * Does all zeroconf cleanup.

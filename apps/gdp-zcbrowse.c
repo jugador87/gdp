@@ -54,8 +54,8 @@ int main()
 			printf("\n");
 
 			/* or you can access the info as a string */
-			char zcstr[gdp_zc_strlen(&list)];
-			gdp_zc_str(&list, zcstr);
+			char zcstr[gdp_zc_str_bufsize(&list)];
+			gdp_zc_str(&list, zcstr, sizeof(zcstr));
 			printf("list: %s\n", zcstr);
 			printf("\n");
 
@@ -65,6 +65,7 @@ int main()
 			return 0;
 		}
 		printf("scan failed.");
+		fflush(stdout);
 		sleep(5);
 		printf(" retrying...\n");
 	}

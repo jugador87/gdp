@@ -149,6 +149,8 @@ zc_list_isempty(zlist_t *list)
 
 /*
  * Completely frees a list
+ *
+ * Breaks abstraction on the zlist_t
  */
 static void
 zc_list_free(zlist_t *list)
@@ -249,7 +251,8 @@ make_printable(const char *from, char *to)
 	return to;
 }
 
-/*Print something about zeroconf.  It appears to be only for debugging.
+/*
+ * Print something about zeroconf.  It appears to be only for debugging.
  */
 static void
 print_service_line(config_t *conf,
@@ -749,22 +752,29 @@ create_new_simple_poll_client(config_t *conf)
 	return error;
 }
 
-/////////////////////// Public API below ///////////////////////
-
+/*
+ * See the header file for documentation
+ */
 void
 gdp_zc_list(zlist_t *dst)
 {
 	*dst = *ZList;
 }
 
+/*
+ * See the header file for documentation
+ */
 size_t
-gdp_zc_strlen(zlist_t *list)
+gdp_zc_str_bufsize(zlist_t *list)
 {
 	return (ZC_MAX_ADDR_LEN + 2) * list->len + 1;
 }
 
+/*
+ * See the header file for documentation
+ */
 void
-gdp_zc_str(zlist_t *list, char dst[])
+gdp_zc_str(zlist_t *list, char *dst, size_t len)
 {
 	zentry_t *np;
 	char buf[ZC_MAX_ADDR_LEN + 3];
@@ -773,10 +783,15 @@ gdp_zc_str(zlist_t *list, char dst[])
 	SLIST_FOREACH(np, &list->head, entries)
 	{
 		snprintf(buf, sizeof(buf), "%s:%u;", np->address, np->port);
-		strlcat(dst, buf, gdp_zc_strlen(list));
+		if (strlen(dst) + strlen(buf) + 1 > len)
+			break;
+		strlcat(dst, buf, len);
 	}
 }
 
+/*
+ * See the header file for documentation
+ */
 void
 gdp_zc_free()
 {
@@ -800,6 +815,9 @@ gdp_zc_free()
 	avahi_free(Config);
 }
 
+/*
+ * See the header file for documentation
+ */
 int
 gdp_zc_scan()
 {

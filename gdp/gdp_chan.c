@@ -237,14 +237,12 @@ _gdp_chan_open(const char *gdp_addr,
 				zlist_t list;
 				gdp_zc_list(&list);
 
-				char zstr[gdp_zc_strlen(&list)];
-				gdp_zc_str(&list, zstr);
+				gdp_zc_str(&list, abuf, sizeof(abuf));
 				gdp_zc_free();
-				if (zstr[0] != '\0')
+				if (abuf[0] != '\0')
 				{
 					ep_dbg_cprintf(DemoMode, 1, "Zeroconf found %s\n",
-							zstr);
-					strlcpy(abuf, zstr, sizeof(abuf));
+							abuf);
 				}
 			}
 		}
