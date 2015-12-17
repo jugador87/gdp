@@ -25,7 +25,6 @@ platform() {
     local  __resultvar=$1
     local result=""
     local arch=`arch`
-    local rpmforge=""
 
     if [ -f "/etc/lsb-release" ]; then
 	. /etc/lsb-release
@@ -36,16 +35,10 @@ platform() {
 	true
     elif [ -f "/etc/centos-release" ]; then
 	result="centos"
-	rpmforge="rpmforge-release-0.5.2-2.el6.rf.$arch.rpm"
     elif [ -f "/etc/redhat-release" ]; then
 	result="redhat"
     else
         result=`uname -s`
-    fi
-    if [ "$rpmforge" ]; then
-	wget http://pkgs.repoforge.org/rpmforge-release/$rpmforge
-	sudo rpm -Uhv $rpmforge
-	rm $rpmforge
     fi
     result=`echo $result | tr '[A-Z]' '[a-z]'`
     if [ "$result" = "linux" ]; then
@@ -164,14 +157,12 @@ case "$OS" in
 	;;
 
     "centos")
-	log "WARNING: CentOS is not supported, and will probably fail on lighttpd"
+	package epel-release
 	package libevent-devel
 	package openssl-devel
+	package lighttpd
 	package jansson-devel
 	package avahi-devel
-	package pcre
-	package gdbm-devel
-	package lighttpd
 	;;
 
     *)
