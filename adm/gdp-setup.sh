@@ -13,29 +13,45 @@ Cya='[0;36m';     BCya='[1;36m';    UCya='[4;36m';    ICya='[0;96m';    BICy
 Whi='[0;37m';     BWhi='[1;37m';    UWhi='[4;37m';    IWhi='[0;97m';    BIWhi='[1;97m';   On_Whi='[47m';    On_IWhi='[0;107m';
 
 log() {
-  echo "${Cya}[+] $1${Reset}"
+	echo "${Cya}[+] $1${Reset}"
 }
 
 fatal() {
-  echo "${Red}[!] $1${Reset}"
-  exit 1
+	echo "${Red}[!] $1${Reset}"
+	exit 1
 }
 
 platform() {
     local  __resultvar=$1
-    local result
+    local result=""
+    local arch=`arch`
+    local rpmforge=""
+
     if [ -f "/etc/lsb-release" ]; then
 	. /etc/lsb-release
-	result="$DISTRIB_ID"
-    elif [ -f "/etc/redhat-release" ]; then
+	result="${DISTRIB_ID-}"
+    fi
+    if [ "$result" ]; then
+	# do nothing
+	true
+    elif [ -f "/etc/centos-release" ]; then
 	result="centos"
+	rpmforge="rpmforge-release-0.5.2-2.el6.rf.$arch.rpm"
+    elif [ -f "/etc/redhat-release" ]; then
+	result="redhat"
     else
         result=`uname -s`
+    fi
+    if [ "$rpmforge" ]; then
+	wget http://pkgs.repoforge.org/rpmforge-release/$rpmforge
+	sudo rpm -Uhv $rpmforge
+	rm $rpmforge
     fi
     result=`echo $result | tr '[A-Z]' '[a-z]'`
     if [ "$result" = "linux" ]; then
 	result=`cat /etc/issue | sed 's/ .*//' | tr '[A-Z]' '[a-z]'`
     fi
+
     eval $__resultvar="$result"
 }
 
@@ -49,7 +65,7 @@ package() {
 		sudo apt-get install $@
 	    fi
 	    ;;
-	"centos")
+	"centos" | "redhat")
 	    if rpm -qa | grep --quiet $1; then
 		log "$1 is already installed. skipping."
 	    else
@@ -110,11 +126,12 @@ case "$OS" in
 	pkgmgr=none
 	if type brew > /dev/null 2>&1 && [ ! -z "`brew list`" ]; then
 	    pkgmgr=brew
-	    brew update
+	    sudo brew update
 	fi
 	if type port > /dev/null 2>&1 && port installed | grep -q .; then
 	    if [ "$pkgmgr" = "none" ]; then
 		pkgmgr=port
+		sudo port selfupdate
 	    else
 		log "You seem to have both macports and homebrew installed."
 		fatal "You will have to deactivate one (or modify this script)"
@@ -138,7 +155,7 @@ case "$OS" in
 	package avahi
 	;;
 
-    "gentoo"|"centos")
+    "gentoo" | "redhat")
 	package libevent-devel
 	package openssl-devel
 	package lighttpd
@@ -146,7 +163,20 @@ case "$OS" in
 	package avahi-devel
 	;;
 
+    "centos")
+	log "WARNING: CentOS is not supported, and will probably fail on lighttpd"
+	package libevent-devel
+	package openssl-devel
+	package jansson-devel
+	package avahi-devel
+	package pcre
+	package gdbm-devel
+	package lighttpd
+	;;
+
     *)
 	fatal "oops, we don't support $OS"
 	;;
 esac
+
+# vim: set ai sw=8 sts=8 ts=8 :
