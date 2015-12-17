@@ -69,12 +69,14 @@ int gdp_zc_scan();
 /*
  * Get the list of all info found by Zeroconf.
  *
- * The list will be put in dst.
- * You can iterate through it as a SLIST.
+ * The order of the list is random.
+ *
+ * You can iterate through it as a SLIST. Or you can get the contents
+ * as a string through gdp_zc_str()
  *
  * DO NOT modify the contents of this list.
  */
-void gdp_zc_list(zlist_t *dst);
+zlist_t * gdp_zc_list();
 
 /*
  * Get all info from the list as a string.
@@ -97,8 +99,9 @@ size_t gdp_zc_str_bufsize(zlist_t *list);
 /*
  * Does all zeroconf cleanup.
  *
- * This includes all the elements of the list. All accessor functions only
- * point to the internal nodes so you should not be freeing those on your own.
+ * This includes the list and all the elements of the list. All accessor
+ * functions only point to the internal nodes so you should not be
+ * freeing those on your own.
  */
 void gdp_zc_free();
 

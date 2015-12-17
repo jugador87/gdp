@@ -34,7 +34,7 @@
 
 int main()
 {
-	zlist_t list;
+	zlist_t *list;
 
 	printf("start browse\n");
 	while (1) {
@@ -42,20 +42,20 @@ int main()
 		{
 			/* always need to retrieve list */
 			printf("getting info\n");
-			gdp_zc_list(&list);
+			list = gdp_zc_list();
 			printf("\n");
 
 			/* you can access the info as a SLIST */
 			zentry_t *np;
-			SLIST_FOREACH(np, &list.head, entries)
+			SLIST_FOREACH(np, &list->head, entries)
 			{
 				printf("host: %s port: %d\n", np->address, np->port);
 			}
 			printf("\n");
 
 			/* or you can access the info as a string */
-			char zcstr[gdp_zc_str_bufsize(&list)];
-			gdp_zc_str(&list, zcstr, sizeof(zcstr));
+			char zcstr[gdp_zc_str_bufsize(list)];
+			gdp_zc_str(list, zcstr, sizeof(zcstr));
 			printf("list: %s\n", zcstr);
 			printf("\n");
 

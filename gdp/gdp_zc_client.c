@@ -755,10 +755,10 @@ create_new_simple_poll_client(config_t *conf)
 /*
  * See the header file for documentation
  */
-void
-gdp_zc_list(zlist_t *dst)
+zlist_t *
+gdp_zc_list()
 {
-	*dst = *ZList;
+	return ZList;
 }
 
 /*

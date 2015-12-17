@@ -234,10 +234,9 @@ _gdp_chan_open(const char *gdp_addr,
 
 			if (gdp_zc_scan())
 			{
-				zlist_t list;
-				gdp_zc_list(&list);
+				zlist_t *list = gdp_zc_list();
 
-				gdp_zc_str(&list, abuf, sizeof(abuf));
+				gdp_zc_str(list, abuf, sizeof(abuf));
 				gdp_zc_free();
 				if (abuf[0] != '\0')
 				{
