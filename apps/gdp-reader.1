@@ -14,6 +14,7 @@
 .Op Fl m
 .Op Fl M
 .Op Fl n Ar n-recs
+.Op Fl q
 .Op Fl s
 .Op Fl t
 .Op Fl v
@@ -74,6 +75,11 @@ worth of data and then terminate.
 The default is to show all existing data
 except when using subscriptions,
 where the default is to run until the process is manually killed.
+.It Fl q
+Don't print metadata, such as the record number and timestamp.
+Together with
+.Fl t
+this will print nothing but the raw data in the log.
 .It Fl s
 Use subscriptions to show the data.
 This also changes the default first record to show to be the next record added,

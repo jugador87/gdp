@@ -72,6 +72,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdp-reader", "GDP Reader Application");
 FILE	*LogFile;
 bool	TextData = false;		// set if data should be displayed as text
 bool	PrintSig = false;		// set if signature should be printed
+bool	Quiet = false;			// don't print metadata
 int		NRead = 0;				// number of datums read
 
 void
@@ -100,8 +101,11 @@ printdatum(gdp_datum_t *datum, FILE *fp)
 		prflags |= GDP_DATUM_PRTEXT;
 	if (PrintSig)
 		prflags |= GDP_DATUM_PRSIG;
+	if (Quiet)
+		prflags |= GDP_DATUM_PRQUIET;
 	flockfile(fp);
-	fprintf(fp, " >>> ");
+	if (!Quiet)
+		fprintf(fp, " >>> ");
 	gdp_datum_print(datum, fp, prflags);
 	funlockfile(fp);
 	NRead++;
@@ -150,7 +154,7 @@ do_simpleread(gdp_gcl_t *gcl, gdp_recno_t firstrec, int numrecs)
 			char nbuf[40];
 
 			strerror_r(errno, nbuf, sizeof nbuf);
-			printf("*** WARNING: buffer reset failed: %s\n",
+			fprintf(stderr, "*** WARNING: buffer reset failed: %s\n",
 					nbuf);
 		}
 	}
@@ -166,26 +170,24 @@ do_simpleread(gdp_gcl_t *gcl, gdp_recno_t firstrec, int numrecs)
 EP_STAT
 multiread_print_event(gdp_event_t *gev, bool subscribe)
 {
-	FILE *outfile = stdout;
-
 	// decode it
 	switch (gdp_event_gettype(gev))
 	{
 	  case GDP_EVENT_DATA:
 		// this event contains a data return
 		LOG("S");
-		printdatum(gdp_event_getdatum(gev), outfile);
+		printdatum(gdp_event_getdatum(gev), stdout);
 		break;
 
 	  case GDP_EVENT_EOS:
 		// "end of subscription": no more data will be returned
-		fprintf(outfile, "End of %s\n",
+		fprintf(stderr, "End of %s\n",
 				subscribe ? "Subscription" : "Multiread");
 		return EP_STAT_END_OF_FILE;
 
 	  case GDP_EVENT_SHUTDOWN:
 		// log daemon has shut down, meaning we lose our subscription
-		fprintf(outfile, "%s terminating because of log daemon shutdown\n",
+		fprintf(stderr, "%s terminating because of log daemon shutdown\n",
 				subscribe ? "Subscription" : "Multiread");
 		return GDP_STAT_DEAD_DAEMON;
 
@@ -307,7 +309,7 @@ fail0:
 	{
 		char ebuf[100];
 
-		printf("Could not read metadata!\n    %s\n",
+		fprintf(stderr, "Could not read metadata!\n    %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 }
@@ -326,6 +328,7 @@ usage(void)
 			"    -m  use multiread\n"
 			"    -M  show log metadata\n"
 			"    -n  set number of records to read (default all)\n"
+			"    -q  be quiet (don't print any metadata)\n"
 			"    -s  subscribe to this log\n"
 			"    -t  print data as text (instead of hexdump)\n"
 			"    -v  print verbose output (include signature)\n",
@@ -344,7 +347,6 @@ main(int argc, char **argv)
 	EP_STAT estat;
 	char buf[200];
 	gdp_name_t gclname;
-	gdp_pname_t gclpname;
 	int opt;
 	char *gdpd_addr = NULL;
 	bool subscribe = false;
@@ -362,7 +364,7 @@ main(int argc, char **argv)
 	//setbuffer(stdout, outbuf, sizeof outbuf);		//DEBUG
 
 	// parse command-line options
-	while ((opt = getopt(argc, argv, "AcD:f:G:L:mMn:stv")) > 0)
+	while ((opt = getopt(argc, argv, "AcD:f:G:L:mMn:qstv")) > 0)
 	{
 		switch (opt)
 		{
@@ -406,6 +408,11 @@ main(int argc, char **argv)
 		  case 'n':
 			// select the number of records to be returned
 			numrecs = atol(optarg);
+			break;
+
+		  case 'q':
+			// be quiet (don't print metadata)
+			Quiet = true;
 			break;
 
 		  case 's':
@@ -465,8 +472,13 @@ main(int argc, char **argv)
 	}
 
 	// convert it to printable format and tell the user what we are doing
-	gdp_printable_name(gclname, gclpname);
-	fprintf(stdout, "Reading GCL %s\n", gclpname);
+	if (!Quiet)
+	{
+		gdp_pname_t gclpname;
+
+		gdp_printable_name(gclname, gclpname);
+		fprintf(stderr, "Reading GCL %s\n", gclpname);
+	}
 
 	// open the GCL; arguably this shouldn't be necessary
 	estat = gdp_gcl_open(gclname, open_mode, NULL, &gcl);
@@ -493,7 +505,8 @@ main(int argc, char **argv)
 
 fail0:
 	// might as well let the user know what's going on....
-	printf("exiting after %d records with status %s\n",
-			NRead, ep_stat_tostr(estat, buf, sizeof buf));
+	if (!Quiet || EP_STAT_SEVERITY(estat) > EP_STAT_SEV_WARN)
+		fprintf(stderr, "exiting after %d records with status %s\n",
+				NRead, ep_stat_tostr(estat, buf, sizeof buf));
 	return !EP_STAT_ISOK(estat);
 }
