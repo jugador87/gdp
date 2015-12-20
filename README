@@ -7,35 +7,34 @@ second.  All of these are likely to change in the future.
 
 NOTE: these instructions assume you are starting with the source
 distribution.  This is not appropriate if you are installing the
-debian package.
+Debian package.  You can get the GDP source distribution using one of:
+  git clone https://repo.eecs.berkeley.edu/git/projects/swarmlab/gdp.git
+or
+  git clone repoman@repo.eecs.berkeley.edu:projects/swarmlab/gdp.git
+For the moment that repository is not open; contact Eric to get
+access.
+
 
 Getting Started:
     These are a "quick start" guide to running the GDP.  Details are
-    all included below.
-
-   0.a)	Get the code for log server (gdplogd) using one of:
-	    git clone \
-		https://repo.eecs.berkeley.edu/git/projects/swarmlab/gdp.git
-	or
-	    git clone \
-		repoman@repo.eecs.berkeley.edu:projects/swarmlab/gdp.git
-	For the moment that repository is not open; contact Eric to get
-	access.
-
-     b)	(Optional) Get the code for GDP router (gdp_router) using:
-	    git clone \
-        repoman@repo.eecs.berkeley.edu:projects/swarmlab/gdp_router.git
-	This step is required only if you intend to run a GDP router. For
-	the moment, it is highly recommended that you do not run your own
-	instance of gdp_router.
+    all included below.  These instructions are assuming you are
+    installing your own infrastructure.  For example, if you are using
+    a previously existing router, you can skip the steps for installing,
+    configuring, and starting the router.
 
    1.	Install the prerequisite packages described below.  For the base
 	system all you'll need are libevent2-dev and libssl-dev, but the
-	others are needed for full functionality.
+	others are needed for full functionality.  The script
+	adm/gdp-setup.sh should install everything you need.
 
-   2.	Compile the code as described below.
+   2.	(Optional) Get the code for a GDP router.  There are two
+        versions, as described below.  This step is required only if
+	you intend to run a GDP router. For the moment, it is highly
+	recommended that you do NOT run your own router instance.
 
-   3.	Create the directory /var/swarm/gdp/gcls.  This is where the data
+   3.	Compile the code as described below.
+
+   4.	Create the directory /var/swarm/gdp/gcls.  This is where the data
 	files are kept.  It should be owned by whatever user will be
 	running gdplogd.  For security reasons, this should NOT be root!!
 	(Although you will probably have to be root in order to create
@@ -44,33 +43,36 @@ Getting Started:
 	parameter "swarm.gdplogd.gcl.dir", as described toward the
 	end of this document.
 
-   4.	Adjust any administrative parameters (see below).  In particular,
+   5.	Adjust any administrative parameters (see below).  In particular,
 	you may want to update swarm.gdplogd.gdpname so that the log
 	daemon has the same name every time it starts up (otherwise it
 	will choose a random name).  In any case, it will print its own
 	name when it starts up.
 
-   5.	(Optional) Start the GDP routing daemon (gdp_router).
+   6.	Start the GDP routing daemon (gdp_router).  
 
-   6.	Start the GDP log daemon (see above).  Make note of its "GDP
+   7.	Start the GDP log daemon (see above).  Make note of its "GDP
 	routing name" for use in the next step.
 
-   7.	Create your first GCL using apps/gcl-create.  It takes two
+   8.	Create your first GCL using apps/gcl-create.  It takes two
 	arguments: the name of the log daemon on which to create the
 	GCL (as displayed in the previous step) and the name of the new
 	log.  If the second parameter is omitted an internal name is
 	used.
 
-   8.	Run apps/gdp-writer giving it the name of the log you just
+   9.	Run apps/gdp-writer giving it the name of the log you just
 	created to add data to the log.  It will ask for lines of input
 	that are appended ot the log.  There is no need to give the
 	name of the log daemon; gdp_router will find it for you.
 
-   9.	Check success by running apps/gdp-reader giving it the
+  10.	Check success by running apps/gdp-reader giving it the
 	same name as you used in the previous step.
 
 
 Required Packages:
+	Note that all of these packages can be automatically installed
+	using the adm/gdp-setup.sh script.  It should not be necessary
+	to install them by hand.
 
 	libevent2 --- Event handling library available from
 		http://libevent.org.  Most systems (Linux, MacOS, and
@@ -112,7 +114,7 @@ Required Packages:
 	on all these platforms.
 
 Compiling the GDP Code:
-	First, install the prerequisite packages.
+	First, install the prerequisite packages as shown above.
 
 	Compiling should just be a matter of typing "make" in the root.
 
@@ -150,6 +152,11 @@ Create Log Directory:
 	If you are using the log servers at Berkeley you can skip
 	this step.
 
+	Create a user (or choose an existing user) to own the on-disk
+	files.  These instructions will assume a new user named
+	gdp, group gdp; on Debian/Ubuntu:
+		sudo adduser --system --group gdp
+
 	You'll have to select a location to store the log data.  For
 	obvious reasons this should be on a filesystem that has a
 	reasonable amount of free space.  The default is
@@ -157,11 +164,6 @@ Create Log Directory:
 	create this directory:
 		sudo mkdir -p /var/swarm/gdp/gcls
 		sudo chown -R gdp:gdp /var/swarm
-
-	Create a user (or choose an existing user) to own the on-disk
-	files.  These instructions will assume a new user named
-	gdp, group gdp; on Debian/Ubuntu:
-		sudo adduser --system --group gdp
 
 	The directory should be mode 700 or 750, owned by gdp:gdp:
 		sudo chmod 750 /var/swarm/gdp/gcls
@@ -214,20 +216,28 @@ Adjust Administrative Parameters:
 	    [The first example is line wrapped to fit; when you create
 	    the file it must be on one line.]
 
-Start the GDP Routing Daemon:
+
+Installing and Starting the GDP Routing Daemon:
 	If you are using the routing daemons at Berkeley you can skip
 	this step. It is highly recommended that you do not run your
 	own gdp_router at the moment.
 
-	Currently, gdp_router is in it's own separate repository at:
-	repoman@repo.eecs.berkeley.edu:projects/swarmlab/gdp_router.git
+	There are two versions of the router.  Version 1 is easier to
+	set up and run, but doesn't work through firewalls and doesn't
+	scale as well as Version 2.
 
-	The current version of the routing daemon uses a simple
+    Version 1:
+	Version 1 of the router is in it's own separate repository at:
+	repoman@repo.eecs.berkeley.edu:projects/swarmlab/gdp_router.git
+	You can get this the same way as the GDP base code, but use
+	"gdp_router" instead of "gdp".
+
+	Version 1 of the routing daemon uses a simple
 	"global knowledge" algorithm where every routing node knows
 	every name known by the system.  Names include running servers
 	and applications as well as logs.  Because of this, every
 	routing server **must** be talking with every other routing
-	server.  [This restriction will be relaxed in the future.]
+	server.
 
 	To run your own, you'll have to make sure you know the address
 	of all other routing nodes in the GDP.  This is a temporary
@@ -245,6 +255,20 @@ Start the GDP Routing Daemon:
 	routers as the argument.  For example:
 
 	    gdp-router.py -r gdp-routers.list
+
+    Version 2:
+	Version 2 of the router is in it's own separate repository at:
+	repoman@repo.eecs.berkeley.edu:projects/swarmlab/gdp_router_click.git
+	You can get this the same way as the GDP base code, but use
+	"gdp_router_click" instead of "gdp".
+
+	Version 2 has two types of nodes.  Primary nodes work much like
+	version 1, that is, with global knowledge of all the other
+	primary nodes.  This implies that Primary nodes cannot be behind
+	a firewall.  Secondary nodes need to talk to a Primary node,
+	and can be inside a firewall.
+
+	See the instructions in that directory for details.
 
 Start the GDP Log Daemon:
 	If you are using the log servers at Berkeley you can skip
@@ -368,6 +392,10 @@ Running GDP-based Programs:
 	exit.  If -s were used without -f, no existing data would
 	be printed, only new data.  See the gdp-reader(1) man page for
 	more details.
+
+	There are man pages available in the source tree for
+	gdp-reader, gdp-writer, and most of the other
+	Berkeley-supplied programs.
 
 Running the GDP RESTful Interface:
 	(In these instructions, <gcl-name> is a URI-base-64-encoded
