@@ -150,42 +150,54 @@ gdp_datum_print(const gdp_datum_t *datum, FILE *fp, uint32_t flags)
 {
 	unsigned char *d;
 	int l;
+	bool quiet = EP_UT_BITSET(GDP_DATUM_PRQUIET, flags);
+	bool debug = EP_UT_BITSET(GDP_DATUM_PRDEBUG, flags);
+
+	if (quiet && debug)
+		quiet = false;
 
 	flockfile(fp);
-	if (EP_UT_BITSET(GDP_DATUM_PRDEBUG, flags))
+	if (debug)
 		fprintf(fp, "datum @ %p: ", datum);
 	if (datum == NULL)
 	{
-		fprintf(fp, "null datum\n");
+		if (!quiet)
+			fprintf(fp, "null datum\n");
 		goto done;
 	}
 
-	fprintf(fp, "recno %" PRIgdp_recno ", ", datum->recno);
+	if (!quiet)
+		fprintf(fp, "recno %" PRIgdp_recno ", ", datum->recno);
 
 	if (datum->dbuf == NULL)
 	{
-		fprintf(fp, "no data");
+		if (!quiet)
+			fprintf(fp, "no data");
 		d = NULL;
 		l = -1;
 	}
 	else
 	{
 		l = gdp_buf_getlength(datum->dbuf);
-		fprintf(fp, "len %d", l);
+		if (!quiet)
+			fprintf(fp, "len %d", l);
 		d = gdp_buf_getptr(datum->dbuf, l);
 	}
 
-	if (EP_TIME_ISVALID(&datum->ts))
+	if (!quiet)
 	{
-		fprintf(fp, ", ts ");
-		ep_time_print(&datum->ts, fp, EP_TIME_FMT_HUMAN);
-	}
-	else
-	{
-		fprintf(fp, ", no timestamp");
-	}
+		if (EP_TIME_ISVALID(&datum->ts))
+		{
+			fprintf(fp, ", ts ");
+			ep_time_print(&datum->ts, fp, EP_TIME_FMT_HUMAN);
+		}
+		else
+		{
+			fprintf(fp, ", no timestamp");
+		}
 
-	fprintf(fp, "%s\n", datum->inuse ? "" : ", !inuse");
+		fprintf(fp, "%s\n", datum->inuse ? "" : ", !inuse");
+	}
 
 	if (l > 0)
 	{

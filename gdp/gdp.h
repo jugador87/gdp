@@ -369,6 +369,7 @@ extern void		gdp_datum_print(
 #define GDP_DATUM_PRTEXT	0x00000001		// print data as text
 #define GDP_DATUM_PRDEBUG	0x00000002		// print debugging info
 #define GDP_DATUM_PRSIG		0x00000004		// print the signature
+#define GDP_DATUM_PRQUIET	0x00000008		// don't print any metadata
 
 // get the record number from a datum
 extern gdp_recno_t	gdp_datum_getrecno(

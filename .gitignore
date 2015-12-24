@@ -33,3 +33,6 @@ doc/*.pdf
 *.deb
 lang/python/temp.apps/*
 cscope.*
+private
+Doxyfile
+gdp_router

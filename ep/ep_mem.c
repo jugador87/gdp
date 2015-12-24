@@ -45,6 +45,8 @@ static struct ep_malloc_functions	DefaultMallocFunctions =
 static struct ep_malloc_functions	*SystemMallocFunctions =
 						&DefaultMallocFunctions;
 
+static void	(*MemoryRecoveryFunc)(void);
+
 
 /*
 **  EP_SET_MALLOC_FUNCTIONS --- set the malloc functions
@@ -58,6 +60,16 @@ ep_mem_set_malloc_functions(struct ep_malloc_functions *mf)
 	SystemMallocFunctions = mf;
 }
 
+
+/*
+**  EP_MEM_SET_RECOVERY_FUNC --- set an "out of memory" recovery function
+*/
+
+void
+ep_mem_set_recovery_func(void (*f)(void))
+{
+	MemoryRecoveryFunc = f;
+}
 
 
 /*
@@ -165,10 +177,22 @@ ep_mem_ialloc(
 		if (EP_UT_BITSET(EP_MEM_F_FAILOK, flags))
 			goto done;
 
-		strerror_r(errno, e1buf, sizeof e1buf);
-		fprintf(stderr, "Out of memory: %s\n", e1buf);
-		ep_assert_abort("Out of Memory");
-		/*NOTREACHED*/
+		// attempt recovery
+		if (MemoryRecoveryFunc != NULL)
+		{
+			(*MemoryRecoveryFunc)();
+			p = system_malloc(nbytes, curmem,
+					EP_UT_BITSET(EP_MEM_F_ALIGN, flags));
+		}
+
+		if (p == NULL)
+		{
+			// no luck ...  bail out
+			strerror_r(errno, e1buf, sizeof e1buf);
+			ep_assert_failure("memory", file, line,
+					"Out of memory: %s", e1buf);
+			/*NOTREACHED*/
+		}
 	}
 
 	// zero or trash memory if requested
@@ -332,7 +356,8 @@ void
 ep_mem_trash(void *p,
 	size_t nbytes)
 {
-	// for now, do nothing
+	if (nbytes > 0)
+		memset(p, 0xA5, nbytes);
 }
 
 

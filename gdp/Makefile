@@ -28,7 +28,7 @@
 
 DESTDIR=
 LOCALROOT=	/usr
-CRYPTOROOT=	/usr/local/ssl
+CRYPTOROOT=	/opt/local
 INSTALLROOT=	${DESTDIR}${LOCALROOT}
 INCDIR=		${INSTALLROOT}/include
 LIBDIR=		${INSTALLROOT}/lib
@@ -109,8 +109,8 @@ CP=		cp
 RM=		rm
 MKDIR=		mkdir -p
 RANLIB=		ranlib
-SHARED=		-shared
-#SHARED=		-shared -Wl,-soname,$@
+SHARED=		-shared ${CRYPTOLFLAGS}
+#SHARED=		-shared ${CRYPTOLFLAGS} -Wl,-soname,$@
 
 all: ${ALL}
 

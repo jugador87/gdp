@@ -117,4 +117,9 @@ extern void	ep_mem_trash(			// trash memory
 			void *p,			// ptr to memory
 			size_t nbytes);			// number of trash bytes
 
+extern void	ep_mem_set_malloc_functions(
+			struct ep_malloc_functions *);
+extern void	ep_mem_set_recovery_func(
+			void (*f)(void));
+
 #endif // _EP_MEM_H_

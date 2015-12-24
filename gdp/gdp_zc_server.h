@@ -1,3 +1,5 @@
+/* vim: set ai sw=4 sts=4 ts=4 :*/
+
 /*
 **  ----- BEGIN LICENSE BLOCK -----
 **	GDP: Global Data Plane Support Library

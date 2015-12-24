@@ -52,37 +52,44 @@
 #define EP_ASSERT_REQUIRE(e)			\
 		((e)				\
 			? ((void) 0)		\
-			: ep_assert_failure(#e, "require", __FILE__, __LINE__))
+			: ep_assert_failure("require", __FILE__, __LINE__, \
+					"%s", #e))
 
 #define EP_ASSERT_ENSURE(e)			\
 		((e)				\
 			? ((void) 0)		\
-			: ep_assert_failure(#e, "ensure", __FILE__, __LINE__))
+			: ep_assert_failure("ensure", __FILE__, __LINE__, \
+					"%s", #e))
 
 #define EP_ASSERT_INSIST(e)			\
 		((e)				\
 			? ((void) 0)		\
-			: ep_assert_failure(#e, "insist", __FILE__, __LINE__))
+			: ep_assert_failure("insist", __FILE__, __LINE__, \
+					"%s", #e))
 
 #define EP_ASSERT_INVARIANT(e)			\
 		((e)				\
 			? ((void) 0)		\
-			: ep_assert_failure(#e, "invariant", __FILE__, __LINE__))
+			: ep_assert_failure("invariant", __FILE__, __LINE__, \
+					"%s", #e))
 
 #define EP_ASSERT(e)				\
 		((e)				\
 			? ((void) 0)		\
-			: ep_assert_failure(#e, "assert", __FILE__, __LINE__))
+			: ep_assert_failure("assert", __FILE__, __LINE__, \
+					"%s", #e))
 
-#define EP_ASSERT_FAILURE(m)			\
-			ep_assert_failure(m, "failure", __FILE__, __LINE__)
+#define EP_ASSERT_FAILURE(...)		\
+			ep_assert_failure("failure", __FILE__, __LINE__, \
+					__VA_ARGS__)
 
 // called if the assertion failed
 extern void	ep_assert_failure(
-			const char *expr,
 			const char *type,
 			const char *file,
-			int line)
+			int line,
+			const char *msg,
+			...)
 			__attribute__ ((noreturn));
 
 // called if ep_assert_failure was rude enough to return
