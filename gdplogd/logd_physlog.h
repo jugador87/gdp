@@ -78,6 +78,11 @@ void			gcl_physforeach(
 #define GCL_LOG_MINVERS		UINT32_C(20151001)		// lowest readable version
 #define GCL_LOG_MAXVERS		UINT32_C(20151001)		// highest readable version
 
+#define GCL_INDEX_MAGIC		UINT32_C(0x47434C78)	// 'GCLx'
+#define GCL_INDEX_VERSION	UINT32_C(20151225)		// on-disk version
+#define GCL_INDEX_MINVERS	UINT32_C(20151225)		// lowest readable version
+#define GCL_INDEX_MAXVERS	UINT32_C(20151225)		// highest readable version
+
 #define GCL_DATA_SUFFIX		".gdplog"
 #define GCL_INDEX_SUFFIX	".gdpndx"
 
@@ -129,7 +134,7 @@ typedef struct gcl_log_header
 
 
 /*
-**  On-disk index record format.
+**  On-disk index format.
 */
 
 typedef struct gcl_index_record
@@ -139,10 +144,19 @@ typedef struct gcl_index_record
 	uint32_t	extent;			// id of extent (for segmented logs)
 } gcl_index_record;
 
+typedef struct gcl_index_header
+{
+	uint32_t	magic;
+	uint32_t	version;
+	uint32_t	header_size;
+	uint32_t	reserved1;
+	gdp_recno_t	first_recno;
+} gcl_index_header;
+
 // return maximum record number for a given GCL
 extern gdp_recno_t	gcl_max_recno(gdp_gcl_t *gcl);
 
-#define SIZEOF_INDEX_HEADER		0	//XXX no header yet, but there should be
+#define SIZEOF_INDEX_HEADER		(sizeof(gcl_index_header))
 #define SIZEOF_INDEX_RECORD		(sizeof(gcl_index_record))
 
 #endif //_GDPLOGD_PHYSLOG_H_

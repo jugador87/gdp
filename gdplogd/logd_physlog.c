@@ -67,6 +67,7 @@ typedef struct log_index
 	int64_t				max_recno;
 	int64_t				max_data_offset;
 	int64_t				max_index_offset;
+	size_t				header_size;
 	CIRCULAR_BUFFER		*index_cache;
 } gcl_log_index_t;
 
@@ -133,16 +134,33 @@ gcl_physlog_init()
 */
 
 static EP_STAT
-get_gcl_path(gdp_gcl_t *gcl, const char *ext, char *pbuf, int pbufsiz)
+get_gcl_path(gdp_gcl_t *gcl, int extent, const char *file_extension,
+		char *pbuf, int pbufsiz)
 {
 	EP_STAT estat = EP_STAT_OK;
 	gdp_pname_t pname;
 	int i;
+	char extent_str[20] = "";
 
 	EP_ASSERT_POINTER_VALID(gcl);
 
 	errno = 0;
 	gdp_printable_name(gcl->name, pname);
+
+	if (extent == 0)
+	{
+		// see if old form (without extent) exists; if so, use it
+		struct stat st;
+
+		i = snprintf(pbuf, pbufsiz, "%s/_%02x/%s%s",
+				GCLDir, gcl->name[0], pname, file_extension);
+		if (stat(pbuf, &st) >= 0)
+			extent = -1;
+	}
+	if (extent >= 0)
+	{
+		snprintf(extent_str, sizeof extent_str, "-%06d", extent);
+	}
 
 	// find the subdirectory based on the first part of the name
 	{
@@ -161,32 +179,33 @@ get_gcl_path(gdp_gcl_t *gcl, const char *ext, char *pbuf, int pbufsiz)
 			ep_dbg_cprintf(Dbg, 10, "get_gcl_path: creating %s\n", pbuf);
 			i = mkdir(pbuf, 0775);
 			if (i < 0)
-				goto fail0;
+				goto fail1;
 		}
 		else if ((st.st_mode & S_IFMT) != S_IFDIR)
 		{
 			errno = ENOTDIR;
-			goto fail0;
+			goto fail1;
 		}
 	}
 
-	i = snprintf(pbuf, pbufsiz, "%s/_%02x/%s%s",
-				GCLDir, gcl->name[0], pname, ext);
+	i = snprintf(pbuf, pbufsiz, "%s/_%02x/%s%s%s",
+				GCLDir, gcl->name[0], pname, extent_str, file_extension);
 	if (i < pbufsiz)
-		return EP_STAT_OK;
+		goto succ;
 
 fail0:
+	if (EP_STAT_ISOK(estat))
+	{
+fail1:
+		if (errno == 0)
+			estat = EP_STAT_ERROR;
+		else
+			estat = ep_stat_from_errno(errno);
+	}
+
+succ:
 	{
 		char ebuf[100];
-
-		if (!EP_STAT_ISOK(estat))
-		{
-			if (errno == 0)
-				estat = EP_STAT_ERROR;
-			else
-				estat = ep_stat_from_errno(errno);
-		}
-
 		ep_dbg_cprintf(Dbg, 1, "get_gcl_path(%s):\n\t%s\n",
 				pbuf, ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
@@ -272,6 +291,7 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 {
 	EP_STAT estat = EP_STAT_OK;
 	char data_pbuf[GCL_PATH_MAX];
+	char index_pbuf[GCL_PATH_MAX];
 	FILE *data_fp;
 	FILE *index_fp;
 
@@ -285,17 +305,22 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 	{
 		int data_fd;
 
-		estat = get_gcl_path(gcl, GCL_DATA_SUFFIX,
+		estat = get_gcl_path(gcl, 0, GCL_DATA_SUFFIX,
 						data_pbuf, sizeof data_pbuf);
 		EP_STAT_CHECK(estat, goto fail1);
 
 		data_fd = open(data_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644);
 		if (data_fd < 0 || (flock(data_fd, LOCK_EX) < 0))
 		{
-			estat = posix_error(errno, "gcl_create: cannot create %s",
-					data_pbuf);
+			// turn "file exists" into a meaningful response code
+			if (errno == EEXIST)
+				estat = GDP_STAT_NAK_CONFLICT;
+			else
+				estat = posix_error(errno, "gcl_create: cannot create %s",
+						data_pbuf);
 			goto fail1;
 		}
+		ep_dbg_cprintf(Dbg, 16, "gcl_physcreate: created %s\n", data_pbuf);
 		data_fp = fdopen(data_fd, "a+");
 		if (data_fp == NULL)
 		{
@@ -309,9 +334,8 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 	// create an offset index for that gcl
 	{
 		int index_fd;
-		char index_pbuf[GCL_PATH_MAX];
 
-		estat = get_gcl_path(gcl, GCL_INDEX_SUFFIX,
+		estat = get_gcl_path(gcl, -1, GCL_INDEX_SUFFIX,
 						index_pbuf, sizeof index_pbuf);
 		EP_STAT_CHECK(estat, goto fail2);
 
@@ -322,6 +346,7 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 				index_pbuf);
 			goto fail2;
 		}
+		ep_dbg_cprintf(Dbg, 16, "gcl_physcreate: created %s\n", index_pbuf);
 		index_fp = fdopen(index_fd, "a+");
 		if (index_fp == NULL)
 		{
@@ -332,7 +357,25 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 		}
 	}
 
-	// write the header
+
+	// write the index header
+	{
+		gcl_index_header index_header;
+
+		index_header.magic = GCL_INDEX_MAGIC;
+		index_header.version = GCL_INDEX_VERSION;
+		index_header.header_size = SIZEOF_INDEX_HEADER;
+		index_header.reserved1 = 0;
+		index_header.first_recno = 0;
+
+		if (fwrite(&index_header, sizeof index_header, 1, index_fp) != 1)
+		{
+			estat = posix_error(errno, "gcl_physcreate: cannot write header");
+			goto fail3;
+		}
+	}
+
+	// write the log header
 	{
 		gcl_log_header log_header;
 		size_t metadata_size = 0; // XXX: compute size of metadata
@@ -415,14 +458,12 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 
 fail3:
 	fclose(index_fp);
+	unlink(index_pbuf);
 fail2:
 	flock(fileno(data_fp), LOCK_UN);
 	fclose(data_fp);
+	unlink(data_pbuf);
 fail1:
-	// turn "file exists" into a meaningful response code
-	if (EP_STAT_IS_SAME(estat, ep_stat_from_errno(EEXIST)))
-			estat = GDP_STAT_NAK_CONFLICT;
-
 	if (ep_dbg_test(Dbg, 1))
 	{
 		char ebuf[100];
@@ -449,15 +490,15 @@ gcl_physopen(gdp_gcl_t *gcl)
 {
 	EP_STAT estat = EP_STAT_OK;
 	int fd;
-	FILE *data_fp;
-	FILE *index_fp;
+	FILE *data_fp = NULL;
+	FILE *index_fp = NULL;
 	char data_pbuf[GCL_PATH_MAX];
 	char index_pbuf[GCL_PATH_MAX];
 
-	estat = get_gcl_path(gcl, GCL_DATA_SUFFIX, data_pbuf, sizeof data_pbuf);
+	estat = get_gcl_path(gcl, 0, GCL_DATA_SUFFIX, data_pbuf, sizeof data_pbuf);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	estat = get_gcl_path(gcl, GCL_INDEX_SUFFIX, index_pbuf, sizeof index_pbuf);
+	estat = get_gcl_path(gcl, -1, GCL_INDEX_SUFFIX, index_pbuf, sizeof index_pbuf);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	fd = open(data_pbuf, O_RDWR | O_APPEND);
@@ -469,7 +510,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 				data_pbuf, strerror(errno));
 		if (fd >= 0)
 			close(fd);
-		goto fail1;
+		goto fail0;
 	}
 
 	gcl_log_header log_header;
@@ -478,7 +519,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 	{
 		estat = posix_error(errno, "gcl_physopen(%s): header read failure",
 						data_pbuf);
-		goto fail3;
+		goto fail1;
 	}
 
 	// on-disk format in network byte order
@@ -495,7 +536,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 		ep_log(estat, "gcl_physopen: bad magic: found: %" PRIx32
 				", expected: %" PRIx32 "\n",
 				log_header.magic, GCL_LOG_MAGIC);
-		goto fail3;
+		goto fail1;
 	}
 
 	if (log_header.version < GCL_LOG_MINVERS ||
@@ -505,7 +546,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 		ep_log(estat, "gcl_physopen: bad version: found: %" PRIx32
 				", expected: %" PRIx32 "-%" PRIx32 "\n",
 				log_header.version, GCL_LOG_MINVERS, GCL_LOG_MAXVERS);
-		goto fail3;
+		goto fail1;
 	}
 
 	gcl->x->nmetadata = log_header.num_metadata_entries;
@@ -529,7 +570,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 				fread(&md_len, sizeof md_len, 1, data_fp) != 1)
 			{
 				estat = GDP_STAT_GCL_READ_ERROR;
-				goto fail3;
+				goto fail1;
 			}
 
 			md_id = ntohl(md_id);
@@ -542,7 +583,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 		if (fread(md_data, mdtotal, 1, data_fp) != 1)
 		{
 			estat = GDP_STAT_GCL_READ_ERROR;
-			goto fail3;
+			goto fail1;
 		}
 		_gdp_gclmd_adddata(gcl->gclmd, md_data);
 	}
@@ -556,17 +597,54 @@ gcl_physopen(gdp_gcl_t *gcl)
 						index_pbuf);
 		if (fd >= 0)
 			close(fd);
-		goto fail4;
+		goto fail1;
 	}
 
-	// XXX should check for index header here
+	// check for valid index header (distinguish old and new format)
+	gcl_index_header index_header;
+
+	index_header.magic = 0;
+	if (fsizeof(index_fp) < sizeof index_header)
+	{
+		// must be old style
+	}
+	else if (fread(&index_header, sizeof index_header, 1, index_fp) != 1)
+	{
+		estat = posix_error(errno, "gcl_physopen(%s): index header read failure",
+						index_pbuf);
+		goto fail1;
+	}
+	else if (index_header.magic == 0)
+	{
+		// must be old style
+	}
+	else if (index_header.magic != GCL_INDEX_MAGIC)
+	{
+		estat = GDP_STAT_CORRUPT_INDEX;
+		ep_log(estat, "gcl_physopen(%s): bad index magic", index_pbuf);
+		goto fail1;
+	}
+	else if (index_header.version < GCL_INDEX_MINVERS ||
+			 index_header.version > GCL_INDEX_MAXVERS)
+	{
+		estat = GDP_STAT_CORRUPT_INDEX;
+		ep_log(estat, "gcl_physopen(%s): bad index version", index_pbuf);
+		goto fail1;
+	}
+
+	if (index_header.magic == 0)
+	{
+		// old-style index; fake the header
+		index_header.first_recno = 0;
+		index_header.header_size = 0;
+	}
 
 	gcl->x->ver = log_header.version;
 	gcl->x->data_offset = log_header.header_size;
 
 	gcl_log_index_t *index;
 	estat = gcl_index_create_cache(gcl, &index);
-	EP_STAT_CHECK(estat, goto fail5);
+	EP_STAT_CHECK(estat, goto fail1);
 
 	gcl->x->fp = data_fp;
 	gcl->x->log_index = index;
@@ -574,18 +652,20 @@ gcl_physopen(gdp_gcl_t *gcl)
 	index->fp = index_fp;
 	index->max_data_offset = fsizeof(data_fp);
 	index->max_index_offset = fsizeof(index_fp);
-	index->max_recno = (index->max_index_offset - SIZEOF_INDEX_HEADER)
-								/ SIZEOF_INDEX_RECORD;
+	index->max_recno = ((index->max_index_offset - index_header.header_size)
+								/ SIZEOF_INDEX_RECORD) - index_header.first_recno;
 
 	gcl->nrecs = index->max_recno;
 
 	return estat;
 
-fail5:
-fail4:
-fail3:
-	fclose(data_fp);
 fail1:
+	// close files if necessary
+	if (data_fp != NULL)
+		fclose(data_fp);
+	if (index_fp != NULL)
+		fclose(index_fp);
+
 fail0:
 	// map errnos to appropriate NAK codes
 	if (EP_STAT_IS_SAME(estat, ep_stat_from_errno(ENOENT)))
@@ -683,8 +763,7 @@ gcl_physread(gdp_gcl_t *gcl,
 		off_t file_size = fsizeof(index->fp);
 		if (file_size < 0)
 		{
-			estat = ep_stat_from_errno(errno);
-			ep_log(estat, "gcl_physread: fsizeof failed");
+			estat = posix_error(errno, "gcl_physread: fsizeof failed");
 			goto fail1;
 		}
 		if (file_size < SIZEOF_INDEX_HEADER)
@@ -692,7 +771,7 @@ gcl_physread(gdp_gcl_t *gcl,
 			estat = GDP_STAT_CORRUPT_INDEX;
 			goto fail1;
 		}
-		int64_t record_count = (file_size - SIZEOF_INDEX_HEADER) /
+		int64_t record_count = (file_size - index->header_size) /
 								SIZEOF_INDEX_RECORD;
 		gcl_index_record index_record;
 		size_t start = 0;
@@ -1073,6 +1152,11 @@ gcl_physforeach(void (*func)(gdp_name_t, void *), void *ctx)
 
 			// strip off the ".data"
 			*p = '\0';
+
+			// strip off possible extent indication
+			if (strlen(dent->d_name) > GDP_GCL_PNAME_LEN &&
+					dent->d_name[GDP_GCL_PNAME_LEN] == '-')
+				dent->d_name[GDP_GCL_PNAME_LEN] = '\0';
 
 			// convert the base64-encoded name to internal form
 			gdp_name_t gname;
