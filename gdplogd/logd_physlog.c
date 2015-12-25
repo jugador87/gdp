@@ -93,6 +93,24 @@ fsizeof(FILE *fp)
 }
 
 
+/*
+**  POSIX_ERROR --- flag error caused by a Posix (Unix) syscall
+*/
+
+static EP_STAT EP_TYPE_PRINTFLIKE(2, 3)
+posix_error(int _errno, const char *fmt, ...)
+{
+	va_list ap;
+	EP_STAT estat = ep_stat_from_errno(_errno);
+
+	va_start(ap, fmt);
+	ep_logv(estat, fmt, ap);
+	va_end(ap);
+
+	return estat;
+}
+
+
 EP_STAT
 gcl_physlog_init()
 {
@@ -253,6 +271,7 @@ EP_STAT
 gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 {
 	EP_STAT estat = EP_STAT_OK;
+	char data_pbuf[GCL_PATH_MAX];
 	FILE *data_fp;
 	FILE *index_fp;
 
@@ -265,7 +284,6 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 	// create a file node representing the gcl
 	{
 		int data_fd;
-		char data_pbuf[GCL_PATH_MAX];
 
 		estat = get_gcl_path(gcl, GCL_DATA_SUFFIX,
 						data_pbuf, sizeof data_pbuf);
@@ -274,25 +292,17 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 		data_fd = open(data_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644);
 		if (data_fd < 0 || (flock(data_fd, LOCK_EX) < 0))
 		{
-			char nbuf[40];
-
-			estat = ep_stat_from_errno(errno);
-			strerror_r(errno, nbuf, sizeof nbuf);
-			ep_log(estat, "gcl_create: cannot create %s: %s",
-					data_pbuf, nbuf);
+			estat = posix_error(errno, "gcl_create: cannot create %s",
+					data_pbuf);
 			goto fail1;
 		}
 		data_fp = fdopen(data_fd, "a+");
 		if (data_fp == NULL)
 		{
-			char nbuf[40];
-
-			estat = ep_stat_from_errno(errno);
-			strerror_r(errno, nbuf, sizeof nbuf);
-			ep_log(estat, "gcl_create: cannot fdopen %s: %s",
-					data_pbuf, nbuf);
+			estat = posix_error(errno, "gcl_create: cannot fdopen %s",
+					data_pbuf);
 			(void) close(data_fd);
-			goto fail1;
+			goto fail2;
 		}
 	}
 
@@ -308,23 +318,15 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 		index_fd = open(index_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644);
 		if (index_fd < 0)
 		{
-			char nbuf[40];
-
-			estat = ep_stat_from_errno(errno);
-			strerror_r(errno, nbuf, sizeof nbuf);
-			ep_log(estat, "gcl_create: cannot create %s: %s",
-				index_pbuf, nbuf);
+			estat = posix_error(errno, "gcl_create: cannot create %s",
+				index_pbuf);
 			goto fail2;
 		}
 		index_fp = fdopen(index_fd, "a+");
 		if (index_fp == NULL)
 		{
-			char nbuf[40];
-
-			estat = ep_stat_from_errno(errno);
-			strerror_r(errno, nbuf, sizeof nbuf);
-			ep_log(estat, "gcl_create: cannot fdopen %s: %s",
-				index_pbuf, nbuf);
+			estat = posix_error(errno, "gcl_create: cannot fdopen %s",
+				index_pbuf);
 			(void) close(index_fd);
 			goto fail2;
 		}
@@ -397,7 +399,13 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 	EP_STAT_CHECK(estat, goto fail3);
 
 	// success!
-	fflush(data_fp);
+	if (fflush(data_fp) < 0 || ferror(data_fp))
+	{
+		estat = posix_error(errno, "gcl_create: cannot flush data file %s",
+						data_pbuf);
+		goto fail3;
+	}
+
 	flock(fileno(data_fp), LOCK_UN);
 	new_index->fp = index_fp;
 	gcl->x->fp = data_fp;
@@ -408,13 +416,14 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 fail3:
 	fclose(index_fp);
 fail2:
+	flock(fileno(data_fp), LOCK_UN);
 	fclose(data_fp);
 fail1:
 	// turn "file exists" into a meaningful response code
 	if (EP_STAT_IS_SAME(estat, ep_stat_from_errno(EEXIST)))
 			estat = GDP_STAT_NAK_CONFLICT;
 
-	if (ep_dbg_test(Dbg, 8))
+	if (ep_dbg_test(Dbg, 1))
 	{
 		char ebuf[100];
 
@@ -456,7 +465,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 			(data_fp = fdopen(fd, "a+")) == NULL)
 	{
 		estat = ep_stat_from_errno(errno);
-		ep_dbg_cprintf(Dbg, 16, "gcl_physopen(%s): %s\n",
+		ep_dbg_cprintf(Dbg, 1, "gcl_physopen(%s): %s\n",
 				data_pbuf, strerror(errno));
 		if (fd >= 0)
 			close(fd);
@@ -467,8 +476,8 @@ gcl_physopen(gdp_gcl_t *gcl)
 	rewind(data_fp);
 	if (fread(&log_header, sizeof(log_header), 1, data_fp) < 1)
 	{
-		estat = ep_stat_from_errno(errno);
-		ep_log(estat, "gcl_physopen(%s): header read failure", data_pbuf);
+		estat = posix_error(errno, "gcl_physopen(%s): header read failure",
+						data_pbuf);
 		goto fail3;
 	}
 
@@ -543,8 +552,8 @@ gcl_physopen(gdp_gcl_t *gcl)
 	if (fd < 0 || flock(fd, LOCK_SH) < 0 ||
 			(index_fp = fdopen(fd, "a+")) == NULL)
 	{
-		estat = ep_stat_from_errno(errno);
-		ep_log(estat, "gcl_physopen(%s): index open failure", index_pbuf);
+		estat = posix_error(errno, "gcl_physopen(%s): index open failure",
+						index_pbuf);
 		if (fd >= 0)
 			close(fd);
 		goto fail4;
@@ -606,19 +615,21 @@ gcl_physclose(gdp_gcl_t *gcl)
 	// close the data file
 	if (gcl->x->fp == NULL)
 	{
-		estat = EP_STAT_ERROR;
+		estat = GDP_STAT_INTERNAL_ERROR;
 		ep_log(estat, "gcl_physclose: null fp");
 	}
 	else
 	{
-		fclose(gcl->x->fp);
+		if (fclose(gcl->x->fp) < 0)
+			estat = posix_error(errno, "gcl_physclose: fclose (data)");
 		gcl->x->fp = NULL;
 	}
 
 	// and the index file
 	if (gcl->x->log_index->fp != NULL)
 	{
-		fclose(gcl->x->log_index->fp);
+		if (fclose(gcl->x->log_index->fp) < 0)
+			estat = posix_error(errno, "gcl_physclose: fclose (index)");
 		gcl->x->log_index->fp = NULL;
 	}
 
@@ -711,12 +722,15 @@ gcl_physread(gdp_gcl_t *gcl,
 		{
 			mid = start + (end - start) / 2;
 			ep_dbg_cprintf(Dbg, 47, "\t%zu ... %zu ... %zu\n", start, mid, end);
-			fseek(entry->fp, mid * sizeof(gcl_index_record), SEEK_SET);
+			if (fseek(entry->fp, mid * sizeof(gcl_index_record), SEEK_SET) < 0)
+			{
+				estat = posix_error(errno, "gcl_physread: fseek failed");
+				funlockfile(entry->fp);
+				goto fail0;
+			}
 			if (fread(&index_record, sizeof(gcl_index_record), 1, entry->fp) < 1)
 			{
-				ep_dbg_cprintf(Dbg, 1, "gcl_physread: fread failed: %s\n",
-						strerror(errno));
-				estat = ep_stat_from_errno(errno);
+				estat = posix_error(errno, "gcl_physread: fread failed");
 				funlockfile(entry->fp);
 				goto fail0;
 			}
@@ -760,9 +774,7 @@ gcl_physread(gdp_gcl_t *gcl,
 	if (fseek(gcl->x->fp, offset, SEEK_SET) < 0 ||
 			fread(&log_record, sizeof(log_record), 1, gcl->x->fp) < 1)
 	{
-		ep_dbg_cprintf(Dbg, 1, "gcl_physread: header fread failed: %s\n",
-				strerror(errno));
-		estat = ep_stat_from_errno(errno);
+		estat = posix_error(errno, "gcl_physread: header fread failed");
 		goto fail1;
 	}
 	offset += sizeof log_record;
@@ -806,7 +818,9 @@ gcl_physread(gdp_gcl_t *gcl,
 		phase = "signature";
 		if (datum->siglen > sizeof read_buffer)
 		{
-			fprintf(stderr, "datum->siglen = %d, sizeof read_buffer = %zd\n",
+			estat = GDP_STAT_INTERNAL_ERROR;
+			ep_log(estat,
+					"gcl_physread: datum->siglen = %d, sizeof read_buffer = %zd",
 					datum->siglen, sizeof read_buffer);
 			EP_ASSERT_INSIST(datum->siglen <= sizeof read_buffer);
 		}
@@ -824,9 +838,7 @@ gcl_physread(gdp_gcl_t *gcl,
 	if (false)
 	{
 fail2:
-		ep_dbg_cprintf(Dbg, 1, "gcl_physread: %s fread failed: %s\n",
-				phase, strerror(errno));
-		estat = ep_stat_from_errno(errno);
+		estat = posix_error(errno, "gcl_physread: %s fread failed", phase);
 	}
 fail1:
 	funlockfile(gcl->x->fp);
@@ -849,6 +861,7 @@ gcl_physappend(gdp_gcl_t *gcl,
 	size_t dlen = evbuffer_get_length(datum->dbuf);
 	int64_t record_size = sizeof(gcl_log_record);
 	gcl_log_index_t *entry = gcl->x->log_index;
+	EP_STAT estat = EP_STAT_OK;
 
 	if (ep_dbg_test(Dbg, 14))
 	{
@@ -904,16 +917,21 @@ gcl_physappend(gdp_gcl_t *gcl,
 	fwrite(&index_record, sizeof(index_record), 1, entry->fp);
 
 	// commit
-	fflush(gcl->x->fp);
-	fflush(entry->fp);
-	gcl_index_cache_put(entry, index_record.recno, index_record.offset);
-	++entry->max_recno;
-	entry->max_index_offset += sizeof(index_record);
-	entry->max_data_offset += record_size;
+	if (fflush(gcl->x->fp) < 0 || ferror(gcl->x->fp))
+		estat = posix_error(errno, "gcl_physappend: cannot flush data");
+	else if (fflush(entry->fp) < 0 || ferror(gcl->x->fp))
+		estat = posix_error(errno, "gcl_physappend: cannot flush index");
+	else
+	{
+		gcl_index_cache_put(entry, index_record.recno, index_record.offset);
+		++entry->max_recno;
+		entry->max_index_offset += sizeof(index_record);
+		entry->max_data_offset += record_size;
+	}
 
 	ep_thr_rwlock_unlock(&entry->lock);
 
-	return EP_STAT_OK;
+	return estat;
 }
 
 
