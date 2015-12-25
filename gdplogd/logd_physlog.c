@@ -944,13 +944,12 @@ gcl_physappend(gdp_gcl_t *gcl,
 #define STDIOCHECK(tag, targ, f)	\
 			do	\
 			{	\
-				int t = f;	\
-				if (t != targ)	\
+				int _t = f;	\
+				if (_t != targ)	\
 				{	\
-					ep_dbg_cprintf(Dbg, 1,	\
-							"%s: stdio failure; expected %d got %d (errno=%d)\n"	\
-							"\t%s\n",	\
-							tag, targ, t, errno, #f)	\
+					estat = posix_error(errno,	\
+							"%s: stdio failure; expected %d got %d [%s]",	\
+							tag, targ, _t, #f);	\
 					goto fail_stdio;	\
 				}	\
 			} while (0);
