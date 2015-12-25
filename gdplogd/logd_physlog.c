@@ -59,7 +59,7 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.physlog",
 
 static const char	*GCLDir;		// the gcl data directory
 
-typedef struct index_entry
+typedef struct log_index
 {
 	// reading and writing to the log requires holding this lock
 	EP_THR_RWLOCK		lock;
@@ -229,12 +229,12 @@ fail0:
 }
 
 EP_STAT
-gcl_index_cache_get(gcl_log_index_t *entry, int64_t recno, int64_t *out)
+gcl_index_cache_get(gcl_log_index_t *index, int64_t recno, int64_t *out)
 {
 	EP_STAT estat = EP_STAT_OK;
 
-	ep_thr_rwlock_rdlock(&entry->lock);
-	LONG_LONG_PAIR *found = circular_buffer_search(entry->index_cache, recno);
+	ep_thr_rwlock_rdlock(&index->lock);
+	LONG_LONG_PAIR *found = circular_buffer_search(index->index_cache, recno);
 	if (found != NULL)
 	{
 		*out = found->value;
@@ -243,13 +243,13 @@ gcl_index_cache_get(gcl_log_index_t *entry, int64_t recno, int64_t *out)
 	{
 		*out = INT64_MAX;
 	}
-	ep_thr_rwlock_unlock(&entry->lock);
+	ep_thr_rwlock_unlock(&index->lock);
 
 	return estat;
 }
 
 EP_STAT
-gcl_index_cache_put(gcl_log_index_t *entry, int64_t recno, int64_t offset)
+gcl_index_cache_put(gcl_log_index_t *index, int64_t recno, int64_t offset)
 {
 	EP_STAT estat = EP_STAT_OK;
 	LONG_LONG_PAIR new_pair;
@@ -257,7 +257,7 @@ gcl_index_cache_put(gcl_log_index_t *entry, int64_t recno, int64_t offset)
 	new_pair.key = recno;
 	new_pair.value = offset;
 
-	circular_buffer_append(entry->index_cache, new_pair);
+	circular_buffer_append(index->index_cache, new_pair);
 
 	return estat;
 }
@@ -662,7 +662,7 @@ gcl_physread(gdp_gcl_t *gcl,
 		gdp_datum_t *datum)
 {
 	EP_STAT estat = EP_STAT_OK;
-	gcl_log_index_t *entry = gcl->x->log_index;
+	gcl_log_index_t *index = gcl->x->log_index;
 	LONG_LONG_PAIR *long_pair;
 	int64_t offset = INT64_MAX;
 
@@ -670,17 +670,17 @@ gcl_physread(gdp_gcl_t *gcl,
 
 	ep_dbg_cprintf(Dbg, 14, "gcl_physread(%" PRIgdp_recno "): ", datum->recno);
 
-	ep_thr_rwlock_rdlock(&entry->lock);
+	ep_thr_rwlock_rdlock(&index->lock);
 
 	// first check if recno is in the index
-	long_pair = circular_buffer_search(entry->index_cache, datum->recno);
+	long_pair = circular_buffer_search(index->index_cache, datum->recno);
 	if (long_pair == NULL)
 	{
 		// recno is not in the index
 		// now binary search through the disk index
-		flockfile(entry->fp);
+		flockfile(index->fp);
 
-		off_t file_size = fsizeof(entry->fp);
+		off_t file_size = fsizeof(index->fp);
 		if (file_size < 0)
 		{
 			estat = ep_stat_from_errno(errno);
@@ -722,16 +722,16 @@ gcl_physread(gdp_gcl_t *gcl,
 		{
 			mid = start + (end - start) / 2;
 			ep_dbg_cprintf(Dbg, 47, "\t%zu ... %zu ... %zu\n", start, mid, end);
-			if (fseek(entry->fp, mid * sizeof(gcl_index_record), SEEK_SET) < 0)
+			if (fseek(index->fp, mid * sizeof(gcl_index_record), SEEK_SET) < 0)
 			{
 				estat = posix_error(errno, "gcl_physread: fseek failed");
-				funlockfile(entry->fp);
+				funlockfile(index->fp);
 				goto fail0;
 			}
-			if (fread(&index_record, sizeof(gcl_index_record), 1, entry->fp) < 1)
+			if (fread(&index_record, sizeof(gcl_index_record), 1, index->fp) < 1)
 			{
 				estat = posix_error(errno, "gcl_physread: fread failed");
-				funlockfile(entry->fp);
+				funlockfile(index->fp);
 				goto fail0;
 			}
 
@@ -752,7 +752,7 @@ gcl_physread(gdp_gcl_t *gcl,
 				break;
 			}
 		}
-		funlockfile(entry->fp);
+		funlockfile(index->fp);
 	}
 	else
 	{
@@ -843,7 +843,7 @@ fail2:
 fail1:
 	funlockfile(gcl->x->fp);
 fail0:
-	ep_thr_rwlock_unlock(&entry->lock);
+	ep_thr_rwlock_unlock(&index->lock);
 
 	return estat;
 }
@@ -860,7 +860,7 @@ gcl_physappend(gdp_gcl_t *gcl,
 	gcl_index_record index_record;
 	size_t dlen = evbuffer_get_length(datum->dbuf);
 	int64_t record_size = sizeof(gcl_log_record);
-	gcl_log_index_t *entry = gcl->x->log_index;
+	gcl_log_index_t *index = gcl->x->log_index;
 	EP_STAT estat = EP_STAT_OK;
 
 	if (ep_dbg_test(Dbg, 14))
@@ -869,10 +869,10 @@ gcl_physappend(gdp_gcl_t *gcl,
 		_gdp_datum_dump(datum, ep_dbg_getfile());
 	}
 
-	ep_thr_rwlock_wrlock(&entry->lock);
+	ep_thr_rwlock_wrlock(&index->lock);
 
 	memset(&log_record, 0, sizeof log_record);
-	log_record.recno = ep_net_hton64(entry->max_recno + 1);
+	log_record.recno = ep_net_hton64(index->max_recno + 1);
 	log_record.timestamp = datum->ts;
 	ep_net_hton_timespec(&log_record.timestamp);
 	log_record.data_length = ep_net_hton64(dlen);
@@ -910,26 +910,26 @@ gcl_physappend(gdp_gcl_t *gcl,
 	}
 
 	index_record.recno = log_record.recno;
-	index_record.offset = ep_net_hton64(entry->max_data_offset);
+	index_record.offset = ep_net_hton64(index->max_data_offset);
 	index_record.extent = 0;		//XXX someday
 
 	// write index record
-	fwrite(&index_record, sizeof(index_record), 1, entry->fp);
+	fwrite(&index_record, sizeof(index_record), 1, index->fp);
 
 	// commit
 	if (fflush(gcl->x->fp) < 0 || ferror(gcl->x->fp))
 		estat = posix_error(errno, "gcl_physappend: cannot flush data");
-	else if (fflush(entry->fp) < 0 || ferror(gcl->x->fp))
+	else if (fflush(index->fp) < 0 || ferror(gcl->x->fp))
 		estat = posix_error(errno, "gcl_physappend: cannot flush index");
 	else
 	{
-		gcl_index_cache_put(entry, index_record.recno, index_record.offset);
-		++entry->max_recno;
-		entry->max_index_offset += sizeof(index_record);
-		entry->max_data_offset += record_size;
+		gcl_index_cache_put(index, index_record.recno, index_record.offset);
+		++index->max_recno;
+		index->max_index_offset += sizeof(index_record);
+		index->max_data_offset += record_size;
 	}
 
-	ep_thr_rwlock_unlock(&entry->lock);
+	ep_thr_rwlock_unlock(&index->lock);
 
 	return estat;
 }
@@ -961,7 +961,7 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 	gdp_gclmd_t *gmd;
 	int i;
 	size_t tlen;
-	gcl_log_index_t *entry = gcl->x->log_index;
+	gcl_log_index_t *index = gcl->x->log_index;
 	EP_STAT estat = EP_STAT_OK;
 
 	ep_dbg_cprintf(Dbg, 29, "gcl_physgetmetadata: nmetadata %d\n",
@@ -974,7 +974,7 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 	gmd->mds = ep_mem_malloc(gmd->nalloc * sizeof *gmd->mds);
 
 	// lock the GCL so that no one else seeks around on us
-	ep_thr_rwlock_rdlock(&entry->lock);
+	ep_thr_rwlock_rdlock(&index->lock);
 
 	// seek to the metadata area
 	STDIOCHECK("gcl_physgetmetadata: fseek#0", 0,
@@ -1026,7 +1026,7 @@ fail_stdio:
 		estat = GDP_STAT_CORRUPT_GCL;
 	}
 
-	ep_thr_rwlock_unlock(&entry->lock);
+	ep_thr_rwlock_unlock(&index->lock);
 	return estat;
 }
 

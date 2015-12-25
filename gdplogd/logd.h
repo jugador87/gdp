@@ -72,7 +72,7 @@ struct gdp_gcl_xtra
 	// physical implementation declarations
 	long				ver;			// version number of on-disk file
 	FILE				*fp;			// pointer to the on-disk file
-	struct index_entry	*log_index;		// ???
+	struct log_index	*log_index;		// recno -> offset index
 	off_t				data_offset;	// offset for start of data
 	uint16_t			nmetadata;		// number of metadata entries
 	uint16_t			log_type;		// from log header
