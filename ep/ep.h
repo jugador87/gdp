@@ -38,11 +38,6 @@
 #ifndef _EP_H_
 #define _EP_H_
 
-#if __linux__
-# define _BSD_SOURCE		1	// needed to compile on Linux
-# define _POSIX_C_SOURCE	200809L	// specify a modern environment
-#endif
-
 #include <ep/ep_conf.h>
 
 #include <unistd.h>
