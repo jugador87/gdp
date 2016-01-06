@@ -73,26 +73,55 @@ void			gcl_physforeach(
 
 #define GCL_DIR				"/var/swarm/gdp/gcls"
 
-#define GCL_LOG_MAGIC		UINT32_C(0x47434C31)	// 'GCL1'
-#define GCL_LOG_VERSION		UINT32_C(20151001)		// on-disk version
-#define GCL_LOG_MINVERS		UINT32_C(20151001)		// lowest readable version
-#define GCL_LOG_MAXVERS		UINT32_C(20151001)		// highest readable version
+#define GCL_LDF_MAGIC		UINT32_C(0x47434C31)	// 'GCL1'
+#define GCL_LDF_VERSION		UINT32_C(20151001)		// on-disk version
+#define GCL_LDF_MINVERS		UINT32_C(20151001)		// lowest readable version
+#define GCL_LDF_MAXVERS		UINT32_C(20151001)		// highest readable version
+#define GCL_LDF_SUFFIX		".gdplog"
 
-#define GCL_INDEX_MAGIC		UINT32_C(0x47434C78)	// 'GCLx'
-#define GCL_INDEX_VERSION	UINT32_C(20151225)		// on-disk version
-#define GCL_INDEX_MINVERS	UINT32_C(20151225)		// lowest readable version
-#define GCL_INDEX_MAXVERS	UINT32_C(20151225)		// highest readable version
-
-#define GCL_DATA_SUFFIX		".gdplog"
-#define GCL_INDEX_SUFFIX	".gdpndx"
+#define GCL_LXF_MAGIC		UINT32_C(0x47434C78)	// 'GCLx'
+#define GCL_LXF_VERSION		UINT32_C(20160101)		// on-disk version
+#define GCL_LXF_MINVERS		UINT32_C(20160101)		// lowest readable version
+#define GCL_LXF_MAXVERS		UINT32_C(20160101)		// highest readable version
+#define GCL_LXF_SUFFIX		".gdpndx"
 
 #define GCL_READ_BUFFER_SIZE 4096
 
 
 /*
-**  On-disk per-record format
+**  On-disk data format
+**
+**		Data in logs are stored in individual extent files, each of which
+**		stores a contiguous series of records.  These definitions really
+**		apply to individual extents, not the log as a whole.
+**
+**		TODO:	Is the metadata copied in each extent, or is it just in
+**		TODO:	extent 0?  Should there be a single file representing
+**		TODO:	the log as a whole, but contains no data, only metadata,
+**		TODO:	kind of like a superblock?
+**
+**		TODO:	It probably makes sense to have a cache file that stores
+**		TODO:	dynamic data about a log (e.g., how many records it has).
+**		TODO:	Since this file is written a lot, it is important that it
+**		TODO:	can be reconstructed.
+**
+**		Each extent has a fixed length extent header (called here a log
+**		header), followed by the log metadata, followed by a series of
+**		data records.  Each record has a header followed by data.
+**
+**		The GCL metadata consists of num_metadata_entries (N)
+**		descriptors, each of which has a uint32_t "name" and a
+**		uint32_t length.  In other words, the descriptors are an
+**		an array of names and lengths: (n1, l1, n2, l2 ... nN, lN).
+**		The descriptors are followed by the actual metadata content.
+**
+**		Some of the metadata names are reserved for internal use (e.g.,
+**		storage of the public key associated with the log), but
+**		other metadata names can be added that will be interpreted
+**		by applications.
 */
 
+// an individual record
 typedef struct gcl_log_record
 {
 	gdp_recno_t		recno;
@@ -101,22 +130,12 @@ typedef struct gcl_log_record
 	int16_t			reserved1;			// reserved for future use
 	int32_t			reserved2;			// reserved for future use
 	int64_t			data_length;
-	char			data[];
+	char			data[0];
 										// signature is after the data
-} gcl_log_record;
+} gcl_log_record_t;
 
-/*
-**  On-disk per-log header
-**
-**		The GCL metadata consists of num_metadata_entires (N), followed by
-**		N lengths (l_1, l_2, ... , l_N), followed by N **non-null-terminated**
-**		strings of lengths l_1, ... , l_N. It is up to the user application to
-**		interpret the metadata strings.
-**
-**		num_metadata_entries is a int16_t
-**		l_1, ... , l_N are int16_t
-*/
 
+// a data file header
 typedef struct gcl_log_header
 {
 	uint32_t	magic;
@@ -130,19 +149,19 @@ typedef struct gcl_log_header
 	uint64_t	reserved2;		// reserved for future use
 	gdp_name_t	gname;			// the name of this log
 	gdp_recno_t	recno_offset;	// record number offset (first stored recno - 1)
-} gcl_log_header;
+} gcl_log_header_t;
 
 
 /*
-**  On-disk index format.
+**  On-disk index record format.
 */
 
-typedef struct gcl_index_record
+typedef struct gcl_index_entry
 {
 	gdp_recno_t	recno;			// record number
 	int64_t		offset;			// offset into extent file
 	uint32_t	extent;			// id of extent (for segmented logs)
-} gcl_index_record;
+} gcl_index_entry_t;
 
 typedef struct gcl_index_header
 {
@@ -151,12 +170,12 @@ typedef struct gcl_index_header
 	uint32_t	header_size;
 	uint32_t	reserved1;
 	gdp_recno_t	first_recno;
-} gcl_index_header;
+} gcl_index_header_t;
 
 // return maximum record number for a given GCL
 extern gdp_recno_t	gcl_max_recno(gdp_gcl_t *gcl);
 
-#define SIZEOF_INDEX_HEADER		(sizeof(gcl_index_header))
-#define SIZEOF_INDEX_RECORD		(sizeof(gcl_index_record))
+#define SIZEOF_INDEX_HEADER		(sizeof(gcl_index_header_t))
+#define SIZEOF_INDEX_RECORD		(sizeof(gcl_index_entry_t))
 
 #endif //_GDPLOGD_PHYSLOG_H_

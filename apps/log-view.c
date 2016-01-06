@@ -195,7 +195,7 @@ show_metadata(int nmds, FILE *dfp, size_t *foffp, int plev)
 
 
 int
-show_record(gcl_log_record *rec, FILE *dfp, size_t *foffp, int plev)
+show_record(gcl_log_record_t *rec, FILE *dfp, size_t *foffp, int plev)
 {
 	rec->recno = ep_net_ntoh64(rec->recno);
 	ep_net_ntoh_timespec(&rec->timestamp);
@@ -286,7 +286,7 @@ show_gcl_index(const char *index_filename, int plev)
 		goto fail0;
 	}
 
-	gcl_index_header index_header;
+	gcl_index_header_t index_header;
 
 	index_header.magic = 0;
 	if (st.st_size < SIZEOF_INDEX_HEADER)
@@ -299,7 +299,7 @@ show_gcl_index(const char *index_filename, int plev)
 	}
 	if (index_header.magic == 0)
 		goto no_header;
-	else if (index_header.magic != GCL_INDEX_MAGIC)
+	else if (index_header.magic != GCL_LXF_MAGIC)
 	{
 		fprintf(stderr, "Bad index magic %04x\n", index_header.magic);
 	}
@@ -338,12 +338,12 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	// Add 5 in the middle for '/_xx/'
 	// Add 7 for -000000 (extent number)
 	int filename_size = strlen(gcl_dir_name) + 5 + strlen(gcl_pname) +
-			7 + strlen(GCL_INDEX_SUFFIX) + 1;
+			7 + strlen(GCL_LXF_SUFFIX) + 1;
 	char *filename = alloca(filename_size);
 
 	snprintf(filename, filename_size,
 			"%s/_%02x/%s%s%s",
-			gcl_dir_name, gcl_name[0], gcl_pname, extent_str, GCL_DATA_SUFFIX);
+			gcl_dir_name, gcl_name[0], gcl_pname, extent_str, GCL_LDF_SUFFIX);
 	ep_dbg_cprintf(Dbg, 6, "Reading %s\n\n", filename);
 
 	FILE *data_fp = fopen(filename, "r");
@@ -352,7 +352,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 		// try again without extent
 		snprintf(filename, filename_size,
 				"%s/_%02x/%s%s",
-				gcl_dir_name, gcl_name[0], gcl_pname, GCL_DATA_SUFFIX);
+				gcl_dir_name, gcl_name[0], gcl_pname, GCL_LDF_SUFFIX);
 		ep_dbg_cprintf(Dbg, 6, "Reading %s\n\n", filename);
 		data_fp = fopen(filename, "r");
 	}
@@ -364,13 +364,13 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 
 	snprintf(filename, filename_size,
 			"%s/_%02x/%s%s",
-			gcl_dir_name, gcl_name[0], gcl_pname, GCL_INDEX_SUFFIX);
+			gcl_dir_name, gcl_name[0], gcl_pname, GCL_LXF_SUFFIX);
 	max_recno = show_gcl_index(filename, plev);
 	printf("%s (%" PRIgdp_recno " recs)\n", gcl_pname, max_recno);
 
 	size_t file_offset = 0;
-	gcl_log_header log_header;
-	gcl_log_record record;
+	gcl_log_header_t log_header;
+	gcl_log_record_t record;
 	if (fread(&log_header, sizeof log_header, 1, data_fp) != 1)
 	{
 		fprintf(stderr, "fread() failed while reading log_header, ferror = %d\n",
@@ -483,7 +483,7 @@ list_gcls(const char *gcl_dir_name, int plev)
 
 			// we're only interested in .data files
 			char *p = strrchr(dent->d_name, '.');
-			if (p == NULL || strcmp(p, GCL_DATA_SUFFIX) != 0)
+			if (p == NULL || strcmp(p, GCL_LDF_SUFFIX) != 0)
 				continue;
 
 			// strip off the ".data"

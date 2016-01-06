@@ -57,26 +57,23 @@ uint32_t	GdpSignatureStrictness;		// how strongly we enforce signatures
 #define GDP_SIG_PUBKEYREQ	0x04		// public key must exist
 
 /*
-**  Private GCL definitions for gdpd only
+**  Private GCL definitions for gdplogd only
 **
 **		The gcl field is because the LIST macros don't understand
 **		having the links in a substructure (i.e., I can't link a
 **		gdp_gcl_xtra to a gdp_gcl).
 */
 
+typedef struct physinfo	gcl_physinfo_t;
 struct gdp_gcl_xtra
 {
 	// declarations relating to semantics
 	gdp_gcl_t			*gcl;			// enclosing GCL
-
-	// physical implementation declarations
-	long				ver;			// version number of on-disk file
-	FILE				*fp;			// pointer to the on-disk file
-	struct log_index	*log_index;		// recno -> offset index
-	off_t				data_offset;	// offset for start of data
 	uint16_t			nmetadata;		// number of metadata entries
 	uint16_t			log_type;		// from log header
-	gdp_recno_t			recno_offset;	// recno offset (first stored recno - 1)
+
+	// physical implementation declarations
+	gcl_physinfo_t		*physinfo;		// info needed by physical module
 };
 
 

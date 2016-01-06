@@ -111,9 +111,8 @@ gcl_close(gdp_gcl_t *gcl)
 	if (gcl->x == NULL)
 		return;
 
-	// close the underlying files
-	if (gcl->x->fp != NULL)
-		gcl_physclose(gcl);
+	// close the underlying files and free memory as needed
+	gcl_physclose(gcl);
 
 	ep_mem_free(gcl->x);
 	gcl->x = NULL;
