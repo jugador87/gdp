@@ -26,7 +26,11 @@ platform() {
     local result=""
     local arch=`arch`
 
-    if [ -f "/etc/lsb-release" ]; then
+    if [ -f "/etc/os-release" ]; then
+	. /etc/os-release
+	result="${ID-}"
+    fi
+    if [ -z "$result" -a -f "/etc/lsb-release" ]; then
 	. /etc/lsb-release
 	result="${DISTRIB_ID-}"
     fi
@@ -42,7 +46,7 @@ platform() {
     fi
     result=`echo $result | tr '[A-Z]' '[a-z]'`
     if [ "$result" = "linux" ]; then
-	result=`cat /etc/issue | sed 's/ .*//' | tr '[A-Z]' '[a-z]'`
+	result=`head -1 /etc/issue | sed 's/ .*//' | tr '[A-Z]' '[a-z]'`
     fi
 
     eval $__resultvar="$result"
