@@ -113,6 +113,7 @@ case "$OS" in
 	package libjansson-dev
 	package libavahi-common-dev
 	package libavahi-client-dev
+	package avahi-daemon
 	;;
 
     "darwin")
