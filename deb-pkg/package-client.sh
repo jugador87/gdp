@@ -7,10 +7,9 @@
 if [ $# -gt 0 ]; then
     VER=$1
     MAJVER=`echo $VER | cut -d '.' -f 1`
-    MINVER=`echo $VER | cut -d '.' -f 2 | cut -d '-' -f 1`
-    REVVER=`echo $VER | cut -d '-' -f 2`
+    MINVER=`echo $VER | cut -d '.' -f 2`
 else
-    echo "Usage: $0 <version (format: X.Y-Z)>"
+    echo "Usage: $0 <version (format: X.Y>"
     exit 1
 fi
 
@@ -24,7 +23,7 @@ rm -rf $tmpdir
 mkdir $tmpdir
 
 # invoke 'make'
-cd $topdir && make clean && make all 
+cd $topdir && make all 
 
 # copy files
 

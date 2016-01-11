@@ -8,7 +8,7 @@
 if [ $# -gt 0 ]; then
     VER=$1
 else
-    echo "Usage: $0 <version (format: X.Y-Z)>"
+    echo "Usage: $0 <version (format: X.Y)>"
     exit 1
 fi
 
