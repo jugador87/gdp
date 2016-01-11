@@ -29,18 +29,22 @@ def generate_random_data(N, count):
     return ret
 
 
-def main(name_str, keyfile):
+def main(name_str, keyfile=None):
 
-    skey = gdp.EP_CRYPTO_KEY(filename=keyfile,
+    if keyfile is not None:
+        skey = gdp.EP_CRYPTO_KEY(filename=keyfile,
                                 keyform=gdp.EP_CRYPTO_KEYFORM_PEM,
                                 flags=gdp.EP_CRYPTO_F_SECRET)
+        open_info = {'skey': skey}
+
+    else:
+        open_info = {}
 
     gcl_name = gdp.GDP_NAME(name_str)
 
     print "opening gcl", "".join(
                         ["%0.2x" % ord(x) for x in gcl_name.internal_name()])
-    gcl_handle = gdp.GDP_GCL(gcl_name, gdp.GDP_MODE_RA,
-                                open_info={'skey':skey})
+    gcl_handle = gdp.GDP_GCL(gcl_name, gdp.GDP_MODE_RA, open_info)
 
     # the data that will be written
     data = generate_random_data(100, 10)
@@ -69,10 +73,16 @@ def main(name_str, keyfile):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 3:
-        print "Usage: %s <gcl_name> <signing-key-file>" % sys.argv[0]
+    if len(sys.argv) < 2:
+        print "Usage: %s <gcl_name> [<signing-key-file>]" % sys.argv[0]
         sys.exit(1)
+
+    name_str = sys.argv[1]
+    if len(sys.argv)>=3:
+        keyfile = sys.argv[2]
+    else:
+        keyfile = None
 
     # Change this to point to a gdp_router
     gdp.gdp_init()
-    main(sys.argv[1], sys.argv[2])   # create a GCL with the given name
+    main(name_str, keyfile)   # create a GCL with the given name

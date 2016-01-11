@@ -13,6 +13,7 @@ def main(name_str, start, stop):
 
     # create a python object
     gcl_name = gdp.GDP_NAME(name_str)
+    print gcl_name.printable_name()
 
     # Assume that the GCL already exists
     gcl_handle = gdp.GDP_GCL(gcl_name, gdp.GDP_MODE_RO)
