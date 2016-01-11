@@ -30,10 +30,12 @@ cd $topdir && make all
 # ep header files
 mkdir -p $tmpdir/usr/include/ep
 install -m 0644 $topdir/ep/*.h          $tmpdir/usr/include/ep/
+install -m 0644 $topdir/ep/LICENSE      $tmpdir/usr/include/ep/
 
 # gdp header files
 mkdir -p $tmpdir/usr/include/gdp
 install -m 0644 $topdir/gdp/*.h         $tmpdir/usr/include/gdp/
+install -m 0644 $topdir/gdp/LICENSE     $tmpdir/usr/include/gdp/
 
 # documentation
 mkdir -p $tmpdir/usr/share/doc/gdp
