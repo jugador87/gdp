@@ -29,7 +29,6 @@
 */
 
 #include "logd.h"
-#include "logd_physlog.h"
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.gcl", "GDP Log Daemon GCL handling");
 

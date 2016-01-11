@@ -36,43 +36,15 @@
 /*
 **	Headers for the physical log implementation.
 **		This is how bytes are actually laid out on the disk.
+**		This module is private to the physical layer, but it is
+**			used by apps/log-view since that needs to crack the
+**			physical layout.
 */
 
-EP_STAT			gcl_physlog_init();
-
-EP_STAT			gcl_offset_cache_init(
-						gdp_gcl_t *gcl);
-
-EP_STAT			gcl_physread(
-						gdp_gcl_t *gcl,
-						gdp_datum_t *datum);
-
-EP_STAT			gcl_physcreate(
-						gdp_gcl_t *pgcl,
-						gdp_gclmd_t *gmd);
-
-EP_STAT			gcl_physopen(
-						gdp_gcl_t *gcl);
-
-EP_STAT			gcl_physclose(
-						gdp_gcl_t *gcl);
-
-EP_STAT			gcl_physappend(
-						gdp_gcl_t *gcl,
-						gdp_datum_t *datum);
-
-EP_STAT			gcl_physgetmetadata(
-						gdp_gcl_t *gcl,
-						gdp_gclmd_t **gmdp);
-
-void			gcl_physforeach(
-						void (*func)(
-							gdp_name_t name,
-							void *ctx),
-						void *ctx);
-
+// default directory for GCL storage
 #define GCL_DIR				"/var/swarm/gdp/gcls"
 
+// magic numbers and versions for on-disk structures
 #define GCL_LDF_MAGIC		UINT32_C(0x47434C31)	// 'GCL1'
 #define GCL_LDF_VERSION		UINT32_C(20151001)		// on-disk version
 #define GCL_LDF_MINVERS		UINT32_C(20151001)		// lowest readable version
@@ -85,7 +57,7 @@ void			gcl_physforeach(
 #define GCL_LXF_MAXVERS		UINT32_C(20160101)		// highest readable version
 #define GCL_LXF_SUFFIX		".gdpndx"
 
-#define GCL_READ_BUFFER_SIZE 4096
+#define GCL_READ_BUFFER_SIZE 4096			// size of I/O buffers
 
 
 /*
@@ -121,8 +93,8 @@ void			gcl_physforeach(
 **		by applications.
 */
 
-// an individual record
-typedef struct gcl_log_record
+// an individual record in an extent
+typedef struct
 {
 	gdp_recno_t		recno;
 	EP_TIME_SPEC	timestamp;
@@ -132,14 +104,14 @@ typedef struct gcl_log_record
 	int64_t			data_length;
 	char			data[0];
 										// signature is after the data
-} gcl_log_record_t;
+} extent_record_t;
 
 
-// a data file header
-typedef struct gcl_log_header
+// a data extent file header
+typedef struct
 {
-	uint32_t	magic;
-	uint32_t	version;
+	uint32_t	magic;			// GCL_LDF_MAGIC
+	uint32_t	version;		// GCL_LDF_VERSION
 	uint32_t	header_size; 	// the total size of the header such that
 								// the data records begin at offset header_size
 	uint32_t	reserved1;		// reserved for future use
@@ -148,34 +120,133 @@ typedef struct gcl_log_header
 	uint32_t	extent;			// extent number
 	uint64_t	reserved2;		// reserved for future use
 	gdp_name_t	gname;			// the name of this log
-	gdp_recno_t	recno_offset;	// record number offset (first stored recno - 1)
-} gcl_log_header_t;
+	gdp_recno_t	min_recno;		// first recno stored in this extent
+} extent_header_t;
 
 
 /*
-**  On-disk index record format.
+**  In-Memory representation of Per-Extent info
 */
 
-typedef struct gcl_index_entry
+typedef struct
+{
+	FILE				*fp;					// file pointer to extent
+	uint32_t			ver;					// on-disk file version
+	int					extno;					// extent number
+	size_t				header_size;			// size of extent file hdr
+	gdp_recno_t			min_recno;				// minimum recno in extent
+	gdp_recno_t			max_recno;				// maximum recno in extent
+	off_t				max_offset;				// size of extent file
+} extent_t;
+
+
+/*
+**  On-disk index record format
+**
+**		Currently the index consists of (essentially) an array of fixed
+**		size entries.  The index header contains the record offset (i.e.,
+**		the lowest record number that can be accessed).
+**
+**		The index covers the entirety of the log (i.e., not just one
+**		extent), so any records numbered below that first record number
+**		are inaccessible at any location.  Each index entry contains the
+**		extent number in which the record occurs and the offset into that
+**		extent file.  In theory records could be interleaved between
+**		extents, but that's not how things work now.
+**
+**		At some point it may be that the local server doesn't have all
+**		the extents for a given log.  Figuring out the physical location
+**		of an extent from the index is not addressed here.
+**		(The current implementation assumes that all extents are local.)
+**
+**		The index is not intended to have unique information.  Given the
+**		set of extent files, it should be possible to rebuild the index.
+*/
+
+typedef struct index_entry
 {
 	gdp_recno_t	recno;			// record number
 	int64_t		offset;			// offset into extent file
 	uint32_t	extent;			// id of extent (for segmented logs)
-} gcl_index_entry_t;
+	uint32_t	reserved;		// make padding explicit
+} index_entry_t;
 
-typedef struct gcl_index_header
+typedef struct index_header
 {
-	uint32_t	magic;
-	uint32_t	version;
-	uint32_t	header_size;
-	uint32_t	reserved1;
-	gdp_recno_t	first_recno;
-} gcl_index_header_t;
+	uint32_t	magic;			// GCL_LDX_MAGIC
+	uint32_t	version;		// GCL_LDX_VERSION
+	uint32_t	header_size;	// offset to first index entry
+	uint32_t	reserved1;		// must be zero
+	gdp_recno_t	min_recno;		// the first record number in the log
+} index_header_t;
 
-// return maximum record number for a given GCL
-extern gdp_recno_t	gcl_max_recno(gdp_gcl_t *gcl);
+#define SIZEOF_INDEX_HEADER		(sizeof(index_header_t))
+#define SIZEOF_INDEX_RECORD		(sizeof(index_entry_t))
 
-#define SIZEOF_INDEX_HEADER		(sizeof(gcl_index_header_t))
-#define SIZEOF_INDEX_RECORD		(sizeof(gcl_index_entry_t))
+
+/*
+**  The in-memory cache of the physical index data.
+**
+**		This doesn't necessarily cover the entire index if the index
+**		gets large.
+**
+**		This is currently a circular buffer, but that's probably
+**		not the best representation since we could potentially have
+**		multiple readers accessing wildly different parts of the
+**		cache.  Applications trying to do historic summaries will
+**		be particularly problematic.
+*/
+
+typedef struct
+{
+	size_t				max_size;			// number of entries in data
+	size_t				current_size;		// number of filled entries in data
+	index_entry_t		*next_append;		// XXX ???
+	index_entry_t		data[];
+} index_cache_t;
+
+
+/*
+**  The in-memory representation of the on-disk log index.
+*/
+
+struct phys_index
+{
+	// information about on-disk format
+	FILE				*fp;					// recno -> offset file handle
+	int64_t				max_offset;				// size of index file
+	size_t				header_size;			// size of hdr in index file
+
+	// a cache of the contents
+	index_cache_t		cache;					// in-memory cache
+};
+
+
+/*
+**  Per-log info.
+**
+**		There is no single instantiation of a log, so this is really
+**		a representation of an abstraction.  It includes information
+**		about all extents and the index.
+*/
+
+struct physinfo
+{
+	// reading and writing to the log requires holding this lock
+	EP_THR_RWLOCK		lock;
+
+	// info regarding the entire log (not extent)
+	gdp_recno_t			min_recno;				// first recno in log
+	gdp_recno_t			max_recno;				// last recno in log (dynamic)
+	uint16_t			num_metadata_entries;	// number of metadata entries
+
+	// info regarding the extent files
+	int					nextents;				// number of extents
+	extent_t			**extents;				// list of extent pointers
+												// can be dynamically expanded
+
+	// info regarding the index file
+	struct phys_index	index;
+};
 
 #endif //_GDPLOGD_PHYSLOG_H_

@@ -29,7 +29,6 @@
 */
 
 #include "logd.h"
-#include "logd_physlog.h"
 #include "logd_pubsub.h"
 
 #include <gdp/gdp_gclmd.h>

@@ -195,7 +195,7 @@ show_metadata(int nmds, FILE *dfp, size_t *foffp, int plev)
 
 
 int
-show_record(gcl_log_record_t *rec, FILE *dfp, size_t *foffp, int plev)
+show_record(extent_record_t *rec, FILE *dfp, size_t *foffp, int plev)
 {
 	rec->recno = ep_net_ntoh64(rec->recno);
 	ep_net_ntoh_timespec(&rec->timestamp);
@@ -286,7 +286,7 @@ show_gcl_index(const char *index_filename, int plev)
 		goto fail0;
 	}
 
-	gcl_index_header_t index_header;
+	index_header_t index_header;
 
 	index_header.magic = 0;
 	if (st.st_size < SIZEOF_INDEX_HEADER)
@@ -305,11 +305,11 @@ show_gcl_index(const char *index_filename, int plev)
 	}
 
 	printf("Index header: magic=%04" PRIx32 ", vers=%" PRId32
-			", header_size=%" PRId32 ", first_recno=%" PRIgdp_recno "\n",
+			", header_size=%" PRId32 ", min_recno=%" PRIgdp_recno "\n",
 			index_header.magic, index_header.version,
-			index_header.header_size, index_header.first_recno);
+			index_header.header_size, index_header.min_recno);
 	return ((st.st_size - index_header.header_size) / SIZEOF_INDEX_RECORD)
-				+ index_header.first_recno;
+				+ index_header.min_recno;
 
 no_header:
 	fclose(index_fp);
@@ -369,8 +369,8 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	printf("%s (%" PRIgdp_recno " recs)\n", gcl_pname, max_recno);
 
 	size_t file_offset = 0;
-	gcl_log_header_t log_header;
-	gcl_log_record_t record;
+	extent_header_t log_header;
+	extent_record_t record;
 	if (fread(&log_header, sizeof log_header, 1, data_fp) != 1)
 	{
 		fprintf(stderr, "fread() failed while reading log_header, ferror = %d\n",
@@ -384,7 +384,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 			ep_net_ntoh16(log_header.num_metadata_entries);
 	log_header.log_type = ep_net_ntoh16(log_header.log_type);
 	log_header.extent = ep_net_ntoh16(log_header.log_type);
-	log_header.recno_offset = ep_net_ntoh64(log_header.recno_offset);
+	log_header.min_recno = ep_net_ntoh64(log_header.min_recno);
 
 	if (plev >= GDP_PR_BASIC)
 	{
@@ -396,8 +396,8 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 				log_header.magic, log_header.version, log_header.log_type);
 		printf("\tname = %s\n",
 				gdp_printable_name(log_header.gname, pname));
-		printf("\textent = %" PRIu32 ", recno_offset = %" PRIu64 "\n",
-				log_header.extent, log_header.recno_offset);
+		printf("\textent = %" PRIu32 ", min_recno = %" PRIu64 "\n",
+				log_header.extent, log_header.min_recno);
 		printf("\theader size = %" PRId32 " (0x%" PRIx32 ")"
 				", metadata entries = %d\n",
 				log_header.header_size, log_header.header_size,

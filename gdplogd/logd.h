@@ -130,4 +130,42 @@ extern void		sub_send_message_notification(
 					gdp_datum_t *datum,
 					int cmd);
 
+/*
+**  Physical API --- these are the routines that implement the
+**			on-disk structure.
+*/
+
+EP_STAT			gcl_physlog_init();
+
+EP_STAT			gcl_offset_cache_init(
+						gdp_gcl_t *gcl);
+
+EP_STAT			gcl_physread(
+						gdp_gcl_t *gcl,
+						gdp_datum_t *datum);
+
+EP_STAT			gcl_physcreate(
+						gdp_gcl_t *pgcl,
+						gdp_gclmd_t *gmd);
+
+EP_STAT			gcl_physopen(
+						gdp_gcl_t *gcl);
+
+EP_STAT			gcl_physclose(
+						gdp_gcl_t *gcl);
+
+EP_STAT			gcl_physappend(
+						gdp_gcl_t *gcl,
+						gdp_datum_t *datum);
+
+EP_STAT			gcl_physgetmetadata(
+						gdp_gcl_t *gcl,
+						gdp_gclmd_t **gmdp);
+
+void			gcl_physforeach(
+						void (*func)(
+							gdp_name_t name,
+							void *ctx),
+						void *ctx);
+
 #endif //_GDPLOGD_H_

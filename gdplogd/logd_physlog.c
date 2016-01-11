@@ -29,7 +29,6 @@
 */
 
 #include "logd.h"
-#include "logd_circular_buffer.h"
 #include "logd_physlog.h"
 
 #include <gdp/gdp_buf.h>
@@ -61,52 +60,6 @@ static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.physlog",
 
 static const char	*GCLDir;		// the gcl data directory
 
-
-/*
-**  Per-Extent info.
-*/
-
-typedef struct
-{
-	FILE				*fp;					// file pointer to extent
-	uint32_t			ver;					// on-disk file version
-	int					extno;					// extent number
-	size_t				header_size;			// size of extent file hdr
-	gdp_recno_t			min_recno;				// minimum recno in extent
-	gdp_recno_t			max_recno;				// maximum recno in extent
-	off_t				max_offset;				// size of extent file
-} extent_t;
-
-
-/*
-**  Per-log info.
-**		This info is limited to that needed by the physical module only.
-**		Using a circular buffer for the cache probably isn't optimal.
-*/
-
-struct indexinfo
-{
-	FILE				*fp;					// recno -> offset file handle
-	int64_t				max_offset;				// size of index file
-	size_t				header_size;			// size of hdr in index file
-	CIRCULAR_BUFFER		*cache;					// in-memory cache
-};
-
-struct physinfo
-{
-	// reading and writing to the log requires holding this lock
-	EP_THR_RWLOCK		lock;
-
-	// info regarding the entire log
-	int64_t				max_recno;				// max recno in log (not extent)
-
-	// info regarding the extent files
-	int					nextents;				// number of extents
-	extent_t			**extents;				// list of extent pointers
-
-	// info regarding the index file
-	struct indexinfo	index;
-};
 
 
 /*
@@ -284,6 +237,12 @@ extent_free(extent_t *ext)
 	ep_mem_free(ext);
 }
 
+static extent_t *
+extent_get(gcl_physinfo_t *phys, gdp_recno_t recno)
+{
+	return phys->extents[0];
+}
+
 
 static gcl_physinfo_t *
 physinfo_alloc(gdp_gcl_t *gcl)
@@ -292,6 +251,8 @@ physinfo_alloc(gdp_gcl_t *gcl)
 
 	if (phys == NULL)
 		goto fail0;
+	phys->num_metadata_entries = -1;
+
 	if (ep_thr_rwlock_init(&phys->lock) != 0)
 		goto fail1;
 
@@ -344,6 +305,33 @@ physinfo_free(gcl_physinfo_t *phys)
 }
 
 
+EP_STAT
+xcache_create(gcl_physinfo_t *phys)
+{
+	return EP_STAT_OK;
+}
+
+
+index_entry_t *
+xcache_get(gcl_physinfo_t *phys, gdp_recno_t recno)
+{
+	return NULL;
+}
+
+void
+xcache_put(gcl_physinfo_t *phys, gdp_recno_t recno, off_t off)
+{
+	return;
+}
+
+void
+xcache_free(gcl_physinfo_t *phys)
+{
+	return;
+}
+
+
+#if 0
 /*
 **  The index cache gives you offsets into a GCL by record number.
 **
@@ -360,71 +348,67 @@ gcl_index_create_cache(gcl_physinfo_t *phys)
 
 	int cache_size = ep_adm_getintparam("swarm.gdplogd.index.cachesize", 65536);
 								// 1 MiB index cache
-	phys->index.cache = circular_buffer_new(cache_size);
-	if (phys->index.cache == NULL)
-		return ep_stat_from_errno(errno);
+	circular_buffer_init(&phys->index.cache, cache_size);
 	return EP_STAT_OK;
 }
 
-EP_STAT
-gcl_index_cache_get(gcl_physinfo_t *phys, int64_t recno, int64_t *out)
+index_entry_t *
+gcl_index_cache_get(gcl_physinfo_t *phys, int64_t recno)
 {
-	EP_STAT estat = EP_STAT_OK;
+	index_entry_t *r;
 
 	ep_thr_rwlock_rdlock(&phys->lock);
-	LONG_LONG_PAIR *found = circular_buffer_search(phys->index.cache, recno);
-	if (found != NULL)
-	{
-		*out = found->value;
-	}
-	else
-	{
-		*out = INT64_MAX;
-	}
+	r = circular_buffer_search(&phys->index.cache, recno);
 	ep_thr_rwlock_unlock(&phys->lock);
 
-	return estat;
+	return r;
 }
 
 EP_STAT
 gcl_index_cache_put(gcl_physinfo_t *phys, int64_t recno, int64_t offset)
 {
 	EP_STAT estat = EP_STAT_OK;
-	LONG_LONG_PAIR new_pair;
+	index_entry_t new_pair;
 
 	new_pair.key = recno;
-	new_pair.value = offset;
+	new_pair.offset = offset;
 
 	circular_buffer_append(phys->index.cache, new_pair);
 
 	return estat;
 }
+#endif // 0
 
 
 /*
-**  GCL_PHYSCREATE --- create a brand new GCL on disk
+**  EXTENT_CREATE --- create a new extent on disk
 */
 
 EP_STAT
-gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
+extent_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd, int extno)
 {
 	EP_STAT estat = EP_STAT_OK;
-	FILE *data_fp;
-	FILE *index_fp;
+	FILE *data_fp = NULL;
 	gcl_physinfo_t *phys;
+	extent_t *ext;
 
 	EP_ASSERT_POINTER_VALID(gcl);
+	EP_ASSERT_POINTER_VALID(gcl->x);
+	EP_ASSERT_POINTER_VALID(gcl->x->physinfo);
+	phys = gcl->x->physinfo;
 
-	// allocate space for the physical information
-	phys = physinfo_alloc(gcl);
-	if (phys == NULL)
-		goto fail1;
-
-	// allocate a name
-	if (!gdp_name_is_valid(gcl->name))
+	if (extno >= phys->nextents)
 	{
-		_gdp_gcl_newname(gcl);
+		// create enough space to store the new extent
+		phys->extents = ep_mem_realloc(phys->extents,
+				(extno + 1) * sizeof (extent_t *));
+		memset(phys->extents[phys->nextents], 0,
+				(extno - phys->nextents) * sizeof (extent_t *));
+		phys->nextents = extno + 1;
 	}
+	EP_ASSERT(phys->extents[extno] == NULL);
+	phys->extents[extno] = ext = ep_mem_zalloc(sizeof *phys->extents[extno]);
+
 
 	// create a file node representing the gcl
 	{
@@ -460,6 +444,135 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 		}
 	}
 
+	// write the extent header
+	{
+		extent_header_t ext_hdr;
+		size_t metadata_size = 0;
+
+		if (gmd == NULL)
+		{
+			ext_hdr.num_metadata_entries = 0;
+		}
+		else
+		{
+			// allow space for id and length fields
+			metadata_size = gmd->nused * 2 * sizeof (uint32_t);
+			gcl->x->nmetadata = gmd->nused;
+			ext_hdr.num_metadata_entries = ep_net_hton16(gmd->nused);
+
+			// compute the space needed for the data fields
+			int i;
+			for (i = 0; i < gmd->nused; i++)
+				metadata_size += gmd->mds[i].md_len;
+		}
+
+		extent_t *ext = phys->extents[extno];
+		EP_ASSERT_POINTER_VALID(ext);
+
+		ext->ver = GCL_LDF_VERSION;
+		ext->extno = extno;
+		ext->max_offset = sizeof ext_hdr + metadata_size;
+
+		ext_hdr.magic = ep_net_hton32(GCL_LDF_MAGIC);
+		ext_hdr.version = ep_net_hton32(GCL_LDF_VERSION);
+		ext_hdr.header_size = ep_net_ntoh32(ext->max_offset);
+		ext_hdr.reserved1 = 0;
+		ext_hdr.log_type = ep_net_hton16(0);		// unused for now
+		ext_hdr.extent = ep_net_hton16(extno);
+		ext_hdr.reserved2 = 0;
+		memcpy(ext_hdr.gname, gcl->name, sizeof ext_hdr.gname);
+		ext_hdr.min_recno = 1;
+
+		fwrite(&ext_hdr, sizeof ext_hdr, 1, data_fp);
+	}
+
+	// write metadata
+	if (gmd != NULL)
+	{
+		int i;
+
+		// first the id and length fields
+		for (i = 0; i < gmd->nused; i++)
+		{
+			uint32_t t32;
+
+			t32 = ep_net_hton32(gmd->mds[i].md_id);
+			fwrite(&t32, sizeof t32, 1, data_fp);
+			t32 = ep_net_hton32(gmd->mds[i].md_len);
+			fwrite(&t32, sizeof t32, 1, data_fp);
+		}
+
+		// ... then the actual data
+		for (i = 0; i < gmd->nused; i++)
+		{
+			fwrite(gmd->mds[i].md_data, gmd->mds[i].md_len, 1, data_fp);
+		}
+	}
+
+	// make sure all header information is written on disk
+	// XXX arguably this should use fsync(), but that's expensive
+	if (fflush(data_fp) != 0 || ferror(data_fp))
+		goto fail2;
+
+	// success!
+	fflush(data_fp);
+	flock(fileno(data_fp), LOCK_UN);
+	ep_dbg_cprintf(Dbg, 10, "Created GCL Extent %s-%06d\n",
+			gcl->pname, extno);
+	return estat;
+
+fail2:
+	estat = ep_stat_from_errno(errno);
+	if (data_fp != NULL)
+		fclose(data_fp);
+fail1:
+	// turn OK into an errno-based code
+	if (EP_STAT_ISOK(estat))
+		estat = ep_stat_from_errno(errno);
+
+	// turn "file exists" into a meaningful response code
+	if (EP_STAT_IS_SAME(estat, ep_stat_from_errno(EEXIST)))
+			estat = GDP_STAT_NAK_CONFLICT;
+
+	if (ep_dbg_test(Dbg, 1))
+	{
+		char ebuf[100];
+
+		ep_dbg_printf("Could not create GCL Handle: %s\n",
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
+	return estat;
+}
+
+
+/*
+**  GCL_PHYSCREATE --- create a brand new GCL on disk
+*/
+
+EP_STAT
+gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
+{
+	EP_STAT estat = EP_STAT_OK;
+	FILE *index_fp;
+	gcl_physinfo_t *phys;
+
+	EP_ASSERT_POINTER_VALID(gcl);
+
+	// allocate space for the physical information
+	phys = physinfo_alloc(gcl);
+	if (phys == NULL)
+		goto fail1;
+	gcl->x->physinfo = phys;
+
+	// allocate a name
+	if (!gdp_name_is_valid(gcl->name))
+	{
+		_gdp_gcl_newname(gcl);
+	}
+
+	// create an initial extent for the GCL
+	estat = extent_create(gcl, gmd, 0);
+
 	// create an offset index for that gcl
 	{
 		int index_fd;
@@ -494,16 +607,15 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 		}
 	}
 
-
 	// write the index header
 	{
-		gcl_index_header_t index_header;
+		index_header_t index_header;
 
 		index_header.magic = GCL_LXF_MAGIC;
 		index_header.version = GCL_LXF_VERSION;
 		index_header.header_size = SIZEOF_INDEX_HEADER;
 		index_header.reserved1 = 0;
-		index_header.first_recno = 0;
+		index_header.min_recno = 1;
 
 		if (fwrite(&index_header, sizeof index_header, 1, index_fp) != 1)
 		{
@@ -512,84 +624,18 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 		}
 	}
 
-	// write the log header
-	{
-		gcl_log_header_t log_header;
-		size_t metadata_size = 0; // XXX: compute size of metadata
-		int i;
-
-		metadata_size = 0;
-		if (gmd == NULL)
-		{
-			log_header.num_metadata_entries = 0;
-		}
-		else
-		{
-			// allow space for id and length fields
-			metadata_size = gmd->nused * 2 * sizeof (uint32_t);
-			gcl->x->nmetadata = gmd->nused;
-			log_header.num_metadata_entries = ep_net_hton16(gmd->nused);
-
-			// compute the space needed for the data fields
-			for (i = 0; i < gmd->nused; i++)
-				metadata_size += gmd->mds[i].md_len;
-		}
-
-		phys->extents[0]->ver = GCL_LDF_VERSION;
-		phys->extents[0]->extno = 0;
-		phys->extents[0]->max_offset = sizeof log_header + metadata_size;
-
-		log_header.magic = ep_net_hton32(GCL_LDF_MAGIC);
-		log_header.version = ep_net_hton32(GCL_LDF_VERSION);
-		log_header.header_size = ep_net_ntoh32(phys->extents[0]->max_offset);
-		log_header.reserved1 = 0;
-		log_header.log_type = ep_net_hton16(0);		//XXX unused for now
-		log_header.extent = ep_net_hton16(0);		//XXX unused for now
-		log_header.reserved2 = 0;
-		memcpy(log_header.gname, gcl->name, sizeof log_header.gname);
-		log_header.recno_offset = 0;
-
-		fwrite(&log_header, sizeof log_header, 1, data_fp);
-	}
-
-	// write metadata
-	if (gmd != NULL)
-	{
-		int i;
-
-		// first the id and length fields
-		for (i = 0; i < gmd->nused; i++)
-		{
-			uint32_t t32;
-
-			t32 = ep_net_hton32(gmd->mds[i].md_id);
-			fwrite(&t32, sizeof t32, 1, data_fp);
-			t32 = ep_net_hton32(gmd->mds[i].md_len);
-			fwrite(&t32, sizeof t32, 1, data_fp);
-		}
-
-		// ... then the actual data
-		for (i = 0; i < gmd->nused; i++)
-		{
-			fwrite(gmd->mds[i].md_data, gmd->mds[i].md_len, 1, data_fp);
-		}
-	}
-
-	estat = gcl_index_create_cache(phys);
-	EP_STAT_CHECK(estat, goto fail3);
+	// create a cache for that index
+	estat = xcache_create(phys);
+	EP_STAT_CHECK(estat, goto fail2);
 
 	// success!
-	fflush(data_fp);
-	flock(fileno(data_fp), LOCK_UN);
 	phys->index.fp = index_fp;
-	phys->extents[0]->fp = data_fp;
-	ep_dbg_cprintf(Dbg, 10, "Created GCL Handle %s\n", gcl->pname);
+	ep_dbg_cprintf(Dbg, 10, "Created new GCL %s\n", gcl->pname);
 	return estat;
 
 fail3:
 	fclose(index_fp);
 fail2:
-	fclose(data_fp);
 fail1:
 	// turn OK into an errno-based code
 	if (EP_STAT_ISOK(estat))
@@ -603,7 +649,7 @@ fail1:
 	{
 		char ebuf[100];
 
-		ep_dbg_printf("Could not create GCL Handle: %s\n",
+		ep_dbg_printf("Could not create GCL: %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	return estat;
@@ -611,91 +657,139 @@ fail1:
 
 
 /*
-**	GCL_PHYSOPEN --- do physical open of a GCL
-**
-**		XXX: Should really specify whether we want to start reading:
-**		(a) At the beginning of the log (easy).	 This includes random
-**			access.
-**		(b) Anything new that comes into the log after it is opened.
-**			To do this we need to read the existing log to find the end.
+**  EXTENT_OPEN --- physically open an extent
 */
 
-EP_STAT
-gcl_physopen(gdp_gcl_t *gcl)
+static EP_STAT
+extent_open(gdp_gcl_t *gcl, uint32_t extno, extent_t **extp)
 {
-	EP_STAT estat = EP_STAT_OK;
-	int fd;
+	EP_STAT estat;
 	FILE *data_fp;
-	FILE *index_fp;
+	gcl_physinfo_t *phys;
+	extent_t *ext;
 	char data_pbuf[GCL_PATH_MAX];
-	char index_pbuf[GCL_PATH_MAX];
 
-	estat = get_gcl_path(gcl, 0, GCL_LDF_SUFFIX, data_pbuf, sizeof data_pbuf);
-	EP_STAT_CHECK(estat, goto fail0);
+	EP_ASSERT_POINTER_VALID(gcl);
+	EP_ASSERT_POINTER_VALID(gcl->x);
+	EP_ASSERT_POINTER_VALID(gcl->x->physinfo);
 
-	estat = get_gcl_path(gcl, -1, GCL_LXF_SUFFIX, index_pbuf, sizeof index_pbuf);
-	EP_STAT_CHECK(estat, goto fail0);
-
-	fd = open(data_pbuf, O_RDWR | O_APPEND);
-	if (fd < 0 || flock(fd, LOCK_SH) < 0 ||
-			(data_fp = fdopen(fd, "a+")) == NULL)
+	phys = gcl->x->physinfo;
+	if (phys->nextents <= extno || phys->extents == NULL)
 	{
-		estat = ep_stat_from_errno(errno);
-		ep_dbg_cprintf(Dbg, 16, "gcl_physopen(%s): %s\n",
-				data_pbuf, strerror(errno));
-		if (fd >= 0)
-			close(fd);
-		goto fail0;
+		// not enough space for extent pointers allocated
+		phys->extents = ep_mem_realloc(phys->extents, 
+							extno * sizeof phys->extents[0]);
+		memset(&phys->extents[phys->nextents], 0,
+				(extno + 1 - phys->nextents) * sizeof phys->extents[0]);
+		phys->nextents = extno + 1;
+	}
+	ext = phys->extents[extno];
+	if (ext != NULL & ext->fp != NULL)
+	{
+		// we already know about this extent
+		return EP_STAT_OK;
+	}
+	if (ext == NULL)
+	{
+		// allocate space for new extent
+		phys->extents[extno] = ext = ep_mem_zalloc(sizeof *ext);
 	}
 
-	gcl_log_header_t log_header;
+	// figure out where the extent lives on disk
+	//XXX for the moment assume that it's on our local disk
+	estat = get_gcl_path(gcl, extno, GCL_LDF_SUFFIX,
+					data_pbuf, sizeof data_pbuf);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	// do the physical open
+	{
+		//XXX should open read only if this extent is now frozen
+		int fd = open(data_pbuf, O_RDWR | O_APPEND);
+
+		if (fd < 0 || flock(fd, LOCK_SH) < 0 ||
+				(data_fp = fdopen(fd, "a+")) == NULL)
+		{
+			estat = ep_stat_from_errno(errno);
+			ep_dbg_cprintf(Dbg, 16, "extent_open(%s): %s\n",
+					data_pbuf, strerror(errno));
+			if (fd >= 0)
+				close(fd);
+			goto fail0;
+		}
+	}
+
+	// read in the extent header
+	extent_header_t ext_hdr;
 	rewind(data_fp);
-	if (fread(&log_header, sizeof log_header, 1, data_fp) < 1)
+	if (fread(&ext_hdr, sizeof ext_hdr, 1, data_fp) < 1)
 	{
 		estat = ep_stat_from_errno(errno);
-		ep_log(estat, "gcl_physopen(%s): header read failure", data_pbuf);
+		ep_log(estat, "extent_open(%s): header read failure", data_pbuf);
 		goto fail1;
 	}
 
-	// on-disk format in network byte order
-	log_header.magic = ep_net_ntoh32(log_header.magic);
-	log_header.version = ep_net_ntoh32(log_header.version);
-	log_header.header_size = ep_net_ntoh32(log_header.header_size);
-	log_header.num_metadata_entries = ep_net_ntoh16(log_header.num_metadata_entries);
-	log_header.log_type = ep_net_ntoh16(log_header.log_type);
-	log_header.recno_offset = ep_net_ntoh64(log_header.recno_offset);
+	// convert on-disk format from network to host byte order
+	ext_hdr.magic = ep_net_ntoh32(ext_hdr.magic);
+	ext_hdr.version = ep_net_ntoh32(ext_hdr.version);
+	ext_hdr.header_size = ep_net_ntoh32(ext_hdr.header_size);
+	ext_hdr.num_metadata_entries = ep_net_ntoh16(ext_hdr.num_metadata_entries);
+	ext_hdr.log_type = ep_net_ntoh16(ext_hdr.log_type);
+	ext_hdr.min_recno = ep_net_ntoh64(ext_hdr.min_recno);
 
-	if (log_header.magic != GCL_LDF_MAGIC)
+	// validate the extent header
+	if (ext_hdr.magic != GCL_LDF_MAGIC)
 	{
 		estat = GDP_STAT_CORRUPT_GCL;
-		ep_log(estat, "gcl_physopen: bad magic: found: %" PRIx32
+		ep_log(estat, "extent_open: bad magic: found: %" PRIx32
 				", expected: %" PRIx32 "\n",
-				log_header.magic, GCL_LDF_MAGIC);
+				ext_hdr.magic, GCL_LDF_MAGIC);
 		goto fail1;
 	}
 
-	if (log_header.version < GCL_LDF_MINVERS ||
-			log_header.version > GCL_LDF_MAXVERS)
+	if (ext_hdr.version < GCL_LDF_MINVERS ||
+			ext_hdr.version > GCL_LDF_MAXVERS)
 	{
 		estat = GDP_STAT_GCL_VERSION_MISMATCH;
-		ep_log(estat, "gcl_physopen: bad version: found: %" PRIx32
+		ep_log(estat, "extent_open: bad version: found: %" PRIx32
 				", expected: %" PRIx32 "-%" PRIx32 "\n",
-				log_header.version, GCL_LDF_MINVERS, GCL_LDF_MAXVERS);
+				ext_hdr.version, GCL_LDF_MINVERS, GCL_LDF_MAXVERS);
 		goto fail1;
 	}
 
-	gcl->x->nmetadata = log_header.num_metadata_entries;
-	gcl->x->log_type = log_header.log_type;
+	// now we can interpret the data (for the extent)
+	ext->header_size = ext_hdr.header_size;
+	ext->min_recno = ext_hdr.min_recno;
 
-	// XXX: read metadata entries
-	if (log_header.num_metadata_entries > 0)
+	// interpret data (for the entire log)
+	if (extno == 0)
+		phys->min_recno = ext_hdr.min_recno;
+	gcl->x->nmetadata = ext_hdr.num_metadata_entries;
+	gcl->x->log_type = ext_hdr.log_type;
+
+	// interpret data (for the extent)
+	ext->fp = data_fp;
+	ext->ver = ext_hdr.version;
+	ext->header_size = ext_hdr.header_size;
+	ext->max_offset = fsizeof(data_fp);
+	ext->min_recno = ext_hdr.min_recno;
+	if (ext->min_recno <= 0)
+		ext->min_recno = 1;
+
+	if (phys->num_metadata_entries >= 0)
+	{
+		// this is the first extent opened, so we have the metadata
+		goto success;
+	}
+
+	// read metadata entries
+	if (ext_hdr.num_metadata_entries > 0)
 	{
 		int mdtotal = 0;
 		void *md_data;
 		int i;
 
-		gcl->gclmd = gdp_gclmd_new(log_header.num_metadata_entries);
-		for (i = 0; i < log_header.num_metadata_entries; i++)
+		gcl->gclmd = gdp_gclmd_new(ext_hdr.num_metadata_entries);
+		for (i = 0; i < ext_hdr.num_metadata_entries; i++)
 		{
 			uint32_t md_id;
 			uint32_t md_len;
@@ -722,6 +816,78 @@ gcl_physopen(gdp_gcl_t *gcl)
 		_gdp_gclmd_adddata(gcl->gclmd, md_data);
 	}
 
+success:
+	if (EP_STAT_ISOK(estat))
+		*extp = ext;
+	return estat;
+
+fail1:
+	fclose(data_fp);
+fail0:
+	return estat;
+}
+
+
+void
+extent_close(gdp_gcl_t *gcl, uint32_t extno)
+{
+	gcl_physinfo_t *phys = gcl->x->physinfo;
+	extent_t *ext;
+
+	if (phys->extents == NULL ||
+			phys->nextents < extno ||
+			(ext = phys->extents[extno]) == NULL)
+	{
+		// nothing to do
+		return;
+	}
+	if (ext->fp != NULL)
+		if (fclose(ext->fp) != 0)
+			(void) posix_error(errno, "extent_close: cannot fclose");
+	ext->fp = NULL;
+	ep_mem_free(ext);
+	phys->extents[extno] = NULL;
+}
+
+
+/*
+**	GCL_PHYSOPEN --- do physical open of a GCL
+**
+**		XXX: Should really specify whether we want to start reading:
+**		(a) At the beginning of the log (easy).	 This includes random
+**			access.
+**		(b) Anything new that comes into the log after it is opened.
+**			To do this we need to read the existing log to find the end.
+*/
+
+EP_STAT
+gcl_physopen(gdp_gcl_t *gcl)
+{
+	EP_STAT estat = EP_STAT_OK;
+	int fd;
+	FILE *index_fp;
+	int extno = 0;
+	extent_t *ext = NULL;
+	gcl_physinfo_t *phys;
+	char index_pbuf[GCL_PATH_MAX];
+
+	// allocate space for physical data
+	EP_ASSERT_REQUIRE(gcl->x->physinfo == NULL);
+	gcl->x->physinfo = phys = physinfo_alloc(gcl);
+	if (phys == NULL)
+	{
+		estat = ep_stat_from_errno(errno);
+		goto fail0;
+	}
+
+	// figure out where this thing lives
+	estat = get_gcl_path(gcl, -1, GCL_LXF_SUFFIX,
+					index_pbuf, sizeof index_pbuf);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	estat = extent_open(gcl, extno, &ext);
+	EP_STAT_CHECK(estat, goto fail0);
+
 	// open the index file
 	fd = open(index_pbuf, O_RDWR | O_APPEND);
 	if (fd < 0 || flock(fd, LOCK_SH) < 0 ||
@@ -735,7 +901,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 	}
 
 	// check for valid index header (distinguish old and new format)
-	gcl_index_header_t index_header;
+	index_header_t index_header;
 
 	index_header.magic = 0;
 	if (fsizeof(index_fp) < sizeof index_header)
@@ -744,8 +910,9 @@ gcl_physopen(gdp_gcl_t *gcl)
 	}
 	else if (fread(&index_header, sizeof index_header, 1, index_fp) != 1)
 	{
-		estat = posix_error(errno, "gcl_physopen(%s): index header read failure",
-						index_pbuf);
+		estat = posix_error(errno,
+					"gcl_physopen(%s): index header read failure",
+					index_pbuf);
 		goto fail0;
 	}
 	else if (index_header.magic == 0)
@@ -769,40 +936,27 @@ gcl_physopen(gdp_gcl_t *gcl)
 	if (index_header.magic == 0)
 	{
 		// old-style index; fake the header
-		index_header.first_recno = 0;
+		index_header.min_recno = 1;
 		index_header.header_size = 0;
 	}
 
-	gcl_physinfo_t *phys = physinfo_alloc(gcl);
-	if (phys == NULL)
-	{
-		estat = ep_stat_from_errno(errno);
-		goto fail0;
-	}
-
-	extent_t *ext = phys->extents[0];					//XXX
-	ext->extno = 0;
-	ext->fp = data_fp;
-	ext->ver = log_header.version;
-	ext->header_size = log_header.header_size;
-
-	estat = gcl_index_create_cache(phys);
+	// create a cache for the index information
+	//XXX should do data too, but that's harder because it's variable size
+	estat = xcache_create(phys);
 	EP_STAT_CHECK(estat, goto fail0);
-	gcl->x->physinfo = phys;
 
 	phys->index.fp = index_fp;
 	phys->index.max_offset = fsizeof(index_fp);
+	phys->min_recno = ext->min_recno;
 	phys->max_recno = ((phys->index.max_offset - index_header.header_size)
-							/ SIZEOF_INDEX_RECORD) - index_header.first_recno;
-	phys->extents[0]->max_offset = fsizeof(data_fp);
-	phys->extents[0]->min_recno = log_header.recno_offset;
+							/ SIZEOF_INDEX_RECORD) - index_header.min_recno;
 
 	gcl->nrecs = phys->max_recno;
 
 	return estat;
 
 fail1:
-	fclose(data_fp);
+	extent_close(gcl, extno);
 fail0:
 	// map errnos to appropriate NAK codes
 	if (EP_STAT_IS_SAME(estat, ep_stat_from_errno(ENOENT)))
@@ -850,7 +1004,8 @@ gcl_physread(gdp_gcl_t *gcl,
 	EP_ASSERT_POINTER_VALID(gcl->x->physinfo);
 	gcl_physinfo_t *phys = gcl->x->physinfo;
 	EP_STAT estat = EP_STAT_OK;
-	LONG_LONG_PAIR *long_pair;
+	index_entry_t index_entry;
+	index_entry_t *xent;
 	int64_t offset = INT64_MAX;
 
 	EP_ASSERT_POINTER_VALID(gcl);
@@ -859,107 +1014,82 @@ gcl_physread(gdp_gcl_t *gcl,
 
 	ep_thr_rwlock_rdlock(&phys->lock);
 
-	// first check if recno is in the index
-	long_pair = circular_buffer_search(phys->index.cache, datum->recno);
-	if (long_pair == NULL)
-	{
-		// recno is not in the index
-		// now binary search through the disk index
-		flockfile(phys->index.fp);
-
-		off_t file_size = fsizeof(phys->index.fp);
-		if (file_size < 0)
-		{
-			estat = ep_stat_from_errno(errno);
-			ep_log(estat, "gcl_physread: fsizeof failed");
-			goto fail1;
-		}
-		if (file_size < SIZEOF_INDEX_HEADER)
-		{
-			estat = GDP_STAT_CORRUPT_INDEX;
-			goto fail1;
-		}
-		int64_t record_count = (file_size - SIZEOF_INDEX_HEADER) /
-								SIZEOF_INDEX_RECORD;
-		gcl_index_entry_t index_entry;
-		size_t start = 0;
-		size_t end = record_count;
-		size_t mid;
-
-		ep_dbg_cprintf(Dbg, 14,
-				"searching index, rec_count=%" PRId64 ", file_size=%ju\n",
-				record_count, (uintmax_t) file_size);
-
-		/*
-		**  XXX Why can't this just be computed from the record number?
-		**		The on-disk format has to start at recno 1 (in fact, the
-		**		algorithm assumes that).  For that matter, the file doesn't
-		**		need the recno stored at all --- just take the offset
-		**		into the index file based on recno to get the offset into
-		**		the data file.
-		**
-		**		There is a possibility that the recnos may not start from
-		**		1.  But this is easily solved by including a header on the
-		**		index file (which should be there anyway) and storing the
-		**		initial recno in the header.  Either way it should be easy
-		**		to compute the index file offset without searching.
-		*/
-
-		while (start < end)
-		{
-			mid = start + (end - start) / 2;
-			ep_dbg_cprintf(Dbg, 47, "\t%zu ... %zu ... %zu\n", start, mid, end);
-			if (fseek(phys->index.fp, mid * sizeof index_entry, SEEK_SET) < 0)
-			{
-				estat = posix_error(errno, "gcl_physread: fseek failed");
-				funlockfile(phys->index.fp);
-				goto fail0;
-			}
-			if (fread(&index_entry, sizeof index_entry, 1, phys->index.fp) < 1)
-			{
-				estat = posix_error(errno, "gcl_physread: fread failed");
-				funlockfile(phys->index.fp);
-				goto fail0;
-			}
-
-			index_entry.recno = ep_net_ntoh64(index_entry.recno);
-			index_entry.offset = ep_net_ntoh64(index_entry.offset);
-
-			if (datum->recno < index_entry.recno)
-			{
-				end = mid;
-			}
-			else if (datum->recno > index_entry.recno)
-			{
-				start = mid + 1;
-			}
-			else
-			{
-				offset = index_entry.offset;
-				break;
-			}
-		}
-		funlockfile(phys->index.fp);
-	}
-	else
-	{
-		offset = long_pair->value;
-		ep_dbg_cprintf(Dbg, 14, "found in memory at %" PRId64 "\n", offset);
-	}
-
-	if (offset == INT64_MAX) // didn't find message
+	// verify that the recno is in range
+	if (datum->recno > phys->max_recno)
 	{
 		estat = EP_STAT_END_OF_FILE;
 		goto fail0;
 	}
 
+	// check if recno offset is in the index cache
+	xent = xcache_get(phys, datum->recno);
+	if (xent == NULL)
+	{
+		off_t xoff;
+
+		// recno is not in the index cache: read it from disk
+		flockfile(phys->index.fp);
+
+		xoff = (datum->recno - phys->min_recno) * SIZEOF_INDEX_RECORD +
+				phys->index.header_size;
+		ep_dbg_cprintf(Dbg, 14,
+				"gcl_physread: recno=%" PRIgdp_recno
+				", min_recno=%" PRIgdp_recno
+				", hdrsize=%zd, xoff=%jd\n",
+				datum->recno, phys->min_recno,
+				phys->index.header_size, (intmax_t) xoff);
+		if (xoff >= phys->index.max_offset || xoff < phys->index.header_size)
+		{
+			// computed offset is out of range
+			estat = GDP_STAT_CORRUPT_INDEX;
+			ep_log(estat, "gcl_physread: computed offset %jd out of range (%jd max)",
+					(intmax_t) xoff, (intmax_t) phys->index.max_offset);
+			goto fail3;
+		}
+		xent = &index_entry;
+
+		if (fseek(phys->index.fp, xoff, SEEK_SET) < 0)
+		{
+			estat = posix_error(errno, "gcl_physread: fseek failed");
+			goto fail3;
+		}
+		if (fread(xent, SIZEOF_INDEX_RECORD, 1, phys->index.fp) < 1)
+		{
+			estat = posix_error(errno, "gcl_physread: fread failed");
+			goto fail3;
+		}
+
+		ep_dbg_cprintf(Dbg, 14,
+				"got index entry: recno %" PRIgdp_recno ", extent %" PRIu32
+				", offset=%jd, rsvd=%" PRIu32 "\n",
+				xent->recno, xent->extent,
+				(intmax_t) xent->offset, xent->reserved); 
+
+fail3:
+		funlockfile(phys->index.fp);
+	}
+
+	EP_STAT_CHECK(estat, goto fail0);
+
+	// xent now points to the index entry
+
 	char read_buffer[GCL_READ_BUFFER_SIZE];
-	gcl_log_record_t log_record;
+	extent_record_t log_record;
+	extent_t *ext;
+
+	if (xent->extent > phys->nextents ||
+			(ext = phys->extents[xent->extent]) == NULL)
+	{
+		//XXX should initialize a new extent here.
+		//XXX but for now just fail.
+		estat = EP_STAT_END_OF_FILE;
+		goto fail0;
+	}
 
 	// read header
-	flockfile(phys->extents[0]->fp);
-	if (fseek(phys->extents[0]->fp, offset, SEEK_SET) < 0 ||
-			fread(&log_record, sizeof log_record, 1, phys->extents[0]->fp) < 1)
+	flockfile(ext->fp);
+	if (fseek(ext->fp, offset, SEEK_SET) < 0 ||
+			fread(&log_record, sizeof log_record, 1, ext->fp) < 1)
 	{
 		ep_dbg_cprintf(Dbg, 1, "gcl_physread: header fread failed: %s\n",
 				strerror(errno));
@@ -989,14 +1119,14 @@ gcl_physread(gdp_gcl_t *gcl,
 	char *phase = "data";
 	while (data_length >= sizeof read_buffer)
 	{
-		if (fread(read_buffer, sizeof read_buffer, 1, phys->extents[0]->fp) < 1)
+		if (fread(read_buffer, sizeof read_buffer, 1, ext->fp) < 1)
 			goto fail2;
 		gdp_buf_write(datum->dbuf, read_buffer, sizeof read_buffer);
 		data_length -= sizeof read_buffer;
 	}
 	if (data_length > 0)
 	{
-		if (fread(read_buffer, data_length, 1, phys->extents[0]->fp) < 1)
+		if (fread(read_buffer, data_length, 1, ext->fp) < 1)
 			goto fail2;
 		gdp_buf_write(datum->dbuf, read_buffer, data_length);
 	}
@@ -1015,7 +1145,7 @@ gcl_physread(gdp_gcl_t *gcl,
 			datum->sig = gdp_buf_new();
 		else
 			gdp_buf_reset(datum->sig);
-		if (fread(read_buffer, datum->siglen, 1, phys->extents[0]->fp) < 1)
+		if (fread(read_buffer, datum->siglen, 1, ext->fp) < 1)
 			goto fail2;
 		gdp_buf_write(datum->sig, read_buffer, datum->siglen);
 	}
@@ -1030,7 +1160,7 @@ fail2:
 		estat = ep_stat_from_errno(errno);
 	}
 fail1:
-	funlockfile(phys->extents[0]->fp);
+	funlockfile(ext->fp);
 fail0:
 	ep_thr_rwlock_unlock(&phys->lock);
 
@@ -1045,11 +1175,12 @@ EP_STAT
 gcl_physappend(gdp_gcl_t *gcl,
 			gdp_datum_t *datum)
 {
-	gcl_log_record_t log_record;
-	gcl_index_entry_t index_entry;
+	extent_record_t log_record;
+	index_entry_t index_entry;
 	size_t dlen = evbuffer_get_length(datum->dbuf);
 	int64_t record_size = sizeof log_record;
 	gcl_physinfo_t *phys = gcl->x->physinfo;
+	extent_t *ext = extent_get(phys, phys->max_recno + 1);
 	EP_STAT estat = EP_STAT_OK;
 
 	if (ep_dbg_test(Dbg, 14))
@@ -1070,14 +1201,14 @@ gcl_physappend(gdp_gcl_t *gcl,
 	log_record.sigmeta = ep_net_hton16(log_record.sigmeta);
 
 	// write log record header
-	fwrite(&log_record, sizeof log_record, 1, phys->extents[0]->fp);
+	fwrite(&log_record, sizeof log_record, 1, ext->fp);
 
 	// write log record data
 	if (dlen > 0)
 	{
 		unsigned char *p = evbuffer_pullup(datum->dbuf, dlen);
 		if (p != NULL)
-			fwrite(p, dlen, 1, phys->extents[0]->fp);
+			fwrite(p, dlen, 1, ext->fp);
 		record_size += dlen;
 	}
 
@@ -1088,7 +1219,7 @@ gcl_physappend(gdp_gcl_t *gcl,
 		unsigned char *p = evbuffer_pullup(datum->sig, slen);
 		EP_ASSERT_INSIST(datum->siglen == slen);
 		if (slen > 0 && p != NULL)
-			fwrite(p, slen, 1, phys->extents[0]->fp);
+			fwrite(p, slen, 1, ext->fp);
 		record_size += slen;
 	}
 	else if (datum->siglen > 0)
@@ -1099,23 +1230,23 @@ gcl_physappend(gdp_gcl_t *gcl,
 	}
 
 	index_entry.recno = log_record.recno;
-	index_entry.offset = ep_net_hton64(phys->extents[0]->max_offset);
+	index_entry.offset = ep_net_hton64(ext->max_offset);
 	index_entry.extent = 0;		//XXX someday
 
 	// write index record
 	fwrite(&index_entry, sizeof index_entry, 1, phys->index.fp);
 
 	// commit
-	if (fflush(phys->extents[0]->fp) < 0 || ferror(phys->extents[0]->fp))
+	if (fflush(ext->fp) < 0 || ferror(ext->fp))
 		estat = posix_error(errno, "gcl_physappend: cannot flush data");
-	else if (fflush(phys->index.fp) < 0 || ferror(phys->extents[0]->fp))
+	else if (fflush(phys->index.fp) < 0 || ferror(ext->fp))
 		estat = posix_error(errno, "gcl_physappend: cannot flush index");
 	else
 	{
-		gcl_index_cache_put(phys, index_entry.recno, index_entry.offset);
+		xcache_put(phys, index_entry.recno, index_entry.offset);
 		++phys->max_recno;
 		phys->index.max_offset += sizeof index_entry;
-		phys->extents[0]->max_offset += record_size;
+		ext->max_offset += record_size;
 	}
 
 	ep_thr_rwlock_unlock(&phys->lock);
@@ -1152,6 +1283,7 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 	int i;
 	size_t tlen;
 	gcl_physinfo_t *phys = gcl->x->physinfo;
+	extent_t *ext = extent_get(phys, 0);
 	EP_STAT estat = EP_STAT_OK;
 
 	ep_dbg_cprintf(Dbg, 29, "gcl_physgetmetadata: nmetadata %d\n",
@@ -1168,7 +1300,7 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 
 	// seek to the metadata area
 	STDIOCHECK("gcl_physgetmetadata: fseek#0", 0,
-			fseek(phys->extents[0]->fp, sizeof (struct gcl_log_header), SEEK_SET));
+			fseek(ext->fp, sizeof (extent_header_t), SEEK_SET));
 
 	// read in the individual metadata headers
 	tlen = 0;
@@ -1177,10 +1309,10 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 		uint32_t t32;
 
 		STDIOCHECK("gcl_physgetmetadata: fread#0", 1,
-				fread(&t32, sizeof t32, 1, phys->extents[0]->fp));
+				fread(&t32, sizeof t32, 1, ext->fp));
 		gmd->mds[i].md_id = t32;
 		STDIOCHECK("gcl_physgetmetadata: fread#1", 1,
-				fread(&t32, sizeof t32, 1, phys->extents[0]->fp));
+				fread(&t32, sizeof t32, 1, ext->fp));
 		gmd->mds[i].md_len = t32;
 		tlen += t32;
 		ep_dbg_cprintf(Dbg, 34, "\tid = %08x, len = %zd\n",
@@ -1193,7 +1325,7 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 	// now the data
 	gmd->databuf = ep_mem_malloc(tlen);
 	STDIOCHECK("gcl_physgetmetadata: fread#2", 1,
-			fread(gmd->databuf, tlen, 1, phys->extents[0]->fp));
+			fread(gmd->databuf, tlen, 1, ext->fp));
 
 	// now map the pointers to the data
 	void *dbuf = gmd->databuf;

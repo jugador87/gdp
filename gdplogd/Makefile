@@ -76,13 +76,11 @@ OBJS=	\
 		logd_physlog.o \
 		logd_proto.o \
 		logd_pubsub.o \
-		logd_circular_buffer.o \
 
 HDEPS=	\
 		logd.h \
 		logd_physlog.h \
 		logd_pubsub.h \
-		logd_circular_buffer.h \
 		${INCROOT}/gdp/gdp.h \
 		${INCROOT}/gdp/gdp_pdu.h \
 

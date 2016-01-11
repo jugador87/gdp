@@ -32,7 +32,6 @@
 
 
 #include "logd.h"
-#include "logd_physlog.h"
 
 #include <gdp/gdp.h>
 #include <gdp/gdp_priv.h>
