@@ -221,7 +221,8 @@ ep_version.o: ep_version.c ${OBJS_MOST} Makefile
 #
 
 clean:
-	-${RM} -f ${LIBALL} *.o *.core
+	-${RM} -f ${BINALL} libep.* *.o *.core
+	-${RM} -rf *.dSYM
 
 install:	${INCDIR}/ep ${LIBDIR} ${ALL}
 	${CP} ${INCALL} ${INCDIR}/ep
