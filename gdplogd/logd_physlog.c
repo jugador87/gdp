@@ -259,17 +259,13 @@ physinfo_alloc(gdp_gcl_t *gcl)
 	//XXX Need to figure out how many extents exist
 	//XXX This is just for transition.
 	phys->nextents = 1;
-	phys->extents = ep_mem_zalloc(sizeof (void *));		//XXX
+	phys->extents = ep_mem_zalloc(sizeof phys->extents[0]);
 	if (phys->extents == NULL)
 		goto fail1;
 	phys->extents[0] = extent_alloc();
-	if (phys->extents[0] == NULL)
-		goto fail2;
 
 	return phys;
 
-fail2:
-	ep_mem_free(phys->extents);
 fail1:
 	ep_mem_free(phys);
 fail0:
@@ -296,6 +292,7 @@ physinfo_free(gcl_physinfo_t *phys)
 		phys->extents[extno] = NULL;
 	}
 	ep_mem_free(phys->extents);
+	phys->extents = NULL;
 
 	if (ep_thr_rwlock_destroy(&phys->lock) != 0)
 		(void) posix_error(errno, "physinfo_free: cannot destroy rwlock");
@@ -406,8 +403,8 @@ extent_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd, int extno)
 				(extno - phys->nextents) * sizeof (extent_t *));
 		phys->nextents = extno + 1;
 	}
-	EP_ASSERT(phys->extents[extno] == NULL);
-	phys->extents[extno] = ext = ep_mem_zalloc(sizeof *phys->extents[extno]);
+	if (phys->extents[extno] == NULL)
+		phys->extents[extno] = ext = ep_mem_zalloc(sizeof *phys->extents[0]);
 
 
 	// create a file node representing the gcl
@@ -471,7 +468,9 @@ extent_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd, int extno)
 
 		ext->ver = GCL_LDF_VERSION;
 		ext->extno = extno;
-		ext->max_offset = sizeof ext_hdr + metadata_size;
+		ext->header_size = ext->max_offset = sizeof ext_hdr + metadata_size;
+		ext->min_recno = 1;
+		ext->max_recno = 0;
 
 		ext_hdr.magic = ep_net_hton32(GCL_LDF_MAGIC);
 		ext_hdr.version = ep_net_hton32(GCL_LDF_VERSION);
@@ -481,7 +480,7 @@ extent_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd, int extno)
 		ext_hdr.extent = ep_net_hton16(extno);
 		ext_hdr.reserved2 = 0;
 		memcpy(ext_hdr.gname, gcl->name, sizeof ext_hdr.gname);
-		ext_hdr.min_recno = 1;
+		ext_hdr.min_recno = ep_net_hton64(1);
 
 		fwrite(&ext_hdr, sizeof ext_hdr, 1, data_fp);
 	}
@@ -611,11 +610,11 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 	{
 		index_header_t index_header;
 
-		index_header.magic = GCL_LXF_MAGIC;
-		index_header.version = GCL_LXF_VERSION;
-		index_header.header_size = SIZEOF_INDEX_HEADER;
+		index_header.magic = ep_net_hton32(GCL_LXF_MAGIC);
+		index_header.version = ep_net_hton32(GCL_LXF_VERSION);
+		index_header.header_size = ep_net_hton32(SIZEOF_INDEX_HEADER);
 		index_header.reserved1 = 0;
-		index_header.min_recno = 1;
+		index_header.min_recno = ep_net_hton64(1);
 
 		if (fwrite(&index_header, sizeof index_header, 1, index_fp) != 1)
 		{
@@ -663,7 +662,7 @@ fail1:
 static EP_STAT
 extent_open(gdp_gcl_t *gcl, uint32_t extno, extent_t **extp)
 {
-	EP_STAT estat;
+	EP_STAT estat = EP_STAT_OK;
 	FILE *data_fp;
 	gcl_physinfo_t *phys;
 	extent_t *ext;
@@ -687,7 +686,7 @@ extent_open(gdp_gcl_t *gcl, uint32_t extno, extent_t **extp)
 	if (ext != NULL & ext->fp != NULL)
 	{
 		// we already know about this extent
-		return EP_STAT_OK;
+		goto success;
 	}
 	if (ext == NULL)
 	{
@@ -887,6 +886,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 
 	estat = extent_open(gcl, extno, &ext);
 	EP_STAT_CHECK(estat, goto fail0);
+	EP_ASSERT(ext != NULL);
 
 	// open the index file
 	fd = open(index_pbuf, O_RDWR | O_APPEND);
@@ -919,14 +919,14 @@ gcl_physopen(gdp_gcl_t *gcl)
 	{
 		// must be old style
 	}
-	else if (index_header.magic != GCL_LXF_MAGIC)
+	else if (ep_net_ntoh32(index_header.magic) != GCL_LXF_MAGIC)
 	{
 		estat = GDP_STAT_CORRUPT_INDEX;
 		ep_log(estat, "gcl_physopen(%s): bad index magic", index_pbuf);
 		goto fail0;
 	}
-	else if (index_header.version < GCL_LXF_MINVERS ||
-			 index_header.version > GCL_LXF_MAXVERS)
+	else if (ep_net_ntoh32(index_header.version) < GCL_LXF_MINVERS ||
+			 ep_net_ntoh32(index_header.version) > GCL_LXF_MAXVERS)
 	{
 		estat = GDP_STAT_CORRUPT_INDEX;
 		ep_log(estat, "gcl_physopen(%s): bad index version", index_pbuf);
@@ -938,6 +938,11 @@ gcl_physopen(gdp_gcl_t *gcl)
 		// old-style index; fake the header
 		index_header.min_recno = 1;
 		index_header.header_size = 0;
+	}
+	else
+	{
+		index_header.min_recno = ep_net_ntoh32(index_header.min_recno);
+		index_header.header_size = ep_net_ntoh32(index_header.header_size);
 	}
 
 	// create a cache for the index information
@@ -1018,12 +1023,17 @@ gcl_physread(gdp_gcl_t *gcl,
 	if (datum->recno > phys->max_recno)
 	{
 		estat = EP_STAT_END_OF_FILE;
+		ep_dbg_cprintf(Dbg, 14, "EOF\n");
 		goto fail0;
 	}
 
 	// check if recno offset is in the index cache
 	xent = xcache_get(phys, datum->recno);
-	if (xent == NULL)
+	if (xent != NULL)
+	{
+		ep_dbg_cprintf(Dbg, 14, "cached\n");
+	}
+	else
 	{
 		off_t xoff;
 
@@ -1033,8 +1043,7 @@ gcl_physread(gdp_gcl_t *gcl,
 		xoff = (datum->recno - phys->min_recno) * SIZEOF_INDEX_RECORD +
 				phys->index.header_size;
 		ep_dbg_cprintf(Dbg, 14,
-				"gcl_physread: recno=%" PRIgdp_recno
-				", min_recno=%" PRIgdp_recno
+				"recno=%" PRIgdp_recno ", min_recno=%" PRIgdp_recno
 				", hdrsize=%zd, xoff=%jd\n",
 				datum->recno, phys->min_recno,
 				phys->index.header_size, (intmax_t) xoff);
@@ -1058,6 +1067,10 @@ gcl_physread(gdp_gcl_t *gcl,
 			estat = posix_error(errno, "gcl_physread: fread failed");
 			goto fail3;
 		}
+		xent->recno = ep_net_ntoh64(xent->recno);
+		xent->offset = ep_net_ntoh64(xent->offset);
+		xent->extent = ep_net_ntoh32(xent->extent);
+		xent->reserved = ep_net_ntoh32(xent->reserved);
 
 		ep_dbg_cprintf(Dbg, 14,
 				"got index entry: recno %" PRIgdp_recno ", extent %" PRIu32

@@ -297,6 +297,12 @@ show_gcl_index(const char *index_filename, int plev)
 				index_filename, errno);
 		goto fail0;
 	}
+	index_header.magic = ep_net_ntoh32(index_header.magic);
+	index_header.version = ep_net_ntoh32(index_header.version);
+	index_header.header_size = ep_net_ntoh32(index_header.header_size);
+	index_header.reserved1 = ep_net_ntoh32(index_header.reserved1);
+	index_header.min_recno = ep_net_ntoh64(index_header.min_recno);
+
 	if (index_header.magic == 0)
 		goto no_header;
 	else if (index_header.magic != GCL_LXF_MAGIC)
@@ -366,7 +372,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 			"%s/_%02x/%s%s",
 			gcl_dir_name, gcl_name[0], gcl_pname, GCL_LXF_SUFFIX);
 	max_recno = show_gcl_index(filename, plev);
-	printf("%s (%" PRIgdp_recno " recs)\n", gcl_pname, max_recno);
+	printf("%s (%" PRIgdp_recno " recs)\n", gcl_pname, max_recno - 1);
 
 	size_t file_offset = 0;
 	extent_header_t log_header;
@@ -380,28 +386,29 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	log_header.magic = ep_net_ntoh32(log_header.magic);
 	log_header.version = ep_net_ntoh32(log_header.version);
 	log_header.header_size = ep_net_ntoh32(log_header.header_size);
+	log_header.reserved1 = ep_net_ntoh32(log_header.reserved1);
 	log_header.num_metadata_entries =
 			ep_net_ntoh16(log_header.num_metadata_entries);
 	log_header.log_type = ep_net_ntoh16(log_header.log_type);
-	log_header.extent = ep_net_ntoh16(log_header.log_type);
+	log_header.extent = ep_net_ntoh32(log_header.log_type);
+	log_header.reserved2 = ep_net_ntoh64(log_header.reserved2);
 	log_header.min_recno = ep_net_ntoh64(log_header.min_recno);
 
 	if (plev >= GDP_PR_BASIC)
 	{
 		gdp_pname_t pname;
 
-		printf("Header: magic = 0x%08" PRIx32
+		printf("Extent %d Header: magic = 0x%08" PRIx32
 				", version = %" PRIi32
 				", type = %" PRIi16 "\n",
-				log_header.magic, log_header.version, log_header.log_type);
+				log_header.extent, log_header.magic, log_header.version,
+				log_header.log_type);
 		printf("\tname = %s\n",
 				gdp_printable_name(log_header.gname, pname));
-		printf("\textent = %" PRIu32 ", min_recno = %" PRIu64 "\n",
-				log_header.extent, log_header.min_recno);
 		printf("\theader size = %" PRId32 " (0x%" PRIx32 ")"
-				", metadata entries = %d\n",
+				", metadata entries = %d, min_recno = %" PRIgdp_recno "\n",
 				log_header.header_size, log_header.header_size,
-				log_header.num_metadata_entries);
+				log_header.num_metadata_entries, log_header.min_recno);
 		if (plev >= GDP_PR_DETAILED)
 		{
 			ep_hexdump(&log_header, sizeof log_header, stdout,
