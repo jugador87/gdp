@@ -952,6 +952,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 
 	phys->index.fp = index_fp;
 	phys->index.max_offset = fsizeof(index_fp);
+	phys->index.header_size = index_header.header_size;
 	phys->min_recno = ext->min_recno;
 	phys->max_recno = ((phys->index.max_offset - index_header.header_size)
 							/ SIZEOF_INDEX_RECORD) - index_header.min_recno;
@@ -1011,7 +1012,6 @@ gcl_physread(gdp_gcl_t *gcl,
 	EP_STAT estat = EP_STAT_OK;
 	index_entry_t index_entry;
 	index_entry_t *xent;
-	int64_t offset = INT64_MAX;
 
 	EP_ASSERT_POINTER_VALID(gcl);
 
@@ -1044,7 +1044,7 @@ gcl_physread(gdp_gcl_t *gcl,
 				phys->index.header_size;
 		ep_dbg_cprintf(Dbg, 14,
 				"recno=%" PRIgdp_recno ", min_recno=%" PRIgdp_recno
-				", hdrsize=%zd, xoff=%jd\n",
+				", index_hdrsize=%zd, xoff=%jd\n",
 				datum->recno, phys->min_recno,
 				phys->index.header_size, (intmax_t) xoff);
 		if (xoff >= phys->index.max_offset || xoff < phys->index.header_size)
@@ -1101,7 +1101,7 @@ fail3:
 
 	// read header
 	flockfile(ext->fp);
-	if (fseek(ext->fp, offset, SEEK_SET) < 0 ||
+	if (fseek(ext->fp, xent->offset, SEEK_SET) < 0 ||
 			fread(&log_record, sizeof log_record, 1, ext->fp) < 1)
 	{
 		ep_dbg_cprintf(Dbg, 1, "gcl_physread: header fread failed: %s\n",
@@ -1109,7 +1109,6 @@ fail3:
 		estat = ep_stat_from_errno(errno);
 		goto fail1;
 	}
-	offset += sizeof log_record;
 
 	log_record.recno = ep_net_ntoh64(log_record.recno);
 	ep_net_ntoh_timespec(&log_record.timestamp);
@@ -1119,7 +1118,7 @@ fail3:
 	ep_dbg_cprintf(Dbg, 29, "gcl_physread: recno %" PRIgdp_recno
 				", sigmeta 0x%x, dlen %" PRId64 ", offset %" PRId64 "\n",
 				log_record.recno, log_record.sigmeta, log_record.data_length,
-				offset);
+				xent->offset);
 
 	datum->recno = log_record.recno;
 	memcpy(&datum->ts, &log_record.timestamp, sizeof datum->ts);
@@ -1245,6 +1244,7 @@ gcl_physappend(gdp_gcl_t *gcl,
 	index_entry.recno = log_record.recno;
 	index_entry.offset = ep_net_hton64(ext->max_offset);
 	index_entry.extent = 0;		//XXX someday
+	index_entry.reserved = 0;
 
 	// write index record
 	fwrite(&index_entry, sizeof index_entry, 1, phys->index.fp);
