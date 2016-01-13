@@ -202,7 +202,7 @@ show_record(extent_record_t *rec, FILE *dfp, size_t *foffp, int plev)
 	rec->sigmeta = ep_net_ntoh16(rec->sigmeta);
 	rec->data_length = ep_net_ntoh64(rec->data_length);
 
-	fprintf(stdout, "\nRecno: %" PRIgdp_recno
+	fprintf(stdout, "\n    Recno: %" PRIgdp_recno
 			", offset = %zd (0x%zx), dlen = %" PRIi64
 			", sigmeta = %x (mdalg = %d, len = %d)\n",
 			rec->recno, *foffp, *foffp, rec->data_length, rec->sigmeta,
@@ -213,7 +213,6 @@ show_record(extent_record_t *rec, FILE *dfp, size_t *foffp, int plev)
 
 	if (plev > GDP_PR_DETAILED)
 	{
-		fprintf(stdout, "\tRaw:\n");
 		ep_hexdump(&*rec, sizeof *rec, stdout, EP_HEXDUMP_HEX, *foffp);
 	}
 	*foffp += sizeof *rec;
@@ -265,17 +264,17 @@ show_record(extent_record_t *rec, FILE *dfp, size_t *foffp, int plev)
 }
 
 
-gdp_recno_t
-show_gcl_index(const char *index_filename, int plev)
+FILE *
+open_index(const char *index_filename, struct stat *st, index_header_t *phdr)
 {
 	FILE *index_fp = NULL;
-	struct stat st;
+	index_header_t index_header;
 
-	if (stat(index_filename, &st) != 0)
+	if (stat(index_filename, st) != 0)
 	{
 		fprintf(stderr, "could not stat %s (%s)\n",
 				index_filename, strerror(errno));
-		goto fail0;
+		return NULL;
 	}
 
 	index_fp = fopen(index_filename, "r");
@@ -283,25 +282,41 @@ show_gcl_index(const char *index_filename, int plev)
 	{
 		fprintf(stderr, "Could not open %s (%s)\n",
 				index_filename, strerror(errno));
-		goto fail0;
+		return NULL;
 	}
 
-	index_header_t index_header;
-
-	index_header.magic = 0;
-	if (st.st_size < SIZEOF_INDEX_HEADER)
-		goto no_header;
+	if (st->st_size < SIZEOF_INDEX_HEADER)
+	{
+		phdr->magic = 0;
+		return index_fp;
+	}
 	if (fread(&index_header, sizeof index_header, 1, index_fp) != 1)
 	{
-		fprintf(stderr, "Could not read %s, errno = %d\n",
-				index_filename, errno);
-		goto fail0;
+		fprintf(stderr, "Could not read hdr for %s (%s)\n",
+				index_filename, strerror(errno));
 	}
-	index_header.magic = ep_net_ntoh32(index_header.magic);
-	index_header.version = ep_net_ntoh32(index_header.version);
-	index_header.header_size = ep_net_ntoh32(index_header.header_size);
-	index_header.reserved1 = ep_net_ntoh32(index_header.reserved1);
-	index_header.min_recno = ep_net_ntoh64(index_header.min_recno);
+	else
+	{
+		phdr->magic = ep_net_ntoh32(index_header.magic);
+		phdr->version = ep_net_ntoh32(index_header.version);
+		phdr->header_size = ep_net_ntoh32(index_header.header_size);
+		phdr->reserved1 = ep_net_ntoh32(index_header.reserved1);
+		phdr->min_recno = ep_net_ntoh64(index_header.min_recno);
+	}
+
+	return index_fp;
+}
+
+
+gdp_recno_t
+show_index_header(const char *index_filename, int plev)
+{
+	struct stat st;
+	index_header_t index_header;
+	FILE *index_fp = open_index(index_filename, &st, &index_header);
+
+	if (index_fp == NULL)
+		return -1;
 
 	if (index_header.magic == 0)
 		goto no_header;
@@ -310,41 +325,87 @@ show_gcl_index(const char *index_filename, int plev)
 		fprintf(stderr, "Bad index magic %04x\n", index_header.magic);
 	}
 
-	printf("Index header: magic=%04" PRIx32 ", vers=%" PRId32
-			", header_size=%" PRId32 ", min_recno=%" PRIgdp_recno "\n",
-			index_header.magic, index_header.version,
-			index_header.header_size, index_header.min_recno);
+	if (plev > GDP_PR_BASIC)
+	{
+		printf("    Index: magic=%04" PRIx32 ", vers=%" PRId32
+				", header_size=%" PRId32 ", min_recno=%" PRIgdp_recno "\n",
+				index_header.magic, index_header.version,
+				index_header.header_size, index_header.min_recno);
+	}
+	fclose(index_fp);
 	return ((st.st_size - index_header.header_size) / SIZEOF_INDEX_RECORD)
 				+ index_header.min_recno;
 
 no_header:
 	fclose(index_fp);
-	if (plev >= GDP_PR_BASIC)
+	if (plev > GDP_PR_BASIC)
 		printf("Old-style headerless index\n");
 	return st.st_size / SIZEOF_INDEX_RECORD;
-
-fail0:
-	if (index_fp != NULL)
-		fclose(index_fp);
 	return -1;
 }
 
 
-
 int
-show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
+show_index_contents(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 {
+	struct stat st;
+	index_header_t index_header;
 	gdp_pname_t gcl_pname;
-	gdp_recno_t max_recno;
-	int istat;
-	const char *extent_str = "-000000";
 
 	(void) gdp_printable_name(gcl_name, gcl_pname);
 
 	// Add 5 in the middle for '/_xx/'
-	// Add 7 for -000000 (extent number)
 	int filename_size = strlen(gcl_dir_name) + 5 + strlen(gcl_pname) +
-			7 + strlen(GCL_LXF_SUFFIX) + 1;
+			strlen(GCL_LXF_SUFFIX) + 1;
+	char *index_filename = alloca(filename_size);
+	snprintf(index_filename, filename_size,
+			"%s/_%02x/%s%s",
+			gcl_dir_name, gcl_name[0], gcl_pname, GCL_LXF_SUFFIX);
+
+	FILE *index_fp = open_index(index_filename, &st, &index_header);
+
+	if (index_fp == NULL)
+	{
+		fprintf(stderr, "Could not open %s (%s)\n",
+				index_filename, strerror(errno));
+		return EX_NOINPUT;
+	}
+
+	printf("\n    Index Contents:\n");
+
+	while (true)
+	{
+		index_entry_t index_entry;
+		if (fread(&index_entry, sizeof index_entry, 1, index_fp) != 1)
+			break;
+		index_entry.recno = ep_net_ntoh64(index_entry.recno);
+		index_entry.offset = ep_net_ntoh64(index_entry.offset);
+		index_entry.extent = ep_net_ntoh32(index_entry.extent);
+		index_entry.reserved = ep_net_ntoh32(index_entry.reserved);
+
+		printf("\trecno %" PRIgdp_recno ", extent %" PRIu32
+				", offset %" PRIu64 ", reserved %" PRIu32 "\n",
+				index_entry.recno, index_entry.extent,
+				index_entry.offset, index_entry.reserved);
+	}
+	fclose(index_fp);
+	return EX_OK;
+}
+
+
+int
+show_extent(const char *gcl_dir_name, gdp_name_t gcl_name, int extno, int plev)
+{
+	gdp_pname_t gcl_pname;
+	int istat;
+	char extent_str[20];
+
+	(void) gdp_printable_name(gcl_name, gcl_pname);
+	snprintf(extent_str, sizeof extent_str, "-%06d", extno);
+
+	// Add 5 in the middle for '/_xx/'
+	int filename_size = strlen(gcl_dir_name) + 5 + strlen(gcl_pname) +
+			strlen(extent_str) + strlen(GCL_LDF_SUFFIX) + 1;
 	char *filename = alloca(filename_size);
 
 	snprintf(filename, filename_size,
@@ -353,7 +414,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	ep_dbg_cprintf(Dbg, 6, "Reading %s\n\n", filename);
 
 	FILE *data_fp = fopen(filename, "r");
-	if (data_fp == NULL)
+	if (data_fp == NULL && extno == 0)
 	{
 		// try again without extent
 		snprintf(filename, filename_size,
@@ -368,12 +429,6 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 		return EX_NOINPUT;
 	}
 
-	snprintf(filename, filename_size,
-			"%s/_%02x/%s%s",
-			gcl_dir_name, gcl_name[0], gcl_pname, GCL_LXF_SUFFIX);
-	max_recno = show_gcl_index(filename, plev);
-	printf("%s (%" PRIgdp_recno " recs)\n", gcl_pname, max_recno - 1);
-
 	size_t file_offset = 0;
 	extent_header_t log_header;
 	extent_record_t record;
@@ -381,7 +436,8 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	{
 		fprintf(stderr, "fread() failed while reading log_header, ferror = %d\n",
 				ferror(data_fp));
-		return EX_DATAERR;
+		istat = EX_DATAERR;
+		goto fail0;
 	}
 	log_header.magic = ep_net_ntoh32(log_header.magic);
 	log_header.version = ep_net_ntoh32(log_header.version);
@@ -398,7 +454,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	{
 		gdp_pname_t pname;
 
-		printf("Extent %d Header: magic = 0x%08" PRIx32
+		printf("    Extent %d: magic = 0x%08" PRIx32
 				", version = %" PRIi32
 				", type = %" PRIi16 "\n",
 				log_header.extent, log_header.magic, log_header.version,
@@ -423,7 +479,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 		istat = show_metadata(log_header.num_metadata_entries, data_fp,
 					&file_offset, plev);
 		if (istat != 0)
-			return istat;
+			goto fail0;
 	}
 	else if (plev >= GDP_PR_BASIC)
 	{
@@ -431,19 +487,53 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	}
 
 	if (plev <= GDP_PR_BASIC)
-		return EX_OK;
+		goto success;
 
-	fprintf(stdout, "\n");
-	fprintf(stdout, "Data records:\n");
+	fprintf(stdout, "\n    Data records:\n");
 
 	while (fread(&record, sizeof record, 1, data_fp) == 1)
 	{
 		int istat = show_record(&record, data_fp, &file_offset, plev);
 		if (istat != 0)
-			return istat;
+			break;
 	}
-	
-	return EX_OK;
+
+fail0:
+success:
+	fclose(data_fp);
+	return istat;
+}
+
+
+int
+show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
+{
+	gdp_pname_t gcl_pname;
+	gdp_recno_t max_recno;
+	int istat;
+
+	(void) gdp_printable_name(gcl_name, gcl_pname);
+	printf("\nLog %s:\n", gcl_pname);
+
+	// Add 5 in the middle for '/_xx/'
+	int filename_size = strlen(gcl_dir_name) + 5 + strlen(gcl_pname) +
+			strlen(GCL_LXF_SUFFIX) + 1;
+	char *filename = alloca(filename_size);
+
+	snprintf(filename, filename_size,
+			"%s/_%02x/%s%s",
+			gcl_dir_name, gcl_name[0], gcl_pname, GCL_LXF_SUFFIX);
+	max_recno = show_index_header(filename, plev);
+	printf("\t%" PRIgdp_recno " recs\n", max_recno - 1);
+
+	istat = show_extent(gcl_dir_name, gcl_name, 0, plev);
+
+	if (plev > GDP_PR_DETAILED)
+	{
+		show_index_contents(gcl_dir_name, gcl_name, plev);
+	}
+
+	return istat;
 }
 
 
@@ -588,8 +678,12 @@ main(int argc, char *argv[])
 		plev = GDP_PR_BASIC + 1;
 		break;
 
-	default:
+	case 3:
 		plev = GDP_PR_DETAILED;
+		break;
+
+	default:
+		plev = GDP_PR_DETAILED + 1;
 		break;
 	}
 
