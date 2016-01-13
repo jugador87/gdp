@@ -220,7 +220,7 @@ fail0:
 static extent_t *
 extent_alloc(void)
 {
-	extent_t *ext = ep_mem_malloc(sizeof *ext);
+	extent_t *ext = ep_mem_zalloc(sizeof *ext);
 
 	return ext;
 }
@@ -683,7 +683,7 @@ extent_open(gdp_gcl_t *gcl, uint32_t extno, extent_t **extp)
 		phys->nextents = extno + 1;
 	}
 	ext = phys->extents[extno];
-	if (ext != NULL & ext->fp != NULL)
+	if (ext != NULL && ext->fp != NULL)
 	{
 		// we already know about this extent
 		goto success;
@@ -1306,7 +1306,7 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 	gmd = ep_mem_zalloc(sizeof *gmd);
 	gmd->flags = GCLMDF_READONLY;
 	gmd->nalloc = gmd->nused = gcl->x->nmetadata;
-	gmd->mds = ep_mem_malloc(gmd->nalloc * sizeof *gmd->mds);
+	gmd->mds = ep_mem_zalloc(gmd->nalloc * sizeof *gmd->mds);
 
 	// lock the GCL so that no one else seeks around on us
 	ep_thr_rwlock_rdlock(&phys->lock);

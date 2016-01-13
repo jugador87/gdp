@@ -197,13 +197,12 @@ typedef struct index_header
 **		be particularly problematic.
 */
 
-typedef struct
-{
-	size_t				max_size;			// number of entries in data
-	size_t				current_size;		// number of filled entries in data
-	index_entry_t		*next_append;		// XXX ???
-	index_entry_t		data[];
-} index_cache_t;
+//typedef struct
+//{
+//	size_t				max_size;			// number of entries in data
+//	size_t				current_size;		// number of filled entries in data
+//	index_entry_t		data[];
+//} index_cache_t;
 
 
 /*
@@ -218,7 +217,7 @@ struct phys_index
 	size_t				header_size;			// size of hdr in index file
 
 	// a cache of the contents
-	index_cache_t		cache;					// in-memory cache
+//	index_cache_t		cache;					// in-memory cache
 };
 
 
