@@ -1,6 +1,4 @@
-<!-- Use multimarkdown to process this
-     <https://fletcher.github.io/MultiMarkdown-5/MMD_Users_Guide.html>
--->
+<!-- Use "pandoc -sS -o README.html README.md" to process this to HTML -->
 
 # GLOBAL DATAPLANE INTERFACES
 
