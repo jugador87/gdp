@@ -60,7 +60,7 @@ def main(configfile):
         for s in valid_sensors:
             try:
                 sdict[s] = config.getint(section, s)
-            except NoOptionError:
+            except ConfigParser.NoOptionError:
                 pass
 
         th = threading.Thread(target=workerThread, args=(addr, kvlog, sdict))
