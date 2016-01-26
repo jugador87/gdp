@@ -126,17 +126,24 @@ typedef struct
 
 /*
 **  In-Memory representation of Per-Extent info
+**
+**		This only includes the information that may (or does) vary
+**		on a per-extent basis.  For example, different extents might
+**		have different versions or header sizes, but not different
+**		metadata, which must be fixed per log (even though on disk
+**		that information is actually replicated in each extent.
 */
 
 typedef struct
 {
-	FILE				*fp;					// file pointer to extent
-	uint32_t			ver;					// on-disk file version
-	int					extno;					// extent number
-	size_t				header_size;			// size of extent file hdr
-	gdp_recno_t			min_recno;				// minimum recno in extent
-	gdp_recno_t			max_recno;				// maximum recno in extent
-	off_t				max_offset;				// size of extent file
+	FILE				*fp;				// file pointer to extent
+	uint32_t			ver;				// on-disk file version
+	uint32_t			extno;				// extent number
+	size_t				header_size;		// size of extent file hdr
+	gdp_recno_t			min_recno;			// minimum recno in extent
+	off_t				max_offset;			// size of extent file
+	EP_TIME_SPEC		retain_until;		// retain at least until this date
+	EP_TIME_SPEC		remove_by;			// must be gone by this date
 } extent_t;
 
 
@@ -237,10 +244,11 @@ struct physinfo
 	// info regarding the entire log (not extent)
 	gdp_recno_t			min_recno;				// first recno in log
 	gdp_recno_t			max_recno;				// last recno in log (dynamic)
-	uint16_t			num_metadata_entries;	// number of metadata entries
+//	uint16_t			num_metadata_entries;	// number of metadata entries
 
 	// info regarding the extent files
-	int					nextents;				// number of extents
+	uint32_t			nextents;				// number of extents
+	uint32_t			last_extent;			// extent being written
 	extent_t			**extents;				// list of extent pointers
 												// can be dynamically expanded
 

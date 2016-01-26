@@ -93,6 +93,9 @@ gcl_open(gdp_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
 fail1:
 	_gdp_gcl_freehandle(gcl);
 fail0:
+	// if this isn't a "not found" error, mark it as an internal error
+	if (!EP_STAT_IS_SAME(estat, GDP_STAT_NAK_NOTFOUND))
+		estat = GDP_STAT_NAK_INTERNAL;
 	return estat;
 }
 
@@ -150,7 +153,8 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 	estat = gcl_open(req->pdu->dst, iomode, &req->gcl);
 	if (EP_STAT_ISOK(estat))
 		_gdp_gcl_cache_add(req->gcl, iomode);
-	req->gcl->flags |= GCLF_DEFER_FREE;
+	if (req->gcl != NULL)
+		req->gcl->flags |= GCLF_DEFER_FREE;
 
 	if (ep_dbg_test(Dbg, 40))
 	{

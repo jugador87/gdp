@@ -49,12 +49,19 @@ gdpd_gcl_error(gdp_name_t gcl_name, char *msg, EP_STAT logstat, EP_STAT estat)
 	{
 		// server error (rather than client error)
 		ep_log(logstat, "%s: %s", msg, pname);
+		if (!GDP_STAT_IS_S_NAK(logstat))
+			logstat = estat;
 	}
 	else
 	{
-		ep_dbg_cprintf(Dbg, 1, "%s: %s\n", msg, pname);
+		char ebuf[100];
+
+		ep_dbg_cprintf(Dbg, 1, "%s: %s: %s\n", msg, pname,
+				ep_stat_tostr(logstat, ebuf, sizeof ebuf));
+		if (!GDP_STAT_IS_C_NAK(logstat))
+			logstat = estat;
 	}
-	return estat;
+	return logstat;
 }
 
 void
@@ -260,8 +267,8 @@ cmd_open(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		estat = gdpd_gcl_error(req->pdu->dst, "cmd_open: could not open GCL",
-							estat, GDP_STAT_NAK_BADREQ);
-		goto fail0;
+							estat, GDP_STAT_NAK_INTERNAL);
+		return estat;
 	}
 
 	gcl = req->gcl;
@@ -275,8 +282,6 @@ cmd_open(gdp_req_t *req)
 
 	req->pdu->datum->recno = gcl->nrecs;
 
-
-fail0:
 	_gdp_gcl_decref(gcl);
 	req->gcl = NULL;
 	return estat;
