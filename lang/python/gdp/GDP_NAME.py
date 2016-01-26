@@ -58,7 +58,7 @@ class GDP_NAME:
         def __get_printable_name(internal_name):
 
             # ctypes magic to create an array representing gdp_name_t
-            buf1 = create_string_buffer(internal_name, 32+1)
+            buf1 = create_string_buffer(internal_name, 32)
             name_t_ptr = cast(byref(buf1), POINTER(self.name_t))
 
             # ctypes magic to create an array representing gdp_pname_t
@@ -77,7 +77,7 @@ class GDP_NAME:
         def __parse_name(name):
 
             buf1 = create_string_buffer(name, len(name)+1)
-            buf2 = create_string_buffer(32+1)
+            buf2 = create_string_buffer(32)
             name_t_ptr = cast(byref(buf2), POINTER(self.name_t))
 
             __func = gdp.gdp_parse_name
@@ -89,8 +89,8 @@ class GDP_NAME:
             return string_at(name_t_ptr.contents, 32)
 
         def __is_binary_string(s):
-            textchars = bytearray([7,8,9,10,12,13,27]) + \
-                            bytearray(range(0x20, 0x100))
+            textchars = bytearray({7,8,9,10,12,13,27} | \
+                            set(range(0x20, 0x100)) - {0x7f})
             return bool(s.translate(None, textchars))
 
 
@@ -113,7 +113,7 @@ class GDP_NAME:
         #   gdp_name_is_valid, but then we could theoretically reimplement
         #   everything in python too.
         # ctypes magic to create an array representing gdp_name_t
-        buf1 = create_string_buffer(self.name, 32+1)
+        buf1 = create_string_buffer(self.name, 32)
         name_t_ptr = cast(byref(buf1), POINTER(self.name_t))
 
         __func = gdp.gdp_name_is_valid
