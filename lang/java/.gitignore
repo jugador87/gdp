@@ -3,7 +3,7 @@ jna
 _*
 *.class
 *.java
-!GDP_*.java
+!GDP*.java
 !ReaderTest.java
 !WriterTest.java
 !GdpUtilities.java
