@@ -124,9 +124,9 @@ LOG_NAME = logjava
 ROUTER_NAME = 172.0.0.1:8007
 
 
-runNameTest: org/terraswarm/gdp/apps/nameTest.class
+runNameTest: all
 	DYLD_LIBRARY_PATH=$(GDP_SRC)/libs LD_LIBRARY_PATH=$(GDP_SRC)/libs $(JAVA) -Djna.debug_load=true -Djna.dump_memory=true -classpath $(CLASSPATH) org.terraswarm.gdp.apps.nameTest 
-runHelloWorld: org/terraswarm/gdp/apps/HelloWorld.class
+runHelloWorld: all
 	DYLD_LIBRARY_PATH=$(GDP_SRC)/libs LD_LIBRARY_PATH=$(GDP_SRC)/libs $(JAVA) -Djna.debug_load=true -Djna.dump_memory=true -classpath $(CLASSPATH) org.terraswarm.gdp.apps.HelloWorld 
 #
 #runReaderTest: org/terraswarm/gdp/apps/ReaderTest.class
