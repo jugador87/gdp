@@ -55,6 +55,9 @@ $(JNAERATOR_RUNTIME_JAR):
 ##############################
 
 ## Header files that we need to interpret the compiled library
+## Apparently -I has no effect on JNA, and it fails to find event2/buffer.h 
+##   from the system default paths
+
 
 ROOT = ../..
 GDP_SRC = $(ROOT)
@@ -74,31 +77,24 @@ GDP_H_FILES = \
 LIBEVENT_H_FILES = \
     $(EVENT_HDRS)/event2/buffer.h
 
-## Apparently -I has no effect on JNA, and it fails to find event2/buffer.h 
-##   from the system default paths
-
 
 ### Auto-generating java files
 
 # We define gdp_datum_t and gdp_datum as void * so that JNAerator does not generate gdp_datum.java, which would refer to pthreads.
-jna: clean $(JNAERATOR_JAR) $(JNAERATOR_RUNTIME_JAR) $(GDP_H_FILES)
-	echo $(EVENT_HDRS) 
-	java -jar $(JNAERATOR_JAR) -runtime JNA \
+jna: $(JNAERATOR_JAR) $(JNAERATOR_RUNTIME_JAR) $(GDP_H_FILES) $(LIBEVENT_H_FILES)
+	java -jar $(JNAERATOR_JAR) -runtime JNA -f \
 		-Dgdp_datum_t="void *" -Dgdp_datum="void *" \
 		-library gdp.0.2 -I ../../gdp -I ../.. \
 		$(GDP_H_FILES) $(LIBEVENT_H_FILES) \
 		-o . -library event2 -I/usr/include -I/usr/local/include \
                 -package org.terraswarm.gdp  -v  -noJar -noComp
-	# Fix up some issues:
+	# Fix up NativeSize. We want our included version of NativeSize be used, instead of JNAerator's version:
 	for file in org/terraswarm/gdp/*.java org/terraswarm/gdp/*/*.java; do \
 	echo "Fixing $$file"; \
-	sed \
-	    -e 's@public static final Pointer EP_GEN_DEADBEEF = (Pointer)0xDEADBEEF;@public static final Pointer EP_GEN_DEADBEEF = new Pointer(0xDEADBEEF); // Fixed by cxh in makefile.@' \
-	    -e 's@\(public static final GlobalInt\)@// \1 // Fixed by cxh in makefile.@' \
-	    -e 's@com.ochafik.lang.jnaerator.runtime.NativeSize@org.terraswarm.gdp.NativeSize@' \
-		$$file > /tmp/gdp.fix; \
-	mv /tmp/gdp.fix $$file; \
-        done
+	sed -i -e 's@com.ochafik.lang.jnaerator.runtime.NativeSize@org.terraswarm.gdp.NativeSize@' $$file; \
+	done
+	# Empty target. See https://www.gnu.org/software/make/manual/html_node/Empty-Targets.html
+	touch jna
 
 
 ### Compiling .java files to .class files
@@ -114,7 +110,6 @@ JAVAC = javac
 
 .SUFFIXES: .class .java
 .java.class:
-	rm -f `basename $< .java`.class
 	CLASSPATH="$(CLASSPATH):$(PWD)" "$(JAVAC)" $(JFLAGS) $<
 
 JCLASS = $(JSRCS:%.java=%.class)
@@ -125,27 +120,32 @@ jclass: jna $(JNA_JAR) $(JSRCS) $(JCLASS)
 ### apps
 
 JAVA = java
-LOG_NAME = edu.berkeley.eecs.mor.01
-ROUTER_NAME = gdp-01.eecs.berkeley.edu:8007
+LOG_NAME = logjava
+ROUTER_NAME = 172.0.0.1:8007
 
 
-runReaderTest: org/terraswarm/gdp/apps/ReaderTest.class
-	DYLD_LIBRARY_PATH=$(GDP_SRC)/libs LD_LIBRARY_PATH=$(GDP_SRC)/libs $(JAVA) -Djna.debug_load=true -Djna.dump_memory=true -classpath $(CLASSPATH) org.terraswarm.gdp.apps.ReaderTest -G $(ROUTER_NAME) -D gdp.api=100 $(LOG_NAME)
-
-runReaderTestPtIILib: org/terraswarm/gdp/apps/ReaderTest.class
-	DYLD_LIBRARY_PATH=$(GDP_SRC)/libs LD_LIBRARY_PATH=$(GDP_SRC)/libs $(JAVA) -Djna.debug_load=true -Djna.dump_memory=true -classpath $(CLASSPATH) org.terraswarm.gdp.apps.ReaderTest -G $(ROUTER_NAME) -D gdp.api=100 $(LOG_NAME)
-
-runReaderTestSubscriber: org/terraswarm/gdp/apps/ReaderTest.class
-	DYLD_LIBRARY_PATH=$(GDP_SRC)/libs LD_LIBRARY_PATH=$(GDP_SRC)/libs $(JAVA) -Djna.debug_load=true -Djna.dump_memory=true -classpath $(CLASSPATH) org.terraswarm.gdp.apps.ReaderTest -G $(ROUTER_NAME) -s -D gdp.api=100 $(LOG_NAME)
-
-runWriterTest: org/terraswarm/gdp/apps/WriterTest.class
-	DYLD_LIBRARY_PATH=$(GDP_SRC)/libs LD_LIBRARY_PATH=$(GDP_SRC)/libs $(JAVA) -Djna.debug_load=true -Djna.dump_memory=true -classpath $(CLASSPATH) org.terraswarm.gdp.apps.WriterTest -G $(ROUTER_NAME) -D gdp.api=100 $(LOG_NAME)
-
+runNameTest: org/terraswarm/gdp/apps/nameTest.class
+	DYLD_LIBRARY_PATH=$(GDP_SRC)/libs LD_LIBRARY_PATH=$(GDP_SRC)/libs $(JAVA) -Djna.debug_load=true -Djna.dump_memory=true -classpath $(CLASSPATH) org.terraswarm.gdp.apps.nameTest 
+runHelloWorld: org/terraswarm/gdp/apps/HelloWorld.class
+	DYLD_LIBRARY_PATH=$(GDP_SRC)/libs LD_LIBRARY_PATH=$(GDP_SRC)/libs $(JAVA) -Djna.debug_load=true -Djna.dump_memory=true -classpath $(CLASSPATH) org.terraswarm.gdp.apps.HelloWorld 
+#
+#runReaderTest: org/terraswarm/gdp/apps/ReaderTest.class
+#	DYLD_LIBRARY_PATH=$(GDP_SRC)/libs LD_LIBRARY_PATH=$(GDP_SRC)/libs $(JAVA) -Djna.debug_load=true -Djna.dump_memory=true -classpath $(CLASSPATH) org.terraswarm.gdp.apps.ReaderTest -G $(ROUTER_NAME) -D gdp.api=100 $(LOG_NAME)
+#
+#runReaderTestPtIILib: org/terraswarm/gdp/apps/ReaderTest.class
+#	DYLD_LIBRARY_PATH=$(GDP_SRC)/libs LD_LIBRARY_PATH=$(GDP_SRC)/libs $(JAVA) -Djna.debug_load=true -Djna.dump_memory=true -classpath $(CLASSPATH) org.terraswarm.gdp.apps.ReaderTest -G $(ROUTER_NAME) -D gdp.api=100 $(LOG_NAME)
+#
+#runReaderTestSubscriber: org/terraswarm/gdp/apps/ReaderTest.class
+#	DYLD_LIBRARY_PATH=$(GDP_SRC)/libs LD_LIBRARY_PATH=$(GDP_SRC)/libs $(JAVA) -Djna.debug_load=true -Djna.dump_memory=true -classpath $(CLASSPATH) org.terraswarm.gdp.apps.ReaderTest -G $(ROUTER_NAME) -s -D gdp.api=100 $(LOG_NAME)
+#
+#runWriterTest: org/terraswarm/gdp/apps/WriterTest.class
+#	DYLD_LIBRARY_PATH=$(GDP_SRC)/libs LD_LIBRARY_PATH=$(GDP_SRC)/libs $(JAVA) -Djna.debug_load=true -Djna.dump_memory=true -classpath $(CLASSPATH) org.terraswarm.gdp.apps.WriterTest -G $(ROUTER_NAME) -D gdp.api=100 $(LOG_NAME)
+#
 
 ### 
 
 clean:
-	rm -f _* org/terraswarm/gdp/*.class org/terraswarm/gdp/EP* org/terraswarm/gdp/e* org/terraswarm/gdp/*Library.java org/terraswarm/gdp/apps/*.class
+	rm -f jna _* org/terraswarm/gdp/*.class org/terraswarm/gdp/EP* org/terraswarm/gdp/e* org/terraswarm/gdp/*Library.java org/terraswarm/gdp/apps/*.class
 
 distclean: clean
 	rm -f *.jar
