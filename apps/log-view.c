@@ -331,6 +331,26 @@ show_index_header(const char *index_filename, int plev)
 				", header_size=%" PRId32 ", min_recno=%" PRIgdp_recno "\n",
 				index_header.magic, index_header.version,
 				index_header.header_size, index_header.min_recno);
+
+		// get info from the last record
+		index_entry_t xent;
+		if (fseek(index_fp, st.st_size - SIZEOF_INDEX_RECORD, SEEK_SET) < 0)
+		{
+			printf("show_index_header: cannot seek\n");
+		}
+		else if (fread(&xent, SIZEOF_INDEX_RECORD, 1, index_fp) != 1)
+		{
+			printf("show_index_header: fread failure\n");
+		}
+		else
+		{
+			printf("\tlast recno %" PRIgdp_recno
+					" offset %jd extent %d reserved %x\n",
+					ep_net_ntoh64(xent.recno),
+					(intmax_t) ep_net_ntoh64(xent.offset),
+					ep_net_ntoh32(xent.extent),
+					ep_net_ntoh32(xent.reserved));
+		}
 	}
 	fclose(index_fp);
 	return ((st.st_size - index_header.header_size) / SIZEOF_INDEX_RECORD)
