@@ -1440,12 +1440,12 @@ gcl_physforeach(void (*func)(gdp_name_t, void *), void *ctx)
 			if (dent == NULL)
 				break;
 
-			// we're only interested in .data files
+			// we're only interested in .gdpndx files
 			char *p = strrchr(dent->d_name, '.');
-			if (p == NULL || strcmp(p, GCL_LDF_SUFFIX) != 0)
+			if (p == NULL || strcmp(p, GCL_LXF_SUFFIX) != 0)
 				continue;
 
-			// strip off the ".data"
+			// strip off the file extension
 			*p = '\0';
 
 			// convert the base64-encoded name to internal form
