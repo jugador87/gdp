@@ -33,6 +33,7 @@
 #include "gdp.h"
 #include "gdp_event.h"
 #include "gdp_priv.h"
+#include "gdp_version.h"
 
 #include <ep/ep.h>
 #include <ep/ep_app.h>
@@ -524,8 +525,9 @@ gdp_lib_init(const char *myname)
 		return estat;
 	initialized = true;
 
-	ep_dbg_cprintf(Dbg, 4, "_gdp_lib_init(%s):\n",
-			myname == NULL ? "NULL" : myname);
+	ep_dbg_cprintf(Dbg, 4, "_gdp_lib_init(%s)\n\t%s\n",
+			myname == NULL ? "NULL" : myname,
+			GdpVersion);
 
 	if (ep_dbg_test(EvlibDbg, 80))
 	{

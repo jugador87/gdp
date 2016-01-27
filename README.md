@@ -1,6 +1,4 @@
-<!-- Use multimarkdown to process this
-     <https://fletcher.github.io/MultiMarkdown-5/MMD_Users_Guide.html>
--->
+<!-- Use "pandoc -sS -o README.html README.md" to process this to HTML -->
 
 # GLOBAL DATAPLANE INTERFACES
 
@@ -631,6 +629,14 @@ a GDP developer, please stop reading here.
 	`swarm.gdplogd.log.facility`.  If both are set, the more
 	specific name wins.  Defaults to `local4`.
 
+* `swarm.gdp.zeroconf.domain` --- the domain searched in zeroconf
+	queries.  Defaults to `local`.
+
+* `swarm.gdp.zeroconf.enable` --- enable zeroconf lookup when programs
+	start up.  Defaults to `true`.
+
+* `swarm.gdp.zeroconf.proto` --- the protocol used in zeroconf queries.
+	Defaults to `_gdp._tcp`.
 
 * `swarm.gdplogd.gcl.dir` --- the directory in which log data will
 	be stored.  Defaults to `/var/swarm/gdp/gcls`.

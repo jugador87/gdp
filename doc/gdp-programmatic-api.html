@@ -137,9 +137,11 @@
     <pre>#include &lt;gdp/gdp_version.h&gt;</pre>
     <h4>Notes</h4>
     <ul>
-      <li>The <code>gdp_version.h</code> file defines the constant <code>GDP_LIB_VERSION</code>
-        as the year, month, and date of this version of the GDP library, for
-        example, 20150217UL.&nbsp; It can be used during compilation.</li>
+      <li>The <code>gdp_version.h</code> file defines the integer constant <code>GDP_LIB_VERSION</code>
+        as the major, minor, and patch level of this version of the GDP library,
+        for example, 0x010203 for version 1.2.3.&nbsp; It can be used during
+        compilation.&nbsp; There is also a string <code>GdpVersion</code> that
+        is suitable for printing.</li>
     </ul>
     <hr>
     <h2>3&nbsp; GCL Operations</h2>

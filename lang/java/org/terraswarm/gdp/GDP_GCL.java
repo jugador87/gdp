@@ -1,16 +1,11 @@
-/*
- * Heavily based on Christopher's GdpUtilities, 
- * apps/ReaderTest and apps/WriterTest
- */
-
 package org.terraswarm.gdp; 
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.util.Date;
+import java.util.Map;
+import java.awt.PointerInfo;
+import java.lang.Exception;
 
-//import org.terraswarm.gdp.EP_TIME_SPEC;
-//import org.terraswarm.gdp.EP_STAT;
-//import org.terraswarm.gdp.Gdp02Library;
-//import org.terraswarm.gdp.GdpUtilities;
 
 import com.sun.jna.Native;
 import com.sun.jna.Memory;
@@ -18,47 +13,88 @@ import com.sun.jna.Pointer;
 import com.sun.jna.ptr.PointerByReference;
 import org.terraswarm.gdp.NativeSize; // Fixed by cxh in makefile.
 
-
+/**
+ * GCL: GDP Channel Log
+ * A class that represents a log. The name GCL is for historical reasons.
+ * This mimics the Python wrapper around the GDP C-library. However, be
+ * aware that this Java wrapper may not make the latest features available.
+ * 
+ * @author Nitesh Mor, based on Christopher Brooks' early implementation.
+ *
+ */
 public class GDP_GCL {
-
-    // mimics object-oriented Python wrapper around C library
-
-    // private variables
 
     // internal 256 bit name
     private ByteBuffer gclname = ByteBuffer.allocate(32);
+
     // a pointer to pointer to open handle
     private Pointer gclh = null;
 
-    private int iomode;
+    // To store the i/o mode for this log
+    private GDP_MODE iomode;
 
-    public GDP_GCL(String name, int iomode) {
-        //iomode: 1: RO, 2: AO, 3: RA
+
+
+    //////////////// Public Interface /////////////////////////
+
+    /**
+     * Create a GCL. 
+     * 
+     * @param logdName  Name of the log server where this should be 
+     *                  placed.
+     * @param name      Name of the log to be created
+     * @param metadata  Metadata to be added to the log.
+     */
+    
+    public static void create(String logdName, String name, String metadata) {
+        return;
+    }
+    
+
+
+    /**
+     * I/O mode for a log.
+     * <ul>
+     * <li> ANY: for internal use only </li>
+     * <li> RO : Read only </li>
+     * <li> AO : Append only </li>
+     * <li> RA : Read + append </li>
+     * </ul> 
+     */
+    public enum GDP_MODE {
+        ANY, RO, AO, RA
+    }
+
+    /** 
+     * Initialize a new GCL object.
+     * No signatures support, yet. TODO
+     * 
+     * @param name   Name of the log. Could be human readable or binary
+     * @param iomode Should this be opened read only, read-append, append-only
+     */
+      
+    public GDP_GCL(String name, GDP_MODE iomode) {
 
         EP_STAT estat;
 
         this.iomode = iomode;
 
-        String ep_dbg_level = "*=10";
-        Pointer m = new Memory(ep_dbg_level.length()+1);
-        m.setString(0, ep_dbg_level);
-
-        Gdp02Library.INSTANCE.ep_dbg_set(ep_dbg_level);
-
         // initialize gdp by calling gdp_init
         estat = Gdp02Library.INSTANCE.gdp_init((Pointer)null);
-        check_EP_STAT(estat);
+        GDP.check_EP_STAT(estat);
 
+        //Gdp02Library.INSTANCE.ep_dbg_set("*=80");
+        
         // convert human name to internal 256 bit name
         estat = Gdp02Library.INSTANCE.gdp_parse_name(name, this.gclname);
-        check_EP_STAT(estat);
+        GDP.check_EP_STAT(estat);
 
         // open the GCL
         PointerByReference gclhByReference = new PointerByReference();
         estat = Gdp02Library.INSTANCE.gdp_gcl_open(this.gclname, 
-                            iomode, (PointerByReference) null, 
+                            iomode.ordinal(), (PointerByReference) null, 
                             gclhByReference);
-        check_EP_STAT(estat);
+        GDP.check_EP_STAT(estat);
 
         // Anything else?
         this.gclh = gclhByReference.getValue();
@@ -67,6 +103,13 @@ public class GDP_GCL {
     }
 
 
+    /**
+     * Read a record by record number
+     * 
+     * @param recno Record number to be read
+     * @return  The data from the datum returned.
+     */
+    
     public String read(long recno) {
         // only returns the data in the record as a string
         // ignores record number, timestamp and anything else 
@@ -76,10 +119,10 @@ public class GDP_GCL {
 
         // get the datum populated
         estat = Gdp02Library.INSTANCE.gdp_gcl_read(this.gclh, recno, datum);
-        check_EP_STAT(estat);
+        GDP.check_EP_STAT(estat);
 
         // read the data in the datum. Ignore recno, timestamp for now
-        GDPDatum d = new GDPDatum(datum);
+        GDP_DATUM d = new GDP_DATUM(datum);
 
         // free the corresponding C structure            
         Gdp02Library.INSTANCE.gdp_datum_free(datum);
@@ -87,6 +130,11 @@ public class GDP_GCL {
     }
 
 
+    /**
+     * Append data to a log
+     * 
+     * @param data  Data to be appended
+     */
     public void append(String data) {
 
         EP_STAT estat;
@@ -106,7 +154,7 @@ public class GDP_GCL {
                                 new NativeSize(data.length()));
 
         estat = Gdp02Library.INSTANCE.gdp_gcl_append(this.gclh, datum);
-        check_EP_STAT(estat);
+        GDP.check_EP_STAT(estat);
 
         Gdp02Library.INSTANCE.gdp_datum_free(datum);
 
@@ -114,6 +162,13 @@ public class GDP_GCL {
     }
 
 
+    /** 
+     * Start a subscription to a log
+     * See the documentation in C library for examples.
+     * 
+     * @param firstrec  The record num to start the subscription from
+     * @param numrecs   Max number of records to be returned. 0 => infinite
+     */
     public void subscribe(long firstrec, int numrecs) {
 
         EP_STAT estat;
@@ -121,11 +176,19 @@ public class GDP_GCL {
                     .gdp_gcl_subscribe(this.gclh, firstrec, numrecs,
                                         null, null, null);
 
-        check_EP_STAT(estat);
+        GDP.check_EP_STAT(estat);
 
         return;
     }
 
+    /** 
+     * Multiread: Similar to subscription, but for existing data
+     * only. Not for any future records
+     * See the documentation in C library for examples.
+     * 
+     * @param firstrec  The record num to start reading from
+     * @param numrecs   Max number of records to be returned. 
+     */
     public void multiread(long firstrec, int numrecs) {
 
         EP_STAT estat;
@@ -133,16 +196,24 @@ public class GDP_GCL {
                     .gdp_gcl_multiread(this.gclh, firstrec, numrecs,
                                         null, null);
 
-        check_EP_STAT(estat);
+        GDP.check_EP_STAT(estat);
 
         return;
     }
 
+    /** 
+     * Get data from next record for a subscription or multiread
+     * This is a wrapper around 'get_next_event', and works only 
+     * for subscriptions, multireads.
+     * 
+     * @param timeout_msec  Time (in ms) for which to block. Can be used 
+     *                      to block eternally as well.
+     */
     public String get_next_data(int timeout_msec) {
         // returns next data item from subcription or multiread
         // returns null if end of subscription
 
-        GDPEvent ev = get_next_event(timeout_msec);
+        GDP_EVENT ev = get_next_event(timeout_msec);
         if (ev.type == Gdp02Library.INSTANCE.GDP_EVENT_DATA) {
             return ev.datum.data;
         } else {
@@ -152,7 +223,13 @@ public class GDP_GCL {
     }
 
 
-    private GDPEvent get_next_event(int timeout_msec) {
+    /**
+     * Get next event as a result of subscription, multiread or
+     * an asynchronous operation.
+     * 
+     * @param timeout_msec  Time (in ms) for which to block.
+     */
+    public GDP_EVENT get_next_event(int timeout_msec) {
         // timeout in ms. Probably not very precise
         // 0 means block forever
 
@@ -180,84 +257,12 @@ public class GDP_GCL {
         int type = Gdp02Library.INSTANCE.gdp_event_gettype(gev);
         PointerByReference datum = Gdp02Library.INSTANCE.gdp_event_getdatum(gev);
 
-        // Create an object of type GDPEvent that we'll return
-        GDPEvent ev = new GDPEvent(this.gclh, datum, type);
+        // Create an object of type GDP_EVENT that we'll return
+        GDP_EVENT ev = new GDP_EVENT(this.gclh, datum, type);
 
         // Free the C data-structure
         Gdp02Library.INSTANCE.gdp_event_free(gev);
 
         return ev;
-    }
-
-    private static void check_EP_STAT(EP_STAT estat) {
-
-        if (!GdpUtilities.EP_STAT_ISOK(estat)) {
-            System.err.println("Exiting with status " + estat 
-                    + ", code: " + estat.code);
-
-            System.exit(1);
-        }
-    }
-
-}
-
-
-class GDPEvent {
-
-    public Pointer gcl_handle;
-    public GDPDatum datum;
-    public int type;
-
-    public GDPEvent(Pointer gcl_handle, PointerByReference datum, int type) {
-        this.gcl_handle = gcl_handle;
-        if (type != Gdp02Library.INSTANCE.GDP_EVENT_DATA) {
-            assert datum == null;
-            this.datum = null;
-        } else {
-            this.datum = new GDPDatum(datum);
-        }
-        this.type = type;
-    }
-
-    public GDPEvent(Pointer gcl_handle, GDPDatum datum, int type) {
-        this.gcl_handle = gcl_handle;
-        this.datum = datum;
-        this.type = type;
-    }
-
-}
-
-class GDPDatum {
-
-    public long recno;
-    public String data;
-    public EP_TIME_SPEC ts;
-
-    public GDPDatum(long recno, String data, EP_TIME_SPEC ts) {
-        this.recno = recno;
-        this.data = data;
-        this.ts = ts;
-    }
-
-
-    public GDPDatum(PointerByReference d) {
-        // this is when we have just a C pointer.
-
-        // based on Christopher's gdp_datum_print
-        long recno = Gdp02Library.INSTANCE.gdp_datum_getrecno(d);
-        PointerByReference buf = Gdp02Library.INSTANCE.gdp_datum_getbuf(d);
-        NativeSize len = Gdp02Library.INSTANCE.gdp_buf_getlength(buf);
-        Pointer bufptr = Gdp02Library.INSTANCE.gdp_buf_getptr(buf, len);
-        
-        // Now read len bytes from bp
-        byte[] bytes = bufptr.getByteArray(0, len.intValue());
-        data = new String(bytes);
-
-        EP_TIME_SPEC ts = new EP_TIME_SPEC();
-        Gdp02Library.INSTANCE.gdp_datum_getts(d, ts);
-
-        this.recno = recno;
-        this.data = data;
-        this.ts = ts;
     }
 }

@@ -1,4 +1,5 @@
-// Based on https://github.com/nativelibs4java/JNAerator/blob/master/jnaerator-runtime/src/main/java/com/ochafik/lang/jnaerator/runtime/NativeSize.java
+// Based on JNAerator: https://github.com/nativelibs4java/JNAerator/
+// /jnaerator-runtime/src/main/java/NativeSize.java
 
 /*
    Copyright (c) 2009 Olivier Chafik, All Rights Reserved
@@ -18,6 +19,7 @@
    You should have received a copy of the GNU General Public License
    along with JNAerator.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 package org.terraswarm.gdp;
 
 import com.sun.jna.IntegerType;

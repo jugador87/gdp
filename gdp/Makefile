@@ -34,7 +34,7 @@ INCDIR=		${INSTALLROOT}/include
 LIBDIR=		${INSTALLROOT}/lib
 INSTALL=	install
 
-OBJS=	\
+OBJS_MOST=	\
 	gdp_api.o \
 	gdp_buf.o \
 	gdp_chan.o \
@@ -53,6 +53,10 @@ OBJS=	\
 	gdp_util.o \
 	gdp_zc_client.o \
 	gdp_zc_server.o \
+
+OBJS=	\
+	${OBJS_MOST} \
+	gdp_version.o
 
 PUBHFILES=	\
 	gdp.h \
@@ -123,10 +127,8 @@ libgdp.so.${GDPLIBVER}: ${OBJS}
 
 ${OBJS}: ${HFILES}
 
-GDP_LIB_VERSION=	`date +%Y%m%d`
-
-newversion:	FORCE
-	sed -e "s/@GDP_LIB_VERSION@/${GDP_LIB_VERSION}/" < gdp_version.template > gdp_version.h
+gdp_version.o: gdp_version.c ${OBJS_MOST} Makefile
+	${CC} ${CFLAGS} -D_CURRENT_DATE_=\"`date +'%Y-%m-%d_%H:%M'`\" -c gdp_version.c
 
 clean:
 	-rm -f ${LIBALL} *.o *.core

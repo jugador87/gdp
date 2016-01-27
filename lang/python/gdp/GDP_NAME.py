@@ -1,5 +1,32 @@
 #!/usr/bin/env python
 
+# ----- BEGIN LICENSE BLOCK -----                                               
+#	GDP: Global Data Plane
+#	From the Ubiquitous Swarm Lab, 490 Cory Hall, U.C. Berkeley.
+#
+#	Copyright (c) 2015, Regents of the University of California.
+#	All rights reserved.
+#
+#	Permission is hereby granted, without written agreement and without
+#	license or royalty fees, to use, copy, modify, and distribute this
+#	software and its documentation for any purpose, provided that the above
+#	copyright notice and the following two paragraphs appear in all copies
+#	of this software.
+#
+#	IN NO EVENT SHALL REGENTS BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
+#	SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST
+#	PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION,
+#	EVEN IF REGENTS HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#	REGENTS SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT
+#	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+#	FOR A PARTICULAR PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION,
+#	IF ANY, PROVIDED HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO
+#	OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
+#	OR MODIFICATIONS.
+# ----- END LICENSE BLOCK -----                                               
+
+
 from MISC import *
 
 
@@ -31,7 +58,7 @@ class GDP_NAME:
         def __get_printable_name(internal_name):
 
             # ctypes magic to create an array representing gdp_name_t
-            buf1 = create_string_buffer(internal_name, 32+1)
+            buf1 = create_string_buffer(internal_name, 32)
             name_t_ptr = cast(byref(buf1), POINTER(self.name_t))
 
             # ctypes magic to create an array representing gdp_pname_t
@@ -50,7 +77,7 @@ class GDP_NAME:
         def __parse_name(name):
 
             buf1 = create_string_buffer(name, len(name)+1)
-            buf2 = create_string_buffer(32+1)
+            buf2 = create_string_buffer(32)
             name_t_ptr = cast(byref(buf2), POINTER(self.name_t))
 
             __func = gdp.gdp_parse_name
@@ -62,8 +89,8 @@ class GDP_NAME:
             return string_at(name_t_ptr.contents, 32)
 
         def __is_binary_string(s):
-            textchars = bytearray([7,8,9,10,12,13,27]) + \
-                            bytearray(range(0x20, 0x100))
+            textchars = bytearray({7,8,9,10,12,13,27} | \
+                            set(range(0x20, 0x100)) - {0x7f})
             return bool(s.translate(None, textchars))
 
 
@@ -86,7 +113,7 @@ class GDP_NAME:
         #   gdp_name_is_valid, but then we could theoretically reimplement
         #   everything in python too.
         # ctypes magic to create an array representing gdp_name_t
-        buf1 = create_string_buffer(self.name, 32+1)
+        buf1 = create_string_buffer(self.name, 32)
         name_t_ptr = cast(byref(buf1), POINTER(self.name_t))
 
         __func = gdp.gdp_name_is_valid

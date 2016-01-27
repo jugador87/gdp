@@ -7,10 +7,9 @@
 if [ $# -gt 0 ]; then
     VER=$1
     MAJVER=`echo $VER | cut -d '.' -f 1`
-    MINVER=`echo $VER | cut -d '.' -f 2 | cut -d '-' -f 1`
-    REVVER=`echo $VER | cut -d '-' -f 2`
+    MINVER=`echo $VER | cut -d '.' -f 2`
 else
-    echo "Usage: $0 <version (format: X.Y-Z)>"
+    echo "Usage: $0 <version (format: X.Y>"
     exit 1
 fi
 
@@ -24,17 +23,19 @@ rm -rf $tmpdir
 mkdir $tmpdir
 
 # invoke 'make'
-cd $topdir && make clean && make all 
+cd $topdir && make all 
 
 # copy files
 
 # ep header files
 mkdir -p $tmpdir/usr/include/ep
 install -m 0644 $topdir/ep/*.h          $tmpdir/usr/include/ep/
+install -m 0644 $topdir/ep/LICENSE      $tmpdir/usr/include/ep/
 
 # gdp header files
 mkdir -p $tmpdir/usr/include/gdp
 install -m 0644 $topdir/gdp/*.h         $tmpdir/usr/include/gdp/
+install -m 0644 $topdir/gdp/LICENSE     $tmpdir/usr/include/gdp/
 
 # documentation
 mkdir -p $tmpdir/usr/share/doc/gdp
