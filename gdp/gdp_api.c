@@ -143,7 +143,9 @@ gdp_internal_name(const gdp_pname_t external, gdp_name_t internal)
 
 		ep_dbg_cprintf(Dbg, 2,
 				"gdp_internal_name: ep_b64_decode failure\n"
+				"\tname = %s\n"
 				"\tstat = %s\n",
+				external,
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
 	else if (EP_STAT_TO_INT(estat) != sizeof (gdp_name_t))
