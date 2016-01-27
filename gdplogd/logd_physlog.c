@@ -271,7 +271,6 @@ extent_open(gdp_gcl_t *gcl, extent_t *ext)
 {
 	EP_STAT estat;
 	FILE *data_fp;
-	gcl_physinfo_t *phys = GETPHYS(gcl);
 	char data_pbuf[GCL_PATH_MAX];
 
 	ep_dbg_cprintf(Dbg, 20, "extent_open(ext %d, fp %p)\n",
@@ -351,9 +350,6 @@ extent_open(gdp_gcl_t *gcl, extent_t *ext)
 	ext->max_offset = fsizeof(data_fp);
 
 	// interpret data (for the entire log)
-	//XXX This assumes we always open extent 0 first: not true XXX
-	if (ext->extno == 0)
-		phys->min_recno = ext_hdr.recno_offset + 1;
 	gcl->x->n_md_entries = ext_hdr.n_md_entries;
 	gcl->x->log_type = ext_hdr.log_type;
 
