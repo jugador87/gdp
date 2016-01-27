@@ -1,4 +1,5 @@
-// https://github.com/nativelibs4java/JNAerator/blob/master/jnaerator-runtime/src/main/java/com/ochafik/lang/jnaerator/runtime/NativeSizeByReference.java
+// Project page: https://github.com/nativelibs4java/JNAerator/
+// from: jnaerator-runtime/src/main/java/NativeSizeByReference.java
 
 /*
   Copyright (c) 2009 Olivier Chafik, All Rights Reserved

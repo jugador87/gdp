@@ -1,7 +1,7 @@
 /* vim: set ai sw=4 sts=4 ts=4 :*/
 
 /*
-**  GDP Library Version
+**  GDP version information
 **
 **	----- BEGIN LICENSE BLOCK -----
 **	GDP: Global Data Plane Support Library
@@ -30,37 +30,7 @@
 **	----- END LICENSE BLOCK -----
 */
 
-/**********************************************************************
-**
-**  VERSION NUMBER
-**
-**	Patches shouldn't include new functionality, just bug fixes.
-**
-**********************************************************************/
+#include "gdp_version.h"
 
-#ifndef _GDP_VERSION_H_
-#define _GDP_VERSION_H_
+const char	GdpVersion[] = "@(#)Gdplib "GDP_VER_STRING " (" _CURRENT_DATE_ ")";
 
-#include <ep/ep.h>
-
-// change these as necessary
-#define GDP_VERSION_MAJOR	0
-#define GDP_VERSION_MINOR	4
-#define GDP_VERSION_PATCH	0
-
-#define __GDP_STRING(x)		#x
-#define __GDP_VER_CONCAT(a, b, c)							\
-				__GDP_STRING(a) "." __GDP_STRING(b) "." __GDP_STRING(c)
-#define GDP_VER_STRING										\
-				__GDP_VER_CONCAT(GDP_VERSION_MAJOR,			\
-						GDP_VERSION_MINOR,					\
-						GDP_VERSION_PATCH)
-
-#define GDP_LIB_VERSION										\
-				((GDP_VERSION_MAJOR << 16) |				\
-				 (GDP_VERSION_MINOR << 8) |					\
-				 (GDP_VERSION_PATCH      ))
-
-extern const char	GdpVersion[];
-
-#endif

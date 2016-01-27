@@ -117,3 +117,10 @@ update-license:
 	(cd gdp;	 make update-license)
 	(cd gdplogd;	 make update-license)
 	(cd apps;	 make update-license)
+
+# Not made by default
+PANDOC=		pandoc
+PANFLAGS=	-sS
+
+README.html: README.md
+	${PANDOC} ${PANFLAGS} -o $@ $<

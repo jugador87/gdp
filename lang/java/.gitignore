@@ -1,8 +1,9 @@
+jna
 *.jar
 _*
 *.class
 *.java
-!GDP_GCL.java
+!GDP*.java
 !ReaderTest.java
 !WriterTest.java
 !GdpUtilities.java

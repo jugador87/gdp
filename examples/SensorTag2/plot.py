@@ -79,7 +79,7 @@ def generate_plot(kvstore, key, parser, ylabel, ylim, title, tlist, outfile):
     ax.plot_date(xdates, y, '.--')
 
     # Also make sure that we plot till the current time
-    # ax.set_xlim(xmax=dates.epoch2num(cur))
+    ax.set_xlim(xmax=dates.epoch2num(cur))
 
     cur_string = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(cur))
     plt.title("%s (%s)" % (title, cur_string))
@@ -113,12 +113,12 @@ def main(configfile):
     # FIXME: This should ideally be read from the configuration file as 
     #   well. We should ideally be making multiple plots. But that's for
     #   later.
-    tlist = range(-1200, 0, 10)
+    tlist = range(-12*3600, 0, 300)
 
     # Each tuple is:
     #   (parser_function, measurement_unit, ylimit, title)
     sensor_dict = {
-        "optical"    : (lambda (t,x):x, "lux", [0,2000],
+        "optical"    : (lambda (t,x):x, "lux", [0,200],
                                     "Optical flux"),
         "temperature": (lambda (t,(x,y)):x, u'\u2103', [0,40], 
                                     "Ambient temperature"),
