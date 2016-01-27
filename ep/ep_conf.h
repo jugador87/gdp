@@ -114,6 +114,9 @@
 #ifdef __linux__
 # define EP_TYPE_PRINTFLIKE(a, b)
 # define EP_OSCF_HAS_STRLCPY		0	// no strlcpy on linux
+
+# define _BSD_SOURCE			1	// needed to compile on Linux
+# define _POSIX_C_SOURCE		200809L	// specify a modern environment
 #endif
 
 // this is a heuristic, but I don't know if there's a way to do it right
