@@ -69,7 +69,7 @@ struct gdp_gcl_xtra
 {
 	// declarations relating to semantics
 	gdp_gcl_t			*gcl;			// enclosing GCL
-	uint16_t			nmetadata;		// number of metadata entries
+	uint16_t			n_md_entries;	// number of metadata entries
 	uint16_t			log_type;		// from log header
 
 	// physical implementation declarations

@@ -255,8 +255,8 @@ extent_dump(extent_t *ext, FILE *fp)
 	fprintf(fp, "Extent %d @ %p:\n", ext->extno, ext);
 	fprintf(fp, "\tfp %p, ver %d, hsize %zd\n",
 			ext->fp, ext->ver, ext->header_size);
-	fprintf(fp, "\tmin_recno %" PRIgdp_recno ", max_offset %jd\n",
-			ext->min_recno, (intmax_t) ext->max_offset);
+	fprintf(fp, "\trecno_offset %" PRIgdp_recno ", max_offset %jd\n",
+			ext->recno_offset, (intmax_t) ext->max_offset);
 }
 
 
@@ -319,9 +319,9 @@ extent_open(gdp_gcl_t *gcl, extent_t *ext)
 	ext_hdr.magic = ep_net_ntoh32(ext_hdr.magic);
 	ext_hdr.version = ep_net_ntoh32(ext_hdr.version);
 	ext_hdr.header_size = ep_net_ntoh32(ext_hdr.header_size);
-	ext_hdr.num_metadata_entries = ep_net_ntoh16(ext_hdr.num_metadata_entries);
+	ext_hdr.n_md_entries = ep_net_ntoh16(ext_hdr.n_md_entries);
 	ext_hdr.log_type = ep_net_ntoh16(ext_hdr.log_type);
-	ext_hdr.min_recno = ep_net_ntoh64(ext_hdr.min_recno);
+	ext_hdr.recno_offset = ep_net_ntoh64(ext_hdr.recno_offset);
 
 	// validate the extent header
 	if (ext_hdr.magic != GCL_LDF_MAGIC)
@@ -345,39 +345,33 @@ extent_open(gdp_gcl_t *gcl, extent_t *ext)
 
 	// now we can interpret the data (for the extent)
 	ext->header_size = ext_hdr.header_size;
-	ext->min_recno = ext_hdr.min_recno;
+	ext->recno_offset = ext_hdr.recno_offset;
+	ext->fp = data_fp;
+	ext->ver = ext_hdr.version;
+	ext->max_offset = fsizeof(data_fp);
 
 	// interpret data (for the entire log)
 	//XXX This assumes we always open extent 0 first: not true XXX
 	if (ext->extno == 0)
-		phys->min_recno = ext_hdr.min_recno;
-	gcl->x->nmetadata = ext_hdr.num_metadata_entries;
+		phys->min_recno = ext_hdr.recno_offset + 1;
+	gcl->x->n_md_entries = ext_hdr.n_md_entries;
 	gcl->x->log_type = ext_hdr.log_type;
 
-	// interpret data (for the extent)
-	ext->fp = data_fp;
-	ext->ver = ext_hdr.version;
-	ext->header_size = ext_hdr.header_size;
-	ext->max_offset = fsizeof(data_fp);
-	ext->min_recno = ext_hdr.min_recno;
-	if (ext->min_recno <= 0)
-		ext->min_recno = 1;
-
-	if (gcl->x->nmetadata >= 0)
+	if (gcl->x->n_md_entries >= 0)
 	{
 		// this is not the first extent opened, so we have the metadata
 		goto success;
 	}
 
 	// read metadata entries
-	if (ext_hdr.num_metadata_entries > 0)
+	if (ext_hdr.n_md_entries > 0)
 	{
 		int mdtotal = 0;
 		void *md_data;
 		int i;
 
-		gcl->gclmd = gdp_gclmd_new(ext_hdr.num_metadata_entries);
-		for (i = 0; i < ext_hdr.num_metadata_entries; i++)
+		gcl->gclmd = gdp_gclmd_new(ext_hdr.n_md_entries);
+		for (i = 0; i < ext_hdr.n_md_entries; i++)
 		{
 			uint32_t md_id;
 			uint32_t md_len;
@@ -537,14 +531,14 @@ extent_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd, uint32_t extno)
 
 		if (gmd == NULL)
 		{
-			ext_hdr.num_metadata_entries = 0;
+			ext_hdr.n_md_entries = 0;
 		}
 		else
 		{
 			// allow space for id and length fields
 			metadata_size = gmd->nused * 2 * sizeof (uint32_t);
-			gcl->x->nmetadata = gmd->nused;
-			ext_hdr.num_metadata_entries = ep_net_hton16(gmd->nused);
+			gcl->x->n_md_entries = gmd->nused;
+			ext_hdr.n_md_entries = ep_net_hton16(gmd->nused);
 
 			// compute the space needed for the data fields
 			int i;
@@ -558,7 +552,7 @@ extent_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd, uint32_t extno)
 		ext->ver = GCL_LDF_VERSION;
 		ext->extno = extno;
 		ext->header_size = ext->max_offset = sizeof ext_hdr + metadata_size;
-		ext->min_recno = 1;
+		ext->recno_offset = 0;
 
 		ext_hdr.magic = ep_net_hton32(GCL_LDF_MAGIC);
 		ext_hdr.version = ep_net_hton32(GCL_LDF_VERSION);
@@ -568,7 +562,7 @@ extent_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd, uint32_t extno)
 		ext_hdr.extent = ep_net_hton16(extno);
 		ext_hdr.reserved2 = 0;
 		memcpy(ext_hdr.gname, gcl->name, sizeof ext_hdr.gname);
-		ext_hdr.min_recno = ep_net_hton64(1);
+		ext_hdr.recno_offset = ep_net_hton64(0);
 
 		fwrite(&ext_hdr, sizeof ext_hdr, 1, data_fp);
 	}
@@ -646,7 +640,7 @@ physinfo_alloc(gdp_gcl_t *gcl)
 {
 	gcl_physinfo_t *phys = ep_mem_zalloc(sizeof *phys);
 
-	gcl->x->nmetadata = -1;
+	gcl->x->n_md_entries = -1;
 
 	if (ep_thr_rwlock_init(&phys->lock) != 0)
 		goto fail1;
@@ -1348,13 +1342,13 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 	extent_t *ext = extent_get(gcl, 0);
 	EP_STAT estat = EP_STAT_OK;
 
-	ep_dbg_cprintf(Dbg, 29, "gcl_physgetmetadata: nmetadata %d\n",
-			gcl->x->nmetadata);
+	ep_dbg_cprintf(Dbg, 29, "gcl_physgetmetadata: n_md_entries %d\n",
+			gcl->x->n_md_entries);
 
 	// allocate and populate the header
 	gmd = ep_mem_zalloc(sizeof *gmd);
 	gmd->flags = GCLMDF_READONLY;
-	gmd->nalloc = gmd->nused = gcl->x->nmetadata;
+	gmd->nalloc = gmd->nused = gcl->x->n_md_entries;
 	gmd->mds = ep_mem_zalloc(gmd->nalloc * sizeof *gmd->mds);
 
 	// lock the GCL so that no one else seeks around on us

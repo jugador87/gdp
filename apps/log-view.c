@@ -334,7 +334,13 @@ show_index_header(const char *index_filename, int plev)
 
 		// get info from the last record
 		index_entry_t xent;
-		if (fseek(index_fp, st.st_size - SIZEOF_INDEX_RECORD, SEEK_SET) < 0)
+		if (st.st_size <= index_header.header_size)
+		{
+			// no records yet
+			printf("\tno records\n");
+		}
+		else if (fseek(index_fp, st.st_size - SIZEOF_INDEX_RECORD,
+						SEEK_SET) < 0)
 		{
 			printf("show_index_header: cannot seek\n");
 		}
@@ -463,12 +469,11 @@ show_extent(const char *gcl_dir_name, gdp_name_t gcl_name, int extno, int plev)
 	log_header.version = ep_net_ntoh32(log_header.version);
 	log_header.header_size = ep_net_ntoh32(log_header.header_size);
 	log_header.reserved1 = ep_net_ntoh32(log_header.reserved1);
-	log_header.num_metadata_entries =
-			ep_net_ntoh16(log_header.num_metadata_entries);
+	log_header.n_md_entries = ep_net_ntoh16(log_header.n_md_entries);
 	log_header.log_type = ep_net_ntoh16(log_header.log_type);
 	log_header.extent = ep_net_ntoh32(log_header.log_type);
 	log_header.reserved2 = ep_net_ntoh64(log_header.reserved2);
-	log_header.min_recno = ep_net_ntoh64(log_header.min_recno);
+	log_header.recno_offset = ep_net_ntoh64(log_header.recno_offset);
 
 	if (plev >= GDP_PR_BASIC)
 	{
@@ -482,9 +487,9 @@ show_extent(const char *gcl_dir_name, gdp_name_t gcl_name, int extno, int plev)
 		printf("\tname = %s\n",
 				gdp_printable_name(log_header.gname, pname));
 		printf("\theader size = %" PRId32 " (0x%" PRIx32 ")"
-				", metadata entries = %d, min_recno = %" PRIgdp_recno "\n",
+				", metadata entries = %d, recno_offset = %" PRIgdp_recno "\n",
 				log_header.header_size, log_header.header_size,
-				log_header.num_metadata_entries, log_header.min_recno);
+				log_header.n_md_entries, log_header.recno_offset);
 		if (plev >= GDP_PR_DETAILED)
 		{
 			ep_hexdump(&log_header, sizeof log_header, stdout,
@@ -494,9 +499,9 @@ show_extent(const char *gcl_dir_name, gdp_name_t gcl_name, int extno, int plev)
 	file_offset += sizeof log_header;
 	CHECK_FILE_OFFSET(data_fp, file_offset);
 
-	if (log_header.num_metadata_entries > 0)
+	if (log_header.n_md_entries > 0)
 	{
-		istat = show_metadata(log_header.num_metadata_entries, data_fp,
+		istat = show_metadata(log_header.n_md_entries, data_fp,
 					&file_offset, plev);
 		if (istat != 0)
 			goto fail0;

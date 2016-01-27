@@ -81,7 +81,7 @@
 **		header), followed by the log metadata, followed by a series of
 **		data records.  Each record has a header followed by data.
 **
-**		The GCL metadata consists of num_metadata_entries (N)
+**		The GCL metadata consists of n_md_entries (N)
 **		descriptors, each of which has a uint32_t "name" and a
 **		uint32_t length.  In other words, the descriptors are an
 **		an array of names and lengths: (n1, l1, n2, l2 ... nN, lN).
@@ -115,12 +115,12 @@ typedef struct
 	uint32_t	header_size; 	// the total size of the header such that
 								// the data records begin at offset header_size
 	uint32_t	reserved1;		// reserved for future use
-	uint16_t	num_metadata_entries;
+	uint16_t	n_md_entries;	// number of metadata entries
 	uint16_t	log_type;		// directory, indirect, data, etc. (unused)
 	uint32_t	extent;			// extent number
 	uint64_t	reserved2;		// reserved for future use
 	gdp_name_t	gname;			// the name of this log
-	gdp_recno_t	min_recno;		// first recno stored in this extent
+	gdp_recno_t	recno_offset;	// first recno stored in this extent - 1
 } extent_header_t;
 
 
@@ -140,7 +140,7 @@ typedef struct
 	uint32_t			ver;				// on-disk file version
 	uint32_t			extno;				// extent number
 	size_t				header_size;		// size of extent file hdr
-	gdp_recno_t			min_recno;			// minimum recno in extent
+	gdp_recno_t			recno_offset;		// first recno in extent - 1
 	off_t				max_offset;			// size of extent file
 	EP_TIME_SPEC		retain_until;		// retain at least until this date
 	EP_TIME_SPEC		remove_by;			// must be gone by this date
@@ -244,7 +244,6 @@ struct physinfo
 	// info regarding the entire log (not extent)
 	gdp_recno_t			min_recno;				// first recno in log
 	gdp_recno_t			max_recno;				// last recno in log (dynamic)
-//	uint16_t			num_metadata_entries;	// number of metadata entries
 
 	// info regarding the extent files
 	uint32_t			nextents;				// number of extents
