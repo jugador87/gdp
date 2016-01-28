@@ -175,7 +175,7 @@ gdp.GDP_GCL = class GDP_GCL
  |  ----------------------------------------------------------------------
  |  Class methods defined here:
  |  
- |  create(cls, logd_name, name) from __builtin__.classobj
+ |  create(cls, name, logd_name) from __builtin__.classobj
  |      create a new GCL with 'name' on 'logdname'
  |  
  |  get_next_event(cls, timeout) from __builtin__.classobj
