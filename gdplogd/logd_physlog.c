@@ -971,11 +971,11 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 
 		STDIOCHECK("gcl_physgetmetadata: fread#0", 1,
 				fread(&t32, sizeof t32, 1, gcl->x->fp));
-		gmd->mds[i].md_id = t32;
+		gmd->mds[i].md_id = ep_net_ntoh32(t32);
 		STDIOCHECK("gcl_physgetmetadata: fread#1", 1,
 				fread(&t32, sizeof t32, 1, gcl->x->fp));
-		gmd->mds[i].md_len = t32;
-		tlen += t32;
+		gmd->mds[i].md_len = ep_net_ntoh32(t32);
+		tlen += ep_net_ntoh32(t32);
 		ep_dbg_cprintf(Dbg, 34, "\tid = %08x, len = %zd\n",
 				gmd->mds[i].md_id, gmd->mds[i].md_len);
 	}
