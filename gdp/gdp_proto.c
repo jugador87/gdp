@@ -459,7 +459,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	{ NULL,				"CMD_MULTIREAD"			},			// 73
 	{ NULL,				"CMD_GETMETADATA"		},			// 74
 	{ NULL,				"CMD_OPEN_RA"			},			// 75
-	NOENT,				// 76
+	{ NULL,				"CMD_NEWEXTENT"			},			// 76
 	NOENT,				// 77
 	NOENT,				// 78
 	NOENT,				// 79

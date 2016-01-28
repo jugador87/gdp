@@ -37,6 +37,7 @@ BINALL=		gcl-create \
 SBINALL=	gdp-rest \
 		log-view \
 		gdp-name-xlate \
+		gdp-newextent \
 		gdp-zcpublish \
 
 ALL=		${BINALL} ${SBINALL}

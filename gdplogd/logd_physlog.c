@@ -436,14 +436,32 @@ extent_close(gdp_gcl_t *gcl, uint32_t extno)
 **  Get the in-memory representation of a numbered extent.
 **
 **		This does not open it if it's new, but it does allocate the
-**		memory and makes sure tha the physinfo is allocated.
+**		memory and makes sure that the physinfo is allocated.
+**
+**		If extno is negative, get any extent (we just need the
+**		header information and/or metadata).
 */
 
 static extent_t *
-extent_get(gdp_gcl_t *gcl, uint32_t extno)
+extent_get(gdp_gcl_t *gcl, int extno)
 {
 	extent_t *ext;
 	gcl_physinfo_t *phys = GETPHYS(gcl);
+
+	if (extno < 0)
+	{
+		int i;
+
+		for (i = 0; i < phys->nextents; i++)
+		{
+			if (phys->extents[i] != NULL)
+				return phys->extents[i];
+		}
+
+		// nothing in memory yet?  OK, go for extent zero
+		//XXX really we should do a wildcard to find anything we have
+		extno = 0;
+	}
 
 	// see if we need to expand extent list
 	if (phys->extents == NULL || extno >= phys->nextents)
@@ -481,6 +499,9 @@ extent_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd, uint32_t extno)
 	gcl_physinfo_t *phys = GETPHYS(gcl);
 	extent_t *ext;
 
+	ep_dbg_cprintf(Dbg, 10, "extent_create(%s, %d)\n",
+			gcl->pname, extno);
+
 	// this will allocate memory, but leave the disk untouched
 	ext = extent_get(gcl, extno);
 
@@ -489,7 +510,7 @@ extent_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd, uint32_t extno)
 		int data_fd;
 		char data_pbuf[GCL_PATH_MAX];
 
-		estat = get_gcl_path(gcl, 0, GCL_LDF_SUFFIX,
+		estat = get_gcl_path(gcl, extno, GCL_LDF_SUFFIX,
 						data_pbuf, sizeof data_pbuf);
 		EP_STAT_CHECK(estat, goto fail1);
 
@@ -1334,8 +1355,8 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 	gdp_gclmd_t *gmd;
 	int i;
 	size_t tlen;
-	gcl_physinfo_t *phys = gcl->x->physinfo;
-	extent_t *ext = extent_get(gcl, 0);
+	gcl_physinfo_t *phys = GETPHYS(gcl);
+	extent_t *ext = extent_get(gcl, -1);
 	EP_STAT estat = EP_STAT_OK;
 
 	ep_dbg_cprintf(Dbg, 29, "gcl_physgetmetadata: n_md_entries %d\n",
@@ -1362,11 +1383,11 @@ gcl_physgetmetadata(gdp_gcl_t *gcl,
 
 		STDIOCHECK("gcl_physgetmetadata: fread#0", 1,
 				fread(&t32, sizeof t32, 1, ext->fp));
-		gmd->mds[i].md_id = t32;
+		gmd->mds[i].md_id = ep_net_ntoh32(t32);
 		STDIOCHECK("gcl_physgetmetadata: fread#1", 1,
 				fread(&t32, sizeof t32, 1, ext->fp));
-		gmd->mds[i].md_len = t32;
-		tlen += t32;
+		gmd->mds[i].md_len = ep_net_ntoh32(t32);
+		tlen += ep_net_ntoh32(t32);
 		ep_dbg_cprintf(Dbg, 34, "\tid = %08x, len = %zd\n",
 				gmd->mds[i].md_id, gmd->mds[i].md_len);
 	}
@@ -1401,6 +1422,33 @@ fail_stdio:
 	}
 
 	ep_thr_rwlock_unlock(&phys->lock);
+	return estat;
+}
+
+
+/*
+**  Create a new extent.
+*/
+
+EP_STAT
+gcl_physnewextent(gdp_gcl_t *gcl)
+{
+	EP_STAT estat;
+	gcl_physinfo_t *phys = GETPHYS(gcl);
+	int newextno = phys->last_extent + 1;
+	gdp_gclmd_t *gmd;
+
+	// get the metadata
+	estat = gcl_physgetmetadata(gcl, &gmd);
+	EP_STAT_CHECK(estat, return estat);
+
+
+	ep_thr_rwlock_wrlock(&phys->lock);
+	estat = extent_create(gcl, gmd, newextno);
+	ep_thr_rwlock_unlock(&phys->lock);
+
+	if (EP_STAT_ISOK(estat))
+		phys->last_extent = newextno;
 	return estat;
 }
 

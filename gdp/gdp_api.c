@@ -491,6 +491,20 @@ gdp_gcl_getmetadata(gdp_gcl_t *gcl,
 
 
 /*
+**  GDP_GCL_NEWEXTENT --- create new extent for GCL
+**
+**		This should only be invoked by a service and with appropriate
+**		authorization.
+*/
+
+EP_STAT
+gdp_gcl_newextent(gdp_gcl_t *gcl)
+{
+	return _gdp_gcl_newextent(gcl, _GdpChannel, 0);
+}
+
+
+/*
 **  GDP_GCL_SET_APPEND_FILTER --- set the append filter function
 */
 

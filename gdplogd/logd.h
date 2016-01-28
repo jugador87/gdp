@@ -162,6 +162,9 @@ EP_STAT			gcl_physgetmetadata(
 						gdp_gcl_t *gcl,
 						gdp_gclmd_t **gmdp);
 
+EP_STAT			gcl_physnewextent(
+						gdp_gcl_t *gcl);
+
 void			gcl_physforeach(
 						void (*func)(
 							gdp_name_t name,

@@ -160,6 +160,10 @@ _gdp_gcl_cache_add(gdp_gcl_t *gcl, gdp_iomode_t mode)
 **		in and grab a GCL that you are about to lock.  The basic
 **		procedure is (1) lock cache, (2) get GCL, (3) lock GCL,
 **		(4) bump refcnt, (5) unlock GCL, (6) unlock cache.
+**
+**		If found, the refcnt is bumped for the returned GCL,
+**		i.e., the caller is responsible for calling
+**		_gdp_gcl_decref(gcl) when it is finished with it.
 */
 
 gdp_gcl_t *

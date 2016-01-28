@@ -312,6 +312,11 @@ EP_STAT			_gdp_gcl_getmetadata(		// retrieve metadata
 						gdp_chan_t *chan,
 						uint32_t reqflags);
 
+EP_STAT			_gdp_gcl_newextent(			// create a new physical extent
+						gdp_gcl_t *gcl,
+						gdp_chan_t *chan,
+						uint32_t reqflags);
+
 
 /*
 **  GCL Open Information

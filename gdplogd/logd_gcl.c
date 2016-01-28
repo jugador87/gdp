@@ -121,6 +121,15 @@ gcl_close(gdp_gcl_t *gcl)
 }
 
 
+/*
+**  Get an open instance of the GCL in the request.
+**
+**		This maps the GCL name to the internal GCL instance.
+**		That open instance is returned in the request passed in.
+**		The GCL will have it's reference count bumped, so the
+**		caller must call _gdp_gcl_decref when done with it.
+*/
+
 EP_STAT
 get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 {

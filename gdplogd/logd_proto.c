@@ -175,7 +175,8 @@ cmd_create(gdp_req_t *req)
 	if (memcmp(req->pdu->dst, _GdpMyRoutingName, sizeof _GdpMyRoutingName) != 0)
 	{
 		// this is directed to a GCL, not to the daemon
-		return GDP_STAT_NAK_BADREQ;
+		return gdpd_gcl_error(req->pdu->dst, "cmd_create: log name required",
+							GDP_STAT_NAK_CONFLICT, GDP_STAT_NAK_BADREQ);
 	}
 
 	req->pdu->cmd = GDP_ACK_CREATED;
@@ -345,7 +346,7 @@ cmd_read(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pdu->dst, "cmd_read: GCL open failure",
-							estat, GDP_STAT_NAK_BADREQ);
+							estat, GDP_STAT_NAK_INTERNAL);
 	}
 
 	// handle record numbers relative to the end
@@ -922,7 +923,7 @@ cmd_getmetadata(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pdu->dst, "cmd_read: GCL open failure",
-							estat, GDP_STAT_NAK_BADREQ);
+							estat, GDP_STAT_NAK_INTERNAL);
 	}
 
 	// get the metadata into memory
@@ -936,6 +937,29 @@ fail0:
 	_gdp_gcl_decref(req->gcl);
 	req->gcl = NULL;
 	return estat;
+}
+
+
+EP_STAT
+cmd_newextent(gdp_req_t *req)
+{
+	EP_STAT estat;
+
+	req->pdu->cmd = GDP_ACK_CREATED;
+
+	// should have no input data; ignore anything there
+	flush_input_data(req, "cmd_newextent");
+
+	estat = get_open_handle(req, GDP_MODE_AO);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	estat = gcl_physnewextent(req->gcl);
+	return estat;
+
+fail0:
+	return gdpd_gcl_error(req->pdu->dst,
+			"cmd_newextent: cannot create new extent for",
+			estat, GDP_STAT_NAK_INTERNAL);
 }
 
 
@@ -1033,6 +1057,7 @@ static struct cmdfuncs	CmdFuncs[] =
 	{ GDP_CMD_MULTIREAD,	cmd_multiread	},
 	{ GDP_CMD_GETMETADATA,	cmd_getmetadata	},
 	{ GDP_CMD_OPEN_RA,		cmd_open		},
+	{ GDP_CMD_NEWEXTENT,	cmd_newextent	},
 	{ 0,					NULL			}
 };
 
