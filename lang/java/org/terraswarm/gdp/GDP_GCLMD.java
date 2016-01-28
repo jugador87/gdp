@@ -20,9 +20,9 @@ import org.terraswarm.gdp.NativeSize; // Fixed by cxh in makefile.
  */
 
 class GDP_GCLMD {
-
+    
     // Pointer to the C structure
-    private PointerByReference gdp_gclmd_ptr = null;
+    public PointerByReference gdp_gclmd_ptr = null;
     
     // To keep track of whether we need to call free in destructor
     private boolean did_i_create_it = false;
