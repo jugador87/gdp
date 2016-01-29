@@ -3,6 +3,7 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.Date;
 import java.util.Map;
+import java.util.HashMap;
 import java.awt.PointerInfo;
 import java.lang.Exception;
 
@@ -38,19 +39,50 @@ public class GDP_GCL {
     //////////////// Public Interface /////////////////////////
 
     /**
-     * Create a GCL. 
+     * Create a GCL. Note that this is a static method. 
      * 
+     * @param logName   Name of the log to be created
      * @param logdName  Name of the log server where this should be 
      *                  placed.
-     * @param name      Name of the log to be created
-     * @param metadata  Metadata to be added to the log.
+     * @param metadata  Metadata to be added to the log. 
      */
     
-    public static void create(String logdName, String name, String metadata) {
+    public static void create(GDP_NAME logName, GDP_NAME logdName, 
+            Map<Integer, String> metadata) {
+        
+        EP_STAT estat;
+        
+        // Get the 256-bit internal names for logd and log
+        ByteBuffer logdNameInternal = ByteBuffer.wrap(logdName.internal_name());
+        ByteBuffer logNameInternal = ByteBuffer.wrap(logName.internal_name());
+        
+        // Just create a throwaway pointer.
+        Pointer tmpPtr = null;
+        
+        // metadata processing
+        
+        GDP_GCLMD m = new GDP_GCLMD();
+        for (int k: metadata.keySet()) {
+            m.add(k, metadata.get(k));
+        }
+        
+        estat = Gdp02Library.INSTANCE.gdp_gcl_create(logNameInternal, logdNameInternal,
+                        m.gdp_gclmd_ptr, new PointerByReference(tmpPtr));
+        
+        GDP.check_EP_STAT(estat);
+        
         return;
     }
     
 
+    /**
+     * Create a GCL. Note that this is a static method    
+     * @param logName   Name of the log
+     * @param logdName  Name of the logserver that should host this log
+     */
+    public static void create(GDP_NAME logName, GDP_NAME logdName) {
+        create (logdName, logName, new HashMap<Integer, String>());
+    }
 
     /**
      * I/O mode for a log.

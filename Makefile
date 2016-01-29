@@ -105,8 +105,10 @@ clean_JavaScript:
 
 VER=		XX
 debian-package:
-	@[ "${VER}" = "XX" ] && ( echo "Must include VER=<version>"; exit 1 )
-	adm/gdp-debbuild.sh -v ${VER} -r ..
+	@[ "${VER}" != "XX" ] || ( echo "Must include VER=<version>"; exit 1 )
+	deb-pkg/package-client.sh $(VER)
+	lang/python/deb-pkg/package.sh $(VER)
+
 
 ADM=		adm
 UPDATE_LICENSE=	${ADM}/update-license.sh
@@ -124,3 +126,4 @@ PANFLAGS=	-sS
 
 README.html: README.md
 	${PANDOC} ${PANFLAGS} -o $@ $<
+

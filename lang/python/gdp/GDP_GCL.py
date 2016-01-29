@@ -142,7 +142,7 @@ class GDP_GCL:
         return
 
     @classmethod
-    def create(cls, logd_name, name, metadata):
+    def create(cls, name, logd_name, metadata):
         """
         create a new GCL with 'name' on 'logd_name'
         metadata is a dictionary with keys as 32-bit unsigned integers

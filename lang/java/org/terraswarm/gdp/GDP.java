@@ -25,6 +25,12 @@ import org.terraswarm.gdp.NativeSize; // Fixed by cxh in makefile.
  */
 public class GDP {
 
+    // some constants
+    public static final int GDP_GCLMD_XID     = 0x00584944; 
+    public static final int GDP_GCLMD_PUBKEY  = 0x00505542;
+    public static final int GDP_GCLMD_CTIME   = 0x0043544D;      
+    public static final int GDP_GCLMD_CID     = 0x00434944;
+       
     /**
      * Initialize GDP library, with any parameters specified
      * in configuration files.
