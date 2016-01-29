@@ -42,6 +42,7 @@
 
 # include <openssl/evp.h>
 # include <openssl/sha.h>
+# include <openssl/opensslv.h>
 
 
 
@@ -331,5 +332,17 @@ EP_STAT			ep_crypto_cipher_final(
 */
 
 void	*_ep_crypto_error(const char *msg, ...);
+
+
+/*
+**  Back compatilibity with old versions of OpenSSL
+*/
+
+#if OPENSSL_VERSION_NUMBER < 0x010100000
+// "EVP_MD_CTX_create() and EVP_MD_CTX_destroy() were renamed to
+//  EVP_MD_CTX_new() and EVP_MD_CTX_free() in OpenSSL 1.1."
+# define EVP_MD_CTX_new		EVP_MD_CTX_create
+# define EVP_MD_CTX_free	EVP_MD_CTX_destroy
+#endif
 
 #endif // _EP_CRYPTO_H_
