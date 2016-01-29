@@ -40,6 +40,8 @@ install -m 0644 $topdir/gdp/LICENSE     $tmpdir/usr/include/gdp/
 # documentation
 mkdir -p $tmpdir/usr/share/doc/gdp
 install -m 0644 $topdir/doc/*.html      $tmpdir/usr/share/doc/gdp/
+mkdir -p $tmpdir/usr/share/doc/gdp/tutorial
+install -m 0644 $topdir/doc/tutorial/*  $tmpdir/usr/share/doc/gdp/tutorial/
 
 # examples
 mkdir -p $tmpdir/usr/share/doc/gdp/examples
