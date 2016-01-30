@@ -2,6 +2,7 @@ package org.terraswarm.gdp;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.awt.PointerInfo;
 import java.lang.Exception;
@@ -60,19 +61,23 @@ class GDP_GCLMD {
      * @param gclmd_id  ID for the metadata. Internally a 32-bit unsigned integer
      * @param data  The corresponding data.
      */
-    public void add(int gclmd_id, String data) {
+    public void add(int gclmd_id, byte[] data) {
         
         // FIXME: figure out if we need to have a +1 for len
-        NativeSize len = new NativeSize(data.length());
+        NativeSize len = new NativeSize(data.length);
 
         // Create a C string that is a copy (?) of the Java String.
-        Memory memory = new Memory(data.length()+1);
+        Memory memory = new Memory(data.length+1);
+        
         // FIXME: not sure about alignment.
         Memory alignedMemory = memory.align(4);
         memory.clear();
         Pointer pointer = alignedMemory.share(0);
-        pointer.setString(0, data);
-        
+
+        for (int i=0; i<data.length; i++) {
+            pointer.setByte(i,data[i]);
+        }
+                
         Gdp02Library.INSTANCE.gdp_gclmd_add(this.gdp_gclmd_ptr, gclmd_id,
                 len, pointer);
     }
@@ -82,32 +87,43 @@ class GDP_GCLMD {
      * Get a metadata entry by index. This is not searching by a gclmd_id. For
      * that, look at find.
      * @param index The particular metadata entry we are looking for
-     * @return Returns the TODO 
-     */ /*
-    public String get(int index){
+     * @return  Returns a Key-Value pair containing the requested index. 
+     *          A hashMap seems to be the best choice, since there's no tuple
+     *          type in Java.
+     */ 
+    public HashMap<Integer, byte[]> get(int index){
 
         // Pointer to hold the gclmd_id
-        IntBuffer gclmd_id = IntBuffer.allocate(1);
+        IntBuffer gclmd_id_ptr = IntBuffer.allocate(1);
+        
         // to hold the length of the buffer
         NativeSize len = new NativeSize();
+        
         // Pointer to the buffer to hold the value
         PointerByReference p = new PointerByReference();
         
         Gdp02Library.INSTANCE.gdp_gclmd_get(this.gdp_gclmd_ptr, 
-                index, gclmd_id, new NativeSizeByReference(len), p);
+                index, gclmd_id_ptr, new NativeSizeByReference(len), p);
+        
+        // get the gclmd_id
+        int gclmd_id = gclmd_id_ptr.get(0);
         
         Pointer pointer = p.getValue();
-        byte[] bytes = pointer.getByteArray(0, len.intValue());
-        return new String(bytes);
-        //TODO Fix this? How do we return a pair?
-    } */
+        byte[] val = pointer.getByteArray(0, len.intValue());
+        
+        HashMap<Integer, byte[]> ret = new HashMap<Integer, byte[]>();
+        
+        ret.put(gclmd_id, val);
+        
+        return ret;
+    }
     
     /**
      * Find a particular metadata entry by looking up gclmd_id
      * @param gclmd_id ID we are searching for
      * @return the value associated with <code>gclmd_id</code> 
      */
-    public String find(int gclmd_id) {
+    public byte[] find(int gclmd_id) {
 
         // to hold the length of the buffer
         NativeSize len = new NativeSize();
@@ -119,7 +135,7 @@ class GDP_GCLMD {
         
         Pointer pointer = p.getValue();
         byte[] bytes = pointer.getByteArray(0, len.intValue());
-        return new String(bytes);
+        return bytes;
         
     }
 }

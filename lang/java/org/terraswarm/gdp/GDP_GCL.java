@@ -48,7 +48,7 @@ public class GDP_GCL {
      */
     
     public static void create(GDP_NAME logName, GDP_NAME logdName, 
-            Map<Integer, String> metadata) {
+            Map<Integer, byte[]> metadata) {
         
         EP_STAT estat;
         
@@ -81,7 +81,7 @@ public class GDP_GCL {
      * @param logdName  Name of the logserver that should host this log
      */
     public static void create(GDP_NAME logName, GDP_NAME logdName) {
-        create (logdName, logName, new HashMap<Integer, String>());
+        create (logdName, logName, new HashMap<Integer, byte[]>());
     }
 
     /**
@@ -139,58 +139,84 @@ public class GDP_GCL {
      * Read a record by record number
      * 
      * @param recno Record number to be read
-     * @return  The data from the datum returned.
+     * @return A hashmap containing the data just read
      */
     
-    public String read(long recno) {
-        // only returns the data in the record as a string
-        // ignores record number, timestamp and anything else 
+    public HashMap<String, Object> read(long recno) {
 
         EP_STAT estat;
-        PointerByReference datum = Gdp02Library.INSTANCE.gdp_datum_new();
-
+        GDP_DATUM datum = new GDP_DATUM();
+                
         // get the datum populated
-        estat = Gdp02Library.INSTANCE.gdp_gcl_read(this.gclh, recno, datum);
+        estat = Gdp02Library.INSTANCE.gdp_gcl_read(this.gclh, recno, 
+                                datum.gdp_datum_ptr);
         GDP.check_EP_STAT(estat);
 
-        // read the data in the datum. Ignore recno, timestamp for now
-        GDP_DATUM d = new GDP_DATUM(datum);
-
-        // free the corresponding C structure            
-        Gdp02Library.INSTANCE.gdp_datum_free(datum);
-        return d.data;
+        HashMap<String, Object> datum_dict = new HashMap<String, Object>();
+        datum_dict.put("recno", datum.getrecno());
+        datum_dict.put("ts", datum.getts());
+        datum_dict.put("data", datum.getbuf());
+        // TODO: Add signature routines.
+        
+        return datum_dict;
     }
 
 
     /**
      * Append data to a log
      * 
-     * @param data  Data to be appended
+     * @param datum_dict A dictionary containing the key "data". 
      */
-    public void append(String data) {
+    public void append(HashMap<String, Object>datum_dict) {
 
         EP_STAT estat;
-        PointerByReference datum = Gdp02Library.INSTANCE.gdp_datum_new();
-
-        // Create a C string that is a copy (?) of the Java String.
-        Memory memory = new Memory(data.length()+1);
-        // FIXME: not sure about alignment.
-        Memory alignedMemory = memory.align(4);
-        memory.clear();
-        Pointer pointer = alignedMemory.share(0);
-        pointer.setString(0, data);
-
-        // Now feed this data into the gdp buffer
-        PointerByReference dbuf = Gdp02Library.INSTANCE.gdp_datum_getbuf(datum);
-        Gdp02Library.INSTANCE.gdp_buf_write(dbuf, pointer, 
-                                new NativeSize(data.length()));
-
-        estat = Gdp02Library.INSTANCE.gdp_gcl_append(this.gclh, datum);
+        GDP_DATUM datum = new GDP_DATUM();
+        
+        Object data = datum_dict.get("data");
+        datum.setbuf((byte[]) data);
+        
+        estat = Gdp02Library.INSTANCE.gdp_gcl_append(this.gclh,
+                                datum.gdp_datum_ptr);
         GDP.check_EP_STAT(estat);
 
-        Gdp02Library.INSTANCE.gdp_datum_free(datum);
+        return;
+    }
+
+    public void append(byte[] data) {
+        
+        HashMap<String, Object> datum = new HashMap<String, Object>();
+        datum.put("data", data);
+        
+        this.append(datum);
+    }
+
+    /**
+     * Append data to a log, asynchronously
+     * 
+     * @param datum_dict A dictionary containing the key "data". 
+     */
+    public void append_async(HashMap<String, Object>datum_dict) {
+
+        EP_STAT estat;
+        GDP_DATUM datum = new GDP_DATUM();
+        
+        Object data = datum_dict.get("data");
+        datum.setbuf((byte[]) data);
+        
+        estat = Gdp02Library.INSTANCE.gdp_gcl_append_async(this.gclh, 
+                                datum.gdp_datum_ptr, null, null);
+        GDP.check_EP_STAT(estat);
 
         return;
+    }
+
+
+    public void append_async(byte[] data) {
+        
+        HashMap<String, Object> datum = new HashMap<String, Object>();
+        datum.put("data", data);
+        
+        this.append_async(datum);
     }
 
 
@@ -200,13 +226,14 @@ public class GDP_GCL {
      * 
      * @param firstrec  The record num to start the subscription from
      * @param numrecs   Max number of records to be returned. 0 => infinite
+     * @param timeout   Timeout for this subscription
      */
-    public void subscribe(long firstrec, int numrecs) {
+    public void subscribe(long firstrec, int numrecs, EP_TIME_SPEC timeout) {
 
         EP_STAT estat;
         estat = Gdp02Library.INSTANCE
                     .gdp_gcl_subscribe(this.gclh, firstrec, numrecs,
-                                        null, null, null);
+                                        timeout, null, null);
 
         GDP.check_EP_STAT(estat);
 
@@ -240,7 +267,7 @@ public class GDP_GCL {
      * 
      * @param timeout_msec  Time (in ms) for which to block. Can be used 
      *                      to block eternally as well.
-     */
+     */ /*
     public String get_next_data(int timeout_msec) {
         // returns next data item from subcription or multiread
         // returns null if end of subscription
@@ -252,15 +279,44 @@ public class GDP_GCL {
             return null;
         }
 
-    }
+    } */
 
+    
+    public HashMap<String, Object> get_next_event(EP_TIME_SPEC timeout) {
+        
+        // Get the event pointer
+        PointerByReference gdp_event_ptr = Gdp02Library.INSTANCE
+                            .gdp_event_next(this.gclh, timeout);
+
+        // Get the data associated with this event
+        int type = Gdp02Library.INSTANCE.gdp_event_gettype(gdp_event_ptr);
+        PointerByReference datum_ptr = Gdp02Library.INSTANCE
+                            .gdp_event_getdatum(gdp_event_ptr);
+        EP_STAT event_ep_stat = Gdp02Library.INSTANCE
+                            .gdp_event_getstat(gdp_event_ptr);
+        
+        GDP_DATUM datum = new GDP_DATUM(datum_ptr);
+        // create a datum dictionary.
+        HashMap<String, Object> datum_dict = new HashMap<String, Object>();
+        datum_dict.put("recno", datum.getrecno());
+        datum_dict.put("ts", datum.getts());
+        datum_dict.put("data", datum.getbuf());
+        // TODO Fix signatures
+        
+        HashMap<String, Object> gdp_event = new HashMap<String, Object>();
+        gdp_event.put("datum", datum_dict);
+        gdp_event.put("type", type);
+        gdp_event.put("stat", event_ep_stat);
+        
+        return gdp_event;
+    }
 
     /**
      * Get next event as a result of subscription, multiread or
      * an asynchronous operation.
      * 
      * @param timeout_msec  Time (in ms) for which to block.
-     */
+     */ /*
     public GDP_EVENT get_next_event(int timeout_msec) {
         // timeout in ms. Probably not very precise
         // 0 means block forever
@@ -296,5 +352,5 @@ public class GDP_GCL {
         Gdp02Library.INSTANCE.gdp_event_free(gev);
 
         return ev;
-    }
+    } */
 }

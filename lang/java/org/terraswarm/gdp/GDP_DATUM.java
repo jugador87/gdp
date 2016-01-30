@@ -19,7 +19,7 @@ import org.terraswarm.gdp.NativeSize; // Fixed by cxh in makefile.
  * unsurprisingly acts like a buffer).
  * <p>
  * This is for internal use only, for users the GDP DATUM is more
- * like a dictionary.
+ * like a dictionary, represented with a HashMap.
  * <p>
  * TODO Make sure there are no memory leaks. Implement a destructor.
  * @author nitesh mor
@@ -28,35 +28,111 @@ import org.terraswarm.gdp.NativeSize; // Fixed by cxh in makefile.
 
 class GDP_DATUM {
 
-    public long recno;
-    public String data;
-    public EP_TIME_SPEC ts;
+        
+    // The associated C data structure.
+    public PointerByReference gdp_datum_ptr = null;
 
-    public GDP_DATUM(long recno, String data, EP_TIME_SPEC ts) {
-        this.recno = recno;
-        this.data = data;
-        this.ts = ts;
+    // to keep track of whether we need to free the associated C memory.
+    private boolean did_i_create_it = false;
+    
+    /**
+     * Simply allocates some memory by calling C function
+     */
+    public GDP_DATUM() {
+        this.gdp_datum_ptr = Gdp02Library.INSTANCE.gdp_datum_new();
+        did_i_create_it = true;
+        return;
     }
-
-
+    
+    /**
+     * Use an already allocated C data-structure
+     * @param p Pointer to existing C memory of type gdp_datum_t
+     */    
     public GDP_DATUM(PointerByReference d) {
-        // this is when we have just a C pointer.
-
-        // based on Christopher's gdp_datum_print
-        long recno = Gdp02Library.INSTANCE.gdp_datum_getrecno(d);
-        PointerByReference buf = Gdp02Library.INSTANCE.gdp_datum_getbuf(d);
+        this.gdp_datum_ptr = d;
+        did_i_create_it = false;
+        return;
+    }
+    
+    /**
+     * If we allocated memory ourselves, free it.
+     */
+    public void finalize(){ 
+        if (did_i_create_it == true) {
+            Gdp02Library.INSTANCE.gdp_datum_free(this.gdp_datum_ptr);
+        }
+    }
+    
+    /**
+     * Get the associated record number
+     * @return Record number
+     */
+    public long getrecno() {
+        long recno = Gdp02Library.INSTANCE.gdp_datum_getrecno(
+                                        this.gdp_datum_ptr);
+        return recno;
+    }
+    
+    /**
+     * Get the timestamp
+     * @return timestamp associated with the C data structure
+     */
+    public EP_TIME_SPEC getts() {
+        EP_TIME_SPEC ts = new EP_TIME_SPEC();
+        Gdp02Library.INSTANCE.gdp_datum_getts(this.gdp_datum_ptr, ts);
+        return ts;
+    }
+    
+    /**
+     * Get the length of data in the bufffer
+     * @return Length of buffer
+     */
+    public NativeSize getdlen() {
+        PointerByReference buf = Gdp02Library.INSTANCE.gdp_datum_getbuf(
+                                        this.gdp_datum_ptr);
+        NativeSize len = Gdp02Library.INSTANCE.gdp_buf_getlength(buf);
+        return len;
+    }
+    
+    /**
+     * Get the data in the buffer. Internally, queries the buffer and
+     * effectively drains it as well
+     * @return the bytes in the buffer
+     */
+    
+    public byte[] getbuf(){
+        PointerByReference buf = Gdp02Library.INSTANCE.gdp_datum_getbuf(
+                this.gdp_datum_ptr);
         NativeSize len = Gdp02Library.INSTANCE.gdp_buf_getlength(buf);
         Pointer bufptr = Gdp02Library.INSTANCE.gdp_buf_getptr(buf, len);
         
-        // Now read len bytes from bp
         byte[] bytes = bufptr.getByteArray(0, len.intValue());
-        data = new String(bytes);
-
-        EP_TIME_SPEC ts = new EP_TIME_SPEC();
-        Gdp02Library.INSTANCE.gdp_datum_getts(d, ts);
-
-        this.recno = recno;
-        this.data = data;
-        this.ts = ts;
+        return bytes;
     }
+    
+    
+    /**
+     * Set the buffer to specified bytes
+     * @param data
+     */
+    public void setbuf(byte[] data){
+        
+        // Create a C string that is a copy (?) of the Java String.
+        Memory memory = new Memory(data.length);
+        // FIXME: not sure about alignment.
+        Memory alignedMemory = memory.align(4);
+        memory.clear();
+        Pointer pointer = alignedMemory.share(0);
+        
+        for (int i=0; i<data.length; i++) {
+            pointer.setByte(i,data[i]);
+        }
+
+        // Now feed this data into the gdp buffer
+        PointerByReference dbuf = Gdp02Library.INSTANCE.gdp_datum_getbuf(
+                                    this.gdp_datum_ptr);
+        Gdp02Library.INSTANCE.gdp_buf_write(dbuf, pointer, 
+                                new NativeSize(data.length));
+    }
+    
 }
