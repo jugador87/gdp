@@ -49,7 +49,7 @@ clean:
 	(cd gdplogd;	 make clean)
 	(cd apps;	 make clean)
 	(cd examples;	 make clean)
-	rm gdp-client*.deb gdp-server*.deb python-gdp*.deb
+	rm -f gdp-client*.deb gdp-server*.deb python-gdp*.deb
 
 install: ${INSTALLROOT}/etc/ep_adm_params
 	(cd ep;		make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
