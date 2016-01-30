@@ -49,6 +49,7 @@ clean:
 	(cd gdplogd;	 make clean)
 	(cd apps;	 make clean)
 	(cd examples;	 make clean)
+	rm gdp-client*.deb gdp-server*.deb python-gdp*.deb
 
 install: ${INSTALLROOT}/etc/ep_adm_params
 	(cd ep;		make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
@@ -107,6 +108,7 @@ VER=		XX
 debian-package:
 	@[ "${VER}" != "XX" ] || ( echo "Must include VER=<version>"; exit 1 )
 	deb-pkg/package-client.sh $(VER)
+	deb-pkg/package-server.sh $(VER)
 	lang/python/deb-pkg/package.sh $(VER)
 
 
