@@ -308,6 +308,9 @@ public class GDP_GCL {
         gdp_event.put("type", type);
         gdp_event.put("stat", event_ep_stat);
         
+        // free the event structure
+        Gdp02Library.INSTANCE.gdp_event_free(gdp_event_ptr);
+        
         return gdp_event;
     }
 
