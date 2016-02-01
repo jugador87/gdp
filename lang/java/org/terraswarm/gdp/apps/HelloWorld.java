@@ -8,11 +8,13 @@ public class HelloWorld {
 
     public static void main(String[] args) {
 
+        GDP.gdp_init();
         GDP.dbg_set("*=10");
 
-        String logname = "edu.berkeley.eecs.mor.20160129_172818";
+        String logname = "edu.berkeley.eecs.mor.20160131_182143";
+        GDP_NAME gn = new GDP_NAME(logname);
         System.out.println("Creating object");
-        GDP_GCL g = new GDP_GCL(logname, GDP_GCL.GDP_MODE.RA);
+        GDP_GCL g = new GDP_GCL(gn, GDP_GCL.GDP_MODE.RA);
 
 /*
         g.subscribe(0,3);
