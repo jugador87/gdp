@@ -492,11 +492,13 @@ extent_get(gdp_gcl_t *gcl, int extno)
 */
 
 static EP_STAT
-extent_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd, uint32_t extno)
+extent_create(gdp_gcl_t *gcl,
+		gdp_gclmd_t *gmd,
+		uint32_t extno,
+		gdp_recno_t recno_offset)
 {
 	EP_STAT estat = EP_STAT_OK;
 	FILE *data_fp = NULL;
-	gcl_physinfo_t *phys = GETPHYS(gcl);
 	extent_t *ext;
 
 	ep_dbg_cprintf(Dbg, 10, "extent_create(%s, %d)\n",
@@ -563,7 +565,6 @@ extent_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd, uint32_t extno)
 				metadata_size += gmd->mds[i].md_len;
 		}
 
-		extent_t *ext = phys->extents[extno];
 		EP_ASSERT_POINTER_VALID(ext);
 
 		ext->ver = GCL_LDF_VERSION;
@@ -576,10 +577,10 @@ extent_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd, uint32_t extno)
 		ext_hdr.header_size = ep_net_ntoh32(ext->max_offset);
 		ext_hdr.reserved1 = 0;
 		ext_hdr.log_type = ep_net_hton16(0);		// unused for now
-		ext_hdr.extent = ep_net_hton16(extno);
+		ext_hdr.extent = ep_net_hton32(extno);
 		ext_hdr.reserved2 = 0;
 		memcpy(ext_hdr.gname, gcl->name, sizeof ext_hdr.gname);
-		ext_hdr.recno_offset = ep_net_hton64(0);
+		ext_hdr.recno_offset = ep_net_hton64(recno_offset);
 
 		fwrite(&ext_hdr, sizeof ext_hdr, 1, data_fp);
 	}
@@ -782,7 +783,7 @@ gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 	}
 
 	// create an initial extent for the GCL
-	estat = extent_create(gcl, gmd, 0);
+	estat = extent_create(gcl, gmd, 0, 0);
 
 	// create an offset index for that gcl
 	{
@@ -1262,6 +1263,8 @@ gcl_physappend(gdp_gcl_t *gcl,
 	ep_thr_rwlock_wrlock(&phys->lock);
 
 	ext = extent_get(gcl, phys->last_extent);
+	estat = extent_open(gcl, ext);
+	EP_STAT_CHECK(estat, return estat);
 
 	memset(&log_record, 0, sizeof log_record);
 	log_record.recno = ep_net_hton64(phys->max_recno + 1);
@@ -1442,13 +1445,12 @@ gcl_physnewextent(gdp_gcl_t *gcl)
 	estat = gcl_physgetmetadata(gcl, &gmd);
 	EP_STAT_CHECK(estat, return estat);
 
-
 	ep_thr_rwlock_wrlock(&phys->lock);
-	estat = extent_create(gcl, gmd, newextno);
-	ep_thr_rwlock_unlock(&phys->lock);
-
+	estat = extent_create(gcl, gmd, newextno, phys->max_recno);
 	if (EP_STAT_ISOK(estat))
 		phys->last_extent = newextno;
+	ep_thr_rwlock_unlock(&phys->lock);
+
 	return estat;
 }
 
