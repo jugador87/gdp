@@ -75,6 +75,7 @@ extern void		_gdp_stat_init(void);
 #define GDP_STAT_RECNO_SEQ_ERROR		GDP_STAT_NEW(ERROR, 27)
 #define GDP_STAT_CRYPTO_SIGFAIL			GDP_STAT_NEW(ERROR, 28)
 #define GDP_STAT_PHYSIO_ERROR			GDP_STAT_NEW(ERROR, 29)
+#define GDP_STAT_RECORD_EXPIRED			GDP_STAT_NEW(WARN, 30)
 
 // create EP_STAT from GDP protocol command codes for acks and naks
 //		values from 200 up are reserved for this

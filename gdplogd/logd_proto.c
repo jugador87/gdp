@@ -363,8 +363,10 @@ cmd_read(gdp_req_t *req)
 	gdp_buf_reset(req->pdu->datum->dbuf);
 	estat = gcl_physread(req->gcl, req->pdu->datum);
 
-	if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
+	// deliver "record expired" as "not found"
+	if (EP_STAT_IS_SAME(estat, GDP_STAT_RECORD_EXPIRED))
 		estat = GDP_STAT_NAK_NOTFOUND;
+
 	_gdp_gcl_decref(req->gcl);
 	req->gcl = NULL;
 	return estat;
@@ -631,7 +633,7 @@ post_subscribe(gdp_req_t *req)
 			}
 			req->nextrec++;
 		}
-		else if (!EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
+		else if (!EP_STAT_IS_SAME(estat, GDP_STAT_NAK_NOTFOUND))
 		{
 			// this is some error that should be logged
 			ep_log(estat, "post_subscribe: bad read");

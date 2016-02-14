@@ -148,23 +148,17 @@ get_gcl_path(gdp_gcl_t *gcl,
 		snprintf(extent_str, sizeof extent_str, "-%06d", extent);
 	}
 
-	// try file with extent number
-	i = snprintf(pbuf, pbufsiz, "%s/_%02x/%s%s%s",
-			GCLDir, gcl->name[0], pname, extent_str, sfx);
 #if PRE_EXTENT_BACK_COMPAT
-	if (extent == 0 && stat(pbuf, &st) < 0)
+	if (extent == 0)
 	{
-		// not there & asking for extent 0 => try without extension
+		// try file without extent number
 		i = snprintf(pbuf, pbufsiz, "%s/_%02x/%s%s",
 				GCLDir, gcl->name[0], pname, sfx);
-		if (stat(pbuf, &st) < 0)
+		if (i >= pbufsiz)
+			goto fail1;
+		if (stat(pbuf, &st) >= 0)
 		{
-			// if that's not there either; use version with extent
-			i = snprintf(pbuf, pbufsiz, "%s/_%02x/%s%s%s",
-					GCLDir, gcl->name[0], pname, extent_str, sfx);
-		}
-		else
-		{
+			// OK, old style name exists
 			extent = -1;
 			strlcpy(extent_str, "", sizeof extent_str);
 		}
@@ -174,10 +168,7 @@ get_gcl_path(gdp_gcl_t *gcl,
 	// find the subdirectory based on the first part of the name
 	i = snprintf(pbuf, pbufsiz, "%s/_%02x", GCLDir, gcl->name[0]);
 	if (i >= pbufsiz)
-	{
-		estat = EP_STAT_BUF_OVERFLOW;
-		goto fail0;
-	}
+		goto fail1;
 	if (stat(pbuf, &st) < 0)
 	{
 		// doesn't exist; we need to create it
@@ -192,18 +183,20 @@ get_gcl_path(gdp_gcl_t *gcl,
 		goto fail0;
 	}
 
+	// now return the final complete name
 	i = snprintf(pbuf, pbufsiz, "%s/_%02x/%s%s%s",
 				GCLDir, gcl->name[0], pname, extent_str, sfx);
 	if (i < pbufsiz)
 		return EP_STAT_OK;
 
+fail1:
 	estat = EP_STAT_BUF_OVERFLOW;
 
 fail0:
 	{
 		char ebuf[100];
 
-		if (!EP_STAT_ISOK(estat))
+		if (EP_STAT_ISOK(estat))
 		{
 			if (errno == 0)
 				estat = EP_STAT_ERROR;
@@ -714,8 +707,10 @@ physinfo_dump(gcl_physinfo_t *phys, FILE *fp)
 			phys, phys->min_recno, phys->max_recno);
 	fprintf(fp, "\tnextents %d, last_extent %d\n",
 			phys->nextents, phys->last_extent);
-	fprintf(fp, "\tindex: fp %p, max_offset %jd, header_size %zd\n",
-			phys->index.fp, (intmax_t) phys->index.max_offset,
+	fprintf(fp, "\tindex: fp %p, min_recno %" PRIgdp_recno
+			", max_offset %jd, header_size %zd\n",
+			phys->index.fp, phys->index.min_recno,
+			(intmax_t) phys->index.max_offset,
 			phys->index.header_size);
 
 	for (extno = 0; extno < phys->nextents; extno++)
@@ -969,6 +964,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 	phys->index.fp = index_fp;
 	phys->index.max_offset = fsizeof(index_fp);
 	phys->index.header_size = index_header.header_size;
+	phys->index.min_recno = index_header.min_recno;
 	phys->min_recno = index_header.min_recno;
 	phys->max_recno = ((phys->index.max_offset - index_header.header_size)
 							/ SIZEOF_INDEX_RECORD) - index_header.min_recno + 1;
@@ -1080,8 +1076,16 @@ gcl_physread(gdp_gcl_t *gcl,
 	// verify that the recno is in range
 	if (datum->recno > phys->max_recno)
 	{
-		estat = EP_STAT_END_OF_FILE;
+		// record does not yet exist
+		estat = GDP_STAT_NAK_NOTFOUND;
 		ep_dbg_cprintf(Dbg, 14, "EOF\n");
+		goto fail0;
+	}
+	if (datum->recno < phys->min_recno)
+	{
+		// record is no longer available
+		estat = GDP_STAT_RECORD_EXPIRED;
+		ep_dbg_cprintf(Dbg, 14, "expired\n");
 		goto fail0;
 	}
 
@@ -1098,7 +1102,7 @@ gcl_physread(gdp_gcl_t *gcl,
 		// recno is not in the index cache: read it from disk
 		flockfile(phys->index.fp);
 
-		xoff = (datum->recno - phys->min_recno) * SIZEOF_INDEX_RECORD +
+		xoff = (datum->recno - phys->index.min_recno) * SIZEOF_INDEX_RECORD +
 				phys->index.header_size;
 		ep_dbg_cprintf(Dbg, 14,
 				"recno=%" PRIgdp_recno ", min_recno=%" PRIgdp_recno
@@ -1148,7 +1152,14 @@ fail3:
 	extent_t *ext = extent_get(gcl, xent->extent);
 	physinfo_dump(phys, stdout);
 	estat = extent_open(gcl, ext);
-	EP_STAT_CHECK(estat, goto fail0);
+	if (!EP_STAT_ISOK(estat))
+	{
+		// if this an ENOENT, it might be because the data is expired
+		if (EP_STAT_IS_SAME(estat, ep_stat_from_errno(ENOENT)) &&
+				datum->recno < phys->max_recno)
+			estat = GDP_STAT_RECORD_EXPIRED;
+		goto fail0;
+	}
 
 	// read header
 	extent_record_t log_record;

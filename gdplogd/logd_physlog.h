@@ -214,6 +214,10 @@ typedef struct index_header
 
 /*
 **  The in-memory representation of the on-disk log index.
+**
+**		Note that index.min_recno need not be the same as phys->min_recno
+**		because the index may include entries for extents that have been
+**		expired.
 */
 
 struct phys_index
@@ -222,6 +226,7 @@ struct phys_index
 	FILE				*fp;					// recno -> offset file handle
 	int64_t				max_offset;				// size of index file
 	size_t				header_size;			// size of hdr in index file
+	gdp_recno_t			min_recno;				// lowest recno in index
 
 	// a cache of the contents
 //	index_cache_t		cache;					// in-memory cache
