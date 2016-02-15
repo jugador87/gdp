@@ -82,6 +82,7 @@ static struct ep_stat_to_string Stats[] =
 	{ GDP_STAT_NAK_METHNOTALLOWED,		"405 method not allowed",			},
 	{ GDP_STAT_NAK_NOTACCEPTABLE,		"406 not acceptable",				},
 	{ GDP_STAT_NAK_CONFLICT,			"409 conflict",						},
+	{ GDP_STAT_NAK_GONE,				"410 gone",							},
 	{ GDP_STAT_NAK_PRECONFAILED,		"412 precondition failed",			},
 	{ GDP_STAT_NAK_TOOLARGE,			"413 request entity too large",		},
 	{ GDP_STAT_NAK_UNSUPMEDIA,			"415 unsupported media type",		},

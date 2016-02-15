@@ -365,7 +365,7 @@ cmd_read(gdp_req_t *req)
 
 	// deliver "record expired" as "not found"
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_RECORD_EXPIRED))
-		estat = GDP_STAT_NAK_NOTFOUND;
+		estat = GDP_STAT_NAK_GONE;
 
 	_gdp_gcl_decref(req->gcl);
 	req->gcl = NULL;
