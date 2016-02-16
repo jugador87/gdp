@@ -30,6 +30,7 @@
 
 #include <ep/ep.h>
 #include <ep/ep_dbg.h>
+#include <ep/ep_hash.h>
 #include <ep/ep_hexdump.h>
 #include <ep/ep_net.h>
 #include <ep/ep_string.h>
@@ -338,7 +339,8 @@ show_index_header(const char *index_filename,
 	if (st.st_size <= index_header.header_size)
 	{
 		// no records yet
-		printf("\tno records\n");
+		if (plev > GDP_PR_BASIC)
+			printf("\tno index records\n");
 		goto done;
 	}
 	else if (fseek(index_fp, index_header.header_size, SEEK_SET) < 0)
@@ -575,6 +577,11 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	int istat;
 
 	(void) gdp_printable_name(gcl_name, gcl_pname);
+	if (plev <= GDP_PR_PRETTY)
+	{
+		printf("%s\n", gcl_pname);
+		return 0;
+	}
 	printf("\nLog %s:\n", gcl_pname);
 
 	// Add 5 in the middle for '/_xx/'
@@ -585,8 +592,12 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	snprintf(filename, filename_size,
 			"%s/_%02x/%s%s",
 			gcl_dir_name, gcl_name[0], gcl_pname, GCL_LXF_SUFFIX);
-	max_recno = show_index_header(filename, plev, &min_extent, &max_extent);
+	max_recno = show_index_header(filename, GDP_PR_PRETTY,
+						&min_extent, &max_extent);
 	printf("\t%" PRIgdp_recno " recs\n", max_recno - 1);
+
+	if (plev <= GDP_PR_BASIC)
+		return 0;
 
 	for (extent = min_extent; extent <= max_extent; extent++)
 		istat = show_extent(gcl_dir_name, gcl_name, extent, false, plev);
@@ -620,6 +631,7 @@ list_gcls(const char *gcl_dir_name, int plev)
 	for (subdir = 0; subdir < 0x100; subdir++)
 	{
 		char dbuf[400];
+		EP_HASH *seenhash = ep_hash_new("seenhash", NULL, 0);
 
 		snprintf(dbuf, sizeof dbuf, "%s/_%02x", gcl_dir_name, subdir);
 		dir = opendir(dbuf);
@@ -655,11 +667,18 @@ list_gcls(const char *gcl_dir_name, int plev)
 					dent->d_name[GDP_GCL_PNAME_LEN] == '-')
 				dent->d_name[GDP_GCL_PNAME_LEN] = '\0';
 
+			// see if we've already printed this
+			if (ep_hash_insert(seenhash, GDP_GCL_PNAME_LEN, dent->d_name, "")
+					!= NULL)
+				continue;
+
 			// print the name
 			gdp_parse_name(dent->d_name, gcl_iname);
 			show_gcl(gcl_dir_name, gcl_iname, plev);
 		}
 		closedir(dir);
+		ep_hash_free(seenhash);
+		seenhash = NULL;
 	}
 
 	return EX_OK;
