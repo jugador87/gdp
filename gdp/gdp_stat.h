@@ -77,97 +77,125 @@ extern void		_gdp_stat_init(void);
 #define GDP_STAT_PHYSIO_ERROR			GDP_STAT_NEW(ERROR, 29)
 #define GDP_STAT_RECORD_EXPIRED			GDP_STAT_NEW(WARN, 30)
 
-// create EP_STAT from GDP protocol command codes for acks and naks
+
+/*
+**  Both GDP ACK/NAK commands and status codes are based on status
+**  codes from CoAP and HTTP, which are themselves related.  In most
+**  (but not all) cases the CoAP codes are more appropriate.
+**
+**  This list uses the HTTP-style (three digit) representation, and
+**  will be massaged later into both status codes and PDU commands.
+**  I've tried to show the equivalent HTTP/CoAP codes (with CoAP
+**  scaled from x.yz to xyz).
+**
+**  CoAP is based on RFC7252.  HTTP codes are based on version 1.1.
+*/
+
+#define _GDP_CCODE_SUCCESS			200		// HTTP/CoAP Success
+#define _GDP_CCODE_CREATED			201		// HTTP/CoAP Created (201)
+#define _GDP_CCODE_DELETED			202		// CoAP Deleted
+											// (HTTP 202 Accepted)
+#define _GDP_CCODE_VALID			203		// CoAP Valid
+											// (HTTP 203 Non-Authoritative Info)
+#define _GDP_CCODE_CHANGED			204		// CoAP Changed
+											// (HTTP 204 No Content)
+#define _GDP_CCODE_CONTENT			205		// Content (~200, GET only)
+											// (HTTP 205 Reset Content)
+											// (HTTP 206 Partial Content)
+
+#define _GDP_CCODE_BADREQ			400		// HTTP/CoAP Bad Request
+#define _GDP_CCODE_UNAUTH			401		// HTTP/CoAP Unauthorized
+#define _GDP_CCODE_BADOPT			402		// CoAP Bad Option
+											// (HTTP 402 Payment Required)
+#define _GDP_CCODE_FORBIDDEN		403		// HTTP/CoAP Forbidden
+#define _GDP_CCODE_NOTFOUND			404		// HTTP/CoAP Not Found
+#define _GDP_CCODE_METHNOTALLOWED	405		// HTTP/CoAP Method Not Allowed
+#define _GDP_CCODE_NOTACCEPTABLE	406		// HTTP/CoAP Not Acceptable
+											// (HTTP 407 Proxy Auth Required)
+											// (HTTP 408 Request Timeout)
+#define _GDP_CCODE_CONFLICT			409		// HTTP Conflict
+#define _GDP_CCODE_GONE				410		// HTTP Gone
+											// (HTTP 411 Length Required)
+#define _GDP_CCODE_PRECONFAILED		412		// HTTP/CoAP Precondition Failed
+#define _GDP_CCODE_TOOLARGE			413		// HTTP/CoAP Request Entity Too Large
+											// (HTTP 414 Request-URI Too Long)
+#define _GDP_CCODE_UNSUPMEDIA		415		// CoAP Unsupported Content-Format
+											// (HTTP 415 Request URI Too Long)
+											// (HTTP 416 Requested Range Not Satisficable)
+											// (HTTP 417 Expectation Failed)
+
+#define _GDP_CCODE_INTERNAL			500		// HTTP/CoAP Internal Server Error
+#define _GDP_CCODE_NOTIMPL			501		// HTTP/CoAP Not Implemented
+#define _GDP_CCODE_BADGATEWAY		502		// HTTP/CoAP Bad Gateway
+#define _GDP_CCODE_SVCUNAVAIL		503		// HTTP/CoAP Service Unavailable
+#define _GDP_CCODE_GWTIMEOUT		504		// HTTP/CoAP Gateway Timeout
+#define _GDP_CCODE_PROXYNOTSUP		505		// CoAP Proxying Not Supported
+											// (HTTP 505 HTTP Version Not Supported)
+
+#define _GDP_CCODE_NOROUTE			600		// no advertisement found for name
+
 //		values from 200 up are reserved for this
-#define GDP_STAT_FROM_ACK(c)			GDP_STAT_NEW(OK, (c) - GDP_ACK_MIN + 200)
-#define GDP_STAT_FROM_C_NAK(c)			GDP_STAT_NEW(ERROR, (c) - GDP_NAK_C_MIN + 400)
-#define GDP_STAT_FROM_S_NAK(c)			GDP_STAT_NEW(SEVERE, (c) - GDP_NAK_S_MIN + 500)
-#define GDP_STAT_FROM_R_NAK(c)			GDP_STAT_NEW(ERROR, (c) - GDP_NAK_R_MIN + 600)
 
-// CoAp status codes (times 100): mapping to HTTP is shown in comments
-//		CoAp based on RFC7252, HTTP based on 1.1
-//		All CoAp codes have a dot after the first digit, e.g., 404 => 4.04
-//		CoAp codes resemble HTTP codes, but they are not identical!
-//		N/E displays HTTP codes that have no equivalent in CoAP.
-#define GDP_COAP_SUCCESS		200		// Success (200)
-#define GDP_COAP_CREATED		201		// Created (201)
-#define GDP_COAP_DELETED		202		// Deleted (~204 No Content)
-										// (N/E: 202 Accepted)
-#define GDP_COAP_VALID			203		// Valid (~304 Not Modified)
-										// (N/E: 203 Non-Authoritative Info)
-#define GDP_COAP_CHANGED		204		// Changed (~204 No Content, POST/PUT only)
-#define GDP_COAP_CONTENT		205		// Content (~200, GET only)
-										// (N/E: 205 Reset Content)
-										// (N/E: 206 Partial Content)
+#define GDP_STAT_ACK_SUCCESS		GDP_STAT_NEW(OK, _GDP_CCODE_SUCCESS)
+#define GDP_STAT_ACK_CREATED		GDP_STAT_NEW(OK, _GDP_CCODE_CREATED)
+#define GDP_STAT_ACK_DELETED		GDP_STAT_NEW(OK, _GDP_CCODE_DELETED)
+#define GDP_STAT_ACK_VALID			GDP_STAT_NEW(OK, _GDP_CCODE_VALID)
+#define GDP_STAT_ACK_CHANGED		GDP_STAT_NEW(OK, _GDP_CCODE_CHANGED)
+#define GDP_STAT_ACK_CONTENT		GDP_STAT_NEW(OK, _GDP_CCODE_CONTENT)
 
-#define GDP_COAP_BADREQ			400		// Bad Request (400)
-#define GDP_COAP_UNAUTH			401		// Unauthorized (401)
-#define GDP_COAP_BADOPT			402		// Bad Option (not in HTTP)
-										// (no equiv: 402 Payment Required)
-#define GDP_COAP_FORBIDDEN		403		// Forbidden (403)
-#define GDP_COAP_NOTFOUND		404		// Not Found (404)
-#define GDP_COAP_METHNOTALLOWED	405		// Method Not Allowed (405)
-#define GDP_COAP_NOTACCEPTABLE	406		// Not Acceptable (~406)
-										// (N/E: 407 Proxy Auth Required)
-										// (N/E: 408 Request Timeout)
-										// (N/E: 409 Conflict)
-										// (N/E: 410 Gone)
-										// (N/E: Length Required)
-#define GDP_COAP_PRECONFAILED	412		// Precondition Failed (412)
-#define GDP_COAP_TOOLARGE		413		// Request Entity Too Large (413)
-										// (N/E: 414 Request-URI Too Long)
-#define GDP_COAP_UNSUPMEDIA		415		// Unsupported Content-Format (~415)
+#define GDP_STAT_NAK_BADREQ			GDP_STAT_NEW(ERROR, _GDP_CCODE_BADREQ)
+#define GDP_STAT_NAK_UNAUTH			GDP_STAT_NEW(ERROR, _GDP_CCODE_UNAUTH)
+#define GDP_STAT_NAK_BADOPT			GDP_STAT_NEW(ERROR, _GDP_CCODE_BADOPT)
+#define GDP_STAT_NAK_FORBIDDEN		GDP_STAT_NEW(ERROR, _GDP_CCODE_FORBIDDEN)
+#define GDP_STAT_NAK_NOTFOUND		GDP_STAT_NEW(ERROR, _GDP_CCODE_NOTFOUND)
+#define GDP_STAT_NAK_METHNOTALLOWED	GDP_STAT_NEW(ERROR, _GDP_CCODE_METHNOTALLOWED)
+#define GDP_STAT_NAK_NOTACCEPTABLE	GDP_STAT_NEW(ERROR, _GDP_CCODE_NOTACCEPTABLE)
+#define GDP_STAT_NAK_CONFLICT		GDP_STAT_NEW(ERROR, _GDP_CCODE_CONFLICT)
+#define GDP_STAT_NAK_GONE			GDP_STAT_NEW(ERROR, _GDP_CCODE_GONE)
+#define GDP_STAT_NAK_PRECONFAILED	GDP_STAT_NEW(ERROR, _GDP_CCODE_PRECONFAILED)
+#define GDP_STAT_NAK_TOOLARGE		GDP_STAT_NEW(ERROR, _GDP_CCODE_TOOLARGE)
+#define GDP_STAT_NAK_UNSUPMEDIA		GDP_STAT_NEW(ERROR, _GDP_CCODE_UNSUPMEDIA)
 
-#define GDP_COAP_INTERNAL		500		// Internal Server Error (500)
-#define GDP_COAP_NOTIMPL		501		// Not Implemented (501)
-#define GDP_COAP_BADGATEWAY		502		// Bad Gateway (502)
-#define GDP_COAP_SVCUNAVAIL		503		// Service Unavailable (~503)
-#define GDP_COAP_GWTIMEOUT		504		// Gateway Timeout (504)
-#define GDP_COAP_PROXYNOTSUP	505		// Proxying Not Supported (N/E)
-										// (N/E: 505 HTTP Version Not Supported)
+#define GDP_STAT_NAK_INTERNAL		GDP_STAT_NEW(SEVERE, _GDP_CCODE_INTERNAL)
+#define GDP_STAT_NAK_NOTIMPL		GDP_STAT_NEW(SEVERE, _GDP_CCODE_NOTIMPL)
+#define GDP_STAT_NAK_BADGATEWAY		GDP_STAT_NEW(SEVERE, _GDP_CCODE_BADGATEWAY)
+#define GDP_STAT_NAK_SVCUNAVAIL		GDP_STAT_NEW(SEVERE, _GDP_CCODE_SVCUNAVAIL)
+#define GDP_STAT_NAK_GWTIMEOUT		GDP_STAT_NEW(SEVERE, _GDP_CCODE_GWTIMEOUT)
+#define GDP_STAT_NAK_PROXYNOTSUP	GDP_STAT_NEW(SEVERE, _GDP_CCODE_PROXYNOTSUP)
+
+#define GDP_STAT_NAK_NOROUTE		GDP_STAT_NEW(ERROR, _GDP_CCODE_NOROUTE)
+
+
+/*
+**  Create EP_STAT from protocol command codes for acks and naks
+*/
+
+#define GDP_STAT_FROM_ACK(c)		GDP_STAT_NEW(OK, (c) - GDP_ACK_MIN + 200)
+#define GDP_STAT_FROM_C_NAK(c)		GDP_STAT_NEW(ERROR, (c) - GDP_NAK_C_MIN + 400)
+#define GDP_STAT_FROM_S_NAK(c)		GDP_STAT_NEW(SEVERE, (c) - GDP_NAK_S_MIN + 500)
+#define GDP_STAT_FROM_R_NAK(c)		GDP_STAT_NEW(ERROR, (c) - GDP_NAK_R_MIN + 600)
+
+
+/*
+**  Tests to see if an EP_STAT corresponds directly to a protocol command code
+**
+**		Detail values from 200 through 699 are reserved for this.
+**		Note that these don't do serious error checking.
+*/
 
 #define GDP_STAT_IS_ACKNAK(estat)	(GDP_STAT_IS_GDP(estat) && \
 									 EP_STAT_DETAIL(estat) >= 200 && \
-									 EP_STAT_DETAIL(estat) <= 699)
+									 EP_STAT_DETAIL(estat) <= 615)
 
 #define GDP_STAT_IS_ACK(estat)		(GDP_STAT_IS_GDP(estat) && \
 									 EP_STAT_DETAIL(estat) >= 200 && \
-									 EP_STAT_DETAIL(estat) <= 299)
-
-#define GDP_STAT_ACK_SUCCESS		GDP_STAT_NEW(OK, GDP_COAP_SUCCESS)
-#define GDP_STAT_ACK_CREATED		GDP_STAT_NEW(OK, GDP_COAP_CREATED)
-#define GDP_STAT_ACK_DELETED		GDP_STAT_NEW(OK, GDP_COAP_DELETED)
-#define GDP_STAT_ACK_VALID			GDP_STAT_NEW(OK, GDP_COAP_VALID)
-#define GDP_STAT_ACK_CHANGED		GDP_STAT_NEW(OK, GDP_COAP_CHANGED)
-#define GDP_STAT_ACK_CONTENT		GDP_STAT_NEW(OK, GDP_COAP_CONTENT)
-
+									 EP_STAT_DETAIL(estat) <= 263)
 #define GDP_STAT_IS_C_NAK(estat)	(GDP_STAT_IS_GDP(estat) && \
 									 EP_STAT_DETAIL(estat) >= 400 && \
-									 EP_STAT_DETAIL(estat) <= 499)
-#define GDP_STAT_NAK_BADREQ			GDP_STAT_NEW(ERROR, GDP_COAP_BADREQ)
-#define GDP_STAT_NAK_UNAUTH			GDP_STAT_NEW(ERROR, GDP_COAP_UNAUTH)
-#define GDP_STAT_NAK_BADOPT			GDP_STAT_NEW(ERROR, GDP_COAP_BADOPT)
-#define GDP_STAT_NAK_FORBIDDEN		GDP_STAT_NEW(ERROR, GDP_COAP_FORBIDDEN)
-#define GDP_STAT_NAK_NOTFOUND		GDP_STAT_NEW(ERROR, GDP_COAP_NOTFOUND)
-#define GDP_STAT_NAK_METHNOTALLOWED	GDP_STAT_NEW(ERROR, GDP_COAP_METHNOTALLOWED)
-#define GDP_STAT_NAK_NOTACCEPTABLE	GDP_STAT_NEW(ERROR, GDP_COAP_NOTACCEPTABLE)
-#define GDP_STAT_NAK_CONFLICT		GDP_STAT_NEW(ERROR, 409)
-#define GDP_STAT_NAK_GONE			GDP_STAT_NEW(ERROR, 410)
-#define GDP_STAT_NAK_PRECONFAILED	GDP_STAT_NEW(ERROR, GDP_COAP_PRECONFAILED)
-#define GDP_STAT_NAK_TOOLARGE		GDP_STAT_NEW(ERROR, GDP_COAP_TOOLARGE)
-#define GDP_STAT_NAK_UNSUPMEDIA		GDP_STAT_NEW(ERROR, GDP_COAP_UNSUPMEDIA)
-
+									 EP_STAT_DETAIL(estat) <= 431)
 #define GDP_STAT_IS_S_NAK(estat)	(GDP_STAT_IS_GDP(estat) && \
 									 EP_STAT_DETAIL(estat) >= 500 && \
-									 EP_STAT_DETAIL(estat) <= 599)
-#define GDP_STAT_NAK_INTERNAL		GDP_STAT_NEW(SEVERE, GDP_COAP_INTERNAL)
-#define GDP_STAT_NAK_NOTIMPL		GDP_STAT_NEW(SEVERE, GDP_COAP_NOTIMPL)
-#define GDP_STAT_NAK_BADGATEWAY		GDP_STAT_NEW(SEVERE, GDP_COAP_BADGATEWAY)
-#define GDP_STAT_NAK_SVCUNAVAIL		GDP_STAT_NEW(SEVERE, GDP_COAP_SVCUNAVAIL)
-#define GDP_STAT_NAK_GWTIMEOUT		GDP_STAT_NEW(SEVERE, GDP_COAP_GWTIMEOUT)
-#define GDP_STAT_NAK_PROXYNOTSUP	GDP_STAT_NEW(SEVERE, GDP_COAP_PROXYNOTSUP)
-
+									 EP_STAT_DETAIL(estat) <= 531)
 #define GDP_STAT_IS_R_NAK(estat)	(GDP_STAT_IS_GDP(estat) && \
 									 EP_STAT_DETAIL(estat) >= 600 && \
 									 EP_STAT_DETAIL(estat) <= 699)
-#define GDP_STAT_NAK_NOROUTE		GDP_STAT_NEW(ERROR, 600)
