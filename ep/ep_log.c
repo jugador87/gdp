@@ -157,10 +157,10 @@ ep_log_syslog(EP_STAT estat, const char *fmt, va_list ap)
 
 
 void
-ep_log(EP_STAT estat, const char *fmt, ...)
+ep_logv(EP_STAT estat, const char *fmt, va_list _ap)
 {
-	va_list ap;
 	EP_TIME_SPEC tv;
+	va_list ap;
 
 	ep_time_now(&tv);
 
@@ -180,22 +180,33 @@ ep_log(EP_STAT estat, const char *fmt, ...)
 
 	if (LogFac >= 0)
 	{
-		va_start(ap, fmt);
+		va_copy(ap, _ap);
 		ep_log_syslog(estat, fmt, ap);
 		va_end(ap);
 	}
 	if (LogFile1 != NULL)
 	{
+		va_copy(ap, _ap);
 		fprintf(LogFile1, "%s", EpVid->vidfgcyan);
-		va_start(ap, fmt);
 		ep_log_file(estat, fmt, ap, &tv, LogFile1);
-		va_end(ap);
 		fprintf(LogFile1, "%s\n", EpVid->vidnorm);
+		va_end(ap);
 	}
 	if (LogFile2 != NULL)
 	{
-		va_start(ap, fmt);
+		va_copy(ap, _ap);
 		ep_log_file(estat, fmt, ap, &tv, LogFile2);
 		va_end(ap);
 	}
+}
+
+
+void
+ep_log(EP_STAT estat, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	ep_logv(estat, fmt, ap);
+	va_end(ap);
 }

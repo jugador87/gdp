@@ -1827,7 +1827,13 @@ void
 ep_log(
         EP_STAT estat,
         const char *fmt,
-        ...)</programlisting>
+        ...);
+
+void
+ep_logv(
+        EP_STAT estat,
+        const char *fmt,
+        va_list va);</programlisting>
 
     <para>This interface can simultaneously log to <function>syslog</function>
     (if logfac is a valid facility code), an open file (e.g.,
