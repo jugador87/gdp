@@ -29,7 +29,7 @@
 */
 
 #include "logd.h"
-#include "logd_physlog.h"
+#include "logd_disklog.h"
 
 #include <gdp/gdp_buf.h>
 #include <gdp/gdp_gclmd.h>
@@ -108,8 +108,8 @@ posix_error(int _errno, const char *fmt, ...)
 **  Initialize the physical I/O module
 */
 
-EP_STAT
-gcl_physlog_init()
+static EP_STAT
+disk_init()
 {
 	EP_STAT estat = EP_STAT_OK;
 
@@ -755,8 +755,8 @@ xcache_free(gcl_physinfo_t *phys)
 **  GCL_PHYSCREATE --- create a brand new GCL on disk
 */
 
-EP_STAT
-gcl_physcreate(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
+static EP_STAT
+disk_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 {
 	EP_STAT estat = EP_STAT_OK;
 	FILE *index_fp;
@@ -876,8 +876,8 @@ fail1:
 **		have to check for that file to be sure.
 */
 
-EP_STAT
-gcl_physopen(gdp_gcl_t *gcl)
+static EP_STAT
+disk_open(gdp_gcl_t *gcl)
 {
 	EP_STAT estat = EP_STAT_OK;
 	int fd;
@@ -905,7 +905,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 		estat = ep_stat_from_errno(errno);
 		if (EP_STAT_IS_SAME(estat, ep_stat_from_errno(ENOENT)))
 			estat = GDP_STAT_NAK_NOTFOUND;
-		ep_log(estat, "gcl_physopen(%s): index open failure", index_pbuf);
+		ep_log(estat, "disk_open(%s): index open failure", index_pbuf);
 		if (fd >= 0)
 			close(fd);
 		goto fail0;
@@ -922,7 +922,7 @@ gcl_physopen(gdp_gcl_t *gcl)
 	else if (fread(&index_header, sizeof index_header, 1, index_fp) != 1)
 	{
 		estat = posix_error(errno,
-					"gcl_physopen(%s): index header read failure",
+					"disk_open(%s): index header read failure",
 					index_pbuf);
 		goto fail0;
 	}
@@ -933,14 +933,14 @@ gcl_physopen(gdp_gcl_t *gcl)
 	else if (ep_net_ntoh32(index_header.magic) != GCL_LXF_MAGIC)
 	{
 		estat = GDP_STAT_CORRUPT_INDEX;
-		ep_log(estat, "gcl_physopen(%s): bad index magic", index_pbuf);
+		ep_log(estat, "disk_open(%s): bad index magic", index_pbuf);
 		goto fail0;
 	}
 	else if (ep_net_ntoh32(index_header.version) < GCL_LXF_MINVERS ||
 			 ep_net_ntoh32(index_header.version) > GCL_LXF_MAXVERS)
 	{
 		estat = GDP_STAT_CORRUPT_INDEX;
-		ep_log(estat, "gcl_physopen(%s): bad index version", index_pbuf);
+		ep_log(estat, "disk_open(%s): bad index version", index_pbuf);
 		goto fail0;
 	}
 
@@ -1039,8 +1039,8 @@ fail0:
 **	GCL_PHYSCLOSE --- physically close an open gcl
 */
 
-EP_STAT
-gcl_physclose(gdp_gcl_t *gcl)
+static EP_STAT
+disk_close(gdp_gcl_t *gcl)
 {
 	EP_ASSERT_POINTER_VALID(gcl);
 	EP_ASSERT_POINTER_VALID(gcl->x);
@@ -1058,8 +1058,8 @@ gcl_physclose(gdp_gcl_t *gcl)
 **		Reads in a message indicated by datum->recno into datum.
 */
 
-EP_STAT
-gcl_physread(gdp_gcl_t *gcl,
+static EP_STAT
+disk_read(gdp_gcl_t *gcl,
 		gdp_datum_t *datum)
 {
 	gcl_physinfo_t *phys = GETPHYS(gcl);
@@ -1069,7 +1069,7 @@ gcl_physread(gdp_gcl_t *gcl,
 
 	EP_ASSERT_POINTER_VALID(gcl);
 
-	ep_dbg_cprintf(Dbg, 14, "gcl_physread(%" PRIgdp_recno "): ", datum->recno);
+	ep_dbg_cprintf(Dbg, 14, "disk_read(%" PRIgdp_recno "): ", datum->recno);
 
 	ep_thr_rwlock_rdlock(&phys->lock);
 
@@ -1248,8 +1248,8 @@ fail0:
 **	GCL_PHYSAPPEND --- append a message to a writable gcl
 */
 
-EP_STAT
-gcl_physappend(gdp_gcl_t *gcl,
+static EP_STAT
+disk_append(gdp_gcl_t *gcl,
 			gdp_datum_t *datum)
 {
 	extent_record_t log_record;
@@ -1362,8 +1362,8 @@ gcl_physappend(gdp_gcl_t *gcl,
 				}	\
 			} while (0);
 
-EP_STAT
-gcl_physgetmetadata(gdp_gcl_t *gcl,
+static EP_STAT
+disk_getmetadata(gdp_gcl_t *gcl,
 		gdp_gclmd_t **gmdp)
 {
 	gdp_gclmd_t *gmd;
@@ -1444,8 +1444,8 @@ fail_stdio:
 **  Create a new extent.
 */
 
-EP_STAT
-gcl_physnewextent(gdp_gcl_t *gcl)
+static EP_STAT
+disk_newextent(gdp_gcl_t *gcl)
 {
 	EP_STAT estat;
 	gcl_physinfo_t *phys = GETPHYS(gcl);
@@ -1453,7 +1453,7 @@ gcl_physnewextent(gdp_gcl_t *gcl)
 	gdp_gclmd_t *gmd;
 
 	// get the metadata
-	estat = gcl_physgetmetadata(gcl, &gmd);
+	estat = disk_getmetadata(gcl, &gmd);
 	EP_STAT_CHECK(estat, return estat);
 
 	ep_thr_rwlock_wrlock(&phys->lock);
@@ -1470,8 +1470,8 @@ gcl_physnewextent(gdp_gcl_t *gcl)
 **  GCL_PHYSFOREACH --- call function for each GCL in directory
 */
 
-void
-gcl_physforeach(void (*func)(gdp_name_t, void *), void *ctx)
+static void
+disk_foreach(void (*func)(gdp_name_t, void *), void *ctx)
 {
 	int subdir;
 
@@ -1520,3 +1520,17 @@ gcl_physforeach(void (*func)(gdp_name_t, void *), void *ctx)
 		closedir(dir);
 	}
 }
+
+
+struct gcl_phys_impl	GdpDiskImpl =
+{
+	.init =			disk_init,
+	.read =			disk_read,
+	.create =		disk_create,
+	.open =			disk_open,
+	.close =		disk_close,
+	.append =		disk_append,
+	.getmetadata =	disk_getmetadata,
+	.newextent =	disk_newextent,
+	.foreach =		disk_foreach,
+};

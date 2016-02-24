@@ -72,14 +72,14 @@ MKDIR=		mkdir -p
 OBJS=	\
 		logd.o \
 		logd_adv.o \
+		logd_disklog.o \
 		logd_gcl.o \
-		logd_physlog.o \
 		logd_proto.o \
 		logd_pubsub.o \
 
 HDEPS=	\
 		logd.h \
-		logd_physlog.h \
+		logd_disklog.h \
 		logd_pubsub.h \
 		${INCROOT}/gdp/gdp.h \
 		${INCROOT}/gdp/gdp_pdu.h \

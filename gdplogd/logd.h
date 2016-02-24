@@ -30,8 +30,8 @@
 **	----- END LICENSE BLOCK -----
 */
 
-#ifndef _GDPLOGD_H_
-#define _GDPLOGD_H_		1
+#ifndef _GDPLOGD_LOGD_H_
+#define _GDPLOGD_LOGD_H_		1
 
 #include <ep/ep.h>
 #include <ep/ep_app.h>
@@ -68,12 +68,13 @@ typedef struct physinfo	gcl_physinfo_t;
 struct gdp_gcl_xtra
 {
 	// declarations relating to semantics
-	gdp_gcl_t			*gcl;			// enclosing GCL
-	uint16_t			n_md_entries;	// number of metadata entries
-	uint16_t			log_type;		// from log header
+	gdp_gcl_t				*gcl;			// enclosing GCL
+	uint16_t				n_md_entries;	// number of metadata entries
+	uint16_t				log_type;		// from log header
 
 	// physical implementation declarations
-	gcl_physinfo_t		*physinfo;		// info needed by physical module
+	struct gcl_phys_impl	*physimpl;		// physical implementation
+	gcl_physinfo_t			*physinfo;		// info needed by physical module
 };
 
 
@@ -131,44 +132,39 @@ extern void		sub_send_message_notification(
 					int cmd);
 
 /*
-**  Physical API --- these are the routines that implement the
-**			on-disk structure.
+**  Physical Implementation --- these are the routines that implement the
+**			on-disk (or in-memory) structure.
 */
 
-EP_STAT			gcl_physlog_init();
-
-EP_STAT			gcl_offset_cache_init(
-						gdp_gcl_t *gcl);
-
-EP_STAT			gcl_physread(
+struct gcl_phys_impl
+{
+	EP_STAT		(*init)(void);
+	EP_STAT		(*read)(
 						gdp_gcl_t *gcl,
 						gdp_datum_t *datum);
-
-EP_STAT			gcl_physcreate(
+	EP_STAT		(*create)(
 						gdp_gcl_t *pgcl,
 						gdp_gclmd_t *gmd);
-
-EP_STAT			gcl_physopen(
+	EP_STAT		(*open)(
 						gdp_gcl_t *gcl);
-
-EP_STAT			gcl_physclose(
+	EP_STAT		(*close)(
 						gdp_gcl_t *gcl);
-
-EP_STAT			gcl_physappend(
+	EP_STAT		(*append)(
 						gdp_gcl_t *gcl,
 						gdp_datum_t *datum);
-
-EP_STAT			gcl_physgetmetadata(
+	EP_STAT		(*getmetadata)(
 						gdp_gcl_t *gcl,
 						gdp_gclmd_t **gmdp);
-
-EP_STAT			gcl_physnewextent(
+	EP_STAT		(*newextent)(
 						gdp_gcl_t *gcl);
-
-void			gcl_physforeach(
+	void		(*foreach)(
 						void (*func)(
 							gdp_name_t name,
 							void *ctx),
 						void *ctx);
+};
 
-#endif //_GDPLOGD_H_
+// known implementations
+extern struct gcl_phys_impl		GdpDiskImpl;
+
+#endif //_GDPLOG_LOGD_H_

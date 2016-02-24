@@ -82,8 +82,11 @@ gcl_open(gdp_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
 	estat = gcl_alloc(gcl_name, iomode, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
 
+	//XXX for now, assume all GCLs are on disk
+	gcl->x->physimpl = &GdpDiskImpl;
+
 	// so far, so good...  do the physical open
-	estat = gcl_physopen(gcl);
+	estat = gcl->x->physimpl->open(gcl);
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// success!
@@ -114,7 +117,8 @@ gcl_close(gdp_gcl_t *gcl)
 		return;
 
 	// close the underlying files and free memory as needed
-	gcl_physclose(gcl);
+	if (gcl->x->physimpl->close != NULL)
+		gcl->x->physimpl->close(gcl);
 
 	ep_mem_free(gcl->x);
 	gcl->x = NULL;
@@ -159,6 +163,7 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 		gdp_printable_name(req->pdu->dst, pname);
 		ep_dbg_printf("get_open_handle: opening %s\n", pname);
 	}
+
 	estat = gcl_open(req->pdu->dst, iomode, &req->gcl);
 	if (EP_STAT_ISOK(estat))
 		_gdp_gcl_cache_add(req->gcl, iomode);

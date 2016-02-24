@@ -69,7 +69,7 @@ adv_addone(gdp_name_t gname, void *ctx)
 static EP_STAT
 advertise_all(gdp_buf_t *dbuf, void *ctx, int cmd)
 {
-	gcl_physforeach(adv_addone, dbuf);
+	GdpDiskImpl.foreach(adv_addone, dbuf);
 	return EP_STAT_OK;
 }
 

@@ -270,9 +270,9 @@ main(int argc, char **argv)
 	estat = gdp_lib_init(myname);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	// initialize physical logs
+	// initialize physical logs (expand this if multiple log implementations)
 	phase = "gcl physlog";
-	estat = gcl_physlog_init();
+	estat = GdpDiskImpl.init();
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// initialize the protocol module

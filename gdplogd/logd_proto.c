@@ -217,7 +217,7 @@ cmd_create(gdp_req_t *req)
 	flush_input_data(req, "cmd_create");
 
 	// do the physical create
-	estat = gcl_physcreate(gcl, gmd);
+	estat = gcl->x->physimpl->create(gcl, gmd);
 	gdp_gclmd_free(gmd);
 	EP_STAT_CHECK(estat, goto fail1);
 
@@ -361,7 +361,7 @@ cmd_read(gdp_req_t *req)
 	}
 
 	gdp_buf_reset(req->pdu->datum->dbuf);
-	estat = gcl_physread(req->gcl, req->pdu->datum);
+	estat = req->gcl->x->physimpl->read(req->gcl, req->pdu->datum);
 
 	// deliver "record expired" as "not found"
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_RECORD_EXPIRED))
@@ -557,7 +557,7 @@ cmd_append(gdp_req_t *req)
 	estat = ep_time_now(&req->pdu->datum->ts);
 
 	// create the message
-	estat = gcl_physappend(req->gcl, req->pdu->datum);
+	estat = req->gcl->x->physimpl->append(req->gcl, req->pdu->datum);
 	req->gcl->nrecs = req->pdu->datum->recno;
 
 	// send the new data to any subscribers
@@ -615,7 +615,7 @@ post_subscribe(gdp_req_t *req)
 
 		// get the next record and return it as an event
 		req->pdu->datum->recno = req->nextrec;
-		estat = gcl_physread(req->gcl, req->pdu->datum);
+		estat = req->gcl->x->physimpl->read(req->gcl, req->pdu->datum);
 		if (EP_STAT_ISOK(estat))
 		{
 			// OK, the next record exists: send it
@@ -929,7 +929,7 @@ cmd_getmetadata(gdp_req_t *req)
 	}
 
 	// get the metadata into memory
-	estat = gcl_physgetmetadata(req->gcl, &gmd);
+	estat = req->gcl->x->physimpl->getmetadata(req->gcl, &gmd);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// serialize it to the client
@@ -955,7 +955,11 @@ cmd_newextent(gdp_req_t *req)
 	estat = get_open_handle(req, GDP_MODE_AO);
 	EP_STAT_CHECK(estat, goto fail0);
 
-	estat = gcl_physnewextent(req->gcl);
+	if (req->gcl->x->physimpl->newextent == NULL)
+		return gdpd_gcl_error(req->pdu->dst,
+				"cmd_newextent: extents not defined for this type",
+				GDP_STAT_NAK_METHNOTALLOWED, GDP_STAT_NAK_METHNOTALLOWED);
+	estat = req->gcl->x->physimpl->newextent(req->gcl);
 	return estat;
 
 fail0:
