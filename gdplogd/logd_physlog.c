@@ -884,7 +884,11 @@ gcl_physappend(gdp_gcl_t *gcl,
 	{
 		size_t slen = evbuffer_get_length(datum->sig);
 		unsigned char *p = evbuffer_pullup(datum->sig, slen);
-		EP_ASSERT_INSIST(datum->siglen == slen);
+		if (datum->siglen != slen)
+		{
+			ep_app_abort("gcl_physappend: siglen (%zd) != slen (%zd)",
+					datum->siglen, slen);
+		}
 		if (slen > 0 && p != NULL)
 			fwrite(p, slen, 1, gcl->x->fp);
 		record_size += slen;

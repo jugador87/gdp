@@ -1619,11 +1619,22 @@ EP_STAT                 ep_crypto_cipher_final(
     void ep_app_error(const char *fmt,          // printf-style format
                 ...)
 
-    void ep_app_abort(const char *fmt,          // printf-style format
-                ...)</programlisting>
+    void ep_app_fatal(const char *fmt,          // printf-style format
+                ...)
 
-      <para>The first two just print messages; the final prints the message
-      and does not return. They all use printf formats.</para>
+    void ep_app_abort(const char *fmt,          // printf-style format
+                ...)
+
+    void ep_app_setflags(uint32_t flags)        // set operational tweaks</programlisting>
+
+      <para>The first two just print messages; the second two print the
+      message and does not return. <function>ep_app_abort</function> generates
+      a core dump on termination. All four use printf formats.
+      <function>ep_app_setflags</function> sets flags telling when to also do
+      logging; the flags are <constant>EP_APP_FLAG_LOGABORTS</constant>,
+      <constant>EP_APP_FLAG_LOGFATALS</constant>,
+      <constant>EP_APP_FLAG_LOGERRORS</constant>, and
+      <constant>EP_APP_FLAG_LOGWARNINGS</constant>.</para>
 
       <programlisting>    const char *
     ep_app_getprogname(void)                    // get current program name</programlisting>
@@ -1827,7 +1838,13 @@ void
 ep_log(
         EP_STAT estat,
         const char *fmt,
-        ...)</programlisting>
+        ...);
+
+void
+ep_logv(
+        EP_STAT estat,
+        const char *fmt,
+        va_list va);</programlisting>
 
     <para>This interface can simultaneously log to <function>syslog</function>
     (if logfac is a valid facility code), an open file (e.g.,

@@ -29,10 +29,15 @@
 ***********************************************************************/
 
 #include <ep.h>
-#include <ep_string.h>
 #include <ep_app.h>
+#include <ep_string.h>
+#include <ep_log.h>
+
 #include <stdlib.h>
 #include <sys/errno.h>
+
+
+static uint32_t	OperationFlags = EP_APP_FLAG_LOGABORTS;
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -108,6 +113,13 @@ ep_app_warn(
 	va_start(av, fmt);
 	printmessage("WARNING", fmt, av);
 	va_end(av);
+
+	if (EP_UT_BITSET(EP_APP_FLAG_LOGWARNINGS, OperationFlags))
+	{
+		va_start(av, fmt);
+		ep_logv(EP_STAT_WARN, fmt, av);
+		va_end(av);
+	}
 }
 
 
@@ -134,6 +146,13 @@ ep_app_error(
 	va_start(av, fmt);
 	printmessage("ERROR", fmt, av);
 	va_end(av);
+
+	if (EP_UT_BITSET(EP_APP_FLAG_LOGERRORS, OperationFlags))
+	{
+		va_start(av, fmt);
+		ep_logv(EP_STAT_ERROR, fmt, av);
+		va_end(av);
+	}
 }
 
 
@@ -161,6 +180,13 @@ ep_app_fatal(
 	va_start(av, fmt);
 	printmessage("FATAL", fmt, av);
 	va_end(av);
+
+	if (EP_UT_BITSET(EP_APP_FLAG_LOGFATALS, OperationFlags))
+	{
+		va_start(av, fmt);
+		ep_logv(EP_STAT_SEVERE, fmt, av);
+		va_end(av);
+	}
 
 	fprintf(stderr, "\t(exiting)\n");
 	exit(1);
@@ -190,6 +216,13 @@ ep_app_abort(
 	va_start(av, fmt);
 	printmessage("ABORT", fmt, av);
 	va_end(av);
+
+	if (EP_UT_BITSET(EP_APP_FLAG_LOGABORTS, OperationFlags))
+	{
+		va_start(av, fmt);
+		ep_logv(EP_STAT_ABORT, fmt, av);
+		va_end(av);
+	}
 
 	fprintf(stderr, "\n\t(exiting)\n");
 	abort();

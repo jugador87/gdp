@@ -46,4 +46,6 @@ extern void	ep_log_init(
 extern void EP_TYPE_PRINTFLIKE(2, 3)
 		ep_log(EP_STAT estat, const char *fmt, ...);
 
+extern void	ep_logv(EP_STAT estat, const char *fmt, va_list ap);
+
 #endif // _EP_LOG_H_

@@ -48,4 +48,11 @@ extern const char	*ep_app_getprogname(void);
 
 extern void		ep_dumpfds(FILE *fd);
 
+extern void		ep_app_setflags(uint32_t flags);
+
+#define EP_APP_FLAG_LOGABORTS		0x00000001	// log ep_app_abort
+#define EP_APP_FLAG_LOGFATALS		0x00000002	// log ep_app_fatal
+#define EP_APP_FLAG_LOGERRORS		0x00000004	// log ep_app_error
+#define EP_APP_FLAG_LOGWARNINGS		0x00000008	// log ep_app_warn
+
 #endif //_EP_APP_H_
