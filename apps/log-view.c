@@ -52,7 +52,7 @@
 
 // following are actually private definitions
 #include <gdp/gdp_priv.h>
-#include <gdplogd/logd_physlog.h>
+#include <gdplogd/logd_disklog.h>
 
 
 /*

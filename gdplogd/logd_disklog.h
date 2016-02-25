@@ -28,8 +28,8 @@
 **	----- END LICENSE BLOCK -----
 */
 
-#ifndef _GDPLOGD_PHYSLOG_H_
-#define _GDPLOGD_PHYSLOG_H_		1
+#ifndef _GDPLOGD_DISKLOG_H_
+#define _GDPLOGD_DISKLOG_H_		1
 
 #include "logd.h"
 
@@ -99,8 +99,8 @@ typedef struct
 	gdp_recno_t		recno;
 	EP_TIME_SPEC	timestamp;
 	uint16_t		sigmeta;			// signature metadata (size & hash alg)
-	int16_t			reserved1;			// reserved for future use
-	int32_t			reserved2;			// reserved for future use
+	uint16_t		flags;				// flag bits (future use)
+	int32_t			reserved;			// reserved for future use
 	int64_t			data_length;
 	char			data[0];
 										// signature is after the data
@@ -260,4 +260,4 @@ struct physinfo
 	struct phys_index	index;
 };
 
-#endif //_GDPLOGD_PHYSLOG_H_
+#endif //_GDPLOGD_DISKLOG_H_
