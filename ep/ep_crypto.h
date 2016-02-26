@@ -204,6 +204,7 @@ const char		*ep_crypto_keytype_name(
 # define EP_CRYPTO_MD_SHA256	3
 # define EP_CRYPTO_MD_SHA384	4
 # define EP_CRYPTO_MD_SHA512	5
+# define EP_CRYPTO_MD_RIPEMD160	6
 
 EP_CRYPTO_MD		*ep_crypto_md_new(
 				int md_alg_id);
@@ -227,6 +228,8 @@ int			ep_crypto_md_alg_byname(
 				const char *algname);
 const char		*ep_crypto_md_alg_name(
 				int md_alg);
+int			ep_crypto_md_len(
+				int md_alg_id);
 
 void			ep_crypto_md_sha256(
 				const void *data,
