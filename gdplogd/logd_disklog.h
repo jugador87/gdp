@@ -91,21 +91,23 @@
 **		storage of the public key associated with the log), but
 **		other metadata names can be added that will be interpreted
 **		by applications.
+**
+**		Following the data header there can be several optional fields:
+**			chash --- the hash of the previous record ("chain hash")
+**			dhash --- the hash of the data
+**			data --- the actual data
+**			sig --- the signature
+**		chash and/or dhash have lengths implied by the hashalgs field.
+**		The data length is explicit.
+**		The signature length (and hash algorithm) is encoded in sigmeta.
+**
+**		The extra reserved fields in the record header aren't
+**		anticipated to be needed anytime soon; they are a relic
+**		of earlier implementations, and are here to keep the
+**		record header from changing.  Also, I don't trust the C
+**		compilers to keep padding consistent between implementations,
+**		so this ensures that the disk layout won't change.
 */
-
-// an individual record in an extent
-typedef struct
-{
-	gdp_recno_t		recno;
-	EP_TIME_SPEC	timestamp;
-	uint16_t		sigmeta;			// signature metadata (size & hash alg)
-	uint16_t		flags;				// flag bits (future use)
-	int32_t			reserved;			// reserved for future use
-	int64_t			data_length;
-	char			data[0];
-										// signature is after the data
-} extent_record_t;
-
 
 // a data extent file header
 typedef struct
@@ -122,6 +124,23 @@ typedef struct
 	gdp_name_t	gname;			// the name of this log
 	gdp_recno_t	recno_offset;	// first recno stored in this extent - 1
 } extent_header_t;
+
+// an individual record header in an extent
+typedef struct
+{
+	gdp_recno_t		recno;
+	EP_TIME_SPEC	timestamp;
+	uint16_t		sigmeta;			// signature metadata (size & hash alg)
+	uint16_t		flags;				// flag bits (future use)
+	uint8_t			hashalgs;			// algorithms for chain and data hashes
+	uint8_t			reserved1;			// reserved for future use
+	int16_t			reserved2;			// reserved for future use
+	int32_t			reserved3;			// reserved for future use
+	int32_t			data_length;		// in bytes
+} extent_record_t;
+
+// flag bits in record headers
+#define REC_HAS_SIGNATURE		0x0001	// signature is stored on disk
 
 
 /*

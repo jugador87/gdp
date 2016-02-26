@@ -1161,7 +1161,7 @@ fail3:
 		goto fail0;
 	}
 
-	// read header
+	// read record header
 	extent_record_t log_record;
 	flockfile(ext->fp);
 	if (fseek(ext->fp, xent->offset, SEEK_SET) < 0 ||
@@ -1176,10 +1176,11 @@ fail3:
 	log_record.recno = ep_net_ntoh64(log_record.recno);
 	ep_net_ntoh_timespec(&log_record.timestamp);
 	log_record.sigmeta = ep_net_ntoh16(log_record.sigmeta);
-	log_record.data_length = ep_net_ntoh64(log_record.data_length);
+	log_record.flags = ep_net_ntoh16(log_record.flags);
+	log_record.data_length = ep_net_ntoh32(log_record.data_length);
 
 	ep_dbg_cprintf(Dbg, 29, "gcl_physread: recno %" PRIgdp_recno
-				", sigmeta 0x%x, dlen %" PRId64 ", offset %" PRId64 "\n",
+				", sigmeta 0x%x, dlen %" PRId32 ", offset %" PRId64 "\n",
 				log_record.recno, log_record.sigmeta, log_record.data_length,
 				xent->offset);
 
@@ -1281,10 +1282,11 @@ disk_append(gdp_gcl_t *gcl,
 	log_record.recno = ep_net_hton64(phys->max_recno + 1);
 	log_record.timestamp = datum->ts;
 	ep_net_hton_timespec(&log_record.timestamp);
-	log_record.data_length = ep_net_hton64(dlen);
+	log_record.data_length = ep_net_hton32(dlen);
 	log_record.sigmeta = (datum->siglen & 0x0fff) |
 				((datum->sigmdalg & 0x000f) << 12);
 	log_record.sigmeta = ep_net_hton16(log_record.sigmeta);
+	log_record.flags = ep_net_hton16(log_record.flags);
 
 	// write log record header
 	fwrite(&log_record, sizeof log_record, 1, ext->fp);
