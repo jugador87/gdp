@@ -33,6 +33,7 @@
 #include <ep/ep_hash.h>
 #include <ep/ep_hexdump.h>
 #include <ep/ep_net.h>
+#include <ep/ep_prflags.h>
 #include <ep/ep_string.h>
 #include <ep/ep_time.h>
 #include <ep/ep_xlate.h>
@@ -101,7 +102,7 @@ show_metadata(int nmds, FILE *dfp, size_t *foffp, int plev)
 		return EX_DATAERR;
 	}
 
-	if (plev >= GDP_PR_DETAILED)
+	if (plev >= 4)
 	{
 		ep_hexdump(mdhdrs, nmds * sizeof *mdhdrs,
 				stdout, EP_HEXDUMP_ASCII, *foffp);
@@ -130,7 +131,7 @@ show_metadata(int nmds, FILE *dfp, size_t *foffp, int plev)
 		mdata[mdhdrs[i].md_len] = '\0';
 		*foffp += mdhdrs[i].md_len;
 		CHECK_FILE_OFFSET(dfp, *foffp);
-		if (plev > GDP_PR_BASIC)
+		if (plev > 1)
 		{
 			fprintf(stdout,
 					"\nMetadata entry %d: name 0x%08" PRIx32
@@ -153,7 +154,7 @@ show_metadata(int nmds, FILE *dfp, size_t *foffp, int plev)
 							ep_crypto_md_alg_name(mdata[0]), mdata[0],
 							ep_crypto_keytype_name(mdata[1]), mdata[1],
 							keylen);
-					if (plev > GDP_PR_BASIC)
+					if (plev > 1)
 					{
 						EP_CRYPTO_KEY *key;
 
@@ -164,7 +165,7 @@ show_metadata(int nmds, FILE *dfp, size_t *foffp, int plev)
 						ep_crypto_key_print(key, stdout, EP_CRYPTO_F_PUBLIC);
 						ep_crypto_key_free(key);
 					}
-					if (plev >= GDP_PR_DETAILED)
+					if (plev >= 4)
 						ep_hexdump(mdata + 4, mdhdrs[i].md_len - 4,
 								stdout, EP_HEXDUMP_HEX, 0);
 					continue;
@@ -172,7 +173,7 @@ show_metadata(int nmds, FILE *dfp, size_t *foffp, int plev)
 					printf("\n");
 					break;
 			}
-			if (plev < GDP_PR_DETAILED)
+			if (plev < 3)
 			{
 				printf("\t%s", EpChar->lquote);
 				ep_xlate_out(mdata, mdhdrs[i].md_len,
@@ -186,7 +187,7 @@ show_metadata(int nmds, FILE *dfp, size_t *foffp, int plev)
 					"\tExternal name: %s\n", mdata);
 		}
 
-		if (plev >= GDP_PR_DETAILED)
+		if (plev >= 4)
 		{
 			ep_hexdump(mdata, mdhdrs[i].md_len,
 					stdout, EP_HEXDUMP_ASCII, *foffp);
@@ -197,24 +198,34 @@ show_metadata(int nmds, FILE *dfp, size_t *foffp, int plev)
 }
 
 
+EP_PRFLAGS_DESC	RecordFlags[] =
+{
+	{ REC_HAS_SIGNATURE,	REC_HAS_SIGNATURE,	"HAS_SIGNATURE"		},
+	{ 0,					0,					NULL				}
+};
+
+
 int
 show_record(extent_record_t *rec, FILE *dfp, size_t *foffp, int plev)
 {
 	rec->recno = ep_net_ntoh64(rec->recno);
 	ep_net_ntoh_timespec(&rec->timestamp);
 	rec->sigmeta = ep_net_ntoh16(rec->sigmeta);
-	rec->data_length = ep_net_ntoh64(rec->data_length);
+	rec->flags = ep_net_ntoh16(rec->flags);
+	rec->data_length = ep_net_ntoh32(rec->data_length);
 
 	fprintf(stdout, "\n    Recno %" PRIgdp_recno
-			", offset %zd (0x%zx), dlen %" PRIi64
+			", offset %zd (0x%zx), dlen %" PRIi32
 			", sigmeta %x (mdalg %d, len %d)\n",
 			rec->recno, *foffp, *foffp, rec->data_length, rec->sigmeta,
 			(rec->sigmeta >> 12) & 0x000f, rec->sigmeta & 0x0fff);
-	fprintf(stdout, "\tTimestamp ");
+	fprintf(stdout, "\thashalgs %x, flags ", rec->hashalgs);
+	ep_prflags(rec->flags, RecordFlags, stdout);
+	fprintf(stdout, "\n\tTimestamp ");
 	ep_time_print(&rec->timestamp, stdout, EP_TIME_FMT_HUMAN);
 	fprintf(stdout, " (sec %" PRIi64 ")\n", rec->timestamp.tv_sec);
 
-	if (plev > GDP_PR_DETAILED)
+	if (plev >= 4)
 	{
 		ep_hexdump(&*rec, sizeof *rec, stdout, EP_HEXDUMP_HEX, *foffp);
 	}
@@ -230,11 +241,11 @@ show_record(extent_record_t *rec, FILE *dfp, size_t *foffp, int plev)
 		return EX_DATAERR;
 	}
 
-	if (plev >= GDP_PR_BASIC + 2)
+	if (plev >= 4)
 	{
 		ep_hexdump(data_buffer, rec->data_length,
 				stdout, EP_HEXDUMP_ASCII,
-				plev < GDP_PR_DETAILED ? 0 : *foffp);
+				plev < 3 ? 0 : *foffp);
 	}
 	*foffp += rec->data_length;
 	CHECK_FILE_OFFSET(dfp, *foffp);
@@ -253,10 +264,10 @@ show_record(extent_record_t *rec, FILE *dfp, size_t *foffp, int plev)
 			return EX_DATAERR;
 		}
 
-		if (plev >= GDP_PR_BASIC + 2)
+		if (plev >= 4)
 		{
 			ep_hexdump(sigbuf, siglen, stdout, EP_HEXDUMP_ASCII,
-				plev < GDP_PR_DETAILED ? 0 : *foffp);
+				plev < 3 ? 0 : *foffp);
 		}
 
 		*foffp += siglen;
@@ -339,7 +350,7 @@ show_index_header(const char *index_filename,
 	if (st.st_size <= index_header.header_size)
 	{
 		// no records yet
-		if (plev > GDP_PR_BASIC)
+		if (plev > 1)
 			printf("\tno index records\n");
 		goto done;
 	}
@@ -371,7 +382,7 @@ show_index_header(const char *index_filename,
 		*max_extent = ep_net_ntoh32(xent.extent);
 	}
 
-	if (plev > GDP_PR_BASIC)
+	if (plev > 1)
 	{
 		printf("    Index: magic=%04" PRIx32 ", vers=%" PRId32
 				", header_size=%" PRId32 ", min_recno=%" PRIgdp_recno "\n",
@@ -393,7 +404,7 @@ done:
 
 no_header:
 	fclose(index_fp);
-	if (plev > GDP_PR_BASIC)
+	if (plev > 1)
 		printf("Old-style headerless index\n");
 	return st.st_size / SIZEOF_INDEX_RECORD;
 	return -1;
@@ -510,7 +521,7 @@ show_extent(const char *gcl_dir_name,
 	log_header.reserved2 = ep_net_ntoh64(log_header.reserved2);
 	log_header.recno_offset = ep_net_ntoh64(log_header.recno_offset);
 
-	if (plev >= GDP_PR_BASIC)
+	if (plev >= 1)
 	{
 		gdp_pname_t pname;
 
@@ -526,7 +537,7 @@ show_extent(const char *gcl_dir_name,
 				", metadata entries %d, recno_offset %" PRIgdp_recno "\n",
 				log_header.header_size, log_header.header_size,
 				log_header.n_md_entries, log_header.recno_offset);
-		if (plev >= GDP_PR_DETAILED)
+		if (plev >= 4)
 		{
 			ep_hexdump(&log_header, sizeof log_header, stdout,
 					EP_HEXDUMP_HEX, file_offset);
@@ -542,12 +553,12 @@ show_extent(const char *gcl_dir_name,
 		if (istat != 0)
 			goto fail0;
 	}
-	else if (plev >= GDP_PR_BASIC)
+	else if (plev >= 1)
 	{
 		fprintf(stdout, "\n<No metadata>\n");
 	}
 
-	if (plev <= GDP_PR_BASIC)
+	if (plev <= 2)
 		goto success;
 
 	fprintf(stdout, "    --------------- Data ---------------\n");
@@ -577,7 +588,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	int istat;
 
 	(void) gdp_printable_name(gcl_name, gcl_pname);
-	if (plev <= GDP_PR_PRETTY)
+	if (plev <= 0)
 	{
 		printf("%s\n", gcl_pname);
 		return 0;
@@ -592,18 +603,18 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	snprintf(filename, filename_size,
 			"%s/_%02x/%s%s",
 			gcl_dir_name, gcl_name[0], gcl_pname, GCL_LXF_SUFFIX);
-	max_recno = show_index_header(filename, GDP_PR_PRETTY,
+	max_recno = show_index_header(filename, 0,
 						&min_extent, &max_extent);
 	printf("\t%" PRIgdp_recno " recs\n", max_recno - 1);
 
-	if (plev <= GDP_PR_BASIC)
+	if (plev <= 1)
 		return 0;
 
 	for (extent = min_extent; extent <= max_extent; extent++)
 		istat = show_extent(gcl_dir_name, gcl_name, extent, false, plev);
 	(void) show_extent(gcl_dir_name, gcl_name, extent, true, plev);
 
-	if (plev > GDP_PR_DETAILED)
+	if (plev >= 5)
 	{
 		show_index_contents(gcl_dir_name, gcl_name, plev);
 	}
@@ -746,35 +757,11 @@ main(int argc, char *argv[])
 	if (gcl_dir_name == NULL)
 		gcl_dir_name = ep_adm_getstrparam("swarm.gdplogd.gcl.dir", GCL_DIR);
 
-	int plev;
-	switch (verbosity)
-	{
-	case 0:
-		plev = GDP_PR_PRETTY;
-		break;
-
-	case 1:
-		plev = GDP_PR_BASIC;
-		break;
-
-	case 2:
-		plev = GDP_PR_BASIC + 1;
-		break;
-
-	case 3:
-		plev = GDP_PR_DETAILED;
-		break;
-
-	default:
-		plev = GDP_PR_DETAILED + 1;
-		break;
-	}
-
 	if (list_gcl)
 	{
 		if (argc > 0)
 			usage("cannot use a GCL name with -l");
-		return list_gcls(gcl_dir_name, plev);
+		return list_gcls(gcl_dir_name, verbosity);
 	}
 
 	if (argc > 0)
@@ -797,5 +784,5 @@ main(int argc, char *argv[])
 	{
 		usage("unparsable GCL name");
 	}
-	exit(show_gcl(gcl_dir_name, gcl_name, plev));
+	exit(show_gcl(gcl_dir_name, gcl_name, verbosity));
 }
