@@ -58,12 +58,43 @@
 # define GDP_MIN_KEY_LEN		1024
 #endif // GDP_MIN_KEY_LEN
 
+static EP_DBG	Dbg = EP_DBG_INIT("gdp.gcl-create", "Create new log app");
+
+
+const char *
+select_logd_name(void)
+{
+	const char *p;
+
+	p = ep_adm_getstrparam("swarm.gdp.gcl-create.server", NULL);
+	if (p == NULL)
+	{
+		// seed the random number generator
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+		srandom(tv.tv_usec);
+
+		// default to one of the berkeley servers
+		int r = random() % 3 + 1;
+		int l = sizeof "gdp-00.eecs.berkeley.edu" + 1;
+		char *nbuf;
+
+		nbuf = ep_mem_malloc(l);
+		snprintf(nbuf, l, "gdp-0%d.eecs.berkeley.edu", r);
+		p = nbuf;
+	}
+
+	ep_dbg_cprintf(Dbg, 3, "Using log server %s\n", p);
+
+	return p;
+}
+
 void
 usage(void)
 {
 	fprintf(stderr, "Usage: %s [-D dbgspec] [-e key_enc_alg] [-G gdpd_addr]\n"
-			"\t[-h] [-k] [-K keyfile] [-t keytype] [-b keybits] [-c curve]\n"
-			"\t[logd_name] [<mdid>=<metadata>...] [gcl_name]\n"
+			"\t[-h] [-k keytype] [-K keyfile] [-b keybits] [-c curve]\n"
+			"\t[-s logd_name] [<mdid>=<metadata>...] [gcl_name]\n"
 			"    -D  set debugging flags\n"
 			"    -e  set secret key encryption algorithm\n"
 			"    -G  IP host to contact for GDP router\n"
@@ -75,6 +106,7 @@ usage(void)
 			"\twith the name of the GCL (defaults to \"KEYS\" or \".\")\n"
 			"    -b  set size of key in bits (RSA and DSA only)\n"
 			"    -c  set curve name (EC only)\n"
+			"    -s  set name of log daemon on which to create the log\n"
 			"    logd_name is the name of the log server to host this log\n"
 			"    gcl_name is the name of the log to create\n"
 			"    metadata ids are (by convention) four letters or digits\n",
@@ -87,9 +119,9 @@ int
 main(int argc, char **argv)
 {
 	gdp_name_t gcliname;			// internal name of GCL
-	char *gclxname = NULL;			// external name of GCL
+	const char *gclxname = NULL;	// external name of GCL
 	gdp_name_t logdiname;			// internal name of log daemon
-	char *logdxname;				// external name of log daemon
+	const char *logdxname = NULL;	// external name of log daemon
 	gdp_gcl_t *gcl = NULL;
 	gdp_gclmd_t *gmd = NULL;
 	int opt;
@@ -114,7 +146,7 @@ main(int argc, char **argv)
 	gdp_lib_init(NULL);
 
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "b:c:D:e:G:h:k:K:")) > 0)
+	while ((opt = getopt(argc, argv, "b:c:D:e:G:h:k:K:s:")) > 0)
 	{
 		switch (opt)
 		{
@@ -170,6 +202,10 @@ main(int argc, char **argv)
 			keyfile = optarg;
 			break;
 
+		 case 's':
+			logdxname = optarg;
+			break;
+
 		 default:
 			show_usage = true;
 			break;
@@ -178,12 +214,8 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if (show_usage || argc < 1)
+	if (show_usage || argc < 0)
 		usage();
-
-	argc--;
-	logdxname = *argv++;
-	gdp_parse_name(logdxname, logdiname);
 
 	// collect any metadata
 	gmd = gdp_gclmd_new(0);
@@ -205,6 +237,19 @@ main(int argc, char **argv)
 		argc--;
 		argv++;
 	}
+
+	// back compatibility for old calling convention
+	if (argc == 2 && logdxname == NULL)
+	{
+		logdxname = *argv++;
+		argc--;
+	}
+
+	// if we don't have a log daemon, pick one
+	if (logdxname == NULL)
+		logdxname = select_logd_name();
+
+	gdp_parse_name(logdxname, logdiname);
 
 	// name is optional ; if omitted one will be created
 	if (argc-- > 0)
@@ -446,6 +491,7 @@ main(int argc, char **argv)
 	**  Hello sailor, this is where the actual creation happens
 	*/
 
+	gdp_parse_name(logdxname, logdiname);
 	if (gclxname == NULL)
 	{
 		// create a new GCL handle with a new name based on metadata

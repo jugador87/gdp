@@ -14,7 +14,7 @@
 .Op Fl K Ar key-location
 .Op Fl b Ar key-bits
 .Op Fl c Ar curve-name
-.Ar logd-gdp-addr
+.Op Fl s Ar logd-gdp-addr
 .Op Ar mdid = Ar metadata
 .Op Ar external-name
 .Sh DESCRIPTION
@@ -128,6 +128,18 @@ This overrides the
 .Va swarm.gdp.crypto.ec.curve
 parameter.
 Ignored when creating RSA or DSA key pairs.
+.It Fl s Ar logd-gdp-addr
+The name of the log daemon on which to create the physical instantiation
+of the log.
+If not specified, the value of the
+.Va swarm.gdp.gcl-create.server
+administrative will be used.
+If that is not set,
+it will default to one of the servers at Berkeley.
+If you want a specific server at your site,
+either use the
+.Fl s
+flag or set that administrative parameter.
 .El
 .Sh EXIT STATUS
 .Bl -tag
@@ -196,6 +208,10 @@ Defaults to
 .Li ec .
 Overridden by
 .Fl k .
+.It swarm.gdp.gcl-create.server
+The default server on which to create logs.
+Overridden by
+.Fl s .
 .El
 .\".Sh ENVIRONMENT
 .\".Sh FILES
@@ -205,8 +221,8 @@ Overridden by
 .Sh EXAMPLES
 .Bl -bullet
 .It
-To create a GCL on log server named edu.berkeley.eecs.gdp-01 using defaults:
-.Dl gcl-create edu.berkeley.eecs.gdp-01 edu.berkeley.cs.eric.log01
+To create a GCL on a default server:
+.Dl gcl-create edu.berkeley.cs.eric.log00
 The secret key will be written into a a file named
 .Pa KEYS/<something>.pem ,
 where
@@ -215,6 +231,10 @@ is the base-64-encoded internal name of the log, e.g.,
 .Li 1KZy5jy1QpghTe8QBmDQGqdz3a_9tVP3qp6uxlOeJdk.pem .
 The password for encrypting this key will be read from the standard input.
 .It
+To create a GCL on log server named edu.berkeley.eecs.gdp-01 using defaults:
+.Dl logd=edu.berkeley.eecs.gdp-01
+.Dl gcl-create -s $logd edu.berkeley.cs.eric.log01
+.It
 To create a log named
 .Li $newlog
 on the server named
@@ -222,14 +242,14 @@ on the server named
 encrypted with a 1024-bit RSA key,
 leaving the unencrypted key in a file named
 .Pa mykey.pem :
-.Dl gcl-create -k RSA -b 1024 -e none -K mykey.pem $logd $newlog
+.Dl gcl-create -k RSA -b 1024 -e none -K mykey.pem $newlog
 .It
 To create a log with user-specified metadata:
-.Dl gcl-create $logd Qo "MYMD=My special metadata" Qc $newlog
+.Dl gcl-create Qo "MYMD=My special metadata" Qc $newlog
 .It
 To create a log without a human-friendly name using sha-224
 as the hash (message digest) algorithm:
-.Dl gcl-create -h sha224 $logd
+.Dl gcl-create -h sha224
 .Nm gcl-create
 will print the base-64-encoded name of the new log.
 You should be careful to record that,
