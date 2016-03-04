@@ -90,7 +90,8 @@ show_metadata(int nmds, FILE *dfp, size_t *foffp, int plev)
 	};
 	struct mdhdr *mdhdrs = alloca(nmds * sizeof *mdhdrs);
 
-	printf("    --------------- Metadata ---------------\n");
+	if (plev > 0)
+		printf("    --------------- Metadata ---------------\n");
 
 	i = fread(mdhdrs, sizeof *mdhdrs, nmds, dfp);
 	if (i != nmds)
@@ -608,7 +609,16 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	printf("\t%" PRIgdp_recno " recs\n", max_recno - 1);
 
 	if (plev <= 1)
+	{
+		plev = 0;			// arrange to get external ID only
+		for (extent = min_extent; extent <= max_extent; extent++)
+		{
+			istat = show_extent(gcl_dir_name, gcl_name, extent, true, plev);
+			if (istat != EX_NOINPUT)
+				break;
+		}
 		return 0;
+	}
 
 	for (extent = min_extent; extent <= max_extent; extent++)
 		istat = show_extent(gcl_dir_name, gcl_name, extent, false, plev);
