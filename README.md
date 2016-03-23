@@ -63,11 +63,10 @@ section entirely][Using the GDP].
    7.	Start the GDP log daemon (see above).  Make note of its "GDP
 	routing name" for use in the next step.
 
-   8.	Create your first GCL using `apps/gcl-create`.  It takes two
-	arguments: the name of the log daemon on which to create the
+   8.	Create your first GCL using `apps/gcl-create`.  Use -s
+    followed by the name of the log daemon on which to create the
 	GCL (as displayed in the previous step) and the name of the new
-	log.  If the second parameter is omitted an internal name is
-	used.
+	log.  If no log name is specified, an internal name is used.
 
    9.	Run `apps/gdp-writer` giving it the name of the log you just
 	created to add data to the log.  It will ask for lines of input
