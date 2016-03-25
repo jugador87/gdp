@@ -25,19 +25,40 @@ import org.terraswarm.gdp.NativeSize; // Fixed by cxh in makefile.
  */
 public class GDP_GCL {
 
-    // internal 256 bit name
-    private ByteBuffer gclname = ByteBuffer.allocate(32);
+    /**
+     * internal 256 bit name for the log
+     */
+    public byte[] gclname;
 
-    // a pointer to pointer to open handle
-    private Pointer gclh = null;
+    /**
+     * A pointer to the C gdp_gcl_t structure
+     */
+    public Pointer gclh = null;
 
-    // To store the i/o mode for this log
-    private GDP_MODE iomode;
+    /**
+     * The I/O mode for this log
+     */
+    public GDP_MODE iomode;
 
+    /**
+     * I/O mode for a log.
+     * <ul>
+     * <li> ANY: for internal use only </li>
+     * <li> RO : Read only </li>
+     * <li> AO : Append only </li>
+     * <li> RA : Read + append </li>
+     * </ul> 
+     */
+    public enum GDP_MODE {
+        ANY, RO, AO, RA
+    }
 
-
-    //////////////// Public Interface /////////////////////////
-
+    /**
+     * A global list of objects. Useful for get_next_event
+     */
+    public static HashMap<Pointer, Object> object_dir = 
+            new HashMap<Pointer, Object>();
+    
     /**
      * Create a GCL. Note that this is a static method. 
      * 
@@ -48,7 +69,7 @@ public class GDP_GCL {
      */
     
     public static void create(GDP_NAME logName, GDP_NAME logdName, 
-            Map<Integer, byte[]> metadata) {
+                    Map<Integer, byte[]> metadata) {
         
         EP_STAT estat;
         
@@ -76,7 +97,7 @@ public class GDP_GCL {
     
 
     /**
-     * Create a GCL. Note that this is a static method    
+     * Create a GCL (with empty metadata). Note that this is a static method    
      * @param logName   Name of the log
      * @param logdName  Name of the logserver that should host this log
      */
@@ -84,56 +105,45 @@ public class GDP_GCL {
         create (logdName, logName, new HashMap<Integer, byte[]>());
     }
 
-    /**
-     * I/O mode for a log.
-     * <ul>
-     * <li> ANY: for internal use only </li>
-     * <li> RO : Read only </li>
-     * <li> AO : Append only </li>
-     * <li> RA : Read + append </li>
-     * </ul> 
-     */
-    public enum GDP_MODE {
-        ANY, RO, AO, RA
-    }
-
     /** 
      * Initialize a new GCL object.
      * No signatures support, yet. TODO
      * 
-     * @param name   Name of the log. Could be human readable or binary
+     * @param name   Name of the log.
      * @param iomode Should this be opened read only, read-append, append-only
      */
       
-    public GDP_GCL(String name, GDP_MODE iomode) {
+    public GDP_GCL(GDP_NAME name, GDP_MODE iomode) {
 
         EP_STAT estat;
-
-        this.iomode = iomode;
-
-        // initialize gdp by calling gdp_init
-        estat = Gdp02Library.INSTANCE.gdp_init((Pointer)null);
-        GDP.check_EP_STAT(estat);
-
-        //Gdp02Library.INSTANCE.ep_dbg_set("*=80");
         
-        // convert human name to internal 256 bit name
-        estat = Gdp02Library.INSTANCE.gdp_parse_name(name, this.gclname);
-        GDP.check_EP_STAT(estat);
-
-        // open the GCL
         PointerByReference gclhByReference = new PointerByReference();
-        estat = Gdp02Library.INSTANCE.gdp_gcl_open(this.gclname, 
+        this.iomode = iomode;
+        this.gclname = name.internal_name();
+        
+        // open the GCL
+        estat = Gdp02Library.INSTANCE.gdp_gcl_open(ByteBuffer.wrap(this.gclname), 
                             iomode.ordinal(), (PointerByReference) null, 
                             gclhByReference);
         GDP.check_EP_STAT(estat);
 
-        // Anything else?
+        // associate the C pointer to this object.
         this.gclh = gclhByReference.getValue();
         assert this.gclh != null;
 
+        // Add ourselves to the global map of pointers=>objects 
+        object_dir.put(this.gclh, this);
     }
 
+    public void finalize() {
+        
+        // remove ourselves from the global list
+        object_dir.remove(this.gclh);
+        
+        // free the associated gdp_gcl_t
+        Gdp02Library.INSTANCE.gdp_gcl_close(this.gclh);
+        
+    }
 
     /**
      * Read a record by record number
@@ -163,11 +173,13 @@ public class GDP_GCL {
 
 
     /**
-     * Append data to a log
+     * Append data to a log. This will create a new record in the log.
      * 
-     * @param datum_dict A dictionary containing the key "data". 
+     * @param datum_dict    A dictionary containing the key "data". The value
+     *                      associated should be a byte[] containing the data
+     *                      to be appended.
      */
-    public void append(HashMap<String, Object>datum_dict) {
+    public void append(Map<String, Object>datum_dict) {
 
         EP_STAT estat;
         GDP_DATUM datum = new GDP_DATUM();
@@ -182,6 +194,11 @@ public class GDP_GCL {
         return;
     }
 
+    /**
+     * Append data to a log. This will create a new record in the log.
+     * 
+     * @param data  Data that should be appended
+     */
     public void append(byte[] data) {
         
         HashMap<String, Object> datum = new HashMap<String, Object>();
@@ -191,11 +208,13 @@ public class GDP_GCL {
     }
 
     /**
-     * Append data to a log, asynchronously
+     * Append data to a log, asynchronously. This will create a new record in the log.
      * 
-     * @param datum_dict A dictionary containing the key "data". 
+     * @param datum_dict    A dictionary containing the key "data". The value
+     *                      associated should be a byte[] containing the data
+     *                      to be appended.
      */
-    public void append_async(HashMap<String, Object>datum_dict) {
+    public void append_async(Map<String, Object>datum_dict) {
 
         EP_STAT estat;
         GDP_DATUM datum = new GDP_DATUM();
@@ -211,6 +230,11 @@ public class GDP_GCL {
     }
 
 
+    /**
+     * Append data to a log, asynchronously. This will create a new record in the log.
+     * 
+     * @param data  Data that should be appended
+     */
     public void append_async(byte[] data) {
         
         HashMap<String, Object> datum = new HashMap<String, Object>();
@@ -282,11 +306,12 @@ public class GDP_GCL {
     } */
 
     
-    public HashMap<String, Object> get_next_event(EP_TIME_SPEC timeout) {
+    public static HashMap<String, Object> _helper_get_next_event(
+                            Pointer gclh, EP_TIME_SPEC timeout) {
         
-        // Get the event pointer
+        // Get the event pointer. gclh can be null.
         PointerByReference gdp_event_ptr = Gdp02Library.INSTANCE
-                            .gdp_event_next(this.gclh, timeout);
+                            .gdp_event_next(gclh, timeout);
 
         // Get the data associated with this event
         int type = Gdp02Library.INSTANCE.gdp_event_gettype(gdp_event_ptr);
@@ -294,6 +319,10 @@ public class GDP_GCL {
                             .gdp_event_getdatum(gdp_event_ptr);
         EP_STAT event_ep_stat = Gdp02Library.INSTANCE
                             .gdp_event_getstat(gdp_event_ptr);
+        PointerByReference _gclhByReference = Gdp02Library.INSTANCE
+                            .gdp_event_getgcl(gdp_event_ptr);
+        Pointer _gclh = _gclhByReference.getValue();
+                            
         
         GDP_DATUM datum = new GDP_DATUM(datum_ptr);
         // create a datum dictionary.
@@ -304,12 +333,35 @@ public class GDP_GCL {
         // TODO Fix signatures
         
         HashMap<String, Object> gdp_event = new HashMap<String, Object>();
+        gdp_event.put("gcl_handle", object_dir.get(_gclh));
         gdp_event.put("datum", datum_dict);
         gdp_event.put("type", type);
         gdp_event.put("stat", event_ep_stat);
         
+        // free the event structure
+        Gdp02Library.INSTANCE.gdp_event_free(gdp_event_ptr);
+        
         return gdp_event;
     }
+    
+    public static HashMap<String, Object> get_next_event(
+                        GDP_GCL obj, EP_TIME_SPEC timeout) {
+
+        if (obj==null) {
+        
+            return _helper_get_next_event(null, timeout);
+        
+        } else {
+            
+            HashMap<String, Object> tmp = _helper_get_next_event(
+                    obj.gclh, timeout);
+
+            assert tmp.get("gcl_handle") == obj;
+
+            return tmp;
+        }
+    }
+    
 
     /**
      * Get next event as a result of subscription, multiread or

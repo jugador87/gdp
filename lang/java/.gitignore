@@ -4,6 +4,7 @@ _*
 *.class
 *.java
 !GDP*.java
+!EP_CRYPTO.java
 !ReaderTest.java
 !WriterTest.java
 !GdpUtilities.java
