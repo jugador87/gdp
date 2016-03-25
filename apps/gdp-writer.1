@@ -8,10 +8,10 @@
 .Nm
 .Op Fl 1
 .Op Fl a
-.Op Fl D debug-spec
-.Op Fl G router-ip
-.Op Fl F key-file
-.Op Fl L log-file
+.Op Fl D Ar debug-spec
+.Op Fl G Ar router-ip
+.Op Fl F Ar key-file
+.Op Fl L Ar log-file
 .Op Fl q
 .Ar log-name
 .Sh DESCRIPTION
@@ -58,10 +58,10 @@ This can be used to log binary input or input with newlines
 .It Fl a
 Use asynchronous writes.
 This is primarily for testing.
-.It Fl D debug-spec
+.It Fl D Ar debug-spec
 Turn on debugging flags using the libep-style format.
 Only useful with code in hand.
-.It Fl G router-ip
+.It Fl G Ar router-ip
 Contact the given IP address (which may be a DNS name)
 to get a connection to the GDP routing layer.
 This will be replaced by automatic discovery
@@ -73,13 +73,13 @@ the names listed in the
 .Va swarm.gdp.routers
 runtime administrative parameter
 are searched.
-.It Fl L log-file
+.It Fl L Ar log-file
 If set, write a very simplistic performance log to the given
 .Ar log-file .
 This can be used together with the companion flag on
 .Xr gdp-reader 1
 to produce crude round-trip performance numbers.
-.It Fl K key-file
+.It Fl K Ar key-file
 Names the file containing the secret key to be used for signing.
 This must be a
 .Sy \&.pem
@@ -113,6 +113,4 @@ KEYS
 .Xr gdp-reader 1 ,
 .Xr gcl-create 8
 .\".Sh EXAMPLES
-.Sh BUGS
-There should be some way to put binary or multiline data into the log.
-At the moment this requires writing a separate application.
+.\".Sh BUGS
