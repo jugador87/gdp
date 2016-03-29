@@ -28,6 +28,11 @@
 **	----- END LICENSE BLOCK -----
 */
 
+
+/*
+**  Implement on-disk version of logs.
+*/
+
 #include "logd.h"
 #include "logd_disklog.h"
 
@@ -50,6 +55,8 @@
 #include <sys/file.h>
 #include <stdint.h>
 
+/* On-disk extents work, but we choose not to use them at this time */
+#define EXTENT_SUPPORT				0	// allow multiple extents
 #define PRE_EXTENT_BACK_COMPAT		1	// handle pre-extent on disk format
 
 
@@ -143,6 +150,7 @@ get_gcl_path(gdp_gcl_t *gcl,
 	errno = 0;
 	gdp_printable_name(gcl->name, pname);
 
+#if EXTENT_SUPPORT
 	if (extent >= 0)
 	{
 		snprintf(extent_str, sizeof extent_str, "-%06d", extent);
@@ -164,6 +172,7 @@ get_gcl_path(gdp_gcl_t *gcl,
 		}
 	}
 #endif // PRE_EXTENT_BACK_COMPAT
+#endif // EXTENT_SUPPORT
 
 	// find the subdirectory based on the first part of the name
 	i = snprintf(pbuf, pbufsiz, "%s/_%02x", GCLDir, gcl->name[0]);
@@ -986,6 +995,7 @@ disk_open(gdp_gcl_t *gcl)
 		phys->last_extent = ep_net_ntoh32(xent.extent);
 	}
 
+#if EXTENT_SUPPORT
 	/*
 	**  Now we have to see if there is another (empty) extent
 	*/
@@ -1000,6 +1010,7 @@ disk_open(gdp_gcl_t *gcl)
 		if (stat(data_pbuf, &stbuf) >= 0)
 			phys->last_extent++;
 	}
+#endif // EXTENT_SUPPORT
 
 	/*
 	**  We need to physically read at least one extent if only
@@ -1446,6 +1457,7 @@ fail_stdio:
 **  Create a new extent.
 */
 
+#if EXTENT_SUPPORT
 static EP_STAT
 disk_newextent(gdp_gcl_t *gcl)
 {
@@ -1466,6 +1478,7 @@ disk_newextent(gdp_gcl_t *gcl)
 
 	return estat;
 }
+#endif // EXTENT_SUPPORT
 
 
 /*
@@ -1533,6 +1546,8 @@ struct gcl_phys_impl	GdpDiskImpl =
 	.close =		disk_close,
 	.append =		disk_append,
 	.getmetadata =	disk_getmetadata,
+#if EXTENT_SUPPORT
 	.newextent =	disk_newextent,
+#endif
 	.foreach =		disk_foreach,
 };
