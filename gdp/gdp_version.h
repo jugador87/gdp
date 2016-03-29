@@ -45,7 +45,7 @@
 
 // change these as necessary
 #define GDP_VERSION_MAJOR	0
-#define GDP_VERSION_MINOR	4
+#define GDP_VERSION_MINOR	5
 #define GDP_VERSION_PATCH	0
 
 #define __GDP_STRING(x)		#x
