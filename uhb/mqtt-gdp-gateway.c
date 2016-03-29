@@ -260,7 +260,8 @@ void
 usage(void)
 {
 	fprintf(stderr,
-			"Usage: %s [-D dbgspec] [-G router_addr] [-K signing_key_file] [-M broker_addr] [-q qos] mqtt_topic gdp_log\n"
+			"Usage: %s [-D dbgspec] [-G router_addr] [-K signing_key_file]\n"
+			"\t[-M broker_addr] [-q qos] mqtt_topic gdp_log\n"
 			"    -D  set debugging flags\n"
 			"    -G  IP host to contact for gdp_router\n"
 			"    -K  key file to use to sign GDP log writes\n"
