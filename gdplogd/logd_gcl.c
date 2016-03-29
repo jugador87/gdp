@@ -58,6 +58,9 @@ gcl_alloc(gdp_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
 	}
 	gcl->x->gcl = gcl;
 
+	//XXX for now, assume all GCLs are on disk
+	gcl->x->physimpl = &GdpDiskImpl;
+
 	// make sure that if this is freed it gets removed from GclsByUse
 	gcl->freefunc = gcl_close;
 
@@ -81,9 +84,6 @@ gcl_open(gdp_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
 
 	estat = gcl_alloc(gcl_name, iomode, &gcl);
 	EP_STAT_CHECK(estat, goto fail0);
-
-	//XXX for now, assume all GCLs are on disk
-	gcl->x->physimpl = &GdpDiskImpl;
 
 	// so far, so good...  do the physical open
 	estat = gcl->x->physimpl->open(gcl);
