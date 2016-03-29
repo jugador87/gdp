@@ -39,10 +39,10 @@ extern void EP_TYPE_PRINTFLIKE(1, 2)
 			ep_app_error(const char *fmt, ...);
 extern void EP_TYPE_PRINTFLIKE(1, 2)
 			ep_app_fatal(const char *fmt, ...)
-				__attribute__ ((noreturn));
+				EP_ATTR_NORETURN;
 extern void EP_TYPE_PRINTFLIKE(1, 2)
 			ep_app_abort(const char *fmt, ...)
-				__attribute__ ((noreturn));
+				EP_ATTR_NORETURN;
 
 extern const char	*ep_app_getprogname(void);
 

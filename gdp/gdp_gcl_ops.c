@@ -629,6 +629,10 @@ fail0:
 }
 
 
+/*
+**  _GDP_GCL_GETMETADATA --- return metadata for a log
+*/
+
 EP_STAT
 _gdp_gcl_getmetadata(gdp_gcl_t *gcl,
 		gdp_gclmd_t **gmdp,
@@ -650,6 +654,31 @@ _gdp_gcl_getmetadata(gdp_gcl_t *gcl,
 	*gmdp = _gdp_gclmd_deserialize(req->pdu->datum->dbuf);
 
 fail1:
+	_gdp_req_free(req);
+
+fail0:
+	return estat;
+}
+
+
+/*
+**  _GDP_GCL_NEWEXTENT --- create a new physical extent for a log
+*/
+
+EP_STAT
+_gdp_gcl_newextent(gdp_gcl_t *gcl,
+		gdp_chan_t *chan,
+		uint32_t reqflags)
+{
+	EP_STAT estat;
+	gdp_req_t *req;
+
+	GDP_ASSERT_GOOD_GCL(gcl);
+	estat = _gdp_req_new(GDP_CMD_NEWEXTENT, gcl, chan, NULL, reqflags, &req);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	estat = _gdp_invoke(req);
+
 	_gdp_req_free(req);
 
 fail0:

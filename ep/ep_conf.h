@@ -130,4 +130,30 @@
 # define EP_TYPE_PRINTFLIKE(a, b)	__printflike(a, b)
 #endif
 
+/*
+** C Compiler configuration variables
+**
+**	EP_CCCF_USE_ATTRIBUTES
+**		Use __attribute__ (at all; if 0, overrides specific attrs)
+**	EP_CCCF_USE_ATTR_PACKED
+**		Use __attribute__((packed))
+*/
+
+#ifndef EP_CCCF_USE_ATTRIBUTES
+# define EP_CCCF_USE_ATTRIBUTES		1	// use __attribute__ decls
+#endif
+
+// wrap GCC attributes in macros to make code easier to port to non-gcc
+#if EP_CCCF_USE_ATTRIBUTES
+# define EP_ATTR(_attr)		__attribute__((_attr))
+#else
+# define EP_ATTR(_attr)
+#endif
+#define EP_ATTR_NORETURN	EP_ATTR(noreturn)
+#if EP_CCCF_USE_ATTR_PACKED
+# define EP_ATTR_PACKED		EP_ATTR(packed)
+#else
+# define EP_ATTR_PACKED
+#endif
+
 #endif // _EP_CONF_H_

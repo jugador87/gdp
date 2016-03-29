@@ -1,5 +1,6 @@
 apps/gcl-create
 apps/gdp-name-xlate
+apps/gdp-newextent
 apps/gdp-rest
 apps/gdp-reader
 apps/gdp-writer

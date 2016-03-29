@@ -80,6 +80,9 @@ _ep_crypto_md_getalg_byid(int md_alg_id)
 	  case EP_CRYPTO_MD_SHA512:
 		return EVP_sha512();
 
+	  case EP_CRYPTO_MD_RIPEMD160:
+		return EVP_ripemd160();
+
 	  default:
 		return _ep_crypto_error("unknown digest algorithm %d", md_alg_id);
 	}
@@ -234,6 +237,10 @@ ep_crypto_md_type(EP_CRYPTO_MD *md)
 		mdtype = EP_CRYPTO_MD_SHA512;
 		break;
 
+	  case NID_ripemd160:
+		mdtype = EP_CRYPTO_MD_RIPEMD160;
+		break;
+
 	  default:
 		ep_dbg_cprintf(Dbg, 1, "ep_crypto_md_type: unknown md type %d\n",
 				EVP_MD_CTX_type(md));
@@ -241,6 +248,43 @@ ep_crypto_md_type(EP_CRYPTO_MD *md)
 	}
 
 	return mdtype;
+}
+
+
+/*
+**  Return length in bytes of hash output based on algorithm type
+**
+**	This should really use EVP_MD_size, but that would require
+**	passing in an EP_CRYPTO_MD instead of a code.
+*/
+
+
+#define BITS		/ 8
+
+int
+ep_crypto_md_len(int md_alg_id)
+{
+	switch (md_alg_id)
+	{
+	  case EP_CRYPTO_MD_SHA1:
+	  case EP_CRYPTO_MD_RIPEMD160:
+		return 160 BITS;
+
+	  case EP_CRYPTO_MD_SHA224:
+		return 224 BITS;
+
+	  case EP_CRYPTO_MD_SHA256:
+		return 256 BITS;
+
+	  case EP_CRYPTO_MD_SHA384:
+		return 384 BITS;
+
+	  case EP_CRYPTO_MD_SHA512:
+		return 512 BITS;
+
+	  default:
+		return 0;
+	}
 }
 
 
@@ -261,6 +305,7 @@ static struct name_to_format	MdAlgStrings[] =
 	{ "sha256",		EP_CRYPTO_MD_SHA256,		},
 	{ "sha384",		EP_CRYPTO_MD_SHA384,		},
 	{ "sha512",		EP_CRYPTO_MD_SHA512,		},
+	{ "ripemd160",		EP_CRYPTO_MD_RIPEMD160,		},
 	{ NULL,			-1				}
 };
 

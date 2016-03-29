@@ -29,7 +29,6 @@
 */
 
 #include "logd.h"
-#include "logd_physlog.h"
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.gcl", "GDP Log Daemon GCL handling");
 
@@ -59,6 +58,9 @@ gcl_alloc(gdp_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
 	}
 	gcl->x->gcl = gcl;
 
+	//XXX for now, assume all GCLs are on disk
+	gcl->x->physimpl = &GdpDiskImpl;
+
 	// make sure that if this is freed it gets removed from GclsByUse
 	gcl->freefunc = gcl_close;
 
@@ -84,7 +86,7 @@ gcl_open(gdp_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// so far, so good...  do the physical open
-	estat = gcl_physopen(gcl);
+	estat = gcl->x->physimpl->open(gcl);
 	EP_STAT_CHECK(estat, goto fail1);
 
 	// success!
@@ -94,6 +96,9 @@ gcl_open(gdp_name_t gcl_name, gdp_iomode_t iomode, gdp_gcl_t **pgcl)
 fail1:
 	_gdp_gcl_freehandle(gcl);
 fail0:
+	// if this isn't a "not found" error, mark it as an internal error
+	if (!EP_STAT_IS_SAME(estat, GDP_STAT_NAK_NOTFOUND))
+		estat = GDP_STAT_NAK_INTERNAL;
 	return estat;
 }
 
@@ -111,14 +116,23 @@ gcl_close(gdp_gcl_t *gcl)
 	if (gcl->x == NULL)
 		return;
 
-	// close the underlying files
-	if (gcl->x->fp != NULL)
-		gcl_physclose(gcl);
+	// close the underlying files and free memory as needed
+	if (gcl->x->physimpl->close != NULL)
+		gcl->x->physimpl->close(gcl);
 
 	ep_mem_free(gcl->x);
 	gcl->x = NULL;
 }
 
+
+/*
+**  Get an open instance of the GCL in the request.
+**
+**		This maps the GCL name to the internal GCL instance.
+**		That open instance is returned in the request passed in.
+**		The GCL will have it's reference count bumped, so the
+**		caller must call _gdp_gcl_decref when done with it.
+*/
 
 EP_STAT
 get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
@@ -149,10 +163,12 @@ get_open_handle(gdp_req_t *req, gdp_iomode_t iomode)
 		gdp_printable_name(req->pdu->dst, pname);
 		ep_dbg_printf("get_open_handle: opening %s\n", pname);
 	}
+
 	estat = gcl_open(req->pdu->dst, iomode, &req->gcl);
 	if (EP_STAT_ISOK(estat))
 		_gdp_gcl_cache_add(req->gcl, iomode);
-	req->gcl->flags |= GCLF_DEFER_FREE;
+	if (req->gcl != NULL)
+		req->gcl->flags |= GCLF_DEFER_FREE;
 
 	if (ep_dbg_test(Dbg, 40))
 	{

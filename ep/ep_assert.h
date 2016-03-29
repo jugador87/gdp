@@ -48,6 +48,8 @@
 #ifndef _EP_ASSERT_H_
 #define _EP_ASSERT_H_
 
+#include "ep_conf.h"
+
 // assert that an expression must be true
 #define EP_ASSERT_REQUIRE(e)			\
 		((e)				\
@@ -90,10 +92,10 @@ extern void	ep_assert_failure(
 			int line,
 			const char *msg,
 			...)
-			__attribute__ ((noreturn));
+			EP_ATTR_NORETURN;
 
 // called if ep_assert_failure was rude enough to return
 extern void	ep_assert_abort(const char *msg)
-			__attribute__ ((noreturn));
+			EP_ATTR_NORETURN;
 
 #endif /*_EP_ASSERT_H_*/

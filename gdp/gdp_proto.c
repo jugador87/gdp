@@ -459,7 +459,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	{ NULL,				"CMD_MULTIREAD"			},			// 73
 	{ NULL,				"CMD_GETMETADATA"		},			// 74
 	{ NULL,				"CMD_OPEN_RA"			},			// 75
-	NOENT,				// 76
+	{ NULL,				"CMD_NEWEXTENT"			},			// 76
 	NOENT,				// 77
 	NOENT,				// 78
 	NOENT,				// 79
@@ -585,7 +585,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	NOENT,				// 199
 	NOENT,				// 200
 	{ nak_client,		"NAK_C_CONFLICT"		},			// 201
-	NOENT,				// 202
+	{ nak_client,		"NAK_C_GONE"			},			// 202
 	NOENT,				// 203
 	{ nak_client,		"NAK_C_PRECONFAILED"	},			// 204
 	{ nak_client,		"NAK_C_TOOLARGE"		},			// 205
@@ -719,10 +719,17 @@ _gdp_req_dispatch(gdp_req_t *req)
 
 	if (ep_dbg_test(Dbg, 18))
 	{
-		ep_dbg_printf("_gdp_req_dispatch >>> %s (%d), ",
+		ep_dbg_printf("_gdp_req_dispatch >>> %s (%d)",
 				_gdp_proto_cmd_name(cmd), cmd);
 		if (ep_dbg_test(Dbg, 30))
+		{
+			ep_dbg_printf(", ");
 			_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
+		}
+		else
+		{
+			ep_dbg_printf("\n");
+		}
 	}
 
 	d = &DispatchTable[cmd];

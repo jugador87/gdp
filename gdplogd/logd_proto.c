@@ -29,7 +29,6 @@
 */
 
 #include "logd.h"
-#include "logd_physlog.h"
 #include "logd_pubsub.h"
 
 #include <gdp/gdp_gclmd.h>
@@ -50,12 +49,19 @@ gdpd_gcl_error(gdp_name_t gcl_name, char *msg, EP_STAT logstat, EP_STAT estat)
 	{
 		// server error (rather than client error)
 		ep_log(logstat, "%s: %s", msg, pname);
+		if (!GDP_STAT_IS_S_NAK(logstat))
+			logstat = estat;
 	}
 	else
 	{
-		ep_dbg_cprintf(Dbg, 1, "%s: %s\n", msg, pname);
+		char ebuf[100];
+
+		ep_dbg_cprintf(Dbg, 1, "%s: %s: %s\n", msg, pname,
+				ep_stat_tostr(logstat, ebuf, sizeof ebuf));
+		if (!GDP_STAT_IS_C_NAK(logstat))
+			logstat = estat;
 	}
-	return estat;
+	return logstat;
 }
 
 void
@@ -169,7 +175,8 @@ cmd_create(gdp_req_t *req)
 	if (memcmp(req->pdu->dst, _GdpMyRoutingName, sizeof _GdpMyRoutingName) != 0)
 	{
 		// this is directed to a GCL, not to the daemon
-		return GDP_STAT_NAK_BADREQ;
+		return gdpd_gcl_error(req->pdu->dst, "cmd_create: log name required",
+							GDP_STAT_NAK_CONFLICT, GDP_STAT_NAK_BADREQ);
 	}
 
 	req->pdu->cmd = GDP_ACK_CREATED;
@@ -210,7 +217,7 @@ cmd_create(gdp_req_t *req)
 	flush_input_data(req, "cmd_create");
 
 	// do the physical create
-	estat = gcl_physcreate(gcl, gmd);
+	estat = gcl->x->physimpl->create(gcl, gmd);
 	gdp_gclmd_free(gmd);
 	EP_STAT_CHECK(estat, goto fail1);
 
@@ -261,8 +268,8 @@ cmd_open(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		estat = gdpd_gcl_error(req->pdu->dst, "cmd_open: could not open GCL",
-							estat, GDP_STAT_NAK_BADREQ);
-		goto fail0;
+							estat, GDP_STAT_NAK_INTERNAL);
+		return estat;
 	}
 
 	gcl = req->gcl;
@@ -276,8 +283,6 @@ cmd_open(gdp_req_t *req)
 
 	req->pdu->datum->recno = gcl->nrecs;
 
-
-fail0:
 	_gdp_gcl_decref(gcl);
 	req->gcl = NULL;
 	return estat;
@@ -341,7 +346,7 @@ cmd_read(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pdu->dst, "cmd_read: GCL open failure",
-							estat, GDP_STAT_NAK_BADREQ);
+							estat, GDP_STAT_NAK_INTERNAL);
 	}
 
 	// handle record numbers relative to the end
@@ -356,10 +361,12 @@ cmd_read(gdp_req_t *req)
 	}
 
 	gdp_buf_reset(req->pdu->datum->dbuf);
-	estat = gcl_physread(req->gcl, req->pdu->datum);
+	estat = req->gcl->x->physimpl->read(req->gcl, req->pdu->datum);
 
-	if (EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
-		estat = GDP_STAT_NAK_NOTFOUND;
+	// deliver "record expired" as "not found"
+	if (EP_STAT_IS_SAME(estat, GDP_STAT_RECORD_EXPIRED))
+		estat = GDP_STAT_NAK_GONE;
+
 	_gdp_gcl_decref(req->gcl);
 	req->gcl = NULL;
 	return estat;
@@ -550,7 +557,7 @@ cmd_append(gdp_req_t *req)
 	estat = ep_time_now(&req->pdu->datum->ts);
 
 	// create the message
-	estat = gcl_physappend(req->gcl, req->pdu->datum);
+	estat = req->gcl->x->physimpl->append(req->gcl, req->pdu->datum);
 	req->gcl->nrecs = req->pdu->datum->recno;
 
 	// send the new data to any subscribers
@@ -608,7 +615,7 @@ post_subscribe(gdp_req_t *req)
 
 		// get the next record and return it as an event
 		req->pdu->datum->recno = req->nextrec;
-		estat = gcl_physread(req->gcl, req->pdu->datum);
+		estat = req->gcl->x->physimpl->read(req->gcl, req->pdu->datum);
 		if (EP_STAT_ISOK(estat))
 		{
 			// OK, the next record exists: send it
@@ -626,7 +633,7 @@ post_subscribe(gdp_req_t *req)
 			}
 			req->nextrec++;
 		}
-		else if (!EP_STAT_IS_SAME(estat, EP_STAT_END_OF_FILE))
+		else if (!EP_STAT_IS_SAME(estat, GDP_STAT_NAK_NOTFOUND))
 		{
 			// this is some error that should be logged
 			ep_log(estat, "post_subscribe: bad read");
@@ -918,11 +925,11 @@ cmd_getmetadata(gdp_req_t *req)
 	if (!EP_STAT_ISOK(estat))
 	{
 		return gdpd_gcl_error(req->pdu->dst, "cmd_read: GCL open failure",
-							estat, GDP_STAT_NAK_BADREQ);
+							estat, GDP_STAT_NAK_INTERNAL);
 	}
 
 	// get the metadata into memory
-	estat = gcl_physgetmetadata(req->gcl, &gmd);
+	estat = req->gcl->x->physimpl->getmetadata(req->gcl, &gmd);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// serialize it to the client
@@ -932,6 +939,33 @@ fail0:
 	_gdp_gcl_decref(req->gcl);
 	req->gcl = NULL;
 	return estat;
+}
+
+
+EP_STAT
+cmd_newextent(gdp_req_t *req)
+{
+	EP_STAT estat;
+
+	req->pdu->cmd = GDP_ACK_CREATED;
+
+	// should have no input data; ignore anything there
+	flush_input_data(req, "cmd_newextent");
+
+	estat = get_open_handle(req, GDP_MODE_AO);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	if (req->gcl->x->physimpl->newextent == NULL)
+		return gdpd_gcl_error(req->pdu->dst,
+				"cmd_newextent: extents not defined for this type",
+				GDP_STAT_NAK_METHNOTALLOWED, GDP_STAT_NAK_METHNOTALLOWED);
+	estat = req->gcl->x->physimpl->newextent(req->gcl);
+	return estat;
+
+fail0:
+	return gdpd_gcl_error(req->pdu->dst,
+			"cmd_newextent: cannot create new extent for",
+			estat, GDP_STAT_NAK_INTERNAL);
 }
 
 
@@ -1029,6 +1063,7 @@ static struct cmdfuncs	CmdFuncs[] =
 	{ GDP_CMD_MULTIREAD,	cmd_multiread	},
 	{ GDP_CMD_GETMETADATA,	cmd_getmetadata	},
 	{ GDP_CMD_OPEN_RA,		cmd_open		},
+	{ GDP_CMD_NEWEXTENT,	cmd_newextent	},
 	{ 0,					NULL			}
 };
 
