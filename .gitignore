@@ -13,6 +13,7 @@ ep/decode-epstat
 examples/machine-mon
 gdplogd/gdplogd
 test-net/gdp_router
+uhb/mqtt-gdp-gateway
 KEYS
 lang/js/apps/gdpREST_server/node_modules
 scgilib/helloworld
