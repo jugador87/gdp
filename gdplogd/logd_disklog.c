@@ -1161,7 +1161,6 @@ fail3:
 
 	// get the open extent
 	extent_t *ext = extent_get(gcl, xent->extent);
-	physinfo_dump(phys, stdout);
 	estat = extent_open(gcl, ext);
 	if (!EP_STAT_ISOK(estat))
 	{
