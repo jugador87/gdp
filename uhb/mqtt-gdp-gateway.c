@@ -109,7 +109,6 @@ message_cb(struct mosquitto *mosq,
 
 EP_STAT
 mosquitto_run(const char *mqtt_broker,
-			int mqtt_port,
 			const char *subscr_pat,
 			int subscr_qos,
 			void *udata)
@@ -135,10 +134,24 @@ mosquitto_run(const char *mqtt_broker,
 	mosquitto_message_callback_set(mosq, &message_cb);
 
 	// connect to the broker
-	phase = "connect";
-	istat = mosquitto_connect(mosq, mqtt_broker, mqtt_port, 60);
-	if (istat != 0)
-		goto fail2;
+	{
+
+		phase = "connect";
+
+		// parse the broker information
+		int mqtt_port = 1883;
+		char *broker = ep_mem_strdup(mqtt_broker);
+		char *p = strrchr(broker, ':');
+		if (p != NULL && strchr(p, ']') == NULL)
+		{
+			*p++ = '\0';
+			mqtt_port = atol(p);
+		}
+		istat = mosquitto_connect(mosq, broker, mqtt_port, 60);
+		ep_mem_free(broker);
+		if (istat != 0)
+			goto fail2;
+	}
 
 	phase = "subscribe";
 	istat = mosquitto_subscribe(mosq, &mid, subscr_pat, subscr_qos);
@@ -171,8 +184,7 @@ fail1:
 
 EP_STAT
 mqtt_to_log(
-		const char *mqtt_addr,
-		int mqtt_port,
+		const char *mqtt_broker,
 		const char *mqtt_topic,
 		int mqtt_qos,
 		const char *gdp_log_name,
@@ -230,7 +242,7 @@ mqtt_to_log(
 	estat = gdp_gcl_open(gcliname, GDP_MODE_AO, info, &gcl);
 	EP_STAT_CHECK(estat, goto fail1);
 
-	mosquitto_run(mqtt_addr, mqtt_port, mqtt_topic, mqtt_qos, gcl);
+	mosquitto_run(mqtt_broker, mqtt_topic, mqtt_qos, gcl);
 	gdp_gcl_close(gcl);
 
 fail1:
@@ -244,14 +256,13 @@ fail0:
 
 EP_STAT
 mqtt_to_stdout(
-		const char *mqtt_addr,
-		int mqtt_port,
+		const char *mqtt_broker,
 		const char *mqtt_topic,
 		int mqtt_qos)
 {
 	ep_dbg_cprintf(Dbg, 1, "mqtt_to_stdout\n");
 
-	mosquitto_run(mqtt_addr, mqtt_port, mqtt_topic, mqtt_qos, NULL);
+	mosquitto_run(mqtt_broker, mqtt_topic, mqtt_qos, NULL);
 	return EP_STAT_ABORT;
 }
 
@@ -278,15 +289,13 @@ main(int argc, char **argv)
 {
 	EP_STAT estat;
 	bool show_usage = false;
-	char *mqtt_addr = "127.0.0.1";
-	int mqtt_port = 1883;
+	const char *mqtt_broker = NULL;
 	int mqtt_qos = 2;
 	char *mqtt_topic = NULL;
 	char *gdpd_addr = NULL;
 	char *signing_key_file = NULL;
 	char *gdp_log_name = NULL;
 	int opt;
-	char *p;
 
 	while ((opt = getopt(argc, argv, "D:G:K:M:q:")) > 0)
 	{
@@ -305,7 +314,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'M':
-			mqtt_addr = optarg;
+			mqtt_broker = optarg;
 			break;
 
 		case 'q':
@@ -328,22 +337,23 @@ main(int argc, char **argv)
 		usage();
 	}
 
+	ep_lib_init(EP_LIB_USEPTHREADS);
+	ep_adm_readparams(ep_app_getprogname());
+
 	mqtt_topic = argv[0];
 	gdp_log_name = argv[1];
 
-	// parse the broker information
-	p = strrchr(mqtt_addr, ':');
-	if (p != NULL && strchr(p, ']') == NULL)
+	if (mqtt_broker == NULL)
 	{
-		*p++ = '\0';
-		mqtt_port = atol(p);
+		mqtt_broker = ep_adm_getstrparam("swarm.mqtt-gdp-gateway.broker",
+							"127.0.0.1");
 	}
 
 	if (strcmp(gdp_log_name, "-") != 0)
-		estat = mqtt_to_log(mqtt_addr, mqtt_port, mqtt_topic, mqtt_qos,
+		estat = mqtt_to_log(mqtt_broker, mqtt_topic, mqtt_qos,
 						gdp_log_name, gdpd_addr, signing_key_file);
 	else
-		estat = mqtt_to_stdout(mqtt_addr, mqtt_port, mqtt_topic, mqtt_qos);
+		estat = mqtt_to_stdout(mqtt_broker, mqtt_topic, mqtt_qos);
 
 	ep_log(estat, "mosquitto_run returned");
 	exit(EX_SOFTWARE);
