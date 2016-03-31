@@ -74,10 +74,9 @@ message_cb(struct mosquitto *mosq,
 
 	ep_dbg_cprintf(Dbg, 5, "message_cb: %s @%d => %s\n",
 			msg->topic, msg->qos, msg->payload);
-	//printf("%s @%d => %s\n", msg->topic, msg->qos, msg->payload);
 
 	if (msg->payloadlen <= 0)
-		payload = "\"none\"";
+		payload = "null";
 	else
 		payload = msg->payload;
 	if (gcl != NULL)
