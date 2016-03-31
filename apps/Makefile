@@ -108,6 +108,9 @@ log-view:	log-view.o
 gdp-name-xlate:	gdp-name-xlate.o
 	$(CC) -o $@ gdp-name-xlate.o $(LDFLAGS)
 
+gdp-newextent:	gdp-newextent.o
+	$(CC) -o $@ gdp-newextent.o $(LDFLAGS)
+
 gdp-zcpublish:	gdp-zcpublish.o
 	$(CC) -o $@ gdp-zcpublish.o $(LDFLAGS)
 

@@ -541,10 +541,7 @@ client_callback(AvahiClient *c,
 		case AVAHI_CLIENT_FAILURE:
 			if (conf->no_fail && avahi_client_errno(c) == AVAHI_ERR_DISCONNECTED)
 			{
-				int error;
-
 				/* We have been disconnected, so let reconnect */
-
 				fprintf(stderr, "Disconnected, reconnecting ...\n");
 
 				avahi_client_free(Client);
@@ -558,7 +555,7 @@ client_callback(AvahiClient *c,
 
 				Browsing = 0;
 
-				error = create_new_simple_poll_client(conf);
+				(void) create_new_simple_poll_client(conf);
 			}
 			else
 			{
