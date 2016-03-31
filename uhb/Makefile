@@ -26,9 +26,10 @@
 #  ----- END LICENSE BLOCK -----
 #
 
-BINALL=		mqtt-gdp-gateway \
+BINALL=		motion-controls-light \
+		mqtt-gdp-gateway \
 
-SBINALL=	
+SBINALL=
 
 ALL=		${BINALL} ${SBINALL}
 
@@ -80,6 +81,9 @@ all:	${ALL}
 
 mqtt-gdp-gateway:	mqtt-gdp-gateway.o
 	${CC} -o $@ mqtt-gdp-gateway.o ${LDFLAGS}
+
+motion-controls-light:	hello-world.o
+	${CC} -o $@ $< ${LDFLAGS}
 
 ${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 
