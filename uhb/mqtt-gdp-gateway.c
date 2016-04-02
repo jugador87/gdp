@@ -61,6 +61,85 @@ log_cb(struct mosquitto *mosq,
 
 
 /*
+**  GET_TOPIC_INFO --- get information about a given topic
+**
+**		This implementation is pretty bad.
+*/
+
+struct topic_info
+{
+	const char	*topic_pat;			// pattern for topic
+	gdp_gcl_t	*gcl;				// associated GCL
+};
+
+struct topic_info	**Topics;		// information about topics
+int					NTopics = 0;	// number of topics allocated
+
+struct topic_info *
+get_topic_info(const struct mosquitto_message *msg)
+{
+	int tno;
+
+	ep_dbg_cprintf(Dbg, 2, "get_topic_info(%s): ", msg->topic);
+	for (tno = 0; tno < NTopics; tno++)
+	{
+		struct topic_info *t = Topics[tno];
+		if (t == NULL)
+			continue;
+		bool res;
+		int istat = mosquitto_topic_matches_sub(t->topic_pat, msg->topic, &res);
+		if (istat != 0 || !res)
+			continue;
+
+		// topic matches
+		ep_dbg_cprintf(Dbg, 2, "%p (%s)\n", t, t->topic_pat);
+		return t;
+	}
+
+	// no match
+	ep_dbg_cprintf(Dbg, 2, "not found\n");
+	return NULL;
+}
+
+
+void
+add_topic_info(const char *topic_pat, gdp_gcl_t *gcl)
+{
+	struct topic_info *t;
+
+	t = ep_mem_zalloc(sizeof *t);
+	t->topic_pat = topic_pat;
+	t->gcl = gcl;
+
+	Topics = ep_mem_realloc(Topics, (NTopics + 1) * sizeof t);
+	Topics[NTopics++] = t;
+	ep_dbg_cprintf(Dbg, 3, "add_topic_info(%s): %p\n", topic_pat, t);
+}
+
+
+int
+subscribe_to_all_topics(struct mosquitto *mosq, int qos)
+{
+	int tno;
+
+	for (tno = 0; tno < NTopics; tno++)
+	{
+		int istat;
+		int mid;				// message id --- do we need this?
+		struct topic_info *t = Topics[tno];
+
+		if (t == NULL)
+			continue;
+		ep_dbg_cprintf(Dbg, 5, "subscribe_to_all_topics(%s)\n", t->topic_pat);
+		istat = mosquitto_subscribe(mosq, &mid, t->topic_pat, qos);
+		if (istat != 0)
+			return istat;
+	}
+	return 0;
+}
+
+
+/*
 **  Called by Mosquitto when a message comes in.
 */
 
@@ -69,7 +148,7 @@ message_cb(struct mosquitto *mosq,
 				void *udata,
 				const struct mosquitto_message *msg)
 {
-	gdp_gcl_t *gcl = udata;
+	struct topic_info *tinfo;
 	const char *payload;
 
 	ep_dbg_cprintf(Dbg, 5, "message_cb: %s @%d => %s\n",
@@ -79,7 +158,15 @@ message_cb(struct mosquitto *mosq,
 		payload = "null";
 	else
 		payload = msg->payload;
-	if (gcl != NULL)
+
+	tinfo = get_topic_info(msg);
+	if (tinfo == NULL)
+	{
+		// no place to log this message
+		return;
+	}
+
+	if (tinfo->gcl != NULL)
 	{
 		EP_STAT estat;
 		gdp_datum_t *datum = gdp_datum_new();
@@ -87,7 +174,7 @@ message_cb(struct mosquitto *mosq,
 		gdp_buf_printf(gdp_datum_getbuf(datum),
 				"{topic:\"%s\", qos:%d, len:%d, payload:%s}\n",
 				msg->topic, msg->qos, msg->payloadlen, msg->payload);
-		estat = gdp_gcl_append(gcl, datum);
+		estat = gdp_gcl_append(tinfo->gcl, datum);
 		if (!EP_STAT_ISOK(estat))
 		{
 			ep_log(estat, "cannot log MQTT message");
@@ -108,12 +195,10 @@ message_cb(struct mosquitto *mosq,
 
 EP_STAT
 mosquitto_run(const char *mqtt_broker,
-			const char *subscr_pat,
 			int subscr_qos,
 			void *udata)
 {
 	struct mosquitto *mosq;
-	int mid;				// message id --- do we need this?
 	const char *phase;
 	int istat;
 
@@ -134,7 +219,6 @@ mosquitto_run(const char *mqtt_broker,
 
 	// connect to the broker
 	{
-
 		phase = "connect";
 
 		// parse the broker information
@@ -153,7 +237,7 @@ mosquitto_run(const char *mqtt_broker,
 	}
 
 	phase = "subscribe";
-	istat = mosquitto_subscribe(mosq, &mid, subscr_pat, subscr_qos);
+	istat = subscribe_to_all_topics(mosq, subscr_qos);
 	if (istat != 0)
 		goto fail2;
 
@@ -181,31 +265,13 @@ fail1:
 }
 
 
-EP_STAT
-mqtt_to_log(
-		const char *mqtt_broker,
-		const char *mqtt_topic,
-		int mqtt_qos,
-		const char *gdp_log_name,
-		const char *gdpd_addr,
-		const char *signing_key_file)
+gdp_gcl_t *
+open_signed_log(const char *gdp_log_name, const char *signing_key_file)
 {
 	EP_STAT estat;
-	gdp_name_t gcliname;
+	gdp_name_t gname;
 	gdp_gcl_open_info_t *info;
-
-	ep_dbg_cprintf(Dbg, 1, "mqtt_to_log\n");
-
-	// initialize GDP library
-	estat = gdp_init(gdpd_addr);
-	if (!EP_STAT_ISOK(estat))
-	{
-		ep_app_error("GDP Initialization failed");
-		goto fail0;
-	}
-
-	// allow thread to settle to avoid interspersed debug output
-	ep_time_nanosleep(INT64_C(100000000));
+	gdp_gcl_t *gcl = NULL;
 
 	// set up any open information
 	info = gdp_gcl_open_info_new();
@@ -231,38 +297,42 @@ mqtt_to_log(
 		}
 
 		estat = gdp_gcl_open_info_set_signing_key(info, skey);
-		EP_STAT_CHECK(estat, goto fail1);
+		if (!EP_STAT_ISOK(estat))
+		{
+fail1:
+			if (fp != NULL)
+				fclose(fp);
+			goto fail0;
+		}
 	}
 
 	// open a GCL with the provided name
-	gdp_gcl_t *gcl = NULL;
+	estat = gdp_parse_name(gdp_log_name, gname);
+	if (!EP_STAT_ISOK(estat))
+	{
+		char ebuf[60];
 
-	gdp_parse_name(gdp_log_name, gcliname);
-	estat = gdp_gcl_open(gcliname, GDP_MODE_AO, info, &gcl);
-	EP_STAT_CHECK(estat, goto fail1);
+		ep_app_error("cannot parse log name %s%s%s: %s",
+				EpChar->lquote, gdp_log_name, EpChar->rquote,
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		goto fail0;
+	}
 
-	mosquitto_run(mqtt_broker, mqtt_topic, mqtt_qos, gcl);
-	gdp_gcl_close(gcl);
+	estat = gdp_gcl_open(gname, GDP_MODE_AO, info, &gcl);
+	if (!EP_STAT_ISOK(estat))
+	{
+		char ebuf[60];
 
-fail1:
-	if (info != NULL)
-		gdp_gcl_open_info_free(info);
+		ep_app_error("cannot open log %s%s%s: %s",
+				EpChar->lquote, gdp_log_name, EpChar->rquote,
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		goto fail0;
+	}
 
 fail0:
-	return estat;
-}
-
-
-EP_STAT
-mqtt_to_stdout(
-		const char *mqtt_broker,
-		const char *mqtt_topic,
-		int mqtt_qos)
-{
-	ep_dbg_cprintf(Dbg, 1, "mqtt_to_stdout\n");
-
-	mosquitto_run(mqtt_broker, mqtt_topic, mqtt_qos, NULL);
-	return EP_STAT_ABORT;
+	if (info != NULL)
+		gdp_gcl_open_info_free(info);
+	return gcl;
 }
 
 
@@ -290,11 +360,10 @@ main(int argc, char **argv)
 	bool show_usage = false;
 	const char *mqtt_broker = NULL;
 	int mqtt_qos = 2;
-	char *mqtt_topic = NULL;
-	char *gdpd_addr = NULL;
+	char *gdp_addr = NULL;
 	char *signing_key_file = NULL;
-	char *gdp_log_name = NULL;
 	int opt;
+	char ebuf[60];
 
 	while ((opt = getopt(argc, argv, "D:G:K:M:q:")) > 0)
 	{
@@ -305,7 +374,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'G':
-			gdpd_addr = optarg;
+			gdp_addr = optarg;
 			break;
 
 		case 'K':
@@ -330,17 +399,48 @@ main(int argc, char **argv)
 
 	if (show_usage)
 		usage();
-	if (argc != 2)
+	if (argc < 2)
 	{
 		fprintf(stderr, "missing required argument (argc = %d)\n", argc);
 		usage();
 	}
 
-	ep_lib_init(EP_LIB_USEPTHREADS);
-	ep_adm_readparams(ep_app_getprogname());
+	// initialize GDP library
+	estat = gdp_init(gdp_addr);
+	if (!EP_STAT_ISOK(estat))
+	{
+		ep_app_error("GDP Initialization failed: %s",
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		exit(EX_UNAVAILABLE);
+	}
 
-	mqtt_topic = argv[0];
-	gdp_log_name = argv[1];
+	// allow thread to settle to avoid interspersed debug output
+	ep_time_nanosleep(INT64_C(100000000));
+
+	// open any logs we may use
+	for (; argc > 1; argv += 2, argc -= 2)
+	{
+		struct topic_info *t = ep_mem_zalloc(sizeof *t);
+		char *mqtt_topic = argv[0];
+		char *gdp_log_name = argv[1];
+		gdp_gcl_t *gcl = NULL;
+
+		if (strcmp(gdp_log_name, "-") != 0)
+		{
+			gcl = open_signed_log(gdp_log_name, signing_key_file);
+			if (gcl == NULL)
+			{
+				// message already given
+				show_usage = true;
+				continue;
+			}
+		}
+
+		add_topic_info(mqtt_topic, gcl);
+	}
+
+	if (show_usage)
+		usage();
 
 	if (mqtt_broker == NULL)
 	{
@@ -348,11 +448,7 @@ main(int argc, char **argv)
 							"127.0.0.1");
 	}
 
-	if (strcmp(gdp_log_name, "-") != 0)
-		estat = mqtt_to_log(mqtt_broker, mqtt_topic, mqtt_qos,
-						gdp_log_name, gdpd_addr, signing_key_file);
-	else
-		estat = mqtt_to_stdout(mqtt_broker, mqtt_topic, mqtt_qos);
+	mosquitto_run(mqtt_broker, mqtt_qos, NULL);
 
 	ep_log(estat, "mosquitto_run returned");
 	exit(EX_SOFTWARE);

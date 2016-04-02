@@ -10,21 +10,24 @@
 .Op Fl G Ar router-ip
 .Op Fl F Ar key-file
 .Op Fl M Ar broker-addr
+(
 .Ar topic-name
 .Ar log-name
+) ...
 .Sh DESCRIPTION
+For each pair of topic and log names,
 .Nm
 subscribes to the indicated MQTT
 .Ar topic-name
 and logs all output to the named GDP
 .Ar log-name .
-The log must already exist.
-Each MQTT message becomes one record in the log.
+The logs must already exist.
+Each MQTT message becomes one record in the appropriate log.
 .Pp
 The
 .Ar topic-name
-is actually a pattern using standard MQTT syntax,
-specifically 
+is actually a pattern using standard MQTT syntax:
+specifically
 .Li +
 matches a single lavel of hierarchy and
 .Li #
@@ -123,3 +126,9 @@ Currently,
 assumes that the payload of each MQTT message
 is validly formatted JSON.
 This is unrealistic.
+.Pp
+There should be a way of specifying a separate key file for each GDP log.
+.Pp
+.Nm
+should probably read a configuration file
+to get the {topic, log, key} information.
