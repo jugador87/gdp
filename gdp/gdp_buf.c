@@ -137,7 +137,7 @@ gdp_buf_getptr(gdp_buf_t *buf, size_t sz)
 */
 
 int
-gdp_buf_write(gdp_buf_t *buf, void *in, size_t sz)
+gdp_buf_write(gdp_buf_t *buf, const void *in, size_t sz)
 {
 	return evbuffer_add(buf, in, sz);
 }
