@@ -299,7 +299,7 @@ static struct name_to_format	KeyFormStrings[] =
 {
 	{ "pem",		EP_CRYPTO_KEYFORM_PEM,		},
 	{ "der",		EP_CRYPTO_KEYFORM_DER,		},
-	{ NULL,			0				}
+	{ NULL,			EP_CRYPTO_KEYFORM_UNKNOWN,	}
 };
 
 int

@@ -313,11 +313,11 @@ main(int argc, char **argv)
 			exit(EX_USAGE);
 		}
 	}
-	if (keytype <= 0)
+	if (keytype == EP_CRYPTO_KEYTYPE_UNKNOWN)
 	{
 		const char *p = ep_adm_getstrparam("swarm.gdp.crypto.sign.alg", "ec");
 		keytype = ep_crypto_keytype_byname(p);
-		if (keytype <= 0)
+		if (keytype == EP_CRYPTO_KEYTYPE_UNKNOWN)
 		{
 			ep_app_error("unknown keytype %s", p);
 			exit(EX_USAGE);
