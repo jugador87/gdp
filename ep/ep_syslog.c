@@ -61,15 +61,36 @@ struct code     FacNames[] =
 #ifdef LOG_AUTHPRIV
 	{ "authpriv",	LOG_AUTHPRIV	},
 #endif
+#ifdef LOG_CONSOLE
+	{ "console",	LOG_CONSOLE	},
+#endif
 	{ "cron",	LOG_CRON	},
 	{ "daemon",	LOG_DAEMON	},
 #ifdef LOG_FTP
 	{ "ftp",	LOG_FTP		},
 #endif
+#ifdef LOG_INSTALL
+	{ "install",	LOG_INSTALL	},		// MacOS
+#endif
 	{ "kern",	LOG_KERN	},
+#ifdef LOG_LAUNCHD
+	{ "launchd",	LOG_LAUNCHD	},		// MacOS
+#endif
 	{ "lpr",	LOG_LPR		},
 	{ "mail",	LOG_MAIL	},
+#ifdef LOG_NETINFO
+	{ "netinfo",	LOG_NETINFO	},		// MacOS
+#endif
 	{ "news",	LOG_NEWS	},
+#ifdef LOG_NTP
+	{ "ntp",	LOG_NTP		},
+#endif
+#ifdef LOG_RAS
+	{ "ras",	LOG_RAS		},		// MacOS
+#endif
+#ifdef LOG_REMOTEAUTH
+	{ "remoteauth",	LOG_REMOTEAUTH	},		// MacOS
+#endif
 	{ "security",	LOG_AUTH	},		/* DEPRECATED */
 	{ "syslog",	LOG_SYSLOG	},
 	{ "user",	LOG_USER	},

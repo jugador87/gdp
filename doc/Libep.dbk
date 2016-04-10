@@ -1831,8 +1831,13 @@ void
 ep_log_init(
         const char *tag,
         int logfac,
-        FILE *logfile,
-        const char *fname);
+        FILE *logfile);
+
+void
+ep_log_addmethod(
+        void (*func)(void *ctx, EP_STAT estat, const char *fmt, va_list ap),
+        void *ctx,
+        int minsev);
 
 void
 ep_log(
@@ -1846,19 +1851,29 @@ ep_logv(
         const char *fmt,
         va_list va);</programlisting>
 
-    <para>This interface can simultaneously log to <function>syslog</function>
-    (if logfac is a valid facility code), an open file (e.g.,
-    <constant>stderr</constant>; <constant>NULL</constant> disables this), and
-    a disk file (ignored if <varname>fname</varname> ==
-    <constant>NULL</constant>). The status code is logged together with the
-    printf-style message. The syslog severity is determined from the severity
-    of the status code: <constant>OK</constant> codes log an
-    <constant>LOG_INFO</constant> message, <constant>WARN</constant> codes log
-    a <constant>LOG_WARNING</constant> message, <constant>ERROR</constant>
-    codes log a <constant>LOG_ERR</constant> message,
-    <constant>SEVERE</constant> codes log a <constant>LOG_CRIT</constant>
-    message, and <constant>ABORT</constant> codes log a
-    <constant>LOG_ALERT</constant> message.</para>
+    <para>The <function>ep_log</function> and <function>ep_logv</function>
+    routines send information to various system logs. The default is to send
+    to <function>syslog</function>(3) and to <symbol>stderr</symbol>. You can
+    disable or change this by calling <function>ep_log_init</function> before
+    the first logging call, and extend it by passing another logging method to
+    <function>ep_log_addmethod</function>, which causes
+    <parameter>func</parameter> to be called whenever a message with severity
+    at least the value of the <parameter>minsev</parameter> parameter
+    (<constant>EP_STAT_SEV_OK</constant>,
+    <constant>EP_STAT_SEV_WARN</constant>,
+    <constant>EP_STAT_SEV_ERROR</constant>,
+    <constant>EP_STAT_SEV_SEVERE</constant>,
+    <constant>EP_STAT_SEV_ABORT</constant>).</para>
+
+    <para>The status code is logged together with the printf-style message.
+    The syslog severity is determined from the severity of the status code:
+    <constant>OK</constant> codes log an <constant>LOG_INFO</constant>
+    message, <constant>WARN</constant> codes log a
+    <constant>LOG_WARNING</constant> message, <constant>ERROR</constant> codes
+    log a <constant>LOG_ERR</constant> message, <constant>SEVERE</constant>
+    codes log a <constant>LOG_CRIT</constant> message, and
+    <constant>ABORT</constant> codes log a <constant>LOG_ALERT</constant>
+    message.</para>
   </section>
 
   <section>

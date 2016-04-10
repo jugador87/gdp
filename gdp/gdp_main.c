@@ -599,7 +599,7 @@ gdp_lib_init(const char *myname)
 		logfac = ep_adm_getstrparam(argname, NULL);
 		if (logfac == NULL)
 			logfac = ep_adm_getstrparam("swarm.gdp.syslog.facility", "local4");
-		ep_log_init(progname, ep_syslog_fac_from_name(logfac), stderr, NULL);
+		ep_log_init(progname, ep_syslog_fac_from_name(logfac), stderr);
 	}
 
 	if (getuid() == 0)

@@ -34,6 +34,7 @@
 
 #include <ep/ep.h>
 #include <ep/ep_app.h>
+#include <ep/ep_log.h>
 #include <ep/ep_stat.h>
 #include <ep/ep_string.h>
 #include <ep/ep_syslog.h>
@@ -44,50 +45,45 @@
 #include <sys/cdefs.h>
 #include <sys/time.h>
 
+struct logfunc
+{
+	struct logfunc	*next;		// next in chain
+	EP_LOG_FUNC	*func;		// function to call
+	void		*ctx;		// external context
+	int		minsev;		// minimum severity to log
+};
+
 static const char	*LogTag = NULL;
 static int		LogFac = -1;
-static FILE		*LogFile1 = NULL;
-static FILE		*LogFile2 = NULL;
+static struct logfunc	*LogFuncList = NULL;
 static bool		LogInitialized = false;
 
+
 void
-ep_log_init(const char *tag,	// NULL => use program name
-	int logfac,		// -1 => don't use syslog
-	FILE *logfile,		// NULL => don't print to open file
-	const char *fname)	// NULL => don't log to disk file
-{
-	LogTag = tag;
-	LogFac = logfac;
-	LogFile1 = logfile;
-	if (fname == NULL)
-		LogFile2 = NULL;
-	else
-		LogFile2 = fopen(fname, "a");
-	LogInitialized = true;
-}
-
-
-static void
-ep_log_file(EP_STAT estat,
+ep_log_file(void *_fp,
+	EP_STAT estat,
 	const char *fmt,
-	va_list ap,
-	EP_TIME_SPEC *tv,
-	FILE *fp)
+	va_list ap)
 {
 	char tbuf[40];
 	struct tm *tm;
 	time_t tvsec;
+	EP_TIME_SPEC tv;
+	FILE *fp = _fp;
 
-	tvsec = tv->tv_sec;		//XXX may overflow if time_t is 32 bits!
+	if (fp == stderr || fp == stdout)
+		fprintf(fp, "%s", EpVid->vidfgcyan);
+	ep_time_now(&tv);
+	tvsec = tv.tv_sec;		//XXX may overflow if time_t is 32 bits!
 	if ((tm = localtime(&tvsec)) == NULL)
 		snprintf(tbuf, sizeof tbuf, "%"PRIu64".%06lu",
-				tv->tv_sec, tv->tv_nsec / 1000L);
+				tv.tv_sec, tv.tv_nsec / 1000L);
 	else
 	{
 		char lbuf[40];
 
 		snprintf(lbuf, sizeof lbuf, "%%Y-%%m-%%d %%H:%%M:%%S.%06lu %%z",
-				tv->tv_nsec / 1000L);
+				tv.tv_nsec / 1000L);
 		strftime(tbuf, sizeof tbuf, lbuf, tm);
 	}
 
@@ -101,11 +97,13 @@ ep_log_file(EP_STAT estat,
 		fprintf(fp, ": %s", ebuf);
 	}
 	fprintf(fp, "\n");
+	if (fp == stderr || fp == stdout)
+		fprintf(fp, "%s\n", EpVid->vidnorm);
 }
 
 
 static void
-ep_log_syslog(EP_STAT estat, const char *fmt, va_list ap)
+ep_log_syslog(void *unused, EP_STAT estat, const char *fmt, va_list ap)
 {
 	char ebuf[100];
 	char mbuf[500];
@@ -157,46 +155,73 @@ ep_log_syslog(EP_STAT estat, const char *fmt, va_list ap)
 
 
 void
+ep_log_init(const char *tag,	// NULL => use program name
+	int logfac,		// -1 => don't use syslog
+	FILE *logfile)		// NULL => don't print to open file
+{
+
+	if (tag == NULL)
+		tag = ep_app_getprogname();
+	LogTag = tag;
+
+	if (logfac >= 0)
+		ep_log_addmethod(&ep_log_syslog, NULL, EP_STAT_SEV_OK);
+	LogFac = logfac;
+
+	if (logfile != NULL)
+		ep_log_addmethod(&ep_log_file, logfile, EP_STAT_SEV_OK);
+
+	LogInitialized = true;
+}
+
+
+void
+ep_log_addmethod(EP_LOG_FUNC *func, void *ctx, int minsev)
+{
+	struct logfunc *lf;
+	struct logfunc **lfh;
+
+	for (lfh = &LogFuncList; (lf = *lfh) != NULL; lfh = &lf->next)
+		continue;
+	*lfh = lf = ep_mem_zalloc(sizeof *lf);
+	lf->func = func;
+	lf->ctx = ctx;
+	lf->minsev = minsev;
+}
+
+void
 ep_logv(EP_STAT estat, const char *fmt, va_list _ap)
 {
-	EP_TIME_SPEC tv;
-	va_list ap;
-
-	ep_time_now(&tv);
+	struct logfunc *lf;
 
 	if (!LogInitialized)
 	{
-		const char *facname;
-		int logfac;
+		const char *p;
+		int logfac = -1;
+		FILE *logfp = NULL;
 
-		facname = ep_adm_getstrparam("libep.log.facility", NULL);
-		if (facname == NULL)
-			logfac = -1;
-		else
-			logfac = ep_syslog_fac_from_name(facname);
+		p = ep_adm_getstrparam("libep.log.facility", "user");
+		if (p != NULL)
+			logfac = ep_syslog_fac_from_name(p);
 
-		ep_log_init(ep_app_getprogname(), logfac, stderr, NULL);
+		p = ep_adm_getstrparam("libep.log.fileout", "stderr");
+		if (strcasecmp(p, "stderr") == 0)
+			logfp = stderr;
+		else if (strcmp(p, "stdout") == 0)
+			logfp = stdout;
+
+		ep_log_init(NULL, logfac, logfp);
 	}
 
-	if (LogFac >= 0)
+	// call other log functions
+	for (lf = LogFuncList; lf != NULL; lf = lf->next)
 	{
+		va_list ap;
+
+		if (EP_STAT_SEVERITY(estat) < lf->minsev)
+			continue;
 		va_copy(ap, _ap);
-		ep_log_syslog(estat, fmt, ap);
-		va_end(ap);
-	}
-	if (LogFile1 != NULL)
-	{
-		va_copy(ap, _ap);
-		fprintf(LogFile1, "%s", EpVid->vidfgcyan);
-		ep_log_file(estat, fmt, ap, &tv, LogFile1);
-		fprintf(LogFile1, "%s\n", EpVid->vidnorm);
-		va_end(ap);
-	}
-	if (LogFile2 != NULL)
-	{
-		va_copy(ap, _ap);
-		ep_log_file(estat, fmt, ap, &tv, LogFile2);
-		va_end(ap);
+		(*lf->func)(lf->ctx, estat, fmt, ap);
 	}
 }
 
