@@ -51,6 +51,11 @@
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.main", "GDP initialization and main loop");
 
+struct event_base	*GdpIoEventBase;	// the base for GDP I/O events
+gdp_name_t			_GdpMyRoutingName;	// source name for PDUs
+bool				_GdpLibInitialized;	// are we initialized?
+gdp_chan_t			*_GdpChannel;		// our primary app-level protocol port
+
 
 /*
 **  INIT_ERROR --- issue error on initialization problem

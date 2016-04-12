@@ -46,9 +46,9 @@ typedef struct gdp_chan		gdp_chan_t;
 typedef struct gdp_req		gdp_req_t;
 
 extern pthread_t	_GdpIoEventLoopThread;
-gdp_chan_t			*_GdpChannel;		// our primary app-level protocol port
-gdp_name_t			_GdpMyRoutingName;	// source name for PDUs
-bool				_GdpLibInitialized;	// are we initialized?
+extern gdp_chan_t	*_GdpChannel;		// our primary app-level protocol port
+extern gdp_name_t	_GdpMyRoutingName;	// source name for PDUs
+extern bool			_GdpLibInitialized;	// are we initialized?
 
 #define GDP_CHECK_INITIALIZED											\
 				{														\
