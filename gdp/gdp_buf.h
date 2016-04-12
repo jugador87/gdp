@@ -75,7 +75,7 @@ extern unsigned char
 
 extern int			gdp_buf_write(
 						gdp_buf_t *buf,
-						void *in,
+						const void *in,
 						size_t sz);
 
 extern int			gdp_buf_copy(
