@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <sysexits.h>
+#include <sys/stat.h>
 
 
 static EP_DBG	Dbg = EP_DBG_INIT("mqtt-gdp-gateway", "MTQQ to GDP gateway");
@@ -270,16 +271,46 @@ open_signed_log(const char *gdp_log_name, const char *signing_key_file)
 {
 	EP_STAT estat;
 	gdp_name_t gname;
-	gdp_gcl_open_info_t *info;
+	gdp_gcl_open_info_t *info = NULL;
 	gdp_gcl_t *gcl = NULL;
 
-	// set up any open information
-	info = gdp_gcl_open_info_new();
+	// make sure we can parse the log name
+	estat = gdp_parse_name(gdp_log_name, gname);
+	if (!EP_STAT_ISOK(estat))
+	{
+		char ebuf[60];
+
+		ep_app_error("cannot parse log name %s%s%s: %s",
+				EpChar->lquote, gdp_log_name, EpChar->rquote,
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		goto fail0;
+	}
 
 	if (signing_key_file != NULL)
 	{
 		FILE *fp;
 		EP_CRYPTO_KEY *skey;
+		struct stat st;
+
+		// set up any open information
+		info = gdp_gcl_open_info_new();
+
+		if (stat(signing_key_file, &st) == 0 &&
+				(st.st_mode & S_IFMT) == S_IFDIR)
+		{
+			size_t sz;
+			char *p;
+			gdp_pname_t pname;
+
+			// we need the printable name for getting the key file name
+			gdp_printable_name(gname, pname);
+
+			// find the file in the directory
+			sz = strlen(signing_key_file) + sizeof pname + 6;
+			p = alloca(sz);
+			snprintf(p, sz, "%s/%s.pem", signing_key_file, pname);
+			signing_key_file = p;
+		}
 
 		fp = fopen(signing_key_file, "r");
 		if (fp == NULL)
@@ -307,17 +338,6 @@ fail1:
 	}
 
 	// open a GCL with the provided name
-	estat = gdp_parse_name(gdp_log_name, gname);
-	if (!EP_STAT_ISOK(estat))
-	{
-		char ebuf[60];
-
-		ep_app_error("cannot parse log name %s%s%s: %s",
-				EpChar->lquote, gdp_log_name, EpChar->rquote,
-				ep_stat_tostr(estat, ebuf, sizeof ebuf));
-		goto fail0;
-	}
-
 	estat = gdp_gcl_open(gname, GDP_MODE_AO, info, &gcl);
 	if (!EP_STAT_ISOK(estat))
 	{

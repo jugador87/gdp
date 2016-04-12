@@ -92,7 +92,11 @@ Names the file containing the secret key to be used for signing.
 This must be a
 .Sy \&.pem
 format file.
-This overrides the default search path.
+If the
+.Ar key-file
+is a directory,
+this parameter overrides the default search path,
+so the key file used is based on the name of the log.
 .It Fl M Ar broker-addr
 Specifies the address of the MQTT broker from which to collect the data.
 .El
@@ -114,6 +118,9 @@ KEYS
 /usr/local/etc/swarm/gdp/keys
 /etc/swarm/gdp/keys
 .Ed
+The
+.Fl K
+flag overrides this parameter.
 .El
 .\".Sh ENVIRONMENT
 .\".Sh FILES
