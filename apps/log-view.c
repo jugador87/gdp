@@ -586,7 +586,7 @@ show_gcl(const char *gcl_dir_name, gdp_name_t gcl_name, int plev)
 	int extent;
 	int min_extent;
 	int max_extent;
-	int istat;
+	int istat = 0;
 
 	(void) gdp_printable_name(gcl_name, gcl_pname);
 	if (plev <= 0)
