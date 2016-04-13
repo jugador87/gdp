@@ -152,6 +152,34 @@ _gdp_gcl_cache_add(gdp_gcl_t *gcl, gdp_iomode_t mode)
 
 
 /*
+**  Update the name of a GCL in the cache
+**		This is used when creating a new GCL.  The original GCL
+**		is a dummy that uses the name of the log server.  After
+**		the log actually exists it has to be updated with the
+**		real name.
+*/
+
+void
+_gdp_gcl_cache_changename(gdp_gcl_t *gcl, gdp_name_t newname)
+{
+	// sanity checks
+	GDP_ASSERT_GOOD_GCL(gcl);
+	EP_ASSERT_REQUIRE(gdp_name_is_valid(gcl->name));
+	EP_ASSERT_REQUIRE(gdp_name_is_valid(newname));
+	EP_ASSERT_REQUIRE(EP_UT_BITSET(GCLF_INCACHE, gcl->flags));
+
+	ep_thr_mutex_lock(&GclCacheMutex);
+	(void) ep_hash_delete(OpenGCLCache, sizeof (gdp_name_t), gcl->name);
+	(void) ep_hash_insert(OpenGCLCache, sizeof (gdp_name_t), newname, gcl);
+	(void) memcpy(gcl->name, newname, sizeof (gdp_name_t));
+	ep_thr_mutex_unlock(&GclCacheMutex);
+
+	ep_dbg_cprintf(Dbg, 42, "_gdp_gcl_cache_changename: %s => %p\n",
+					gcl->pname, gcl);
+}
+
+
+/*
 **  _GDP_GCL_CACHE_GET --- get a GCL from the cache, if it exists
 **
 **		It's annoying, but you have to lock the entire cache when

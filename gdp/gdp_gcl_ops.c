@@ -245,7 +245,7 @@ _gdp_gcl_create(gdp_name_t gclname,
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// success --- change the GCL name to the true name
-	memcpy(gcl->name, gclname, sizeof gcl->name);
+	_gdp_gcl_cache_changename(gcl, gclname);
 
 	// free resources and return results
 	_gdp_req_free(req);

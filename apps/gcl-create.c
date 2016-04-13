@@ -553,6 +553,8 @@ main(int argc, char **argv)
 				gdp_printable_name(*gdp_gcl_getname(gcl), pname), logdxname);
 	}
 
+	gdp_gcl_close(gcl);
+
 fail1:
 	// free metadata, if set
 	if (gmd != NULL)

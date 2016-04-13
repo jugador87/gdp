@@ -206,6 +206,10 @@ void			_gdp_gcl_cache_add(			// add entry to cache
 						gdp_gcl_t *gcl,
 						gdp_iomode_t mode);
 
+void			_gdp_gcl_cache_changename(	// update the name of a GCL
+						gdp_gcl_t *gcl,
+						gdp_name_t newname);
+
 void			_gdp_gcl_cache_drop(		// drop entry from cache
 						gdp_gcl_t *gcl);
 

@@ -310,6 +310,8 @@ gdp_gcl_create(gdp_name_t gclname,
 
 	estat = _gdp_gcl_create(gclname, logdname, gmd, _GdpChannel,
 					GDP_REQ_ALLOC_RID, pgcl);
+	if (EP_STAT_ISOK(estat))
+		(*pgcl)->iomode = GDP_MODE_ANY;
 
 	ep_dbg_cprintf(Dbg, 8, "gdp_gcl_create: %s\n",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
