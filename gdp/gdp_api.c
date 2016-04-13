@@ -359,11 +359,25 @@ gdp_gcl_open(gdp_name_t name,
 		return GDP_STAT_NULL_GCL;
 	}
 
-	estat = _gdp_gcl_newhandle(name, &gcl);
-	EP_STAT_CHECK(estat, goto fail0);
-	gcl->iomode = mode;
+	// see if we already have this open
+	gcl = _gdp_gcl_cache_get(name, mode);
+	if (gcl != NULL)
+	{
+		// just increase the reference count and return it
+		ep_dbg_cprintf(Dbg, 10, "gdp_gcl_open(%s): using existing GCL @ %p\n",
+				gcl->pname, gcl);
+		gcl->iomode |= mode;
+		estat = EP_STAT_OK;
+	}
+	else
+	{
+		// it's not there yet, so create a new one
+		estat = _gdp_gcl_newhandle(name, &gcl);
+		EP_STAT_CHECK(estat, goto fail0);
+		gcl->iomode = mode;
 
-	estat = _gdp_gcl_open(gcl, cmd, skey, _GdpChannel, GDP_REQ_ALLOC_RID);
+		estat = _gdp_gcl_open(gcl, cmd, skey, _GdpChannel, GDP_REQ_ALLOC_RID);
+	}
 	if (EP_STAT_ISOK(estat))
 	{
 		*pgcl = gcl;
@@ -389,7 +403,6 @@ gdp_gcl_close(gdp_gcl_t *gcl)
 	EP_STAT estat;
 
 	estat = _gdp_gcl_close(gcl, _GdpChannel, 0);
-	_gdp_gcl_freehandle(gcl);
 	return estat;
 }
 

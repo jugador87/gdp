@@ -131,8 +131,7 @@ _gdp_gcl_cache_add(gdp_gcl_t *gcl, gdp_iomode_t mode)
 	}
 
 	// save it in the associative cache
-	(void) ep_hash_insert(OpenGCLCache,
-						sizeof (gdp_name_t), gcl->name, gcl);
+	(void) ep_hash_insert(OpenGCLCache, sizeof (gdp_name_t), gcl->name, gcl);
 
 	// ... and the LRU list
 	{
@@ -244,8 +243,7 @@ _gdp_gcl_cache_drop(gdp_gcl_t *gcl)
 	}
 
 	// remove it from the associative cache
-	(void) ep_hash_insert(OpenGCLCache, sizeof (gdp_name_t), gcl->name,
-						NULL);
+	(void) ep_hash_delete(OpenGCLCache, sizeof (gdp_name_t), gcl->name);
 
 	// ... and the LRU list
 	LIST_REMOVE(gcl, ulist);

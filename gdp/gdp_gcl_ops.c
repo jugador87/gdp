@@ -122,12 +122,7 @@ _gdp_gcl_freehandle(gdp_gcl_t *gcl)
 	EP_ASSERT_INSIST(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
 
 	// release any remaining requests
-	if (!LIST_EMPTY(&gcl->reqs))
-	{
-		// release any remaining requests (shouldn't be any left)
-		ep_dbg_cprintf(Dbg, 1, "gdp_gcl_freehandle: non-null request list\n");
-		_gdp_req_freeall(&gcl->reqs, NULL);
-	}
+	_gdp_req_freeall(&gcl->reqs, NULL);
 
 	// free any additional per-GCL resources
 	if (gcl->freefunc != NULL)
@@ -426,10 +421,33 @@ _gdp_gcl_close(gdp_gcl_t *gcl,
 {
 	EP_STAT estat;
 	gdp_req_t *req;
+	int nrefs;
 
 	errno = 0;				// avoid spurious messages
-
 	GDP_ASSERT_GOOD_GCL(gcl);
+
+	if (ep_dbg_test(Dbg, 38))
+	{
+		ep_dbg_printf("_gdp_gcl_close: ");
+		_gdp_gcl_dump(gcl, ep_dbg_getfile(), GDP_PR_DETAILED, 0);
+	}
+
+	// need to count the number of references /excluding/ subscriptions
+	nrefs = gcl->refcnt;
+	req = LIST_FIRST(&gcl->reqs);
+	while (req != NULL)
+	{
+		if (EP_UT_BITSET(GDP_REQ_CLT_SUBSCR, req->flags))
+			nrefs--;
+		req = LIST_NEXT(req, gcllist);
+	}
+
+	if (nrefs > 1)
+	{
+		// just decrement the reference count
+		_gdp_gcl_decref(gcl);
+		return EP_STAT_OK;
+	}
 
 	estat = _gdp_req_new(GDP_CMD_CLOSE, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
@@ -439,8 +457,10 @@ _gdp_gcl_close(gdp_gcl_t *gcl,
 
 	//XXX should probably check status (and do what with it?)
 
-	// release resources held by this handle
-	_gdp_req_free(req);		// also drops gcl reference
+	// release resources held by this handle; use _gdp_gcl_freehandle
+	// instead of decref so we clear out subscriptions as well
+	_gdp_req_free(req);
+	_gdp_gcl_freehandle(gcl);
 fail0:
 	return estat;
 }

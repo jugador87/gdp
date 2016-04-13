@@ -127,7 +127,7 @@ sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 			// this subscription seems to be dead
 			if (ep_dbg_test(Dbg, 18))
 			{
-				ep_dbg_printf("sub_notify_allsubscribers: subscription timeout: ");
+				ep_dbg_printf("sub_notify_all_subscribers: subscription timeout: ");
 				_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
 			}
 
