@@ -60,8 +60,7 @@
 #define PRE_EXTENT_BACK_COMPAT		1	// handle pre-extent on disk format
 
 
-static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.physlog",
-								"GDP Log Daemon Physical Log");
+static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.physlog", "GDP Log Daemon Physical Log");
 
 #define GCL_PATH_MAX		200		// max length of pathname
 
@@ -239,6 +238,8 @@ extent_free(extent_t *ext)
 {
 	if (ext == NULL)
 		return;
+	ep_dbg_cprintf(Dbg, 41, "extent_free: closing fp @ %p (extent %d)\n",
+			ext->fp, ext->extno);
 	if (ext->fp != NULL && fclose(ext->fp) < 0)
 		(void) posix_error(errno, "extent_free: fclose (extent %d)",
 						ext->extno);
@@ -405,6 +406,7 @@ success:
 	return estat;
 
 fail1:
+	ep_dbg_cprintf(Dbg, 20, "extent_open: closing fp %p (error)\n", data_fp);
 	fclose(data_fp);
 fail0:
 	EP_ASSERT_ENSURE(!EP_STAT_ISOK(estat));
@@ -426,9 +428,13 @@ extent_close(gdp_gcl_t *gcl, uint32_t extno)
 		return;
 	}
 	if (ext->fp != NULL)
+	{
+		ep_dbg_cprintf(Dbg, 39, "extent_close: closing extent fp %p\n",
+				ext->fp);
 		if (fclose(ext->fp) != 0)
 			(void) posix_error(errno, "extent_close: cannot fclose");
-	ext->fp = NULL;
+		ext->fp = NULL;
+	}
 	ep_mem_free(ext);
 	phys->extents[extno] = NULL;
 }
@@ -518,6 +524,7 @@ extent_create(gdp_gcl_t *gcl,
 						data_pbuf, sizeof data_pbuf);
 		EP_STAT_CHECK(estat, goto fail1);
 
+		ep_dbg_cprintf(Dbg, 20, "extent_create: creating %s\n", data_pbuf);
 		data_fd = open(data_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644);
 		if (data_fd < 0 || (flock(data_fd, LOCK_EX) < 0))
 		{
@@ -617,6 +624,7 @@ extent_create(gdp_gcl_t *gcl,
 
 	// success!
 	fflush(data_fp);
+	ext->fp = data_fp;
 	flock(fileno(data_fp), LOCK_UN);
 	ep_dbg_cprintf(Dbg, 10, "Created GCL Extent %s-%06d\n",
 			gcl->pname, extno);
@@ -625,7 +633,11 @@ extent_create(gdp_gcl_t *gcl,
 fail2:
 	estat = ep_stat_from_errno(errno);
 	if (data_fp != NULL)
+	{
+		ep_dbg_cprintf(Dbg, 20, "extent_create: closing data_fp @ %p\n",
+				data_fp);
 		fclose(data_fp);
+	}
 fail1:
 	// turn OK into an errno-based code
 	if (EP_STAT_ISOK(estat))
@@ -685,9 +697,14 @@ physinfo_free(gcl_physinfo_t *phys)
 	if (phys == NULL)
 		return;
 
-	if (phys->index.fp != NULL && fclose(phys->index.fp) != 0)
-		(void) posix_error(errno, "physinfo_free: cannot close index fp");
-	phys->index.fp = NULL;
+	if (phys->index.fp != NULL)
+	{
+		ep_dbg_cprintf(Dbg, 41, "physinfo_free: closing index fp @ %p\n",
+				phys->index.fp);
+		if (fclose(phys->index.fp) != 0)
+			(void) posix_error(errno, "physinfo_free: cannot close index fp");
+		phys->index.fp = NULL;
+	}
 
 	for (extno = 0; extno < phys->nextents; extno++)
 	{
@@ -798,6 +815,7 @@ disk_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 						index_pbuf, sizeof index_pbuf);
 		EP_STAT_CHECK(estat, goto fail2);
 
+		ep_dbg_cprintf(Dbg, 20, "disk_create: creating %s\n", index_pbuf);
 		index_fd = open(index_pbuf, O_RDWR | O_CREAT | O_APPEND | O_EXCL, 0644);
 		if (index_fd < 0)
 		{
@@ -805,7 +823,7 @@ disk_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 
 			estat = ep_stat_from_errno(errno);
 			strerror_r(errno, nbuf, sizeof nbuf);
-			ep_log(estat, "gcl_physcreate: cannot create %s: %s",
+			ep_log(estat, "disk_create: cannot create %s: %s",
 				index_pbuf, nbuf);
 			goto fail2;
 		}
@@ -816,7 +834,7 @@ disk_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 
 			estat = ep_stat_from_errno(errno);
 			strerror_r(errno, nbuf, sizeof nbuf);
-			ep_log(estat, "gcl_physcreate: cannot fdopen %s: %s",
+			ep_log(estat, "disk_create: cannot fdopen %s: %s",
 				index_pbuf, nbuf);
 			(void) close(index_fd);
 			goto fail2;
@@ -835,7 +853,7 @@ disk_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 
 		if (fwrite(&index_header, sizeof index_header, 1, index_fp) != 1)
 		{
-			estat = posix_error(errno, "gcl_physcreate: cannot write header");
+			estat = posix_error(errno, "disk_create: cannot write header");
 			goto fail3;
 		}
 	}
@@ -850,6 +868,8 @@ disk_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 	return estat;
 
 fail3:
+	ep_dbg_cprintf(Dbg, 20, "disk_create: closing index_fp @ %p\n",
+			index_fp);
 	fclose(index_fp);
 fail2:
 fail1:
@@ -907,6 +927,7 @@ disk_open(gdp_gcl_t *gcl)
 	estat = get_gcl_path(gcl, -1, GCL_LXF_SUFFIX,
 					index_pbuf, sizeof index_pbuf);
 	EP_STAT_CHECK(estat, goto fail0);
+	ep_dbg_cprintf(Dbg, 39, "disk_open: opening %s\n", index_pbuf);
 	fd = open(index_pbuf, O_RDWR | O_APPEND);
 	if (fd < 0 || flock(fd, LOCK_SH) < 0 ||
 			(index_fp = fdopen(fd, "a+")) == NULL)
