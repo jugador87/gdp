@@ -174,7 +174,7 @@ message_cb(struct mosquitto *mosq,
 
 		gdp_buf_printf(gdp_datum_getbuf(datum),
 				"{topic:\"%s\", qos:%d, len:%d, payload:%s}\n",
-				msg->topic, msg->qos, msg->payloadlen, msg->payload);
+				msg->topic, msg->qos, msg->payloadlen, payload);
 		estat = gdp_gcl_append(tinfo->gcl, datum);
 		if (!EP_STAT_ISOK(estat))
 		{
@@ -185,7 +185,7 @@ message_cb(struct mosquitto *mosq,
 	else
 	{
 		printf("{topic:\"%s\", qos:%d, len:%d, payload:%s}\n",
-				msg->topic, msg->qos, msg->payloadlen, msg->payload);
+				msg->topic, msg->qos, msg->payloadlen, payload);
 	}
 }
 
