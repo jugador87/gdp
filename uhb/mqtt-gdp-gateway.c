@@ -17,6 +17,9 @@
 static EP_DBG	Dbg = EP_DBG_INIT("mqtt-gdp-gateway", "MTQQ to GDP gateway");
 
 
+bool	SkipMetadata = false;	// don't include topic, qos, and len on output
+
+
 /*
 **  Called by Mosquitto to do logging
 */
@@ -172,9 +175,17 @@ message_cb(struct mosquitto *mosq,
 		EP_STAT estat;
 		gdp_datum_t *datum = gdp_datum_new();
 
-		gdp_buf_printf(gdp_datum_getbuf(datum),
-				"{topic:\"%s\", qos:%d, len:%d, payload:%s}\n",
-				msg->topic, msg->qos, msg->payloadlen, payload);
+		if (SkipMetadata)
+		{
+			gdp_buf_printf(gdp_datum_getbuf(datum),
+					"%s\n", payload);
+		}
+		else
+		{
+			gdp_buf_printf(gdp_datum_getbuf(datum),
+					"{topic:\"%s\", qos:%d, len:%d, payload:%s}\n",
+					msg->topic, msg->qos, msg->payloadlen, payload);
+		}
 		estat = gdp_gcl_append(tinfo->gcl, datum);
 		if (!EP_STAT_ISOK(estat))
 		{
@@ -184,8 +195,15 @@ message_cb(struct mosquitto *mosq,
 	}
 	else
 	{
-		printf("{topic:\"%s\", qos:%d, len:%d, payload:%s}\n",
-				msg->topic, msg->qos, msg->payloadlen, payload);
+		if (SkipMetadata)
+		{
+			printf("%s\n", payload);
+		}
+		else
+		{
+			printf("{topic:\"%s\", qos:%d, len:%d, payload:%s}\n",
+					msg->topic, msg->qos, msg->payloadlen, payload);
+		}
 	}
 }
 
@@ -361,12 +379,13 @@ usage(void)
 {
 	fprintf(stderr,
 			"Usage: %s [-D dbgspec] [-G router_addr] [-K signing_key_file]\n"
-			"\t[-M broker_addr] [-q qos] mqtt_topic gdp_log\n"
+			"\t[-M broker_addr] [-q qos] [-s] mqtt_topic gdp_log\n"
 			"    -D  set debugging flags\n"
 			"    -G  IP host to contact for gdp_router\n"
 			"    -K  key file to use to sign GDP log writes\n"
 			"    -M  IP host to contact for MQTT broker\n"
 			"    -q  MQTT Quality of Service to request\n"
+			"    -s  skip metadata in output (topic, qos, len)\n"
 			"",
 			ep_app_getprogname());
 	exit(EX_USAGE);
@@ -385,7 +404,7 @@ main(int argc, char **argv)
 	int opt;
 	char ebuf[60];
 
-	while ((opt = getopt(argc, argv, "D:G:K:M:q:")) > 0)
+	while ((opt = getopt(argc, argv, "D:G:K:M:q:s")) > 0)
 	{
 		switch (opt)
 		{
@@ -407,6 +426,10 @@ main(int argc, char **argv)
 
 		case 'q':
 			mqtt_qos = atoi(optarg);
+			break;
+
+		case 's':
+			SkipMetadata = true;
 			break;
 
 		default:

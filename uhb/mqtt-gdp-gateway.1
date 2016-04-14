@@ -10,6 +10,7 @@
 .Op Fl G Ar router-ip
 .Op Fl F Ar key-file
 .Op Fl M Ar broker-addr
+.Op Fl s
 (
 .Ar topic-name
 .Ar log-name
@@ -99,6 +100,10 @@ this parameter overrides the default search path,
 so the key file used is based on the name of the log.
 .It Fl M Ar broker-addr
 Specifies the address of the MQTT broker from which to collect the data.
+.It Fl s
+If set, the output does not include the wrapping metadata
+(topic, qos, and len);
+just the content of the payload is output.
 .El
 .Sh EXIT STATUS
 .Bl -tag
