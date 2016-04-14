@@ -330,8 +330,9 @@ extent_open(gdp_gcl_t *gcl, extent_t *ext)
 	if (ext_hdr.magic != GCL_LDF_MAGIC)
 	{
 		estat = GDP_STAT_CORRUPT_GCL;
-		ep_log(estat, "extent_open: bad magic: found: 0x%" PRIx32
+		ep_log(estat, "extent_open(%s): bad magic: found: 0x%" PRIx32
 				", expected: 0x%" PRIx32 "\n",
+				data_pbuf,
 				ext_hdr.magic, GCL_LDF_MAGIC);
 		goto fail1;
 	}
@@ -340,8 +341,9 @@ extent_open(gdp_gcl_t *gcl, extent_t *ext)
 			ext_hdr.version > GCL_LDF_MAXVERS)
 	{
 		estat = GDP_STAT_GCL_VERSION_MISMATCH;
-		ep_log(estat, "extent_open: bad version: found: %" PRId32
+		ep_log(estat, "extent_open(%s): bad version: found: %" PRId32
 				", expected: %" PRIx32 "-%" PRId32 "\n",
+				data_pbuf,
 				ext_hdr.version, GCL_LDF_MINVERS, GCL_LDF_MAXVERS);
 		goto fail1;
 	}
@@ -1146,7 +1148,8 @@ disk_read(gdp_gcl_t *gcl,
 		{
 			// computed offset is out of range
 			estat = GDP_STAT_CORRUPT_INDEX;
-			ep_log(estat, "gcl_diskread: computed offset %jd out of range (%jd max)",
+			ep_log(estat, "gcl_diskread(%s): computed offset %jd out of range (%jd max)",
+					gcl->pname,
 					(intmax_t) xoff, (intmax_t) phys->index.max_offset);
 			goto fail3;
 		}
@@ -1531,7 +1534,7 @@ disk_foreach(void (*func)(gdp_name_t, void *), void *ctx)
 			if (i != 0)
 			{
 				ep_log(ep_stat_from_errno(i),
-						"gcl_physforeach: readdir_r failed");
+						"gcl_physforeach: readdir_r(%s) failed", dbuf);
 				break;
 			}
 			if (dent == NULL)
