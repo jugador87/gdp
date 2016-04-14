@@ -121,6 +121,7 @@ disk_init()
 
 	// find physical location of GCL directory
 	GCLDir = ep_adm_getstrparam("swarm.gdplogd.gcl.dir", GCL_DIR);
+	ep_dbg_cprintf(Dbg, 8, "disk_init: log dir = %s\n", GCLDir);
 
 	return estat;
 }
@@ -1145,7 +1146,7 @@ disk_read(gdp_gcl_t *gcl,
 		{
 			// computed offset is out of range
 			estat = GDP_STAT_CORRUPT_INDEX;
-			ep_log(estat, "gcl_physread: computed offset %jd out of range (%jd max)",
+			ep_log(estat, "gcl_diskread: computed offset %jd out of range (%jd max)",
 					(intmax_t) xoff, (intmax_t) phys->index.max_offset);
 			goto fail3;
 		}
@@ -1153,12 +1154,12 @@ disk_read(gdp_gcl_t *gcl,
 
 		if (fseek(phys->index.fp, xoff, SEEK_SET) < 0)
 		{
-			estat = posix_error(errno, "gcl_physread: fseek failed");
+			estat = posix_error(errno, "gcl_diskread: fseek failed");
 			goto fail3;
 		}
 		if (fread(xent, SIZEOF_INDEX_RECORD, 1, phys->index.fp) < 1)
 		{
-			estat = posix_error(errno, "gcl_physread: fread failed");
+			estat = posix_error(errno, "gcl_diskread: fread failed");
 			goto fail3;
 		}
 		xent->recno = ep_net_ntoh64(xent->recno);
@@ -1198,7 +1199,7 @@ fail3:
 	if (fseek(ext->fp, xent->offset, SEEK_SET) < 0 ||
 			fread(&log_record, sizeof log_record, 1, ext->fp) < 1)
 	{
-		ep_dbg_cprintf(Dbg, 1, "gcl_physread: header fread failed: %s\n",
+		ep_dbg_cprintf(Dbg, 1, "gcl_diskread: header fread failed: %s\n",
 				strerror(errno));
 		estat = ep_stat_from_errno(errno);
 		goto fail1;
@@ -1210,7 +1211,7 @@ fail3:
 	log_record.flags = ep_net_ntoh16(log_record.flags);
 	log_record.data_length = ep_net_ntoh32(log_record.data_length);
 
-	ep_dbg_cprintf(Dbg, 29, "gcl_physread: recno %" PRIgdp_recno
+	ep_dbg_cprintf(Dbg, 29, "gcl_diskread: recno %" PRIgdp_recno
 				", sigmeta 0x%x, dlen %" PRId32 ", offset %" PRId64 "\n",
 				log_record.recno, log_record.sigmeta, log_record.data_length,
 				xent->offset);
@@ -1264,7 +1265,7 @@ fail3:
 	if (false)
 	{
 fail2:
-		ep_dbg_cprintf(Dbg, 1, "gcl_physread: %s fread failed: %s\n",
+		ep_dbg_cprintf(Dbg, 1, "gcl_diskread: %s fread failed: %s\n",
 				phase, strerror(errno));
 		estat = ep_stat_from_errno(errno);
 	}
