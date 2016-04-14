@@ -14,6 +14,7 @@
 .Op Fl K Ar key-location
 .Op Fl b Ar key-bits
 .Op Fl c Ar curve-name
+.Op Fl q
 .Op Fl s Ar logd-gdp-addr
 .Op Ar mdid = Ar metadata
 .Op Ar external-name
@@ -128,6 +129,13 @@ This overrides the
 .Va swarm.gdp.crypto.ec.curve
 parameter.
 Ignored when creating RSA or DSA key pairs.
+.It Fl q
+If set,
+.Nm
+does not show errors or informational message.
+In particular, using
+.Fl q
+is a way to ensure that a log exists without give an error if it already exists.
 .It Fl s Ar logd-gdp-addr
 The name of the log daemon on which to create the physical instantiation
 of the log.

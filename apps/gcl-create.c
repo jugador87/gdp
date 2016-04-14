@@ -93,7 +93,7 @@ void
 usage(void)
 {
 	fprintf(stderr, "Usage: %s [-D dbgspec] [-e key_enc_alg] [-G gdpd_addr]\n"
-			"\t[-h] [-k keytype] [-K keyfile] [-b keybits] [-c curve]\n"
+			"\t[-h] [-k keytype] [-K keyfile] [-b keybits] [-c curve] [-q]\n"
 			"\t[-s logd_name] [<mdid>=<metadata>...] [gcl_name]\n"
 			"    -D  set debugging flags\n"
 			"    -e  set secret key encryption algorithm\n"
@@ -106,6 +106,7 @@ usage(void)
 			"\twith the name of the GCL (defaults to \"KEYS\" or \".\")\n"
 			"    -b  set size of key in bits (RSA and DSA only)\n"
 			"    -c  set curve name (EC only)\n"
+			"    -q  don't give error if log already exists\n"
 			"    -s  set name of log daemon on which to create the log\n"
 			"    logd_name is the name of the log server to host this log\n"
 			"    gcl_name is the name of the log to create\n"
@@ -130,6 +131,7 @@ main(int argc, char **argv)
 	char buf[200];
 	bool show_usage = false;
 	bool make_new_key = true;
+	bool quiet = false;
 	int md_alg_id = -1;
 	int keytype = EP_CRYPTO_KEYTYPE_UNKNOWN;
 	int keylen = 0;
@@ -146,7 +148,7 @@ main(int argc, char **argv)
 	gdp_lib_init(NULL);
 
 	// collect command-line arguments
-	while ((opt = getopt(argc, argv, "b:c:D:e:G:h:k:K:s:")) > 0)
+	while ((opt = getopt(argc, argv, "b:c:D:e:G:h:k:K:qs:")) > 0)
 	{
 		switch (opt)
 		{
@@ -200,6 +202,10 @@ main(int argc, char **argv)
 
 		 case 'K':
 			keyfile = optarg;
+			break;
+
+		 case 'q':
+			quiet = true;
 			break;
 
 		 case 's':
@@ -268,6 +274,25 @@ main(int argc, char **argv)
 
 	// allow thread to settle to avoid interspersed debug output
 	ep_time_nanosleep(INT64_C(100000000));
+
+	if (gclxname != NULL)
+	{
+		gdp_parse_name(gclxname, gcliname);
+
+		// make sure it doesn't already exist
+		estat = gdp_gcl_open(gcliname, GDP_MODE_RO, NULL, &gcl);
+		if (EP_STAT_ISOK(estat))
+		{
+			// oops, we shouldn't be able to open it
+			(void) gdp_gcl_close(gcl);
+			if (quiet)
+			{
+				// don't print an error, but do give an exit status
+				exit(EX_CANTCREAT);
+			}
+			ep_app_fatal("Cannot create %s: already exists", gclxname);
+		}
+	}
 
 	/**************************************************************
 	**  Set up other automatic metadata
@@ -499,24 +524,12 @@ main(int argc, char **argv)
 	}
 	else
 	{
-		// open or create a GCL with the provided name
-		gdp_parse_name(gclxname, gcliname);
-
 		// save the external name as metadata
 		if (gmd == NULL)
 			gmd = gdp_gclmd_new(0);
 		gdp_gclmd_add(gmd, GDP_GCLMD_XID, strlen(gclxname), gclxname);
 
-		// make sure it doesn't already exist
-		estat = gdp_gcl_open(gcliname, GDP_MODE_RO, NULL, &gcl);
-		if (EP_STAT_ISOK(estat))
-		{
-			// oops, we shouldn't be able to open it
-			(void) gdp_gcl_close(gcl);
-			ep_app_fatal("Cannot create %s: already exists", gclxname);
-		}
-
-		// OK, we're cool, go ahead and create it...
+		// create a GCL with the provided name
 		estat = gdp_gcl_create(gcliname, logdiname, gmd, &gcl);
 	}
 	EP_STAT_CHECK(estat, goto fail1);
@@ -546,6 +559,7 @@ main(int argc, char **argv)
 	}
 
 	// just for a lark, let the user know the (internal) name
+	if (!quiet)
 	{
 		gdp_pname_t pname;
 
@@ -564,7 +578,8 @@ fail0:
 	// OK status can have values; hide that from the user
 	if (EP_STAT_ISOK(estat))
 		estat = EP_STAT_OK;
-	fprintf(stderr, "exiting with status %s\n",
-			ep_stat_tostr(estat, buf, sizeof buf));
+	if (!quiet)
+		fprintf(stderr, "exiting with status %s\n",
+				ep_stat_tostr(estat, buf, sizeof buf));
 	return !EP_STAT_ISOK(estat);
 }
