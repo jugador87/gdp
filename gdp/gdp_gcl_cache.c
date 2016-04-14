@@ -170,8 +170,8 @@ _gdp_gcl_cache_changename(gdp_gcl_t *gcl, gdp_name_t newname)
 
 	ep_thr_mutex_lock(&GclCacheMutex);
 	(void) ep_hash_delete(OpenGCLCache, sizeof (gdp_name_t), gcl->name);
-	(void) ep_hash_insert(OpenGCLCache, sizeof (gdp_name_t), newname, gcl);
 	(void) memcpy(gcl->name, newname, sizeof (gdp_name_t));
+	(void) ep_hash_insert(OpenGCLCache, sizeof (gdp_name_t), newname, gcl);
 	ep_thr_mutex_unlock(&GclCacheMutex);
 
 	ep_dbg_cprintf(Dbg, 42, "_gdp_gcl_cache_changename: %s => %p\n",
