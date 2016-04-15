@@ -192,7 +192,8 @@ _gdp_req_new(int cmd,
 void
 _gdp_req_free(gdp_req_t *req)
 {
-	ep_dbg_cprintf(Dbg, 48, "_gdp_req_free(%p)  gcl=%p\n", req, req->gcl);
+	ep_dbg_cprintf(Dbg, 48, "_gdp_req_free(%p)  state=%d, gcl=%p\n",
+			req, req->state, req->gcl);
 
 	EP_ASSERT(req->state != GDP_REQ_FREE);
 

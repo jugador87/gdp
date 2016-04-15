@@ -50,6 +50,7 @@
 #include <string.h>
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.main", "GDP initialization and main loop");
+static EP_DBG	EvLockDbg = EP_DBG_INIT("gdp.libevent.locks", "GDP libevent lock debugging");
 
 struct event_base	*GdpIoEventBase;	// the base for GDP I/O events
 gdp_name_t			_GdpMyRoutingName;	// source name for PDUs
@@ -625,7 +626,7 @@ gdp_lib_init(const char *myname)
 	// tell the event library that we're using pthreads
 	if (evthread_use_pthreads() < 0)
 		return init_error("cannot use pthreads", "gdp_lib_init");
-	if (ep_dbg_test(Dbg, 90))
+	if (ep_dbg_test(EvLockDbg, 90))
 	{
 		evthread_enable_lock_debuging();
 	}

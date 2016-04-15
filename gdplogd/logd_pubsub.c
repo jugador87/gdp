@@ -135,6 +135,9 @@ sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 			ep_thr_mutex_lock(&pubreq->gcl->mutex);
 			LIST_REMOVE(req, gcllist);
 			ep_thr_mutex_unlock(&pubreq->gcl->mutex);
+
+			// _gdp_req_free assumes the request is locked
+			_gdp_req_lock(req);
 			_gdp_req_free(req);
 		}
 	}

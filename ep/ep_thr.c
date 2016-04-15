@@ -86,6 +86,8 @@ diagnose_thr_err(int err, const char *where)
 		strerror_r(err, nbuf, sizeof nbuf);
 		ep_dbg_printf("ep_thr_%s: %s\n", where, nbuf);
 	}
+	if (ep_dbg_test(Dbg, 101))
+		ep_assert_abort("exiting on thread error");
 }
 
 static void
