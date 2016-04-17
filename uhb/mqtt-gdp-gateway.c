@@ -10,6 +10,7 @@
 
 #include <errno.h>
 #include <getopt.h>
+#include <regex.h>
 #include <sysexits.h>
 #include <sys/stat.h>
 
@@ -18,6 +19,8 @@ static EP_DBG	Dbg = EP_DBG_INIT("mqtt-gdp-gateway", "MTQQ to GDP gateway");
 
 
 bool	SkipMetadata = false;	// don't include topic, qos, and len on output
+bool	DropDups = false;		// drop duplicate records
+time_t	HeartbeatTime = -1;		// include dups every so often (in seconds)
 
 
 /*
@@ -74,6 +77,10 @@ struct topic_info
 {
 	const char	*topic_pat;			// pattern for topic
 	gdp_gcl_t	*gcl;				// associated GCL
+	char		*oldrec;			// text of old record
+	char		*currec;			// text of current record
+	size_t		recbuflen;			// size of previous two buffers
+	time_t		oldrectime;			// time of old record
 };
 
 struct topic_info	**Topics;		// information about topics
@@ -144,6 +151,97 @@ subscribe_to_all_topics(struct mosquitto *mosq, int qos)
 
 
 /*
+**  Determine if a payload is a duplicate of the previous record,
+**  i.e. if the record payload has changed in an interesting way.
+**
+**		Not just strcmp because we treat dates as being identical.
+*/
+
+bool
+record_is_dup(const char *newrec, struct topic_info *t)
+{
+	int istat;
+	size_t newreclen = strlen(newrec) + 1;
+	struct timeval currectime;
+	static bool regex_compiled = false;
+	static regex_t datepat;
+	// regular expression to match ISO 8601 dates (a subset thereof)
+	const char *textdatepat =
+		"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\\.[0-9]*)?)?)Z";
+	regmatch_t pmatch[1];
+
+	// compile the regular expression if not already done
+	if (!regex_compiled)
+	{
+		istat = regcomp(&datepat, textdatepat, REG_EXTENDED);
+		if (istat != 0)
+		{
+			char ebuf[256];
+
+			regerror(istat, &datepat, ebuf, sizeof ebuf);
+			ep_app_fatal("Cannot compile regex \"%s\": %s\n",
+						textdatepat, ebuf);
+		}
+		regex_compiled = true;
+	}
+
+	// copy the new record to the current record so we can step on it
+	if (newreclen > t->recbuflen)
+	{
+		t->currec = ep_mem_realloc(t->currec, newreclen);
+		t->oldrec = ep_mem_realloc(t->oldrec, newreclen);
+		t->recbuflen = newreclen;
+	}
+	memcpy(t->currec, newrec, newreclen);
+
+	while ((istat = regexec(&datepat, t->currec, 1, pmatch, 0)) == 0)
+	{
+		if (pmatch[0].rm_so >= 0)
+		{
+			size_t i;
+
+			ep_dbg_cprintf(Dbg, 81,
+					"record_is_dup found date from %zd to %zd\n",
+					pmatch[0].rm_so, pmatch[0].rm_eo);
+
+			for (i = pmatch[0].rm_so; i < pmatch[0].rm_eo; i++)
+				t->currec[i] = '_';		// any fixed character will do
+		}
+	}
+
+	ep_dbg_cprintf(Dbg, 80,
+			"record_is_dup: normalized record:\n   %s\n",
+			t->currec);
+
+	gettimeofday(&currectime, NULL);
+
+	// dates are normalized; let's see if there is a match
+	if (strcmp(t->oldrec, t->currec) == 0)
+	{
+		// yes, they match, but check time
+		if (HeartbeatTime > 0 &&
+			currectime.tv_sec >= t->oldrectime + HeartbeatTime)
+		{
+			ep_dbg_cprintf(Dbg, 80,
+					"dup record, but passed timeout (cur = %ld, old = %ld)\n",
+					currectime.tv_sec, t->oldrectime + HeartbeatTime);
+		}
+		else
+		{
+			ep_dbg_cprintf(Dbg, 81, "duplicate record\n");
+			return true;
+		}
+	}
+
+	// not a dup --- save currec for next time
+	memcpy(t->oldrec, t->currec, newreclen);
+	t->oldrectime = currectime.tv_sec;
+	ep_dbg_cprintf(Dbg, 80, "new record\n");
+	return false;
+}
+
+
+/*
 **  Called by Mosquitto when a message comes in.
 */
 
@@ -154,14 +252,18 @@ message_cb(struct mosquitto *mosq,
 {
 	struct topic_info *tinfo;
 	const char *payload;
+	size_t paylen;
 
-	ep_dbg_cprintf(Dbg, 5, "message_cb: %s @%d => %s\n",
+	ep_dbg_cprintf(Dbg, 65, "message_cb: %s @%d => %s\n",
 			msg->topic, msg->qos, msg->payload);
 
-	if (msg->payloadlen <= 0)
+	paylen = msg->payloadlen;
+	payload = msg->payload;
+	if (paylen <= 0)
+	{
 		payload = "null";
-	else
-		payload = msg->payload;
+		paylen = strlen(payload) + 1;
+	}
 
 	tinfo = get_topic_info(msg);
 	if (tinfo == NULL)
@@ -169,6 +271,10 @@ message_cb(struct mosquitto *mosq,
 		// no place to log this message
 		return;
 	}
+
+	// if this record is a duplicate, skip it
+	if (DropDups && record_is_dup(payload, tinfo))
+			return;
 
 	if (tinfo->gcl != NULL)
 	{
@@ -184,7 +290,7 @@ message_cb(struct mosquitto *mosq,
 		{
 			gdp_buf_printf(gdp_datum_getbuf(datum),
 					"{topic:\"%s\", qos:%d, len:%d, payload:%s}\n",
-					msg->topic, msg->qos, msg->payloadlen, payload);
+					msg->topic, msg->qos, paylen, payload);
 		}
 		estat = gdp_gcl_append(tinfo->gcl, datum);
 		if (!EP_STAT_ISOK(estat))
@@ -201,8 +307,8 @@ message_cb(struct mosquitto *mosq,
 		}
 		else
 		{
-			printf("{topic:\"%s\", qos:%d, len:%d, payload:%s}\n",
-					msg->topic, msg->qos, msg->payloadlen, payload);
+			printf("{topic:\"%s\", qos:%d, len:%zd, payload:%s}\n",
+					msg->topic, msg->qos, paylen, payload);
 		}
 	}
 }
@@ -378,14 +484,18 @@ void
 usage(void)
 {
 	fprintf(stderr,
-			"Usage: %s [-D dbgspec] [-G router_addr] [-K signing_key_file]\n"
-			"\t[-M broker_addr] [-q qos] [-s] mqtt_topic gdp_log\n"
+			"Usage: %s [-d] [-D dbgspec] [-G router_addr] [-h]\n"
+			"\t[-K signing_key_file] [-M broker_addr] [-q qos] [-s]\n"
+			"\tmqtt_topic gdp_log ...\n"
+			"    -d  drop duplicate records\n"
 			"    -D  set debugging flags\n"
 			"    -G  IP host to contact for gdp_router\n"
+			"    -h  record \"heartbeat\" interval, even if dups (secs)\n"
 			"    -K  key file to use to sign GDP log writes\n"
 			"    -M  IP host to contact for MQTT broker\n"
 			"    -q  MQTT Quality of Service to request\n"
 			"    -s  skip metadata in output (topic, qos, len)\n"
+			"mqtt_topic and gdp_log must be in pairs\n"
 			"",
 			ep_app_getprogname());
 	exit(EX_USAGE);
@@ -404,16 +514,24 @@ main(int argc, char **argv)
 	int opt;
 	char ebuf[60];
 
-	while ((opt = getopt(argc, argv, "D:G:K:M:q:s")) > 0)
+	while ((opt = getopt(argc, argv, "dD:G:h:K:M:q:s")) > 0)
 	{
 		switch (opt)
 		{
+		case 'd':
+			DropDups = true;
+			break;
+
 		case 'D':
 			ep_dbg_set(optarg);
 			break;
 
 		case 'G':
 			gdp_addr = optarg;
+			break;
+
+		case 'h':
+			HeartbeatTime = atol(optarg);
 			break;
 
 		case 'K':
@@ -489,6 +607,12 @@ main(int argc, char **argv)
 	{
 		mqtt_broker = ep_adm_getstrparam("swarm.mqtt-gdp-gateway.broker",
 							"127.0.0.1");
+	}
+
+	if (HeartbeatTime < 0)
+	{
+		HeartbeatTime = ep_adm_getlongparam("swarm.mqtt-gdp-gateway.heartbeat.time",
+				60);
 	}
 
 	mosquitto_run(mqtt_broker, mqtt_qos, NULL);

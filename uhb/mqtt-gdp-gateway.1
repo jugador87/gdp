@@ -6,8 +6,10 @@
 .Nd copy an MQTT subscription to a log
 .Sh SYNOPSIS
 .Nm
+.Op Fl d
 .Op Fl D Ar debug-spec
 .Op Fl G Ar router-ip
+.Op Fl h Ar interval
 .Op Fl F Ar key-file
 .Op Fl M Ar broker-addr
 .Op Fl s
@@ -73,6 +75,12 @@ is a single hyphen, the records are sent to stdout rather than a log.
 This is intended for debugging.
 .Sh OPTIONS
 .Bl -tag
+.It Fl d
+If set, duplicate records are not logged more than once per minute
+(or a value set by the
+.Fl h
+parameter).
+When comparing records, ISO 8601 dates are considered to always match.
 .It Fl D Ar debug-spec
 Turn on debugging flags using the libep-style format.
 Only useful with code in hand.
@@ -88,6 +96,21 @@ the names listed in the
 .Va swarm.gdp.routers
 runtime administrative parameter
 are searched.
+.It Fl h Ar interval
+A
+.Dq heartbeat
+interval
+forcing records to be output even if duplicates are deleted using the
+.Fl d
+flag.
+Records are sent to the log every
+.Ar interval
+seconds, even if they are duplicates.
+Defaults to the value of the
+.Sy swarm.mqtt-gdp-gateway.heartbeat.time
+administrative parameter (defaults to 60 seconds).
+If zero, duplicates are always deleted,
+regardless of how long it has been since the last record was output.
 .It Fl K Ar key-file
 Names the file containing the secret key to be used for signing.
 This must be a
@@ -123,8 +146,15 @@ KEYS
 /usr/local/etc/swarm/gdp/keys
 /etc/swarm/gdp/keys
 .Ed
+.It Sy swarm.mqtt-gdp-gateway.heartbeat.time
+The number of seconds between outputs if duplicates are being deleted using
+.Fl d .
+Defaults to 60 (seconds).
+If zero, no heartbeats are output
+(i.e., all duplicate records are deleted,
+regardless of how long since the last record was output).
 The
-.Fl K
+.Fl h
 flag overrides this parameter.
 .El
 .\".Sh ENVIRONMENT
