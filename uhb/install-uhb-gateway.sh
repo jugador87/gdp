@@ -1,8 +1,17 @@
 #!/bin/sh
 
-cd `dirname $0`/..
+cd `dirname $0`
 root=`pwd`
-. $root/adm/common-support.sh
+
+info() {
+	echo "$1"
+}
+
+fatal() {
+	echo "$1" 1>&2
+	exit 1
+}
+
 
 if [ `uname -s` != "Linux" ]
 then
@@ -37,6 +46,7 @@ else
 	gitdepth=""
 fi
 
+echo 	""
 info "##### Installing Debian packages"
 sudo apt-get update
 sudo apt-get install \
@@ -137,6 +147,8 @@ skip	ieee802154-monjolo-gateway
 echo ""
 info "##### Installing GDP from repo"
 cd $root
-git clone $gitdepth repoman@$gdprepo:$gdpreporoot/gdp.git ||
-	git clone $gitdepth https://$gdprepo/$gdpreporoot/gdp.git ||
-	fatal "Cannot clone GDP repo ${gdprepo}:$gdpreporoot/gdp.git" 1>&2
+if ! git clone $gitdepth repoman@$gdprepo:$gdpreporoot/gdp.git -a
+   ! git clone $gitdepth https://$gdprepo/$gdpreporoot/gdp.git
+then
+	fatal "Cannot clone GDP repo ${gdprepo}:$gdpreporoot/gdp.git"
+fi
