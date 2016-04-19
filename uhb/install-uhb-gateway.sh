@@ -26,6 +26,17 @@ then
 	sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa
 fi
 
+# set up a few defaults
+gdprepo=repo.eecs.berkeley.edu
+gdpreporoot=projects/swarmlab
+if [ `uname -m` = "armv7l" ]
+then
+	# beaglebone, not much disk space
+	gitdepth="--depth 1"
+else
+	gitdepth=""
+fi
+
 info "##### Installing Debian packages"
 sudo apt-get update
 sudo apt-get install \
@@ -50,7 +61,7 @@ sudo apt-get install \
 # check out the git tree from UMich
 echo ""
 info "##### Checking out Gateway source tree from Michigan"
-git clone https://github.com/lab11/gateway.git
+git clone $gitdepth https://github.com/lab11/gateway.git
 cd $root/gateway
 
 # verify that we have checked things out
@@ -80,6 +91,10 @@ do
 	info "Initializing for package $i"
 	npm install $i
 done
+
+echo ""
+info "##### Clearing NPM cache"
+npm cache clean
 
 # install system startup scripts
 cd $root/gateway/systemd
@@ -122,6 +137,6 @@ skip	ieee802154-monjolo-gateway
 echo ""
 info "##### Installing GDP from repo"
 cd $root
-git clone repoman@repo.eecs.berkeley.edu:projects/swarmlab/gdp.git ||
-	git clone https://repo.eecs.berkeley.edu/projects/swarmlab/gdp.git ||
-	fatal "Cannot clone GDP repo: bailing out" 1>&2
+git clone $gitdepth repoman@$gdprepo:$gdpreporoot/gdp.git ||
+	git clone $gitdepth https://$gdprepo/$gdpreporoot/gdp.git ||
+	fatal "Cannot clone GDP repo ${gdprepo}:$gdpreporoot/gdp.git" 1>&2
