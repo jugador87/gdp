@@ -5,7 +5,7 @@ root=`pwd`
 . $root/adm/common-support.sh
 
 # set defaults
-groot="edu.berkeley.eecs.swarmlab.immersion-room.device"
+groot="edu.berkeley.eecs.swarmlab.device"
 mqtt_host="uhkbbb001.eecs.berkeley.edu"
 
 args=`getopt M:r: $*`
@@ -42,7 +42,7 @@ if [ -z "$devices" ]
 then
 	fatal "Cannot locate any devices to log"
 fi
-info Devices: $devices
+info "Devices: $devices"
 for i in $devices
 do
 	if apps/gcl-create -q -e none $groot.$i
