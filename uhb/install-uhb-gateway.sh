@@ -1,10 +1,12 @@
 #!/bin/sh
 
-# check to make sure we're on a Beaglebone (or something close)
-if [ `uname -m` != "armv7l" ]
+cd `dirname $0`/..
+root=`pwd`
+. $root/adm/common-support.sh
+
+if [ `uname -s` != "Linux" ]
 then
-	echo "This script only runs on a Beaglebone"
-	exit 1
+	fatal "This script only runs on Linux"
 fi
 
 VERSION_ID="0"
@@ -13,43 +15,52 @@ then
 	. /etc/os-release
 fi
 
-if expr $VERSION_ID \< 8 > /dev/null
+if [ "$ID" = "debian" ] && expr $VERSION_ID \< 8 > /dev/null
 then
-	echo "Must be running Debian 8 (Jessie) or higher (have $VERSION_ID)"
-	exit 1
+	fatal "Must be running Debian 8 (Jessie) or higher (have $VERSION_ID)"
 fi
 
-echo ""
-echo "##### Installing Debian packages"
+if ! ls /etc/apt/sources.list.d/mosquitto* > /dev/null 2>&1
+then
+	info "##### Setting up mosquitto repository"
+	sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa
+fi
+
+info "##### Installing Debian packages"
 sudo apt-get update
 sudo apt-get install \
 	avahi-daemon \
-	bluetooth \
-	bluez \
 	git \
 	libavahi-compat-libdnssd-dev \
-	libbluetooth-dev \
 	libmosquitto-dev \
-	libudev-dev \
 	mosquitto-clients \
 
-root=`pwd`
+if [ `uname -m` != "armv7l" ]
+then
+	# we are not on a beaglebone --- done
+	exit 0;
+fi
+
+sudo apt-get install \
+	bluetooth \
+	bluez \
+	libbluetooth-dev \
+	libudev-dev
 
 # check out the git tree from UMich
 echo ""
-echo "##### Checking out Gateway source tree from Michigan"
+info "##### Checking out Gateway source tree from Michigan"
 git clone https://github.com/lab11/gateway.git
 cd $root/gateway
 
 # verify that we have checked things out
 if [ ! -d software -o ! -d systemd ]
 then
-	echo "$0 must be run from root of gateway git tree" 1>&2
-	exit 1
+	fatal "$0 must be run from root of gateway git tree" 1>&2
 fi
 
 echo ""
-echo "##### Set up node.js"
+info "##### Set up node.js"
 curl -sL https://deb.nodesource.com/setup_5.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
@@ -66,30 +77,30 @@ cd $root/gateway/software
 for i in $pkgs
 do
 	echo ""
-	echo Initializing for package $i
+	info "Initializing for package $i"
 	npm install $i
 done
 
 # install system startup scripts
 cd $root/gateway/systemd
 echo ""
-echo "##### Installing system startup scripts"
+info "##### Installing system startup scripts"
 sudo cp *.service /etc/systemd/system
 
 echo ""
-echo "##### Selectively enabling system startup scripts"
+info "##### Selectively enabling system startup scripts"
 
 enable() {
-	echo "Enabling service $1"
+	info "Enabling service $1"
 	sudo systemctl enable $i
 }
 
 skip() {
 	if [ -z "$2" ]
 	then
-		echo "Skipping service $1"
+		info "Skipping service $1"
 	else
-		echo "Skipping service $1: $2"
+		info "Skipping service $1: $2"
 	fi
 }
 
@@ -109,12 +120,8 @@ skip	ieee802154-monjolo-gateway
 
 
 echo ""
-echo "##### Installing GDP from repo"
+info "##### Installing GDP from repo"
 cd $root
 git clone repoman@repo.eecs.berkeley.edu:projects/swarmlab/gdp.git ||
 	git clone https://repo.eecs.berkeley.edu/projects/swarmlab/gdp.git ||
-	{
-		echo "Cannot clone GDP repo: bailing out" 1>&2
-		exit 1
-	}
-
+	fatal "Cannot clone GDP repo: bailing out" 1>&2
