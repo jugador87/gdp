@@ -32,7 +32,29 @@ fi
 if ! ls /etc/apt/sources.list.d/mosquitto* > /dev/null 2>&1
 then
 	info "##### Setting up mosquitto repository"
-	sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa
+	if [ "$ID" = "ubuntu" ]
+	then
+		sudo apt-get install -y \
+			software-properties-common \
+			python-software-properties
+		sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa
+	elif [ "$ID" = "debian" ]
+	then
+		sudo apt-get install -y wget
+		wget http://repo.mosquitto.org/debian/mosquitto-repo.gpg.key
+		sudo apt-key add mosquitto-repo.gpg.key
+		if expr $VERSION_ID = 8 > /dev/null
+		then
+			dver="jessie"
+		else
+			fatal "unknown debian version $VERSION_ID"
+		fi
+		cd /etc/apt/sources.list.d
+		sudo wget http://repo.mosquitto.org/debian/mosquitto-$dver.list
+		cd $root
+	else
+		fatal "Unknown linux distribution $ID"
+	fi
 fi
 
 # set up a few defaults
@@ -49,30 +71,44 @@ fi
 echo 	""
 info "##### Installing Debian packages"
 sudo apt-get update
-sudo apt-get install \
+sudo apt-get install -y \
 	avahi-daemon \
+	curl \
+	g++ \
+	gcc \
 	git \
 	libavahi-compat-libdnssd-dev \
 	libmosquitto-dev \
+	locales \
+	make \
 	mosquitto-clients \
 
 if [ `uname -m` != "armv7l" ]
 then
 	# we are not on a beaglebone --- done
+	echo ""
+	info "##### Not a Beaglebone; skipping the rest of the install"
 	exit 0;
 fi
 
-sudo apt-get install \
+echo ""
+info "##### Installing additional Beaglebone-specific packages"
+mkdir /var/lib/bluetooth && chmod 700 /var/lib/bluetooth
+sudo apt-get install -y \
 	bluetooth \
 	bluez \
 	libbluetooth-dev \
 	libudev-dev
 
+info "Enabling bluetooth daemon"
+sudo update-rc.d bluetooth defaults
+
 # check out the git tree from UMich
 echo ""
 info "##### Checking out Gateway source tree from Michigan"
+cd $root
 git clone $gitdepth https://github.com/lab11/gateway.git
-cd $root/gateway
+cd gateway
 
 # verify that we have checked things out
 if [ ! -d software -o ! -d systemd ]
@@ -117,7 +153,7 @@ info "##### Selectively enabling system startup scripts"
 
 enable() {
 	info "Enabling service $1"
-	sudo systemctl enable $i
+	sudo systemctl enable $1
 }
 
 skip() {
@@ -131,7 +167,7 @@ skip() {
 
 enable	adv-gateway-ip
 enable	ble-address-sniffer-mqtt
-skip	ble-gateway-mqtt	"startup failure"
+enable	ble-gateway-mqtt
 skip	ble-nearby
 skip	gateway-mqtt-emoncms	"not in use at Berkeley"
 skip	gateway-mqtt-gatd	"not in use at Berkeley"
@@ -144,11 +180,25 @@ skip	gateway-watchdog-email
 skip	ieee802154-monjolo-gateway
 
 
+# Should this be up above, so it works on all platforms?
+# Or should it just install packages rather than download and compile?
 echo ""
-info "##### Installing GDP from repo"
+info "##### Fetching GDP from repo"
 cd $root
-if ! git clone $gitdepth repoman@$gdprepo:$gdpreporoot/gdp.git -a
+if ! git clone $gitdepth repoman@$gdprepo:$gdpreporoot/gdp.git &&
    ! git clone $gitdepth https://$gdprepo/$gdpreporoot/gdp.git
 then
 	fatal "Cannot clone GDP repo ${gdprepo}:$gdpreporoot/gdp.git"
 fi
+cd gdp
+
+echo ""
+info "##### Installing GDP prerequisites"
+sh adm/gdp-setup.sh
+# lighttpd uses port 80, as does gateway-server
+sudo servicectl disable lighttpd
+
+info "##### Compiling GDP"
+make || fatal "Cannot build gdp"
+cd uhb
+make || fatal "Cannot build urban heartbeat kit support"
