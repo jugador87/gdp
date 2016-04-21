@@ -11,7 +11,7 @@ package() {
 	    if dpkg --get-selections | grep --quiet $1; then
 		info "$1 is already installed. skipping."
 	    else
-		sudo apt-get install $@
+		sudo apt-get install -y $@
 	    fi
 	    ;;
 	"centos" | "redhat")
