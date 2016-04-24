@@ -82,6 +82,7 @@ sudo apt-get install -y \
 	locales \
 	make \
 	mosquitto-clients \
+	psmisc \
 
 if [ `uname -m` != "armv7l" ]
 then
@@ -93,7 +94,9 @@ fi
 
 echo ""
 info "##### Installing additional Beaglebone-specific packages"
-mkdir /var/lib/bluetooth && chmod 700 /var/lib/bluetooth
+test ! -d /var/lib/bluetooth &&
+	mkdir /var/lib/bluetooth &&
+	chmod 700 /var/lib/bluetooth
 sudo apt-get install -y \
 	bluetooth \
 	bluez \
@@ -107,6 +110,7 @@ sudo update-rc.d bluetooth defaults
 echo ""
 info "##### Checking out Gateway source tree from Michigan"
 cd $root
+rm -rf gateway
 git clone $gitdepth https://github.com/lab11/gateway.git
 cd gateway
 
@@ -118,6 +122,8 @@ fi
 
 echo ""
 info "##### Set up node.js"
+info ">>> NOTE WELL: this may give several warnings about xpc-connection."
+info ">>> These should be ignored."
 curl -sL https://deb.nodesource.com/setup_5.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
@@ -184,9 +190,10 @@ skip	ieee802154-monjolo-gateway
 # Or should it just install packages rather than download and compile?
 echo ""
 info "##### Fetching GDP from repo"
+info ">>> Please enter your user name and password"
+info ">>> for the Berkeley EECS source repository when prompted"
 cd $root
-if ! git clone $gitdepth repoman@$gdprepo:$gdpreporoot/gdp.git &&
-   ! git clone $gitdepth https://$gdprepo/$gdpreporoot/gdp.git
+if ! git clone $gitdepth https://$gdprepo/git/$gdpreporoot/gdp.git
 then
 	fatal "Cannot clone GDP repo ${gdprepo}:$gdpreporoot/gdp.git"
 fi
@@ -200,5 +207,7 @@ sudo servicectl disable lighttpd
 
 info "##### Compiling GDP"
 make || fatal "Cannot build gdp"
+sudo make install || fatal "Cannot install gdp"
 cd uhb
 make || fatal "Cannot build urban heartbeat kit support"
+sudo make install || fatal "Cannot install urban heartbeat kit support"
