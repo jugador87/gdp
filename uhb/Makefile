@@ -87,8 +87,8 @@ clean:
 	-rm -f ${ALL} *.o *.core
 
 install:	${BINDIR} ${SBINDIR} ${ALL}
-	${INSTALL} ${BINALL} ${BINDIR}
-	${INSTALL} ${SBINALL} ${SBINDIR}
+	test -z "${BINALL}"  || ${INSTALL} ${BINALL}  ${BINDIR}
+	test -z "${SBINALL}" || ${INSTALL} ${SBINALL} ${SBINDIR}
 
 ${BINDIR} ${SBINDIR}:
 	${MKDIR} $@
