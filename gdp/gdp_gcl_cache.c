@@ -338,7 +338,7 @@ _gdp_gcl_cache_reclaim(time_t maxage)
 		if (g1->utime > mintime)
 			break;
 		g2 = LIST_NEXT(g1, ulist);
-		if (g1->refcnt <= 0 && !EP_UT_BITSET(GCLF_DROPPING, g1->flags))
+		if (!EP_UT_BITSET(GCLF_DROPPING, g1->flags))
 		{
 			if (ep_dbg_test(Dbg, 32))
 			{

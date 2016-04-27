@@ -250,6 +250,7 @@ _gdp_req_freeall(struct req_head *reqlist, void (*shutdownfunc)(gdp_req_t *))
 	ep_dbg_cprintf(Dbg, 49, ">>> _gdp_req_freeall(%p)\n", reqlist);
 	while (req != NULL)
 	{
+		_gdp_req_lock(req);
 		gdp_req_t *nextreq = LIST_NEXT(req, gcllist);
 		if (shutdownfunc != NULL)
 			(*shutdownfunc)(req);
