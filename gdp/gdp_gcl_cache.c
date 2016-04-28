@@ -318,39 +318,72 @@ _gdp_gcl_touch(gdp_gcl_t *gcl)
 
 /*
 **  Reclaim cache entries older than a specified age
+**
+**		If we can't get the number of file descriptors down far enough
+**		we keep trying with increasingly stringent constraints, so maxage
+**		is really more advice than a requirement.
 */
 
 void
 _gdp_gcl_cache_reclaim(time_t maxage)
 {
-	struct timeval tv;
-	gdp_gcl_t *g1, *g2;
-	time_t mintime;
+	static int headroom = 0;
 
 	ep_dbg_cprintf(Dbg, 68, "_gdp_gcl_cache_reclaim(maxage = %ld)\n", maxage);
 
-	gettimeofday(&tv, NULL);
-	mintime = tv.tv_sec - maxage;
-
-	ep_thr_mutex_lock(&GclCacheMutex);
-	for (g1 = LIST_FIRST(&GclsByUse); g1 != NULL; g1 = g2)
+	// collect some parameters (once only)
+	if (headroom == 0)
 	{
-		if (g1->utime > mintime)
-			break;
-		g2 = LIST_NEXT(g1, ulist);
-		if (!EP_UT_BITSET(GCLF_DROPPING, g1->flags))
+		headroom = ep_adm_getintparam("swarm.gdp.cache.fd.headroom", 0);
+		if (headroom == 0)
 		{
-			if (ep_dbg_test(Dbg, 32))
-			{
-				ep_dbg_printf("_gdp_gcl_cache_reclaim: reclaiming:\n   ");
-				_gdp_gcl_dump(g1, ep_dbg_getfile(), GDP_PR_DETAILED, 0);
-			}
-			LIST_REMOVE(g1, ulist);
-			g1->flags |= GCLF_ISLOCKED;
-			_gdp_gcl_freehandle(g1);
+			int maxfds;
+			(void) ep_app_numfds(&maxfds);
+			headroom = maxfds / 2;
+			if (headroom == 0)
+				headroom = 8;
 		}
 	}
-	ep_thr_mutex_unlock(&GclCacheMutex);
+
+	for (;;)
+	{
+		struct timeval tv;
+		gdp_gcl_t *g1, *g2;
+		time_t mintime;
+
+		gettimeofday(&tv, NULL);
+		mintime = tv.tv_sec - maxage;
+
+		ep_thr_mutex_lock(&GclCacheMutex);
+		for (g1 = LIST_FIRST(&GclsByUse); g1 != NULL; g1 = g2)
+		{
+			if (g1->utime > mintime)
+				break;
+			g2 = LIST_NEXT(g1, ulist);
+			if (!EP_UT_BITSET(GCLF_DROPPING, g1->flags))
+			{
+				if (ep_dbg_test(Dbg, 32))
+				{
+					ep_dbg_printf("_gdp_gcl_cache_reclaim: reclaiming:\n   ");
+					_gdp_gcl_dump(g1, ep_dbg_getfile(), GDP_PR_DETAILED, 0);
+				}
+				LIST_REMOVE(g1, ulist);
+				g1->flags |= GCLF_ISLOCKED;
+				_gdp_gcl_freehandle(g1);
+			}
+		}
+		ep_thr_mutex_unlock(&GclCacheMutex);
+
+		// check to see if we have enough headroom
+		int maxfds;
+		int nfds = ep_app_numfds(&maxfds);
+
+		if (nfds < maxfds - headroom)
+			return;
+
+		// try again, shortening timeout
+		maxage -= maxage / 4;
+	}
 }
 
 

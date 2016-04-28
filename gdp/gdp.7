@@ -122,6 +122,21 @@ The units are seconds.
 When the GDP library is initialized several parameters come into play.
 These apply to all programs using the GDP library.
 .Bl -tag
+.It swarm.gdp.cache.fd.headroom
+When aging out the log cache,
+this is the number of file descriptors that must be available
+(i.e., not open)
+after a pass through the cache.
+If fewer file descriptors are available,
+the maximum age of a cache entry is reduced by 25%
+and the cache is swept again.
+For example,
+if the maximum cache age is five minutes (300 seconds),
+but after clearing the cache there are still fewer than
+headroom
+available file descriptors available,
+the cache is swept again with a 3.75 minute (225 seconds) maximum age.
+The default is half the per-process maximum number of open files.
 .It swarm.gdp.catch.sigint
 Arranges to catch the
 .Li SIGINT

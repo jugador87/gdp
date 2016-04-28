@@ -29,17 +29,18 @@
 ***********************************************************************/
 
 #include <ep.h>
+#include <ep/ep_app.h>
 #include <sys/stat.h>
 #include <sys/errno.h>
 
 /*
-**  EP_DUMPFDS --- show all open file descriptors
+**  EP_APP_DUMPFDS --- show all open file descriptors
 **
 **	Right now doesn't show much....
 */
 
 void
-ep_dumpfds(FILE *fp)
+ep_app_dumpfds(FILE *fp)
 {
 	long maxfds = sysconf(_SC_OPEN_MAX);
 	int i;
@@ -65,4 +66,29 @@ ep_dumpfds(FILE *fp)
 	}
 	fprintf(fp, "\n");
 	errno = 0;
+}
+
+
+/*
+**  EP_APP_NUMFDS --- return number of open file descriptors
+*/
+
+int
+ep_app_numfds(int *maxfdsp)
+{
+	int nfds = 0;
+	int maxfds = sysconf(_SC_OPEN_MAX);
+	int fd;
+
+	for (fd = 0; fd < maxfds; fd++)
+	{
+		struct stat sbuf;
+
+		if (fstat(fd, &sbuf) == 0)
+			nfds++;
+	}
+
+	if (maxfdsp != NULL)
+		*maxfdsp = maxfds;
+	return nfds;
 }

@@ -141,7 +141,7 @@ void
 siginfo(int sig, short what, void *arg)
 {
 	_gdp_gcl_cache_dump(stderr);
-	ep_dumpfds(stderr);
+	ep_app_dumpfds(stderr);
 }
 
 

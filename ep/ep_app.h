@@ -46,7 +46,8 @@ extern void EP_TYPE_PRINTFLIKE(1, 2)
 
 extern const char	*ep_app_getprogname(void);
 
-extern void		ep_dumpfds(FILE *fd);
+extern void		ep_app_dumpfds(FILE *fd);
+extern int		ep_app_numfds(int *maxfds);
 
 extern void		ep_app_setflags(uint32_t flags);
 
