@@ -318,7 +318,14 @@ cmd_close(gdp_req_t *req)
 		return gdpd_gcl_error(req->pdu->dst, "cmd_close: GCL not open",
 							estat, GDP_STAT_NAK_BADREQ);
 	}
+
+	// remove any subscriptions
+	_gdp_gcl_unsubscribe(req->gcl, req->pdu->src);
+
+	//return number of records
 	req->pdu->datum->recno = req->gcl->nrecs;
+
+	// drop reference
 	_gdp_gcl_decref(req->gcl);
 	req->gcl = NULL;
 

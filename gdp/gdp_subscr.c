@@ -256,6 +256,42 @@ fail0:
 
 
 /*
+**  Unsubscribe all requests for a given gcl and destination.
+*/
+
+EP_STAT
+_gdp_gcl_unsubscribe(
+		gdp_gcl_t *gcl,
+		gdp_name_t dest)
+{
+	EP_STAT estat;
+	gdp_req_t *req;
+	gdp_req_t *nextreq;
+
+	do
+	{
+		estat = EP_STAT_OK;
+		for (req = LIST_FIRST(&gcl->reqs); req != NULL; req = nextreq)
+		{
+			estat = _gdp_req_lock(req);
+			EP_STAT_CHECK(estat, break);
+			nextreq = LIST_NEXT(req, gcllist);
+			if (!GDP_NAME_SAME(req->pdu->dst, dest))
+			{
+				_gdp_req_unlock(req);
+				continue;
+			}
+
+			// remove subscription for this destination
+			LIST_REMOVE(req, gcllist);
+			_gdp_req_free(req);
+		}
+	} while (!EP_STAT_ISOK(estat));
+	return estat;
+}
+
+
+/*
 **  Create an event and link it into the queue.
 */
 
