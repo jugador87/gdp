@@ -285,6 +285,7 @@ _gdp_gcl_unsubscribe(
 			// remove subscription for this destination
 			LIST_REMOVE(req, gcllist);
 			_gdp_req_free(req);
+			_gdp_gcl_decref(gcl);
 		}
 	} while (!EP_STAT_ISOK(estat));
 	return estat;
