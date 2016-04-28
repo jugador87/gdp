@@ -36,6 +36,7 @@
 #include "gdp_priv.h"
 
 #include <ep/ep_dbg.h>
+#include <ep/ep_log.h>
 #include <ep/ep_prflags.h>
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdp.req", "GDP request processing");
@@ -135,7 +136,9 @@ _gdp_req_new(int cmd,
 		EP_ASSERT(!EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags));
 	}
 
-	_gdp_req_lock(req);
+	// make it active so that _gdp_req_lock doesn't object
+	req->state = GDP_REQ_ACTIVE;
+	(void) _gdp_req_lock(req);
 
 	// initialize request
 	if (pdu == NULL)
@@ -173,7 +176,6 @@ _gdp_req_new(int cmd,
 	}
 
 	// success
-	req->state = GDP_REQ_ACTIVE;
 	*reqp = req;
 	ep_dbg_cprintf(Dbg, 48, "_gdp_req_new(gcl=%p) => %p\n", gcl, req);
 	return estat;
@@ -195,7 +197,11 @@ _gdp_req_free(gdp_req_t *req)
 	ep_dbg_cprintf(Dbg, 48, "_gdp_req_free(%p)  state=%d, gcl=%p\n",
 			req, req->state, req->gcl);
 
-	EP_ASSERT(req->state != GDP_REQ_FREE);
+	if (req->state == GDP_REQ_FREE)
+	{
+		// req was freed after a reference was taken
+		return;
+	}
 
 	// remove the request from the channel subscription list
 	if (EP_UT_BITSET(GDP_REQ_ON_CHAN_LIST, req->flags))
@@ -215,6 +221,9 @@ _gdp_req_free(gdp_req_t *req)
 		ep_thr_mutex_unlock(&req->gcl->mutex);
 	}
 
+	// req should be unreferencable now
+	_gdp_req_unlock(req);
+
 	// free the associated PDU(s)
 	if (req->rpdu != NULL && req->rpdu != req->pdu)
 		_gdp_pdu_free(req->rpdu);
@@ -233,30 +242,43 @@ _gdp_req_free(gdp_req_t *req)
 	ep_thr_mutex_lock(&ReqFreeListMutex);
 	LIST_INSERT_HEAD(&ReqFreeList, req, gcllist);
 	ep_thr_mutex_unlock(&ReqFreeListMutex);
-
-	_gdp_req_unlock(req);
 }
 
 
 /*
 **  _GDP_REQ_FREEALL --- free all requests for a given GCL
+**
+**		If _gdp_req_lock fails, we start over.
 */
 
 void
 _gdp_req_freeall(struct req_head *reqlist, void (*shutdownfunc)(gdp_req_t *))
 {
-	gdp_req_t *req = LIST_FIRST(reqlist);
+	EP_STAT estat;
 
 	ep_dbg_cprintf(Dbg, 49, ">>> _gdp_req_freeall(%p)\n", reqlist);
-	while (req != NULL)
+	do
 	{
-		_gdp_req_lock(req);
-		gdp_req_t *nextreq = LIST_NEXT(req, gcllist);
-		if (shutdownfunc != NULL)
-			(*shutdownfunc)(req);
-		_gdp_req_free(req);
-		req = nextreq;
-	}
+		gdp_req_t *req;
+		gdp_req_t *nextreq;
+
+		estat = EP_STAT_OK;
+		for (req = LIST_FIRST(reqlist); req != NULL; req = nextreq)
+		{
+			estat = _gdp_req_lock(req);
+			if (!EP_STAT_ISOK(estat))
+			{
+				ep_log(estat, "_gdp_req_freeall: couldn't acquire req lock");
+				break;
+			}
+
+			nextreq = LIST_NEXT(req, gcllist);
+			if (shutdownfunc != NULL)
+				(*shutdownfunc)(req);
+			_gdp_req_free(req);
+		}
+	} while (!EP_STAT_ISOK(estat));
+
 	ep_dbg_cprintf(Dbg, 49, "<<< _gdp_req_freeall(%p)\n", reqlist);
 }
 
@@ -265,11 +287,19 @@ _gdp_req_freeall(struct req_head *reqlist, void (*shutdownfunc)(gdp_req_t *))
 **  Lock/unlock a request
 */
 
-void
+EP_STAT
 _gdp_req_lock(gdp_req_t *req)
 {
 	ep_dbg_cprintf(Dbg, 60, "_gdp_req_lock: req @ %p\n", req);
 	ep_thr_mutex_lock(&req->mutex);
+
+	// if this request was being freed, the reference might be dead now
+	if (req->state != GDP_REQ_FREE)
+		return EP_STAT_OK;
+
+	// oops, unlock it and return failure
+	ep_thr_mutex_unlock(&req->mutex);
+	return GDP_STAT_DEAD_REQ;
 }
 
 void
@@ -386,11 +416,6 @@ _gdp_req_unsend(gdp_req_t *req)
 **		more-or-less what gdplogd does now, so this problem only shows
 **		up in clients that may be working with many GCLs at the same
 **		time.  Tomorrow is another day.
-**
-**		XXX Race Condition: if the req is freed between the time
-**		XXX the GCL is unlocked and the req is locked we have a
-**		XXX problem.  But if we keep the GCL locked we have a lock
-**		XXX ordering problem.
 */
 
 gdp_req_t *
@@ -404,18 +429,26 @@ _gdp_req_find(gdp_gcl_t *gcl, gdp_rid_t rid)
 
 	for (;;)
 	{
-		ep_thr_mutex_lock(&gcl->mutex);
-		req = LIST_FIRST(&gcl->reqs);
-		ep_thr_mutex_unlock(&gcl->mutex);
-		while (req != NULL)
+		EP_STAT estat;
+		gdp_req_t *nextreq;
+
+		do
 		{
-			_gdp_req_lock(req);
-			gdp_req_t *req2 = LIST_NEXT(req, gcllist);
-			if (req->pdu->rid == rid)
-				break;
-			_gdp_req_unlock(req);
-			req = req2;
+			estat = EP_STAT_OK;
+			ep_thr_mutex_lock(&gcl->mutex);
+			req = LIST_FIRST(&gcl->reqs);
+			ep_thr_mutex_unlock(&gcl->mutex);
+			for (; req != NULL; req = nextreq)
+			{
+				estat = _gdp_req_lock(req);
+				EP_STAT_CHECK(estat, break);
+				nextreq = LIST_NEXT(req, gcllist);
+				if (req->pdu->rid == rid)
+					break;
+				_gdp_req_unlock(req);
+			}
 		}
+		while (!EP_STAT_ISOK(estat));
 		if (req == NULL)
 			break;				// nothing to find
 

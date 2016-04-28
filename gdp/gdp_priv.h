@@ -310,6 +310,10 @@ EP_STAT			_gdp_gcl_subscribe(			// subscribe to data
 						gdp_chan_t *chan,
 						uint32_t reqflags);
 
+EP_STAT			_gdp_gcl_unsubscribe(		// unsubscribe
+						gdp_gcl_t *gcl,			// the GCL with the subscription
+						gdp_name_t dest);		// the name of the subscriber
+
 EP_STAT			_gdp_gcl_getmetadata(		// retrieve metadata
 						gdp_gcl_t *gcl,
 						gdp_gclmd_t **gmdp,
@@ -461,7 +465,7 @@ EP_STAT			_gdp_req_new(				// create new request
 void			_gdp_req_free(				// free old request
 						gdp_req_t *req);
 
-void			_gdp_req_lock(				// lock a request mutex
+EP_STAT			_gdp_req_lock(				// lock a request mutex
 						gdp_req_t *);
 
 void			_gdp_req_unlock(			// unlock a request mutex

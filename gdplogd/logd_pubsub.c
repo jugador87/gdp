@@ -137,7 +137,7 @@ sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 			ep_thr_mutex_unlock(&pubreq->gcl->mutex);
 
 			// _gdp_req_free assumes the request is locked
-			_gdp_req_lock(req);
+			(void) _gdp_req_lock(req);
 			_gdp_req_free(req);
 		}
 	}
@@ -160,8 +160,7 @@ sub_end_subscription(gdp_req_t *req)
 		LIST_REMOVE(req, gcllist);
 	req->flags &= ~GDP_REQ_ON_GCL_LIST;
 	ep_thr_mutex_unlock(&req->gcl->mutex);
-
-	// _gdp_gcl_decref(req->gcl) will happen in gdpd_req_thread cleanup
+	_gdp_gcl_decref(req->gcl);
 
 	// send an "end of subscription" event
 	req->pdu->cmd = GDP_ACK_DELETED;

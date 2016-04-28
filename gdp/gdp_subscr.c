@@ -120,6 +120,7 @@ subscr_poker_thread(void *chan_)
 	// loop forever poking subscriptions
 	for (;;)
 	{
+		EP_STAT estat;
 		gdp_req_t *req;
 		gdp_req_t *nextreq;
 		EP_TIME_SPEC now;
@@ -136,42 +137,50 @@ subscr_poker_thread(void *chan_)
 		ep_time_from_nsec(-delta_dead SECONDS, &t_dead);
 		ep_time_add_delta(&now, &t_dead);
 
-		for (req = LIST_FIRST(&chan->reqs); req != NULL; req = nextreq)
+		// do loop is in case _gdp_req_lock fails
+		do
 		{
-			_gdp_req_lock(req);
-			nextreq = LIST_NEXT(req, chanlist);
-			if (ep_dbg_test(Dbg, 51))
+			estat = EP_STAT_OK;
+			for (req = LIST_FIRST(&chan->reqs); req != NULL; req = nextreq)
 			{
-				char tbuf[60];
+				estat = _gdp_req_lock(req);
+				EP_STAT_CHECK(estat, break);
 
-				ep_time_format(&now, tbuf, sizeof tbuf, EP_TIME_FMT_HUMAN);
-				ep_dbg_printf("subscr_poker_thread: at %s checking ", tbuf);
-				_gdp_req_dump(req, ep_dbg_getfile(), 0, 0);
-			}
+				nextreq = LIST_NEXT(req, chanlist);
+				if (ep_dbg_test(Dbg, 51))
+				{
+					char tbuf[60];
 
-			if (!EP_UT_BITSET(GDP_REQ_CLT_SUBSCR, req->flags))
-			{
-				// not a subscription: skip this entry
-			}
-			else if (ep_time_before(&t_poke, &req->act_ts))
-			{
-				// we've seen activity recently, no need to poke
-			}
-			else if (ep_time_before(&req->act_ts, &t_dead))
-			{
-				// this subscription is dead
-				//XXX should be impossible: subscription refreshed each time
-				subscr_lost(req);
-			}
-			else
-			{
-				// t_dead < act_ts <= t_poke: refresh this subscription
-				(void) subscr_resub(req);
-			}
+					ep_time_format(&now, tbuf, sizeof tbuf, EP_TIME_FMT_HUMAN);
+					ep_dbg_printf("subscr_poker_thread: at %s checking ", tbuf);
+					_gdp_req_dump(req, ep_dbg_getfile(), 0, 0);
+				}
 
-			// if _gdp_invoke failed, try again at the next poke interval
-			_gdp_req_unlock(req);
+				if (!EP_UT_BITSET(GDP_REQ_CLT_SUBSCR, req->flags))
+				{
+					// not a subscription: skip this entry
+				}
+				else if (ep_time_before(&t_poke, &req->act_ts))
+				{
+					// we've seen activity recently, no need to poke
+				}
+				else if (ep_time_before(&req->act_ts, &t_dead))
+				{
+					// this subscription is dead
+					//XXX should be impossible: subscription refreshed each time
+					subscr_lost(req);
+				}
+				else
+				{
+					// t_dead < act_ts <= t_poke: refresh this subscription
+					(void) subscr_resub(req);
+				}
+
+				// if _gdp_invoke failed, try again at the next poke interval
+				_gdp_req_unlock(req);
+			}
 		}
+		while (!EP_STAT_ISOK(estat));
 	}
 
 	// not reached; keep gcc happy
