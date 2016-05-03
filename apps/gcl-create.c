@@ -76,11 +76,11 @@ select_logd_name(void)
 
 		// default to one of the berkeley servers
 		int r = random() % 3 + 1;
-		int l = sizeof "gdp-00.eecs.berkeley.edu" + 1;
+		int l = sizeof "edu.berkeley.eecs.gdp-00.gdplogd" + 1;
 		char *nbuf;
 
 		nbuf = ep_mem_malloc(l);
-		snprintf(nbuf, l, "gdp-0%d.eecs.berkeley.edu", r);
+		snprintf(nbuf, l, "edu.berkeley.eecs.gdp-0%d.gdplogd", r);
 		p = nbuf;
 	}
 
