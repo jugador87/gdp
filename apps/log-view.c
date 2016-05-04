@@ -468,7 +468,7 @@ show_extent(const char *gcl_dir_name,
 		int plev)
 {
 	gdp_pname_t gcl_pname;
-	int istat;
+	int istat = 0;
 	char extent_str[20];
 
 	(void) gdp_printable_name(gcl_name, gcl_pname);
@@ -566,7 +566,7 @@ show_extent(const char *gcl_dir_name,
 
 	while (fread(&record, sizeof record, 1, data_fp) == 1)
 	{
-		int istat = show_record(&record, data_fp, &file_offset, plev);
+		istat = show_record(&record, data_fp, &file_offset, plev);
 		if (istat != 0)
 			break;
 	}
