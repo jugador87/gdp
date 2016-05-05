@@ -232,7 +232,7 @@ cmd_create(gdp_req_t *req)
 	// (none at this point)
 
 	// release resources
-	gcl->flags |= GCLF_DEFER_FREE;
+	//gcl->flags |= GCLF_DEFER_FREE;
 	_gdp_gcl_decref(gcl);
 	req->gcl = NULL;
 	return estat;
