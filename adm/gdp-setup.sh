@@ -29,7 +29,7 @@ package() {
 		    brew install --build-bottle $@ || brew upgrade $@
 		fi
 	    else
-		if port installed $1 | grep -q "."; then
+		if port -q installed $1 | grep -q "."; then
 		    info "$1 is already installed. skipping."
 		else
 		    sudo port install $1
