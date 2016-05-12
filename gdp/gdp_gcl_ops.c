@@ -419,7 +419,7 @@ _gdp_gcl_close(gdp_gcl_t *gcl,
 			gdp_chan_t *chan,
 			uint32_t reqflags)
 {
-	EP_STAT estat;
+	EP_STAT estat = EP_STAT_OK;
 	gdp_req_t *req;
 	int nrefs;
 
@@ -444,9 +444,8 @@ _gdp_gcl_close(gdp_gcl_t *gcl,
 
 	if (nrefs > 1)
 	{
-		// just decrement the reference count
-		_gdp_gcl_decref(gcl);
-		return EP_STAT_OK;
+		// nothing more to do
+		goto finis;
 	}
 
 	estat = _gdp_req_new(GDP_CMD_CLOSE, gcl, chan, NULL, reqflags, &req);
@@ -457,10 +456,11 @@ _gdp_gcl_close(gdp_gcl_t *gcl,
 
 	//XXX should probably check status (and do what with it?)
 
-	// release resources held by this handle; use _gdp_gcl_freehandle
-	// instead of decref so we clear out subscriptions as well
+	// release resources held by this handle
+	gcl->flags &= ~GCLF_DEFER_FREE;
 	_gdp_req_free(req);
-	_gdp_gcl_freehandle(gcl);
+finis:
+	_gdp_gcl_decref(gcl);
 fail0:
 	return estat;
 }

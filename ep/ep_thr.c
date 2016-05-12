@@ -199,7 +199,11 @@ ep_thr_mutex_trylock(EP_THR_MUTEX *mtx)
 		return 0;
 	CHECKMTX(mtx, "trylock >>>");
 	if ((err = pthread_mutex_trylock(mtx)) != 0)
-		diagnose_thr_err(err, "mutex_trylock");
+	{
+		// not an error if it's a "resource busy" error
+		if (err != EBUSY)
+			diagnose_thr_err(err, "mutex_trylock");
+	}
 	CHECKMTX(mtx, "trylock <<<");
 	return err;
 }

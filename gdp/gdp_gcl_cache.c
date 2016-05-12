@@ -242,7 +242,8 @@ done:
 	else
 	{
 		gcl->flags &= ~GCLF_ISLOCKED;
-		ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_get: %s => %p %d\n",
+		ep_dbg_cprintf(Dbg, 42, "gdp_gcl_cache_get: %s =>\n"
+					"\t%p refcnt %d\n",
 					gcl->pname, gcl, gcl->refcnt);
 	}
 	return gcl;
@@ -270,6 +271,15 @@ _gdp_gcl_cache_drop(gdp_gcl_t *gcl)
 		return;
 	}
 
+	// error if we're dropping something that's referenced from the cache
+	if (gcl->refcnt != 0)
+	{
+		ep_log(GDP_STAT_BAD_REFCNT, "_gdp_gcl_cache_drop: ref count %d != 0",
+				gcl->refcnt);
+		if (ep_dbg_test(Dbg, 1))
+			_gdp_gcl_dump(gcl, ep_dbg_getfile(), GDP_PR_BASIC, 0);
+	}
+
 	// remove it from the associative cache
 	(void) ep_hash_delete(OpenGCLCache, sizeof (gdp_name_t), gcl->name);
 
@@ -287,6 +297,8 @@ _gdp_gcl_cache_drop(gdp_gcl_t *gcl)
 
 /*
 **  _GDP_GCL_TOUCH --- move GCL to the front of the LRU list
+**
+**		GCL must be locked when we enter.
 */
 
 void
@@ -295,6 +307,7 @@ _gdp_gcl_touch(gdp_gcl_t *gcl)
 	struct timeval tv;
 
 	GDP_ASSERT_GOOD_GCL(gcl);
+	GDP_ASSERT_LOCKED(gcl);
 
 	if (!EP_UT_BITSET(GCLF_INCACHE, gcl->flags))
 	{
@@ -416,6 +429,8 @@ _gdp_gcl_cache_shutdown(void (*shutdownfunc)(gdp_req_t *))
 
 /*
 **  _GDP_GCL_INCREF --- increment the reference count on a GCL
+**
+**		Must be called with GCL unlocked.
 */
 
 void
@@ -446,7 +461,7 @@ _gdp_gcl_decref(gdp_gcl_t *gcl)
 	}
 	else
 	{
-		ep_log(EP_STAT_ABORT, "_gdp_gcl_decref: %p: zero refcnt", gcl);
+		ep_log(GDP_STAT_BAD_REFCNT, "_gdp_gcl_decref: %p: zero refcnt", gcl);
 	}
 
 	ep_dbg_cprintf(Dbg, 44, "_gdp_gcl_decref(%p): %d\n",

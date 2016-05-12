@@ -35,6 +35,10 @@
 #ifndef _GDP_PRIV_H_
 #define _GDP_PRIV_H_
 
+#ifndef GDP_EXTENDED_LOCKING_CHECK
+#define GDP_EXTENDED_LOCKING_CHECK		1
+#endif
+
 #include <ep/ep_crypto.h>
 #include <ep/ep_thr.h>
 
@@ -183,9 +187,16 @@ struct gdp_gcl
 #define GCLF_INUSE			0x0008		// handle is allocated
 #define GCLF_DEFER_FREE		0x0010		// defer actual free until reclaim
 
-#define GDP_ASSERT_GOOD_GCL(gcl) \
-				(EP_ASSERT_REQUIRE((gcl) != NULL && \
+#define GDP_ASSERT_GOOD_GCL(gcl)	\
+				(EP_ASSERT_REQUIRE((gcl) != NULL &&	\
 				EP_UT_BITSET(GCLF_INUSE, (gcl)->flags)))
+#if GDP_EXTENDED_LOCKING_CHECK
+#define GDP_ASSERT_LOCKED(x)											\
+				(EP_ASSERT_REQUIRE((x) != NULL &&						\
+					ep_thr_mutex_trylock(&(x)->mutex) != 0))
+#else
+#define GDP_ASSERT_LOCKED(x)
+#endif
 
 /*
 **  GCL cache.

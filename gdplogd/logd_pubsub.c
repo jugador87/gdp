@@ -161,6 +161,7 @@ sub_end_subscription(gdp_req_t *req)
 	req->flags &= ~GDP_REQ_ON_GCL_LIST;
 	ep_thr_mutex_unlock(&req->gcl->mutex);
 	_gdp_gcl_decref(req->gcl);
+	req->gcl = NULL;
 
 	// send an "end of subscription" event
 	req->pdu->cmd = GDP_ACK_DELETED;

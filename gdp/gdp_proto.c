@@ -721,6 +721,10 @@ _gdp_req_dispatch(gdp_req_t *req)
 	{
 		ep_dbg_printf("_gdp_req_dispatch >>> %s (%d)",
 				_gdp_proto_cmd_name(cmd), cmd);
+		if (req->gcl != NULL)
+		{
+			ep_dbg_printf(" [gcl->refcnt %d]", req->gcl->refcnt);
+		}
 		if (ep_dbg_test(Dbg, 30))
 		{
 			ep_dbg_printf(", ");
@@ -742,9 +746,11 @@ _gdp_req_dispatch(gdp_req_t *req)
 	{
 		char ebuf[200];
 
-		ep_dbg_printf("_gdp_req_dispatch <<< %s\n    %s\n",
-				_gdp_proto_cmd_name(cmd),
-				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+		ep_dbg_printf("_gdp_req_dispatch <<< %s",
+				_gdp_proto_cmd_name(cmd));
+		if (req->gcl != NULL)
+			ep_dbg_printf(" [gcl->refcnt %d]", req->gcl->refcnt);
+		ep_dbg_printf("\n    %s\n", ep_stat_tostr(estat, ebuf, sizeof ebuf));
 		if (ep_dbg_test(Dbg, 70))
 		{
 			ep_dbg_printf("    ");

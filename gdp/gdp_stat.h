@@ -77,6 +77,7 @@ extern void		_gdp_stat_init(void);
 #define GDP_STAT_PHYSIO_ERROR			GDP_STAT_NEW(ERROR, 29)
 #define GDP_STAT_RECORD_EXPIRED			GDP_STAT_NEW(WARN, 30)
 #define GDP_STAT_DEAD_REQ				GDP_STAT_NEW(ERROR, 31)
+#define GDP_STAT_BAD_REFCNT				GDP_STAT_NEW(ABORT, 32)
 
 
 /*
