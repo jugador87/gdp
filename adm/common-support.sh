@@ -21,7 +21,7 @@ info() {
 }
 
 warn() {
-	echo "${Yel}${On_Bla}[\*] $1${Reset}"
+	echo "${Yel}${On_Bla}[*] $1${Reset}"
 }
 
 fatal() {

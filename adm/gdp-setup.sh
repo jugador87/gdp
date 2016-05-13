@@ -1,8 +1,17 @@
 #!/bin/sh
 
-cd `dirname $0`
+#
+#  Set up GDP environment for compilation
+#
+#	This is overkill if you're not compiling.
+#
+
+cd `dirname $0`/..
 root=`pwd`
-. $root/common-support.sh
+. $root/adm/common-support.sh
+
+info "Setting up packages for GDP compilation."
+info "This is overkill if you are only installing binaries."
 
 package() {
     info "Checking package $1..."
@@ -58,6 +67,7 @@ package() {
 }
 
 platform OS
+info "Installing packages needed by GDP for $OS"
 case "$OS" in
     "ubuntu" | "debian")
 	if ! ls /etc/apt/sources.list.d/mosquitto* > /dev/null 2>&1
