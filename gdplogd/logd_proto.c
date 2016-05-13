@@ -149,7 +149,7 @@ cmd_ping(gdp_req_t *req)
 	estat =  GDP_STAT_NAK_NOTFOUND;
 
 done:
-	_gdp_gcl_decref(gcl);
+	_gdp_gcl_decref(&gcl);
 	return estat;
 }
 
@@ -233,8 +233,7 @@ cmd_create(gdp_req_t *req)
 
 	// release resources
 	gcl->flags |= GCLF_DEFER_FREE;
-	_gdp_gcl_decref(gcl);
-	req->gcl = NULL;
+	_gdp_gcl_decref(&req->gcl);
 	return estat;
 
 fail1:
@@ -284,8 +283,7 @@ cmd_open(gdp_req_t *req)
 
 	req->pdu->datum->recno = gcl->nrecs;
 
-	_gdp_gcl_decref(gcl);
-	req->gcl = NULL;
+	_gdp_gcl_decref(&req->gcl);
 	return estat;
 }
 
@@ -326,8 +324,7 @@ cmd_close(gdp_req_t *req)
 	req->pdu->datum->recno = req->gcl->nrecs;
 
 	// drop reference
-	_gdp_gcl_decref(req->gcl);
-	req->gcl = NULL;
+	_gdp_gcl_decref(&req->gcl);
 
 	return estat;
 }
@@ -375,8 +372,7 @@ cmd_read(gdp_req_t *req)
 	if (EP_STAT_IS_SAME(estat, GDP_STAT_RECORD_EXPIRED))
 		estat = GDP_STAT_NAK_GONE;
 
-	_gdp_gcl_decref(req->gcl);
-	req->gcl = NULL;
+	_gdp_gcl_decref(&req->gcl);
 	return estat;
 }
 
@@ -584,8 +580,7 @@ fail1:
 			evbuffer_get_length(req->pdu->datum->dbuf));
 
 	// we're no longer using this handle
-	_gdp_gcl_decref(req->gcl);
-	req->gcl = NULL;
+	_gdp_gcl_decref(&req->gcl);
 
 	return estat;
 }
@@ -774,8 +769,7 @@ cmd_subscribe(gdp_req_t *req)
 			r1->numrecs = req->numrecs;
 
 			// abandon new request
-			_gdp_gcl_decref(req->gcl);
-			req->gcl = NULL;
+			_gdp_gcl_decref(&req->gcl);
 			req = r1;
 		}
 	}
@@ -944,8 +938,7 @@ cmd_getmetadata(gdp_req_t *req)
 	_gdp_gclmd_serialize(gmd, req->pdu->datum->dbuf);
 
 fail0:
-	_gdp_gcl_decref(req->gcl);
-	req->gcl = NULL;
+	_gdp_gcl_decref(&req->gcl);
 	return estat;
 }
 

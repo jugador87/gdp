@@ -237,7 +237,7 @@ void			_gdp_gcl_incref(			// increase reference count
 						gdp_gcl_t *gcl);
 
 void			_gdp_gcl_decref(			// decrease reference count
-						gdp_gcl_t *gcl);
+						gdp_gcl_t **gcl);
 
 /*
 **  Other GCL handling.  These are shared between client access

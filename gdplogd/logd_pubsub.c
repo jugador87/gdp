@@ -160,8 +160,7 @@ sub_end_subscription(gdp_req_t *req)
 		LIST_REMOVE(req, gcllist);
 	req->flags &= ~GDP_REQ_ON_GCL_LIST;
 	ep_thr_mutex_unlock(&req->gcl->mutex);
-	_gdp_gcl_decref(req->gcl);
-	req->gcl = NULL;
+	_gdp_gcl_decref(&req->gcl);
 
 	// send an "end of subscription" event
 	req->pdu->cmd = GDP_ACK_DELETED;

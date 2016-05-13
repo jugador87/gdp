@@ -190,7 +190,7 @@ _gdp_gcl_cache_changename(gdp_gcl_t *gcl, gdp_name_t newname)
 **
 **		If found, the refcnt is bumped for the returned GCL,
 **		i.e., the caller is responsible for calling
-**		_gdp_gcl_decref(gcl) when it is finished with it.
+**		_gdp_gcl_decref(&gcl) when it is finished with it.
 */
 
 gdp_gcl_t *
@@ -450,14 +450,16 @@ _gdp_gcl_incref(gdp_gcl_t *gcl)
 */
 
 void
-_gdp_gcl_decref(gdp_gcl_t *gcl)
+_gdp_gcl_decref(gdp_gcl_t **gclp)
 {
+	gdp_gcl_t *gcl = *gclp;
 	ep_dbg_cprintf(Dbg, 70, "_gdp_gcl_decref(%p)...\n", gcl);
 	GDP_ASSERT_GOOD_GCL(gcl);
 	ep_thr_mutex_lock(&gcl->mutex);
 	if (gcl->refcnt > 0)
 	{
 		gcl->refcnt--;
+		*gclp = NULL;
 	}
 	else
 	{

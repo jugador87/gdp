@@ -233,8 +233,7 @@ _gdp_req_free(gdp_req_t *req)
 
 	// dereference the gcl
 	if (req->gcl != NULL)
-		_gdp_gcl_decref(req->gcl);
-	req->gcl = NULL;
+		_gdp_gcl_decref(&req->gcl);
 
 	req->state = GDP_REQ_FREE;
 

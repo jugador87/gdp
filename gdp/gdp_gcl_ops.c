@@ -460,7 +460,7 @@ _gdp_gcl_close(gdp_gcl_t *gcl,
 	gcl->flags &= ~GCLF_DEFER_FREE;
 	_gdp_req_free(req);
 finis:
-	_gdp_gcl_decref(gcl);
+	_gdp_gcl_decref(&gcl);
 fail0:
 	return estat;
 }
