@@ -86,9 +86,10 @@ ${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 clean:
 	-rm -f ${ALL} *.o *.core
 
-install:	${BINDIR} ${SBINDIR} ${ALL}
+install:	${BINDIR} ${SBINDIR} ${ALL} FORCE
 	test -z "${BINALL}"  || ${INSTALL} ${BINALL}  ${BINDIR}
 	test -z "${SBINALL}" || ${INSTALL} ${SBINALL} ${SBINDIR}
+	INSTALLROOT=${INSTALLROOT} sh install-startup-scripts.sh
 
 ${BINDIR} ${SBINDIR}:
 	${MKDIR} $@
@@ -98,3 +99,5 @@ UPDATE_LICENSE=	${ADM}/update-license.sh
 
 update-license:
 	${UPDATE_LICENSE} Makefile *.[ch]
+
+FORCE:

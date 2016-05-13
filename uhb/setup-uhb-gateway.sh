@@ -184,30 +184,3 @@ enable	gateway-server
 skip	gateway-ssdp
 skip	gateway-watchdog-email
 skip	ieee802154-monjolo-gateway
-
-
-# Should this be up above, so it works on all platforms?
-# Or should it just install packages rather than download and compile?
-echo ""
-info "##### Fetching GDP from repo"
-info ">>> Please enter your user name and password"
-info ">>> for the Berkeley EECS source repository when prompted"
-cd $root
-if ! git clone $gitdepth https://$gdprepo/git/$gdpreporoot/gdp.git
-then
-	fatal "Cannot clone GDP repo ${gdprepo}:$gdpreporoot/gdp.git"
-fi
-cd gdp
-
-echo ""
-info "##### Installing GDP prerequisites"
-sh adm/gdp-setup.sh
-# lighttpd uses port 80, as does gateway-server
-sudo servicectl disable lighttpd
-
-info "##### Compiling GDP"
-make || fatal "Cannot build gdp"
-sudo make install || fatal "Cannot install gdp"
-cd uhb
-make || fatal "Cannot build urban heartbeat kit support"
-sudo make install || fatal "Cannot install urban heartbeat kit support"

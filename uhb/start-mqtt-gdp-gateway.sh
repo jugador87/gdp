@@ -2,7 +2,7 @@
 
 cd `dirname $0`/..
 root=`pwd`
-. $root/adm/common-support.sh
+. adm/common-support.sh
 
 if [ $# != 2 ]
 then
