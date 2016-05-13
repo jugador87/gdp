@@ -4,35 +4,16 @@ cd `dirname $0`/..
 root=`pwd`
 . $root/adm/common-support.sh
 
-# set defaults
-groot="edu.berkeley.eecs.swarmlab.device"
-mqtt_host="uhkbbb001.eecs.berkeley.edu"
-
-args=`getopt M:r: $*`
-if [ $? != 0 ]
+if [ $# != 2 ]
 then
-	fatal "Usage: $0 [ -M mqtt-broker ] [ -r logname-root ]"
+	fatal "Usage: $0 mqtt-broker logname-root"
 fi
 
-set -- $args
-for i
-do
-	case "$i"
-	in
-		-M)
-			mqtt_host="$2"
-			shift; shift;;
+mqtt_host=$1
+groot=$2
 
-		-r)
-			groot="$2"
-			shift; shift;;
-		--)
-			shift; break;;
-	esac
-done
-
-info "Using log names $groot/*"
 info "Using MQTT server at $mqtt_host"
+info "Using log names $groot.*"
 
 args="-s -M $mqtt_host -d"
 gw_prog="uhb/mqtt-gdp-gateway"
@@ -53,4 +34,4 @@ do
 done
 
 info "running $gw_prog $args"
-$gw_prog $args
+exec sudo -u gdp $gw_prog $args
