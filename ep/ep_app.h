@@ -34,6 +34,8 @@
 # include <stdlib.h>
 
 extern void EP_TYPE_PRINTFLIKE(1, 2)
+			ep_app_info(const char *fmt, ...);
+extern void EP_TYPE_PRINTFLIKE(1, 2)
 			ep_app_warn(const char *fmt, ...);
 extern void EP_TYPE_PRINTFLIKE(1, 2)
 			ep_app_error(const char *fmt, ...);
@@ -55,5 +57,6 @@ extern void		ep_app_setflags(uint32_t flags);
 #define EP_APP_FLAG_LOGFATALS		0x00000002	// log ep_app_fatal
 #define EP_APP_FLAG_LOGERRORS		0x00000004	// log ep_app_error
 #define EP_APP_FLAG_LOGWARNINGS		0x00000008	// log ep_app_warn
+#define EP_APP_FLAG_LOGINFOS		0x00000010	// log ep_app_info
 
 #endif //_EP_APP_H_

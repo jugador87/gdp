@@ -93,6 +93,36 @@ printmessage(const char *tag, const char *fmt, va_list av)
 
 ////////////////////////////////////////////////////////////////////////
 //
+//  EP_APP_INFO -- print an informational message
+//
+//	Parameters:
+//		fmt -- format for a message
+//		... -- arguments
+//
+
+void
+ep_app_info(
+	const char *fmt,
+	...)
+{
+	va_list av;
+
+	errno = 0;
+	va_start(av, fmt);
+	printmessage("INFO", fmt, av);
+	va_end(av);
+
+	if (EP_UT_BITSET(EP_APP_FLAG_LOGINFOS, OperationFlags))
+	{
+		va_start(av, fmt);
+		ep_logv(EP_STAT_OK, fmt, av);
+		va_end(av);
+	}
+}
+
+
+////////////////////////////////////////////////////////////////////////
+//
 //  EP_APP_WARN -- print a warning message
 //
 //	Parameters:
