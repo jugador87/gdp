@@ -61,7 +61,7 @@ logd_sock_close_cb(gdp_chan_t *chan)
 	while (req != NULL)
 	{
 		gdp_req_t *req2 = LIST_NEXT(req, chanlist);
-		_gdp_req_free(req);
+		_gdp_req_free(&req);
 		req = req2;
 	}
 }

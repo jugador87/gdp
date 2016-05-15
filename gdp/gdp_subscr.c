@@ -213,8 +213,9 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 
 	EP_ASSERT_POINTER_VALID(gcl);
 
-	estat = _gdp_req_new(cmd, gcl, chan, NULL,
-			reqflags | GDP_REQ_PERSIST | GDP_REQ_CLT_SUBSCR, &req);
+	// certain flags are required
+	reqflags |= GDP_REQ_PERSIST | GDP_REQ_CLT_SUBSCR | GDP_REQ_ALLOC_RID;
+	estat = _gdp_req_new(cmd, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
 	// arrange for responses to appear as events or callbacks
@@ -231,7 +232,7 @@ _gdp_gcl_subscribe(gdp_gcl_t *gcl,
 
 	if (!EP_STAT_ISOK(estat))
 	{
-		_gdp_req_free(req);
+		_gdp_req_free(&req);
 	}
 	else
 	{
@@ -294,7 +295,7 @@ _gdp_gcl_unsubscribe(
 			// remove subscription for this destination
 			EP_ASSERT_INVARIANT(req->gcl == gcl);
 			LIST_REMOVE(req, gcllist);
-			_gdp_req_free(req);
+			_gdp_req_free(&req);
 		}
 	} while (!EP_STAT_ISOK(estat));
 	return estat;

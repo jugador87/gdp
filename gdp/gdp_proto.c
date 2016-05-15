@@ -789,7 +789,7 @@ _gdp_advertise(EP_STAT (*func)(gdp_buf_t *, void *, int), void *ctx, int cmd)
 	estat = _gdp_req_send(req);
 
 	// there is no reply
-	_gdp_req_free(req);
+	_gdp_req_free(&req);
 
 fail0:
 	if (ep_dbg_test(Dbg, 10))

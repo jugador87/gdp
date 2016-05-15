@@ -138,7 +138,7 @@ sub_notify_all_subscribers(gdp_req_t *pubreq, int cmd)
 
 			// _gdp_req_free assumes the request is locked
 			(void) _gdp_req_lock(req);
-			_gdp_req_free(req);
+			_gdp_req_free(&req);
 		}
 	}
 }

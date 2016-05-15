@@ -237,7 +237,7 @@ void			_gdp_gcl_incref(			// increase reference count
 						gdp_gcl_t *gcl);
 
 void			_gdp_gcl_decref(			// decrease reference count
-						gdp_gcl_t **gcl);
+						gdp_gcl_t **gclp);
 
 /*
 **  Other GCL handling.  These are shared between client access
@@ -474,7 +474,7 @@ EP_STAT			_gdp_req_new(				// create new request
 						gdp_req_t **reqp);
 
 void			_gdp_req_free(				// free old request
-						gdp_req_t *req);
+						gdp_req_t **reqp);
 
 EP_STAT			_gdp_req_lock(				// lock a request mutex
 						gdp_req_t *);

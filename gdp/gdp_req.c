@@ -177,7 +177,8 @@ _gdp_req_new(int cmd,
 
 	// success
 	*reqp = req;
-	ep_dbg_cprintf(Dbg, 48, "_gdp_req_new(gcl=%p) => %p\n", gcl, req);
+	ep_dbg_cprintf(Dbg, 48, "_gdp_req_new(gcl=%p, cmd=%s) => %p (rid=%d)\n",
+			gcl, _gdp_proto_cmd_name(cmd), req, req->pdu->rid);
 	return estat;
 }
 
@@ -192,8 +193,13 @@ _gdp_req_new(int cmd,
 */
 
 void
-_gdp_req_free(gdp_req_t *req)
+_gdp_req_free(gdp_req_t **reqp)
 {
+	gdp_req_t *req = *reqp;
+
+	if (req == NULL)
+		return;
+
 	ep_dbg_cprintf(Dbg, 48, "_gdp_req_free(%p)  state=%d, gcl=%p\n",
 			req, req->state, req->gcl);
 
@@ -241,6 +247,9 @@ _gdp_req_free(gdp_req_t *req)
 	ep_thr_mutex_lock(&ReqFreeListMutex);
 	LIST_INSERT_HEAD(&ReqFreeList, req, gcllist);
 	ep_thr_mutex_unlock(&ReqFreeListMutex);
+
+	// make sure the pointer is invalid
+	*reqp = NULL;
 }
 
 
@@ -274,7 +283,7 @@ _gdp_req_freeall(struct req_head *reqlist, void (*shutdownfunc)(gdp_req_t *))
 			nextreq = LIST_NEXT(req, gcllist);
 			if (shutdownfunc != NULL)
 				(*shutdownfunc)(req);
-			_gdp_req_free(req);
+			_gdp_req_free(&req);
 		}
 	} while (!EP_STAT_ISOK(estat));
 

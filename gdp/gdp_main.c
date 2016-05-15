@@ -203,7 +203,7 @@ gdp_pdu_proc_cmd(void *pdu_)
 	if (EP_UT_BITSET(GDP_REQ_CORE, req->flags) &&
 		!EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
 	{
-		_gdp_req_free(req);
+		_gdp_req_free(&req);
 	}
 	else
 	{
@@ -325,7 +325,7 @@ gdp_pdu_proc_resp(void *pdu_)
 	if (EP_UT_BITSET(GDP_REQ_CORE, req->flags) &&
 		!EP_UT_BITSET(GDP_REQ_PERSIST, req->flags))
 	{
-		_gdp_req_free(req);
+		_gdp_req_free(&req);
 	}
 	else
 	{

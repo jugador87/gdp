@@ -248,7 +248,7 @@ _gdp_gcl_create(gdp_name_t gclname,
 	_gdp_gcl_cache_changename(gcl, gclname);
 
 	// free resources and return results
-	_gdp_req_free(req);
+	_gdp_req_free(&req);
 	*pgcl = gcl;
 	return estat;
 
@@ -258,7 +258,7 @@ fail0:
 	if (req != NULL)
 	{
 		req->gcl = NULL;
-		_gdp_req_free(req);
+		_gdp_req_free(&req);
 	}
 
 	{
@@ -382,7 +382,7 @@ fail1:
 
 fail0:
 	if (req != NULL)
-		_gdp_req_free(req);
+		_gdp_req_free(&req);
 
 	// log failure
 	if (EP_STAT_ISOK(estat))
@@ -458,7 +458,7 @@ _gdp_gcl_close(gdp_gcl_t *gcl,
 
 	// release resources held by this handle
 	gcl->flags &= ~GCLF_DEFER_FREE;
-	_gdp_req_free(req);
+	_gdp_req_free(&req);
 finis:
 	_gdp_gcl_decref(&gcl);
 fail0:
@@ -534,7 +534,7 @@ _gdp_gcl_append(gdp_gcl_t *gcl,
 		gcl->nrecs++;
 
 	req->pdu->datum = NULL;			// owned by caller
-	_gdp_req_free(req);
+	_gdp_req_free(&req);
 fail0:
 	return estat;
 }
@@ -584,7 +584,7 @@ _gdp_gcl_append_async(
 	req->pdu->datum = NULL;			// owned by caller
 	if (!EP_STAT_ISOK(estat))
 	{
-		_gdp_req_free(req);
+		_gdp_req_free(&req);
 	}
 	else
 	{
@@ -643,7 +643,7 @@ _gdp_gcl_read(gdp_gcl_t *gcl,
 
 	// ok, done!
 	req->pdu->datum = NULL;			// owned by caller
-	_gdp_req_free(req);
+	_gdp_req_free(&req);
 fail0:
 	return estat;
 }
@@ -674,7 +674,7 @@ _gdp_gcl_getmetadata(gdp_gcl_t *gcl,
 	*gmdp = _gdp_gclmd_deserialize(req->pdu->datum->dbuf);
 
 fail1:
-	_gdp_req_free(req);
+	_gdp_req_free(&req);
 
 fail0:
 	return estat;
@@ -699,7 +699,7 @@ _gdp_gcl_newextent(gdp_gcl_t *gcl,
 
 	estat = _gdp_invoke(req);
 
-	_gdp_req_free(req);
+	_gdp_req_free(&req);
 
 fail0:
 	return estat;
