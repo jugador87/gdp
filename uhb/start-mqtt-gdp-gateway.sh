@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# if we are running as root, start over as gdp
+test `whoami` != "root" || exec sudo -u gdp $0 "$@"
+
 cd `dirname $0`/..
 root=`pwd`
 . adm/common-support.sh
@@ -12,21 +15,23 @@ fi
 mqtt_host=$1
 groot=$2
 
+info "Running $0 in $root"
 info "Using MQTT server at $mqtt_host"
 info "Using log names $groot.*"
 
 args="-s -M $mqtt_host -d"
-gw_prog="uhb/mqtt-gdp-gateway"
+gw_prog="mqtt-gdp-gateway"
 devices=`mosquitto_sub -h $mqtt_host -C 1 -t gateway-topics | \
 	sed -e 's/^..//' -e 's/..$//' -e 's/", *"/ /g' -e 's/device\/[a-zA-Z]*\///g'`
 if [ -z "$devices" ]
 then
-	fatal "Cannot locate any devices to log"
+	fatal "Cannot locate any devices to log from $mqtt_host"
 fi
 info "Devices: $devices"
 for i in $devices
 do
-	if apps/gcl-create -q -e none $groot.$i
+	info "Running gcl-create -q -e none $groot.$i"
+	if gcl-create -q -e none $groot.$i
 	then
 		info "Created log $groot.$i"
 	fi
@@ -34,4 +39,4 @@ do
 done
 
 info "running $gw_prog $args"
-exec sudo -u gdp $gw_prog $args
+exec $gw_prog $args

@@ -64,11 +64,14 @@ sudo initctl check-config --system mqtt-gdp-gateways
 if [ ! -e /etc/default/mqtt-gdp-gateway ]
 then
 	sudo dd of=/etc/default/mqtt-gdp-gateway << EOF
-	# list of MQTT servers to monitor
-	echo MQTT_SERVERS="localhost"
+	# list of MQTT servers to monitor (use # to comment out lines)
+	MQTT_SERVERS=`sed 's/#.*//' << 'EOF'
+		localhost
+EOF
+`
 
 	# root of GDP log name; the device name will be appended
-	echo MQTT_LOG_ROOT="edu.berkeley.eecs.swarmlab.device"
+	MQTT_LOG_ROOT="edu.berkeley.eecs.swarmlab.device"
 EOF
 	warn "Edit /etc/default/mqtt-gdp-gateway to define"
 	warn "   MQTT_SERVERS and MQTT_LOG_ROOT"
