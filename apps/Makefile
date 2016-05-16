@@ -40,7 +40,26 @@ SBINALL=	gdp-rest \
 		gdp-newextent \
 		gdp-zcpublish \
 
-ALL=		${BINALL} ${SBINALL}
+MAN1ALL=	gdp-reader.1 \
+		gdp-writer.1 \
+		log-mirror.1 \
+
+MAN3ALL=
+
+MAN5ALL=
+
+MAN7ALL=
+
+MAN8ALL=	gcl-create.8 \
+
+MANALL=		${MAN1ALL} ${MAN3ALL} ${MAN5ALL} ${MAN7ALL} ${MAN8ALL}
+
+# files that should be removed on "make clean"
+CLEANALL=	${BINALL} ${SBINALL}
+# files that should be made public
+PUBALL=		${SCRIPTS} ${MANALL}
+# "make all" targets (may be overlaps)
+ALL=		${CLEANALL} ${PUBALL}
 
 DESTDIR=
 LOCALROOT=	/usr
@@ -48,6 +67,7 @@ INSTALLROOT=	${DESTDIR}${LOCALROOT}
 CRYPTOROOT=	/opt/local
 BINDIR=		${INSTALLROOT}/bin
 SBINDIR=	${INSTALLROOT}/sbin
+MANDIR=		${INSTALLROOT}/share/man
 INSTALL=	install
 
 LOCAL1=		/usr/local
@@ -117,14 +137,19 @@ gdp-zcpublish:	gdp-zcpublish.o
 gdp-zcbrowse:	gdp-zcbrowse.o
 	$(CC) -o $@ gdp-zcbrowse.o $(LDFLAGS)
 
-${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
+${CLEANALL}:	${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 
 clean:
-	-rm -f ${ALL} *.o *.core
+	-rm -f ${CLEANALL} *.o *.core
 
-install:	${BINDIR} ${SBINDIR} ${ALL}
+install:	${BINDIR} ${SBINDIR} ${MANDIR} ${PUBALL} ${MANALL} FORCE
 	test -z "${BINALL}"  || ${INSTALL} ${BINALL}  ${BINDIR}
 	test -z "${SBINALL}" || ${INSTALL} ${SBINALL} ${SBINDIR}
+	test -z "${MAN1ALL}" || ${INSTALL} ${MAN1ALL} ${MANDIR}/man1
+	test -z "${MAN3ALL}" || ${INSTALL} ${MAN3ALL} ${MANDIR}/man3
+	test -z "${MAN5ALL}" || ${INSTALL} ${MAN5ALL} ${MANDIR}/man5
+	test -z "${MAN7ALL}" || ${INSTALL} ${MAN7ALL} ${MANDIR}/man7
+	test -z "${MAN8ALL}" || ${INSTALL} ${MAN8ALL} ${MANDIR}/man8
 
 ${BINDIR} ${SBINDIR}:
 	${MKDIR} $@
@@ -134,3 +159,5 @@ UPDATE_LICENSE=	${ADM}/update-license.sh
 
 update-license:
 	${UPDATE_LICENSE} Makefile *.[ch]
+
+FORCE:

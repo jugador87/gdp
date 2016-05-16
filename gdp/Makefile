@@ -32,7 +32,23 @@ CRYPTOROOT=	/opt/local
 INSTALLROOT=	${DESTDIR}${LOCALROOT}
 INCDIR=		${INSTALLROOT}/include
 LIBDIR=		${INSTALLROOT}/lib
-INSTALL=	install
+BINDIR=		${INSTALLROOT}/bin
+SBINDIR=	${INSTALLROOT}/sbin
+MANDIR=		${INSTALLROOT}/share/man
+
+BINALL=
+
+SBINALL=
+
+MAN1ALL=
+
+MAN3ALL=
+
+MAN5ALL=
+
+MAN7ALL=	gdp.7 \
+
+MANALL=		${MAN1ALL} ${MAN3ALL} ${MAN5ALL} ${MAN7ALL} ${MAN8ALL}
 
 OBJS_MOST=	\
 	gdp_api.o \
@@ -79,7 +95,12 @@ GDPLIBMINVER=	2
 GDPLIBVER=	${GDPLIBMAJVER}.${GDPLIBMINVER}
 INCALL=		${PUBHFILES}
 LIBALL=		libgdp.a libgdp.so.${GDPLIBVER}
-ALL=		${INCALL} ${LIBALL}
+# files that should be removed on "make clean"
+CLEANALL=	${LIBALL} ${BINALL} ${SBINALL}
+# files that should be publicly installed
+PUBALL=		${SCRIPTS} ${MANALL} ${INCALL}
+# "make all" targets (may be overlap)
+ALL=		${CLEANALL} ${PUBALL}
 
 LOCAL1=		/usr/local
 LOCAL2=		/opt/local
@@ -115,6 +136,7 @@ MKDIR=		mkdir -p
 RANLIB=		ranlib
 SHARED=		-shared ${CRYPTOLFLAGS}
 #SHARED=		-shared ${CRYPTOLFLAGS} -Wl,-soname,$@
+INSTALL=	install
 
 all: ${ALL}
 
@@ -131,10 +153,16 @@ gdp_version.o: gdp_version.c ${OBJS_MOST} Makefile
 	${CC} ${CFLAGS} -D_CURRENT_DATE_=\"`date +'%Y-%m-%d_%H:%M'`\" -c gdp_version.c
 
 clean:
-	-rm -f ${LIBALL} *.o *.core
+	-rm -f ${CLEANALL} *.o *.core
 
-install:	${INCDIR}/gdp ${LIBDIR} ${ALL}
-	${CP} ${INCALL} ${INCDIR}/gdp
+install:	${BINDIR} ${SBINDIR} ${MANDIR} ${INCDIR}/gdp ${LIBDIR} ${PUBALL}
+	test -z "${BINALL}"  || ${INSTALL} ${BINALL}  ${BINDIR}
+	test -z "${SBINALL}" || ${INSTALL} ${SBINALL} ${SBINDIR}
+	test -z "${MAN1ALL}" || ${INSTALL} ${MAN1ALL} ${MANDIR}/man1
+	test -z "${MAN3ALL}" || ${INSTALL} ${MAN3ALL} ${MANDIR}/man3
+	test -z "${MAN7ALL}" || ${INSTALL} ${MAN7ALL} ${MANDIR}/man7
+	test -z "${MAN8ALL}" || ${INSTALL} ${MAN8ALL} ${MANDIR}/man8
+	${INSTALL} ${INCALL} ${INCDIR}/gdp
 	${INSTALL} ${LIBALL} ${LIBDIR}
 	(cd ${LIBDIR}; rm -f libgdp.so.${GDPLIBMAJVER}; ln -s libgdp.so.${GDPLIBVER} libgdp.so.${GDPLIBMAJVER})
 	(cd ${LIBDIR}; rm -f libgdp.so; ln -s libgdp.so.${GDPLIBMAJVER} libgdp.so)

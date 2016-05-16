@@ -30,7 +30,27 @@ BINALL=		mqtt-gdp-gateway \
 
 SBINALL=	
 
-ALL=		${BINALL} ${SBINALL}
+SCRIPTS=	start-mqtt-gdp-gateway.sh \
+		../adm/common-support.sh \
+
+MAN1ALL=	mqtt-gdp-gateway.1 \
+
+MAN3ALL=
+
+MAN5ALL=
+
+MAN7ALL=
+
+MAN8ALL=
+
+MANALL=		${MAN1ALL} ${MAN3ALL} ${MAN5ALL} ${MAN7ALL} ${MAN8ALL}
+
+# files that should be removed on "make clean"
+CLEANALL=	${BINALL} ${SBINALL}
+# files that should be made public
+PUBALL=		${SCRIPTS} ${MANALL}
+# "make all" targets (may be overlaps)
+ALL=		${CLEANALL} ${PUBALL}
 
 DESTDIR=
 LOCALROOT=	/usr
@@ -38,6 +58,8 @@ INSTALLROOT=	${DESTDIR}${LOCALROOT}
 CRYPTOROOT=	/opt/local
 BINDIR=		${INSTALLROOT}/bin
 SBINDIR=	${INSTALLROOT}/sbin
+MANDIR=		${INSTALLROOT}/share/man
+GDPROOT=	${INSTALLROOT}/gdp
 INSTALL=	install
 
 LOCAL1=		/usr/local
@@ -86,12 +108,19 @@ ${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 clean:
 	-rm -f ${ALL} *.o *.core
 
-install:	${BINDIR} ${SBINDIR} ${ALL} FORCE
+install:	${BINDIR} ${SBINDIR} ${GDPROOT}/adm ${ALL} \
+		${SCRIPTS} ${MANALL} FORCE
 	test -z "${BINALL}"  || ${INSTALL} ${BINALL}  ${BINDIR}
 	test -z "${SBINALL}" || ${INSTALL} ${SBINALL} ${SBINDIR}
-	INSTALLROOT=${INSTALLROOT} sh install-startup-scripts.sh
+	test -z "${MAN1ALL}" || ${INSTALL} ${MAN1ALL} ${MANDIR}/man1
+	test -z "${MAN3ALL}" || ${INSTALL} ${MAN3ALL} ${MANDIR}/man3
+	test -z "${MAN5ALL}" || ${INSTALL} ${MAN5ALL} ${MANDIR}/man5
+	test -z "${MAN7ALL}" || ${INSTALL} ${MAN7ALL} ${MANDIR}/man7
+	test -z "${MAN8ALL}" || ${INSTALL} ${MAN8ALL} ${MANDIR}/man8
+	test -z "${SCRIPTS}" || ${INSTALL} ${SCRIPTS} ${GDPROOT}/adm
+	INSTALLROOT=${INSTALLROOT} sh install-mqtt-gdp-gateway.sh
 
-${BINDIR} ${SBINDIR}:
+${BINDIR} ${SBINDIR} ${GDPROOT}/adm:
 	${MKDIR} $@
 
 ADM=		../adm
