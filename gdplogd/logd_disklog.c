@@ -1340,6 +1340,11 @@ disk_append(gdp_gcl_t *gcl,
 	{
 		size_t slen = evbuffer_get_length(datum->sig);
 		unsigned char *p = evbuffer_pullup(datum->sig, slen);
+
+		if (datum->siglen != slen)
+			ep_dbg_cprintf(Dbg, 1,
+					"disk_append: datum->siglen = %d, slen = %d\n",
+					datum->siglen, slen);
 		EP_ASSERT_INSIST(datum->siglen == slen);
 		if (slen > 0 && p != NULL)
 			fwrite(p, slen, 1, ext->fp);
