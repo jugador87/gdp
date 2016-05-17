@@ -35,6 +35,11 @@ LIBDIR=		${INSTALLROOT}/lib
 BINDIR=		${INSTALLROOT}/bin
 SBINDIR=	${INSTALLROOT}/sbin
 MANDIR=		${INSTALLROOT}/share/man
+ALLDIRS=	${BINDIR} \
+		${SBINDIR} \
+		${LIBDIR} \
+		${MANDIR}/man7 \
+		${MANDIR}/man8
 
 BINALL=
 
@@ -47,6 +52,8 @@ MAN3ALL=
 MAN5ALL=
 
 MAN7ALL=	gdp.7 \
+
+MAN8ALL=
 
 MANALL=		${MAN1ALL} ${MAN3ALL} ${MAN5ALL} ${MAN7ALL} ${MAN8ALL}
 
@@ -155,7 +162,7 @@ gdp_version.o: gdp_version.c ${OBJS_MOST} Makefile
 clean:
 	-rm -f ${CLEANALL} *.o *.core
 
-install:	${BINDIR} ${SBINDIR} ${MANDIR} ${INCDIR}/gdp ${LIBDIR} ${PUBALL}
+install:	${ALLDIRS} ${PUBALL}
 	test -z "${BINALL}"  || ${INSTALL} ${BINALL}  ${BINDIR}
 	test -z "${SBINALL}" || ${INSTALL} ${SBINALL} ${SBINDIR}
 	test -z "${MAN1ALL}" || ${INSTALL} ${MAN1ALL} ${MANDIR}/man1
@@ -168,7 +175,7 @@ install:	${BINDIR} ${SBINDIR} ${MANDIR} ${INCDIR}/gdp ${LIBDIR} ${PUBALL}
 	(cd ${LIBDIR}; rm -f libgdp.so; ln -s libgdp.so.${GDPLIBMAJVER} libgdp.so)
 	(cd ${LIBDIR}; rm -f libgdp.${GDPLIBVER}.dylib; ln -s libgdp.so.${GDPLIBVER} libgdp.${GDPLIBVER}.dylib)
 
-${INCDIR}/gdp ${LIBDIR}:
+${ALLDIRS}:
 	${MKDIR} $@
 
 ADM=		../adm

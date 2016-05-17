@@ -1343,7 +1343,7 @@ disk_append(gdp_gcl_t *gcl,
 
 		if (datum->siglen != slen)
 			ep_dbg_cprintf(Dbg, 1,
-					"disk_append: datum->siglen = %d, slen = %d\n",
+					"disk_append: datum->siglen = %d, slen = %zd\n",
 					datum->siglen, slen);
 		EP_ASSERT_INSIST(datum->siglen == slen);
 		if (slen > 0 && p != NULL)

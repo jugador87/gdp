@@ -68,6 +68,11 @@ CRYPTOROOT=	/opt/local
 BINDIR=		${INSTALLROOT}/bin
 SBINDIR=	${INSTALLROOT}/sbin
 MANDIR=		${INSTALLROOT}/share/man
+ALLDIRS=	${BINDIR} \
+		${SBINDIR} \
+		${MANDIR}/man1 \
+		${MANDIR}/man8
+
 INSTALL=	install
 
 LOCAL1=		/usr/local
@@ -142,7 +147,7 @@ ${CLEANALL}:	${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 clean:
 	-rm -f ${CLEANALL} *.o *.core
 
-install:	${BINDIR} ${SBINDIR} ${MANDIR} ${PUBALL} ${MANALL} FORCE
+install:	${ALLDIRS} ${PUBALL} FORCE
 	test -z "${BINALL}"  || ${INSTALL} ${BINALL}  ${BINDIR}
 	test -z "${SBINALL}" || ${INSTALL} ${SBINALL} ${SBINDIR}
 	test -z "${MAN1ALL}" || ${INSTALL} ${MAN1ALL} ${MANDIR}/man1
@@ -151,7 +156,7 @@ install:	${BINDIR} ${SBINDIR} ${MANDIR} ${PUBALL} ${MANALL} FORCE
 	test -z "${MAN7ALL}" || ${INSTALL} ${MAN7ALL} ${MANDIR}/man7
 	test -z "${MAN8ALL}" || ${INSTALL} ${MAN8ALL} ${MANDIR}/man8
 
-${BINDIR} ${SBINDIR}:
+${ALLDIRS}:
 	${MKDIR} $@
 
 ADM=		../adm

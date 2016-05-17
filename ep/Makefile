@@ -35,6 +35,10 @@ BINDIR=		${INSTALLROOT}/bin
 SBINDIR=	${INSTALLROOT}/sbin
 LIBDIR=		${INSTALLROOT}/lib
 INCDIR=		${INSTALLROOT}/include
+MANDIR=		${INSTALLROOT}/share/man
+ALLDIRS=	${LIBDIR} \
+		${INCDIR}/ep
+
 INSTALL=	install
 CRYPTOROOT=	/opt/local
 
@@ -224,14 +228,14 @@ clean:
 	-${RM} -f ${BINALL} libep.* *.o *.core
 	-${RM} -rf *.dSYM
 
-install:	${INCDIR}/ep ${LIBDIR} ${ALL}
+install:	${ALLDIRS} ${PUBALL}
 	${CP} ${INCALL} ${INCDIR}/ep
 	${INSTALL} ${LIBALL} ${LIBDIR}
 	(cd ${LIBDIR}; rm -f libep.so.${EPLIBMAJVER}; ln -s libep.so.${EPLIBVER} libep.so.${EPLIBMAJVER})
 	(cd ${LIBDIR}; rm -f libep.so; ln -s libep.so.${EPLIBMAJVER} libep.so)
 	(cd ${LIBDIR}; rm -f libep.${EPLIBVER}.dylib; ln -s libep.so.${EPLIBVER} libep.${EPLIBVER}.dylib)
 
-${INCDIR}/ep ${LIBDIR}:
+${ALLDIRS}:
 	${MKDIR} $@
 
 ${OBJS}: ${HFILES}

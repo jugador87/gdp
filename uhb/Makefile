@@ -60,6 +60,13 @@ BINDIR=		${INSTALLROOT}/bin
 SBINDIR=	${INSTALLROOT}/sbin
 MANDIR=		${INSTALLROOT}/share/man
 GDPROOT=	${INSTALLROOT}/gdp
+ALLDIRS=	${BINDIR} \
+		${SBINDIR} \
+		${LIBDIR} \
+		${INCDIR}/ep \
+		${MANDIR}/man1 \
+		${GDPROOT}/adm
+
 INSTALL=	install
 
 LOCAL1=		/usr/local

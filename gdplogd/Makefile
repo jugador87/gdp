@@ -58,6 +58,11 @@ CRYPTOROOT=	/opt/local
 BINDIR=		${INSTALLROOT}/bin
 SBINDIR=	${INSTALLROOT}/sbin
 MANDIR=		${INSTALLROOT}/share/man
+ALLDIRS=	${BINDIR} \
+		${SBINDIR} \
+		${LIBDIR} \
+		${MANDIR}/man8
+
 INSTALL=	install
 
 LOCAL1=		/usr/local
@@ -119,7 +124,7 @@ gdplogd: ${OBJS} ${LIBDEPS}
 clean:
 	-rm -f ${CLEANALL} *.o *.core
 
-install:	${BINDIR} ${SBINDIR} ${MANDIR} ${PUBALL}
+install:	${ALLDIRS} ${PUBALL}
 	test -z "${BINALL}"  || ${INSTALL} ${BINALL}  ${BINDIR}
 	test -z "${SBINALL}" || ${INSTALL} ${SBINALL} ${SBINDIR}
 	test -z "${MAN1ALL}" || ${INSTALL} ${MAN1ALL} ${MANDIR}/man1
@@ -128,7 +133,7 @@ install:	${BINDIR} ${SBINDIR} ${MANDIR} ${PUBALL}
 	test -z "${MAN7ALL}" || ${INSTALL} ${MAN7ALL} ${MANDIR}/man7
 	test -z "${MAN8ALL}" || ${INSTALL} ${MAN8ALL} ${MANDIR}/man8
 
-${BINDIR} ${SBINDIR}:
+${ALLDIRS}:
 	${MKDIR} $@
 
 ${OBJS}: ${HDEPS}

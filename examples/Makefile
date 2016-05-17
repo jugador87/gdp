@@ -10,6 +10,16 @@ LOCALROOT=	/usr
 INSTALLROOT=	${DESTDIR}${LOCALROOT}
 BINDIR=		${INSTALLROOT}/bin
 SBINDIR=	${INSTALLROOT}/sbin
+ALLDIRS=	${BINDIR} \
+		${SBINDIR} \
+		${LIBDIR} \
+		${INCDIR}/ep \
+		${MANDIR}/man1 \
+		${MANDIR}/man3 \
+		${MANDIR}/man5 \
+		${MANDIR}/man7 \
+		${MANDIR}/man8
+
 INSTALL=	install
 
 LOCAL1=		/usr/local
@@ -50,5 +60,5 @@ machine-mon:	machine-mon.o
 clean:
 	-rm -f ${ALL} *.o *.core
 
-${BINDIR} ${SBINDIR}:
+${ALLDIRS}:
 	${MKDIR} $@
