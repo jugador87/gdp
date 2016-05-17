@@ -380,7 +380,7 @@ _gdp_req_unsend(gdp_req_t *req)
 {
 	gdp_gcl_t *gcl = req->gcl;
 
-	if (ep_dbg_test(Dbg, 45))
+	if (ep_dbg_test(Dbg, 17))
 	{
 		ep_dbg_printf("_gdp_req_unsend: ");
 		_gdp_req_dump(req, ep_dbg_getfile(), GDP_PR_BASIC, 0);
@@ -390,6 +390,7 @@ _gdp_req_unsend(gdp_req_t *req)
 	{
 		ep_dbg_cprintf(Dbg, 4, "_gdp_req_unsend: req %p has NULL GCL\n",
 				req);
+		return GDP_STAT_NULL_GCL;
 	}
 	else if (!EP_UT_BITSET(GDP_REQ_ON_GCL_LIST, req->flags))
 	{
@@ -404,6 +405,7 @@ _gdp_req_unsend(gdp_req_t *req)
 		ep_thr_mutex_unlock(&gcl->mutex);
 	}
 
+	_gdp_gcl_decref(&req->gcl);
 	return EP_STAT_OK;
 }
 

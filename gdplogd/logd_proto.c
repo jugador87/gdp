@@ -231,15 +231,15 @@ cmd_create(gdp_req_t *req)
 	// pass any creation info back to the caller
 	// (none at this point)
 
-	// release resources
+	// leave this in the cache
 	gcl->flags |= GCLF_DEFER_FREE;
-	_gdp_gcl_decref(&req->gcl);
-	return estat;
 
+	if (false)
+	{
 fail1:
-	req->pdu->cmd = GDP_NAK_S_INTERNAL;
-	req->gcl = NULL;
-	_gdp_gcl_freehandle(gcl);
+		req->pdu->cmd = GDP_NAK_S_INTERNAL;
+	}
+	_gdp_gcl_decref(&req->gcl);
 
 fail0:
 	return estat;

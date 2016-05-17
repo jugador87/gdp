@@ -422,6 +422,7 @@ _gdp_gcl_cache_shutdown(void (*shutdownfunc)(gdp_req_t *))
 		g2 = LIST_NEXT(g1, ulist);
 		LIST_REMOVE(g1, ulist);
 		_gdp_req_freeall(&g1->reqs, shutdownfunc);
+		g1->refcnt = 0;
 		_gdp_gcl_freehandle(g1);
 	}
 }

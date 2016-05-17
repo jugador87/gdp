@@ -147,16 +147,17 @@ _gdp_invoke(gdp_req_t *req)
 			// if we succeeded or it's our fault, don't try again
 			if (EP_STAT_ISOK(estat) || GDP_STAT_IS_C_NAK(estat))
 			{
-				retries = 0;			// we're done, don't retry
+				break;				// we're done, don't retry
 			}
 			else if (EP_STAT_IS_SAME(estat, GDP_STAT_NAK_NOROUTE) &&
 					EP_UT_BITSET(GDP_REQ_ROUTEFAIL, req->flags))
 			{
 				// route failure on open: don't retry
-				retries = 0;
+				break;
 			}
 			else if (retries > 0)
 			{
+				_gdp_req_unsend(req);
 				ep_time_nanosleep(retry_delay MILLISECONDS);
 			}
 		}
@@ -170,8 +171,6 @@ _gdp_invoke(gdp_req_t *req)
 			if (retries > 0)
 				ep_time_nanosleep(retry_delay MILLISECONDS);
 		}
-
-		// ok, done!
 	}
 
 	if (ep_dbg_test(Dbg, 22))
