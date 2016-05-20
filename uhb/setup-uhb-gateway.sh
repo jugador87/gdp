@@ -1,66 +1,25 @@
 #!/bin/sh
 
+#
+#  Set up the U Michigan gateway code on a Swarm box (BBB or Ubuntu)
+#
+#	Right now this _must_ be run in ~debian (the home directory
+#		for user "debian".  The start-up scripts assume the
+#		code is there.  No, this is not best practice.
+#	Does _not_ include the MQTT-GDP gateway code, which will
+#		often run on another host.
+#
+
 cd `dirname $0`
 root=`pwd`
 
-info() {
-	echo "$1"
-}
+. $root/setup-common.sh
 
-fatal() {
-	echo "$1" 1>&2
-	exit 1
-}
+# heuristic to see if we are running on a beaglebone
+beaglebone=false
+test `uname -m` = "arm7l" && beaglebone=true
 
-
-if [ `uname -s` != "Linux" ]
-then
-	fatal "This script only runs on Linux"
-fi
-
-VERSION_ID="0"
-if [ -e /etc/os-release ]
-then
-	. /etc/os-release
-fi
-
-if [ "$ID" = "debian" ] && expr $VERSION_ID \< 8 > /dev/null
-then
-	fatal "Must be running Debian 8 (Jessie) or higher (have $VERSION_ID)"
-fi
-
-if ! ls /etc/apt/sources.list.d/mosquitto* > /dev/null 2>&1
-then
-	info "##### Setting up mosquitto repository"
-	if [ "$ID" = "ubuntu" ]
-	then
-		sudo apt-get install -y \
-			software-properties-common \
-			python-software-properties
-		sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa
-	elif [ "$ID" = "debian" ]
-	then
-		sudo apt-get install -y wget
-		wget http://repo.mosquitto.org/debian/mosquitto-repo.gpg.key
-		sudo apt-key add mosquitto-repo.gpg.key
-		if expr $VERSION_ID = 8 > /dev/null
-		then
-			dver="jessie"
-		else
-			fatal "unknown debian version $VERSION_ID"
-		fi
-		cd /etc/apt/sources.list.d
-		sudo wget http://repo.mosquitto.org/debian/mosquitto-$dver.list
-		cd $root
-	else
-		fatal "Unknown linux distribution $ID"
-	fi
-fi
-
-# set up a few defaults
-gdprepo=repo.eecs.berkeley.edu
-gdpreporoot=projects/swarmlab
-if [ `uname -m` = "armv7l" ]
+if $beaglebone
 then
 	# beaglebone, not much disk space
 	gitdepth="--depth 1"
@@ -68,47 +27,51 @@ else
 	gitdepth=""
 fi
 
+echo ""
+info "Determining OS version"
+
+case $OS-$OSVER in
+	ubuntu-1[46]0004*)
+		pkgadd="libmosquitto0-dev mosquitto-clients"
+		;;
+
+	debian-*)
+		pkgadd="libmosquitto-dev mosquitto-clients"
+		;;
+
+	*)
+		warn "Unknown OS or Version $OS-$OSVER; guessing"
+		pkgadd="libmosquitto-dev mosquitto-clients"
+		;;
+esac
+
 echo 	""
-info "##### Installing Debian packages"
-sudo apt-get update
+info "Installing Debian packages"
+test ! -d /var/lib/bluetooth &&
+	mkdir /var/lib/bluetooth &&
+	chmod 700 /var/lib/bluetooth
 sudo apt-get install -y \
 	avahi-daemon \
+	bluetooth \
+	bluez \
 	curl \
 	g++ \
 	gcc \
 	git \
 	libavahi-compat-libdnssd-dev \
-	libmosquitto-dev \
+	libbluetooth-dev \
+	libudev-dev \
 	locales \
 	make \
-	mosquitto-clients \
 	psmisc \
-
-if [ `uname -m` != "armv7l" ]
-then
-	# we are not on a beaglebone --- done
-	echo ""
-	info "##### Not a Beaglebone; skipping the rest of the install"
-	exit 0;
-fi
-
-echo ""
-info "##### Installing additional Beaglebone-specific packages"
-test ! -d /var/lib/bluetooth &&
-	mkdir /var/lib/bluetooth &&
-	chmod 700 /var/lib/bluetooth
-sudo apt-get install -y \
-	bluetooth \
-	bluez \
-	libbluetooth-dev \
-	libudev-dev
+	$pkgadd
 
 info "Enabling bluetooth daemon"
 sudo update-rc.d bluetooth defaults
 
 # check out the git tree from UMich
 echo ""
-info "##### Checking out Gateway source tree from Michigan"
+info "Checking out Gateway source tree from Michigan"
 cd $root
 rm -rf gateway
 git clone $gitdepth https://github.com/lab11/gateway.git
@@ -121,7 +84,7 @@ then
 fi
 
 echo ""
-info "##### Set up node.js"
+info "Set up node.js"
 info ">>> NOTE WELL: this may give several warnings about xpc-connection."
 info ">>> These should be ignored."
 curl -sL https://deb.nodesource.com/setup_5.x | sudo -E bash -
@@ -145,17 +108,22 @@ do
 done
 
 echo ""
-info "##### Clearing NPM cache"
+info "Clearing NPM cache"
 npm cache clean
 
 # install system startup scripts
+if [ "$INITSYS" != "systemd" ]
+then
+	fatal "Cannot initialize system startup scripts: only systemd supported"
+fi
+
 cd $root/gateway/systemd
 echo ""
-info "##### Installing system startup scripts"
+info "Installing system startup scripts"
 sudo cp *.service /etc/systemd/system
 
 echo ""
-info "##### Selectively enabling system startup scripts"
+info "Selectively enabling system startup scripts"
 
 enable() {
 	info "Enabling service $1"
