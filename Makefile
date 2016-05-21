@@ -51,7 +51,7 @@ clean:
 	(cd examples;	 make clean)
 	rm -f gdp-client*.deb gdp-server*.deb python-gdp*.deb
 
-install: ${INSTALLROOT}/etc/ep_adm_params
+install:
 	(cd ep;		make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
 	(cd gdp;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
 	(cd gdplogd;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
@@ -59,14 +59,6 @@ install: ${INSTALLROOT}/etc/ep_adm_params
 	(cd doc;	make install DESTDIR=${DESTDIR} INSTALLROOT=${INSTALLROOT})
 	mkdir -p ${DOCDIR}
 	cp -rp examples ${DOCDIR}
-
-install-etc: ${INSTALLROOT}/etc/ep_adm_params/gdp
-
-${INSTALLROOT}/etc/ep_adm_params/gdp: ${INSTALLROOT}/etc/ep_adm_params
-	echo "# Configuration parameters for the Global Data Plane" > $@
-
-${INSTALLROOT}/etc/ep_adm_params:
-	mkdir -p $@
 
 GDPROOT=	~gdp
 GDPALL=		adm/start-* \

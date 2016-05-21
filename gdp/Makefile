@@ -38,6 +38,7 @@ MANDIR=		${INSTALLROOT}/share/man
 ALLDIRS=	${BINDIR} \
 		${SBINDIR} \
 		${LIBDIR} \
+		${INCDIR}/gdp \
 		${MANDIR}/man7 \
 		${MANDIR}/man8
 
