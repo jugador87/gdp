@@ -16,10 +16,6 @@
  *  Copyright/license:  This code is released into the public domain.
  */
 
-#if __linux__
-# define _POSIX_SOURCE		1
-#endif
-
 #include "scgilib.h"
 #include <assert.h>
 #include <ctype.h>
