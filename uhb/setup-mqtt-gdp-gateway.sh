@@ -24,3 +24,6 @@ sudo apt-get install -y \
 echo ""
 info "Compiling and installing UHK code (assumes GDP base code already installed)"
 make clean all install
+
+# start mosquitto
+# foreach server: create list of devices
