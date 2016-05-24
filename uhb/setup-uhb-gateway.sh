@@ -10,10 +10,11 @@
 #		often run on another host.
 #
 
-cd `dirname $0`
-root=`pwd`
+. `dirname $0`/setup-common.sh
 
-. $root/setup-common.sh
+test `whoami` = "debian" || fatal "$0 must be run as debian"
+cd ~debian
+root=`pwd`
 
 # heuristic to see if we are running on a beaglebone
 beaglebone=false

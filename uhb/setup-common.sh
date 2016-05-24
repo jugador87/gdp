@@ -4,8 +4,6 @@
 #  Common code for setup scripts
 #
 
-Reset='[0m'    # Text Reset
-
 # Regular           Bold                Underline           High Intensity      BoldHigh Intens     Background          High Intensity Backgrounds
 Bla='[0;30m';     BBla='[1;30m';    UBla='[4;30m';    IBla='[0;90m';    BIBla='[1;90m';   On_Bla='[40m';    On_IBla='[0;100m';
 Red='[0;31m';     BRed='[1;31m';    URed='[4;31m';    IRed='[0;91m';    BIRed='[1;91m';   On_Red='[41m';    On_IRed='[0;101m';
@@ -15,6 +13,8 @@ Blu='[0;34m';     BBlu='[1;34m';    UBlu='[4;34m';    IBlu='[0;94m';    BIBl
 Pur='[0;35m';     BPur='[1;35m';    UPur='[4;35m';    IPur='[0;95m';    BIPur='[1;95m';   On_Pur='[45m';    On_IPur='[0;105m';
 Cya='[0;36m';     BCya='[1;36m';    UCya='[4;36m';    ICya='[0;96m';    BICya='[1;96m';   On_Cya='[46m';    On_ICya='[0;106m';
 Whi='[0;37m';     BWhi='[1;37m';    UWhi='[4;37m';    IWhi='[0;97m';    BIWhi='[1;97m';   On_Whi='[47m';    On_IWhi='[0;107m';
+
+Reset='[0m'    # Text Reset
 
 info() {
 	echo "${Gre}${On_Bla}[+] $1${Reset}"
@@ -90,10 +90,10 @@ esac
 
 # determine what init system we are using (heuristic!)
 #  ... by this time we know we are on linux, so we can use non-portable tricks
-if [ -z "$INITSYS" -a -e "/proc/1/exe" ]
+if [ -z "$INITSYS" ]
 then
 	proc1exe=`sudo stat /proc/1/exe | grep 'File: '`
-	if echo $proc1exec | grep -q "systemd"
+	if echo "$proc1exe" | grep -q "systemd"
 	then
 		INITSYS="systemd"
 	else
