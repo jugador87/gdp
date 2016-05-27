@@ -69,13 +69,24 @@ ep_app_getprogname(void)
 //
 
 static void
-printmessage(const char *tag, const char *fmt, va_list av)
+printmessage(const char *tag,
+		const char *fg,
+		const char *bg,
+		const char *fmt,
+		va_list av)
 {
 	const char *progname;
 
+	if (fg == NULL)
+		fg = "";
+	if (bg == NULL)
+		bg = "";
+
+	fprintf(stderr, "%s%s", fg, bg);
 	if ((progname = ep_app_getprogname()) != NULL)
 		fprintf(stderr, "%s: ", progname);
-	fprintf(stderr, "%s%s%s: ", EpVid->vidinv, tag, EpVid->vidnorm);
+	fprintf(stderr, "%s%s%s%s%s: ",
+			EpVid->vidinv, tag, EpVid->vidnorm, fg, bg);
 	if (fmt != NULL)
 		vfprintf(stderr, fmt, av);
 	else
@@ -87,7 +98,7 @@ printmessage(const char *tag, const char *fmt, va_list av)
 		strerror_r(errno, nbuf, sizeof nbuf);
 		fprintf(stderr, "\n\t(%s)", nbuf);
 	}
-	fprintf(stderr, "\n");
+	fprintf(stderr, "%s\n", EpVid->vidnorm);
 }
 
 
@@ -109,7 +120,7 @@ ep_app_info(
 
 	errno = 0;
 	va_start(av, fmt);
-	printmessage("INFO", fmt, av);
+	printmessage("INFO", EpVid->vidfgblack, EpVid->vidbgcyan, fmt, av);
 	va_end(av);
 
 	if (EP_UT_BITSET(EP_APP_FLAG_LOGINFOS, OperationFlags))
@@ -141,7 +152,7 @@ ep_app_warn(
 	va_list av;
 
 	va_start(av, fmt);
-	printmessage("WARNING", fmt, av);
+	printmessage("WARNING", EpVid->vidfgblack, EpVid->vidbgyellow, fmt, av);
 	va_end(av);
 
 	if (EP_UT_BITSET(EP_APP_FLAG_LOGWARNINGS, OperationFlags))
@@ -174,7 +185,7 @@ ep_app_error(
 	va_list av;
 
 	va_start(av, fmt);
-	printmessage("ERROR", fmt, av);
+	printmessage("ERROR", EpVid->vidfgwhite, EpVid->vidbgred, fmt, av);
 	va_end(av);
 
 	if (EP_UT_BITSET(EP_APP_FLAG_LOGERRORS, OperationFlags))
@@ -208,7 +219,7 @@ ep_app_fatal(
 	va_list av;
 
 	va_start(av, fmt);
-	printmessage("FATAL", fmt, av);
+	printmessage("FATAL", EpVid->vidfgyellow, EpVid->vidbgred, fmt, av);
 	va_end(av);
 
 	if (EP_UT_BITSET(EP_APP_FLAG_LOGFATALS, OperationFlags))
@@ -244,7 +255,7 @@ ep_app_abort(
 	va_list av;
 
 	va_start(av, fmt);
-	printmessage("ABORT", fmt, av);
+	printmessage("ABORT", EpVid->vidfgyellow, EpVid->vidbgred, fmt, av);
 	va_end(av);
 
 	if (EP_UT_BITSET(EP_APP_FLAG_LOGABORTS, OperationFlags))
