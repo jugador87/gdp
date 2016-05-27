@@ -718,11 +718,14 @@ fail0:
 */
 
 EP_STAT
-_gdp_gcl_fwd_append(gdp_gcl_t *gcl,
+_gdp_gcl_fwd_append(
+		gdp_gcl_t *gcl,
 		gdp_datum_t *datum,
+		gdp_name_t to_server,
+		gdp_event_cbfunc_t cbfunc,
+		void *cbarg,
 		gdp_chan_t *chan,
-		uint32_t reqflags,
-		gdp_name_t to_server)
+		uint32_t reqflags)
 {
 	EP_STAT estat;
 	gdp_req_t *req;
@@ -738,6 +741,9 @@ _gdp_gcl_fwd_append(gdp_gcl_t *gcl,
 
 	estat = _gdp_req_new(GDP_CMD_FWD_APPEND, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
+
+	// arrange for responses to appear as events or callbacks
+	_gdp_event_setcb(req, cbfunc, cbarg);
 
 	// add the actual target GDP name to the data
 	gdp_buf_write(req->pdu->datum->dbuf, req->pdu->dst, sizeof req->pdu->dst);

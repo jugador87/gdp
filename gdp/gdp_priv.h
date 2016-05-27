@@ -339,9 +339,11 @@ EP_STAT			_gdp_gcl_newextent(			// create a new physical extent
 EP_STAT			_gdp_gcl_fwd_append(		// forward APPEND (replication)
 						gdp_gcl_t *gcl,
 						gdp_datum_t *datum,
+						gdp_name_t to_server,
+						gdp_event_cbfunc_t cbfunc,
+						void *cbarg,
 						gdp_chan_t *chan,
-						uint32_t reqflags,
-						gdp_name_t to_server);
+						uint32_t reqflags);
 
 /*
 **  GCL Open Information

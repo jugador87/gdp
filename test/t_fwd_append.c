@@ -13,8 +13,23 @@ cc -I.. t_fwd_append.c -Lep -Lgdp -lgdp -lep -levent -levent_pthreads -pthread -
 
 #include <getopt.h>
 #include <stdio.h>
+#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+
+
+/*
+**  Test program for FWD_APPEND command (forward append).
+**  This function should only be used for replication.
+**
+**  XXX STILL TO TEST:
+**		* Make sure signatures are properly preserved.
+**		* Try interspersed appends to multiple logs.
+**		* Try interspersed appends to multiple logs from different
+**		  threads.
+**		* Try getting responses using callbacks.
+*/
+
 
 static EP_DBG	Dbg = EP_DBG_INIT("fwd_append", "GDP forwarded append test");
 
@@ -28,9 +43,11 @@ gdp_datum_t *
 create_datum(gdp_recno_t recno)
 {
 	gdp_datum_t *datum = gdp_datum_new();
+	char buf[32];
 
-	datum->recno = recno;
-	gdp_buf_write(gdp_datum_getbuf(datum), "test", 4);
+	datum->recno = recno;		// this violates privacy, but meh, what to do?
+	snprintf(buf, sizeof buf, "record %" PRIgdp_recno, recno);
+	gdp_buf_write(gdp_datum_getbuf(datum), buf, strlen(buf));
 
 	return datum;
 }
@@ -42,6 +59,16 @@ create_datum(gdp_recno_t recno)
 **
 **		This does not wait for results: get those using the
 **		event interface.
+**
+**		Arguments to _gdp_gcl_fwd_append:
+**			gcl --- log being written.
+**			datum --- source datum to be forwarded.
+**			srvname --- name of server to forward to.
+**			cbfunc --- callback function for collecting results;
+**					if NULL use gdp_event interface.
+**			cbarg --- an argument passed to cbfunc.
+**			chan --- the I/O channel (may be NULL).
+**			reqflags --- starting flags for request structure.
 */
 
 EP_STAT
@@ -53,7 +80,8 @@ do_fwd_append(gdp_gcl_t *gcl,
 	EP_STAT estat;
 
 	// start up a fwd_append
-	estat = _gdp_gcl_fwd_append(gcl, datum, _GdpChannel, 0, svrname);
+	//   ==> this is the API being tested
+	estat = _gdp_gcl_fwd_append(gcl, datum, svrname, NULL, udata, NULL, 0);
 
 	// check to make sure the fwd_append succeeded; if not, bail
 	if (!EP_STAT_ISOK(estat))
@@ -71,7 +99,8 @@ do_fwd_append(gdp_gcl_t *gcl,
 void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [-D dbgspec] log_name server_name\n",
+	fprintf(stderr, "Usage: %s [-D dbgspec] [-n numrecs]\n"
+			"\tlog_name server_name\n",
 			ep_app_getprogname());
 	exit(EX_USAGE);
 }
@@ -85,13 +114,18 @@ main(int argc, char **argv)
 	char ebuf[60];
 	int opt;
 	gdp_recno_t recno;
+	int nappends = 2;
 
-	while ((opt = getopt(argc, argv, "D:")) > 0)
+	while ((opt = getopt(argc, argv, "D:n:")) > 0)
 	{
 		switch (opt)
 		{
 		  case 'D':
 			ep_dbg_set(optarg);
+			break;
+
+		  case 'n':
+			nappends = atoi(optarg);
 			break;
 		}
 	}
@@ -108,41 +142,47 @@ main(int argc, char **argv)
 	ep_app_info("Forwarding append to log %s on server %s",
 			log_xname, svr_xname);
 
+	// initialize GDP connection
 	estat = gdp_init(NULL);
 	ep_app_info("gdp_init: %s", ep_stat_tostr(estat, ebuf, sizeof ebuf));
 
+	// let threads settle (avoid interleaved debug output)
 	ep_time_nanosleep(INT64_C(100000000));
 
+	// parse the name of the log to be appended to
 	gdp_name_t gclname;
 	estat = gdp_parse_name(log_xname, gclname);
 	ep_app_info("gdp_parse_name(%s): %s", log_xname,
 			ep_stat_tostr(estat, ebuf, sizeof ebuf));
 
+	// parse the name of the server to receive the append
 	gdp_name_t svrname;
 	estat = gdp_parse_name(svr_xname, svrname);
 	ep_app_info("gdp_parse_name(%s): %s", svr_xname,
 			ep_stat_tostr(estat, ebuf, sizeof ebuf));
 
+	// open the log (note: doesn't use svrname)
 	estat = gdp_gcl_open(gclname, GDP_MODE_RA, NULL, &gcl);
 	ep_app_info("gdp_gcl_open: %s", ep_stat_tostr(estat, ebuf, sizeof ebuf));
 
-	int nresults = 0;
+	// create datum(s) and send them to the explicit server
 	recno = gdp_gcl_getnrecs(gcl);
-	gdp_datum_t *datum = create_datum(++recno);
-	estat = do_fwd_append(gcl, datum, svrname, NULL);
-	ep_app_info("do_fwd_append (1): %s", ep_stat_tostr(estat, ebuf, sizeof ebuf));
-	nresults++;
-
-	datum = create_datum(++recno);
-	estat = do_fwd_append(gcl, datum, svrname, NULL);
-	ep_app_info("do_fwd_append (2): %s", ep_stat_tostr(estat, ebuf, sizeof ebuf));
-	nresults++;
+	int nresults = 0;
+	while (nresults < nappends)
+	{
+		gdp_datum_t *datum = create_datum(++recno);
+		estat = do_fwd_append(gcl, datum, svrname, NULL);
+		nresults++;
+		ep_app_info("do_fwd_append (%d): %s",
+				nresults, ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
 
 	// this sleep will allow multiple results to appear before we start reading
 	if (ep_dbg_test(Dbg, 100))
 		ep_time_nanosleep(500000000);	//DEBUG: one half second
 
 	// collect results
+	ep_app_info("waiting for status events, nresults = %d", nresults);
 	gdp_event_t *gev;
 	while ((gev = gdp_event_next(gcl, NULL)) != NULL)
 	{
