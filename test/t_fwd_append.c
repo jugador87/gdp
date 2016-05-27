@@ -40,7 +40,7 @@ create_datum(gdp_recno_t recno)
 /*
 **  DO_FWD_APPEND --- fake a forwarded append operation
 **
-**		This routine handles calls that return multiple values via the
+**		This does not wait for results: get those using the
 **		event interface.
 */
 
@@ -63,10 +63,6 @@ do_fwd_append(gdp_gcl_t *gcl,
 		ep_app_fatal("Cannot fwd_append:\n\t%s",
 				ep_stat_tostr(estat, ebuf, sizeof ebuf));
 	}
-
-	// this sleep will allow multiple results to appear before we start reading
-	if (ep_dbg_test(Dbg, 100))
-		ep_time_nanosleep(500000000);	//DEBUG: one half second
 
 	return estat;
 }
@@ -130,18 +126,31 @@ main(int argc, char **argv)
 	estat = gdp_gcl_open(gclname, GDP_MODE_RA, NULL, &gcl);
 	ep_app_info("gdp_gcl_open: %s", ep_stat_tostr(estat, ebuf, sizeof ebuf));
 
+	int nresults = 0;
 	recno = gdp_gcl_getnrecs(gcl);
 	gdp_datum_t *datum = create_datum(++recno);
 	estat = do_fwd_append(gcl, datum, svrname, NULL);
-	ep_app_info("do_fwd_append: %s", ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	ep_app_info("do_fwd_append (1): %s", ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	nresults++;
+
+	datum = create_datum(++recno);
+	estat = do_fwd_append(gcl, datum, svrname, NULL);
+	ep_app_info("do_fwd_append (2): %s", ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	nresults++;
+
+	// this sleep will allow multiple results to appear before we start reading
+	if (ep_dbg_test(Dbg, 100))
+		ep_time_nanosleep(500000000);	//DEBUG: one half second
 
 	// collect results
 	gdp_event_t *gev;
 	while ((gev = gdp_event_next(gcl, NULL)) != NULL)
 	{
 		gdp_event_print(gev, stdout, 3);
-		if (gdp_event_gettype(gev) == GDP_EVENT_EOS ||
-				gdp_event_gettype(gev) == GDP_EVENT_CREATED)
+		if (gdp_event_gettype(gev) == GDP_EVENT_EOS)
+			break;
+		if (gdp_event_gettype(gev) == GDP_EVENT_CREATED &&
+				--nresults <= 0)
 			break;
 		gdp_event_free(gev);
 	}
