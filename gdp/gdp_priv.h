@@ -70,9 +70,9 @@ LIST_HEAD(req_head, gdp_req);
 **  Some generic constants
 */
 
-// "dump" routine detail parameters
-#define GDP_PR_PRETTY		-1		// suitable for end users
-#define GDP_PR_BASIC		0		// basic information
+// "dump" routine detail parameters (XXX should these be public?)
+#define GDP_PR_PRETTY		0		// suitable for end users
+#define GDP_PR_BASIC		1		// basic debug information
 #define GDP_PR_DETAILED		16		// detailed information
 #define GDP_PR_RECURSE		32		// recurse into substructures
 									// add N to recurse N+1 levels deep
@@ -336,6 +336,12 @@ EP_STAT			_gdp_gcl_newextent(			// create a new physical extent
 						gdp_chan_t *chan,
 						uint32_t reqflags);
 
+EP_STAT			_gdp_gcl_fwd_append(		// forward APPEND (replication)
+						gdp_gcl_t *gcl,
+						gdp_datum_t *datum,
+						gdp_chan_t *chan,
+						uint32_t reqflags,
+						gdp_name_t to_server);
 
 /*
 **  GCL Open Information
@@ -488,7 +494,7 @@ gdp_req_t		*_gdp_req_find(				// find a request in a GCL
 gdp_rid_t		_gdp_rid_new(				// create new request id
 						gdp_gcl_t *gcl, gdp_chan_t *chan);
 
-EP_STAT			_gdp_req_send(				// send a request to log daemon
+EP_STAT			_gdp_req_send(				// send request to daemon (async)
 						gdp_req_t *req);
 
 EP_STAT			_gdp_req_unsend(			// pull failed request off GCL list 
@@ -497,7 +503,7 @@ EP_STAT			_gdp_req_unsend(			// pull failed request off GCL list
 EP_STAT			_gdp_req_dispatch(			// do local req processing
 						gdp_req_t *req);
 
-EP_STAT			_gdp_invoke(				// send request to daemon
+EP_STAT			_gdp_invoke(				// send request to daemon (sync)
 						gdp_req_t *req);
 
 void			_gdp_req_freeall(			// free all requests in list
@@ -564,9 +570,6 @@ EP_STAT			_gdp_advertise_me(			// advertise me only
 /*
 **  Subscriptions.
 */
-
-EP_STAT			_gdp_subscr_event(			// process a new event
-						gdp_req_t *req);
 
 void			_gdp_subscr_lost(			// subscription disappeared
 						gdp_req_t *req);

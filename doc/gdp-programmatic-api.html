@@ -620,26 +620,43 @@ void (*cbfunc)(gdp_event_t *gev)
     <table align="center" border="1" cellpadding="2" cellspacing="2" width="80%">
       <tbody>
         <tr>
-          <td valign="top">Event Name </td>
-          <td valign="top">Meaning </td>
+          <td style="width: 162.2px;" valign="top">Event Name </td>
+          <td style="width: 486.6px;" valign="top">Meaning </td>
         </tr>
         <tr>
-          <td valign="top"><code>GDP_EVENT_DATA</code> </td>
-          <td valign="top">Data is returned in the event from a previous
-            subscription or asynchronous read. </td>
+          <td style="text-align: left; vertical-align: top;" valign="top"><code>GDP_EVENT_DATA</code>
+          </td>
+          <td style="text-align: left; vertical-align: top;" valign="top">Data
+            is returned in the event from a previous subscription or
+            asynchronous read. </td>
         </tr>
         <tr>
-          <td valign="top"><code>GDP_EVENT_EOS</code> </td>
-          <td valign="top">Subscription is terminated. </td>
+          <td style="text-align: left; vertical-align: top;" valign="top"><code>GDP_EVENT_EOS</code>
+          </td>
+          <td style="text-align: left; vertical-align: top;" valign="top">Subscription
+            is terminated. </td>
         </tr>
         <tr>
-          <td valign="top"><tt>GDP_EVENT_SHUTDOWN</tt> </td>
-          <td valign="top">Subscription is terminated because the log daemon has
-            shut down. </td>
+          <td style="text-align: left; vertical-align: top;" valign="top"><tt>GDP_EVENT_SHUTDOWN</tt>
+          </td>
+          <td style="text-align: left; vertical-align: top;" valign="top">Subscription
+            is terminated because the log daemon has shut down. </td>
         </tr>
         <tr>
-          <td><code>GDP_EVENT_ASTAT</code></td>
-          <td>Status is returned from an asynchronous append operation.</td>
+          <td style="text-align: left; vertical-align: top;"><code>GDP_EVENT_CREATED</code></td>
+          <td style="text-align: left; vertical-align: top;">Status is returned
+            from an asynchronous append, create, or other similar operation.</td>
+        </tr>
+        <tr>
+          <td style="text-align: left; vertical-align: top;"><span style="font-family: monospace;">GDP_EVENT_SUCCESS<br>
+            </span></td>
+          <td style="text-align: left; vertical-align: top;">Generic
+            asynchronous success status. See the detailed status using <span style="font-family: monospace;">gdp_event_getstat</span>.</td>
+        </tr>
+        <tr>
+          <td style="text-align: left; vertical-align: top;"><span style="font-family: monospace;">GDP_EVENT_FAILURE</span></td>
+          <td style="text-align: left; vertical-align: top;">Generic asynchronous
+            failure status.&nbsp; See the detailed status using <span style="font-family: monospace;">gdp_event_getstat</span>.</td>
         </tr>
       </tbody>
     </table>

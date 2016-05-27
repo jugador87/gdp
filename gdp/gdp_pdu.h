@@ -191,6 +191,7 @@ typedef struct gdp_pdu
 #define GDP_CMD_GETMETADATA		74			// fetch metadata
 #define GDP_CMD_OPEN_RA			75			// open a GCL for read or append
 #define GDP_CMD_NEWEXTENT		76			// create a new extent for a log
+#define GDP_CMD_FWD_APPEND		77			// forward (replicate) APPEND
 //		128-191			Positive acks
 #define GDP_ACK_MIN			128			// minimum ack code
 #define GDP_ACK_SUCCESS			_GDP_ACK_FROM_CODE(SUCCESS)				// 128

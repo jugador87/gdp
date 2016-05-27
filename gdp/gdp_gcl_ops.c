@@ -704,3 +704,85 @@ _gdp_gcl_newextent(gdp_gcl_t *gcl,
 fail0:
 	return estat;
 }
+
+
+/***********************************************************************
+**  Client side implementations for commands used internally only.
+***********************************************************************/
+
+/*
+**  _GDP_GCL_FWD_APPEND --- forward APPEND command
+**
+**		Forwards an APPEND command to a different server.  This is one
+**		of the few commands that is directed directly to a gdplogd instance.
+*/
+
+EP_STAT
+_gdp_gcl_fwd_append(gdp_gcl_t *gcl,
+		gdp_datum_t *datum,
+		gdp_chan_t *chan,
+		uint32_t reqflags,
+		gdp_name_t to_server)
+{
+	EP_STAT estat;
+	gdp_req_t *req;
+
+	// sanity checks
+	if (memcmp(to_server, _GdpMyRoutingName, sizeof _GdpMyRoutingName) == 0)
+	{
+		// forwarding to ourselves: bad idea
+		EP_ASSERT_FAILURE("_gdp_gcl_fwd_append: forwarding to myself");
+	}
+
+	reqflags |= GDP_REQ_ASYNCIO;
+
+	estat = _gdp_req_new(GDP_CMD_FWD_APPEND, gcl, chan, NULL, reqflags, &req);
+	EP_STAT_CHECK(estat, goto fail0);
+
+	// add the actual target GDP name to the data
+	gdp_buf_write(req->pdu->datum->dbuf, req->pdu->dst, sizeof req->pdu->dst);
+
+	// change the destination to be the final server, not the GCL
+	memcpy(req->pdu->dst, to_server, sizeof req->pdu->dst);
+
+	// copy the existing datum, including metadata
+	gdp_buf_copy(datum->dbuf, req->pdu->datum->dbuf);
+	req->pdu->datum->recno = datum->recno;
+	req->pdu->datum->ts = datum->ts;
+	req->pdu->datum->sigmdalg = datum->sigmdalg;
+	req->pdu->datum->siglen = datum->siglen;
+	EP_ASSERT_INSIST(req->pdu->datum->sig == NULL);
+	if (datum->sig != NULL)
+	{
+		req->pdu->datum->sig = gdp_buf_new();
+		gdp_buf_copy(datum->sig, req->pdu->datum->sig);
+	}
+
+	// XXX should we take a callback function?
+
+	estat = _gdp_req_send(req);
+
+	// unlike append_async, we leave the datum intact
+
+	// cleanup
+	req->pdu->datum = NULL;			// owned by caller
+	if (!EP_STAT_ISOK(estat))
+	{
+		_gdp_req_free(&req);
+	}
+	else
+	{
+		req->state = GDP_REQ_IDLE;
+		ep_thr_cond_signal(&req->cond);
+		_gdp_req_unlock(req);
+	}
+
+fail0:
+	if (ep_dbg_test(Dbg, 10))
+	{
+		char ebuf[100];
+		ep_dbg_printf("_gdp_gcl_fwd_append => %s\n",
+				ep_stat_tostr(estat, ebuf, sizeof ebuf));
+	}
+	return estat;
+}

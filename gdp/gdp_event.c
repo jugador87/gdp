@@ -241,6 +241,136 @@ _gdp_event_setcb(
 }
 
 
+/*
+**  Create an event and link it into the queue based on a acknak req.
+*/
+
+EP_STAT
+_gdp_event_add_from_req(gdp_req_t *req)
+{
+	EP_STAT estat = EP_STAT_OK;
+	int evtype;
+
+	// make note that we've seen activity for this subscription
+	ep_time_now(&req->act_ts);
+
+	// for the moment we only understand data responses (for subscribe)
+	switch (req->pdu->cmd)
+	{
+	  case GDP_ACK_SUCCESS:
+		// success with no further information (many commands)
+		evtype = GDP_EVENT_SUCCESS;
+		break;
+
+	  case GDP_ACK_CONTENT:
+		evtype = GDP_EVENT_DATA;
+		break;
+
+	  case GDP_ACK_DELETED:
+		// end of subscription
+		evtype = GDP_EVENT_EOS;
+		break;
+
+	  case GDP_ACK_CREATED:
+		// response to APPEND
+		evtype = GDP_EVENT_CREATED;
+		break;
+
+	  case GDP_NAK_S_LOSTSUB:
+		evtype = GDP_EVENT_SHUTDOWN;
+		break;
+
+	  default:
+		if (req->pdu->cmd >= GDP_ACK_MIN && req->pdu->cmd <= GDP_ACK_MAX)
+		{
+			// some sort of success
+			evtype = GDP_EVENT_SUCCESS;
+			req->stat = _gdp_stat_from_acknak(req->pdu->cmd);
+			break;
+		}
+		if (req->pdu->cmd >= GDP_NAK_C_MIN && req->pdu->cmd <= GDP_NAK_R_MAX)
+		{
+			// some sort of failure
+			evtype = GDP_EVENT_FAILURE;
+			req->stat = _gdp_stat_from_acknak(req->pdu->cmd);
+			break;
+		}
+		ep_dbg_cprintf(Dbg, 1,
+				"_gdp_event_add_from_req: unexpected ack/nak %d\n",
+				req->pdu->cmd);
+		estat = GDP_STAT_PROTOCOL_FAIL;
+		return estat;
+	}
+
+	gdp_event_t *gev;
+	estat = _gdp_event_new(&gev);
+	EP_STAT_CHECK(estat, return estat);
+
+	gev->type = evtype;
+	gev->gcl = req->gcl;
+	gev->stat = req->stat;
+	gev->udata = req->udata;
+	gev->cb = req->sub_cb;
+	gev->datum = req->pdu->datum;
+	req->pdu->datum = NULL;
+
+	// schedule the event for delivery
+	_gdp_event_trigger(gev);
+
+	// the callback must call gdp_event_free(gev)
+
+	return estat;
+}
+
+
+/*
+**  Print an event (for debugging)
+*/
+
+void
+gdp_event_print(gdp_event_t *gev, FILE *fp, int detail)
+{
+	char ebuf[100];
+
+	if (detail > GDP_PR_BASIC + 1)
+		fprintf(fp, "Event type %d, udata %p\n", gev->type, gev->udata);
+
+	switch (gev->type)
+	{
+	  case GDP_EVENT_DATA:
+		gdp_datum_print(gev->datum, fp, GDP_DATUM_PRTEXT);
+		break;
+
+	  case GDP_EVENT_CREATED:
+		fprintf(fp, "Data created\n");
+		break;
+
+	  case GDP_EVENT_EOS:
+		fprintf(fp, "End of data\n");
+		break;
+
+	  case GDP_EVENT_SHUTDOWN:
+		fprintf(fp, "Log daemon shutdown\n");
+		break;
+
+	  case GDP_EVENT_SUCCESS:
+		fprintf(fp, "Success: %s\n",
+				ep_stat_tostr(gev->stat, ebuf, sizeof ebuf));
+		break;
+
+	  case GDP_EVENT_FAILURE:
+		fprintf(fp, "Failure: %s\n",
+				ep_stat_tostr(gev->stat, ebuf, sizeof ebuf));
+		break;
+
+	  default:
+		if (detail > 0)
+			fprintf(fp, "Unknown event type %d\n", gev->type);
+		break;
+	}
+}
+
+
 int
 gdp_event_gettype(gdp_event_t *gev)
 {

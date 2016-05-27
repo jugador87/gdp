@@ -32,6 +32,7 @@
 #include "logd_pubsub.h"
 
 #include <gdp/gdp_gclmd.h>
+#include <gdp/gdp_priv.h>
 
 static EP_DBG	Dbg = EP_DBG_INIT("gdplogd.proto", "GDP Log Daemon protocol");
 
@@ -970,6 +971,59 @@ fail0:
 }
 
 
+/*
+**  CMD_FWD_APPEND --- forwarded APPEND command
+**
+**		Used for replication.  This is identical to an APPEND,
+**		except it is addressed to an individual gdplogd rather
+**		than to a GCL.  The actual name is in the payload.
+*/
+
+EP_STAT
+cmd_fwd_append(gdp_req_t *req)
+{
+	EP_STAT estat;
+	gdp_name_t gclname;
+
+	// must be addressed to me
+	if (memcmp(req->pdu->dst, _GdpMyRoutingName, sizeof _GdpMyRoutingName) != 0)
+	{
+		// this is directed to a GCL, not to the daemon
+		return gdpd_gcl_error(req->pdu->dst,
+							"cmd_create: log name required",
+							GDP_STAT_NAK_CONFLICT,
+							GDP_STAT_NAK_BADREQ);
+	}
+
+	// get the name of the GCL into current PDU
+	{
+		int i;
+		gdp_pname_t pbuf;
+
+		i = gdp_buf_read(req->pdu->datum->dbuf, gclname, sizeof gclname);
+		if (i < sizeof req->pdu->dst)
+		{
+			return gdpd_gcl_error(req->pdu->dst,
+								"cmd_fwd_append: gclname required",
+								GDP_STAT_GCL_NAME_INVALID,
+								GDP_STAT_NAK_INTERNAL);
+		}
+		memcpy(req->pdu->dst, gclname, sizeof req->pdu->dst);
+
+		ep_dbg_cprintf(Dbg, 14, "cmd_fwd_append: %s\n",
+				gdp_printable_name(req->pdu->dst, pbuf));
+	}
+
+	// actually do the append
+	estat = cmd_append(req);
+
+	// make response seem to come from log
+	memcpy(req->pdu->dst, gclname, sizeof req->pdu->dst);
+
+	return estat;
+}
+
+
 /**************** END OF COMMAND IMPLEMENTATIONS ****************/
 
 
@@ -1065,6 +1119,7 @@ static struct cmdfuncs	CmdFuncs[] =
 	{ GDP_CMD_GETMETADATA,	cmd_getmetadata	},
 	{ GDP_CMD_OPEN_RA,		cmd_open		},
 	{ GDP_CMD_NEWEXTENT,	cmd_newextent	},
+	{ GDP_CMD_FWD_APPEND,	cmd_fwd_append	},
 	{ 0,					NULL			}
 };
 

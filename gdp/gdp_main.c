@@ -312,7 +312,7 @@ gdp_pdu_proc_resp(void *pdu_)
 	{
 		// send the status as an event
 		EP_ASSERT(req->state == GDP_REQ_IDLE);
-		estat = _gdp_subscr_event(req);
+		estat = _gdp_event_add_from_req(req);
 	}
 	else if (ep_dbg_test(Dbg, 1))
 	{

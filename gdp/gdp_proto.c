@@ -459,7 +459,7 @@ static dispatch_ent_t	DispatchTable[256] =
 	{ NULL,				"CMD_GETMETADATA"		},			// 74
 	{ NULL,				"CMD_OPEN_RA"			},			// 75
 	{ NULL,				"CMD_NEWEXTENT"			},			// 76
-	NOENT,				// 77
+	{ NULL,				"CMD_FWD_APPEND"		},			// 77
 	NOENT,				// 78
 	NOENT,				// 79
 	NOENT,				// 80

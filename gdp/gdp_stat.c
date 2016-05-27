@@ -31,11 +31,15 @@
 */
 
 #include "gdp.h"
+#include "gdp_priv.h"
+#include "gdp_pdu.h"
 #include "gdp_stat.h"
 
-/* TODO:	Verify that these strings are accurate.  */
+#include <ep/ep_dbg.h>
 
-#define NAKSTAT(code)	GDP_STAT_FROM_NAK(GDP_NAK_ ## code)
+static EP_DBG	Dbg = EP_DBG_INIT("gdp_stat", "GDP status codes");
+
+/* TODO:	Verify that these strings are accurate.  */
 
 static struct ep_stat_to_string Stats[] =
 {
@@ -106,4 +110,26 @@ void
 _gdp_stat_init(void)
 {
 	ep_stat_reg_strings(Stats);
+}
+
+
+/*
+**   Convert an ACK or NAK command code into an EP_STAT
+*/
+
+EP_STAT
+_gdp_stat_from_acknak(int acknak)
+{
+	if (acknak >= GDP_ACK_MIN && acknak <= GDP_ACK_MAX)
+		return GDP_STAT_FROM_ACK(acknak);
+	if (acknak >= GDP_NAK_C_MIN && acknak <= GDP_NAK_C_MAX)
+		return GDP_STAT_FROM_C_NAK(acknak);
+	if (acknak >= GDP_NAK_S_MIN && acknak <= GDP_NAK_S_MAX)
+		return GDP_STAT_FROM_S_NAK(acknak);
+	if (acknak >= GDP_NAK_R_MIN && acknak <= GDP_NAK_R_MAX)
+		return GDP_STAT_FROM_R_NAK(acknak);
+
+	ep_dbg_cprintf(Dbg, 1, "_gdp_stat_from_acknak: code %d not an acknak\n",
+			acknak);
+	return GDP_STAT_INTERNAL_ERROR;
 }

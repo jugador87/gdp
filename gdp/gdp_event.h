@@ -61,4 +61,8 @@ extern void				_gdp_event_setcb(
 								gdp_event_cbfunc_t cbfunc,
 								void *cbarg);
 
+// create asynchronous event based on a request
+extern EP_STAT			_gdp_event_add_from_req(
+								gdp_req_t *req);
+
 #endif // _GDP_EVENT_H_

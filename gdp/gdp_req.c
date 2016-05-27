@@ -114,6 +114,10 @@ _gdp_req_new(int cmd,
 
 	EP_ASSERT_REQUIRE(gcl == NULL || EP_UT_BITSET(GCLF_INUSE, gcl->flags));
 
+	// simplify the simple case
+	if (chan == NULL)
+		chan = _GdpChannel;
+
 	// get memory, off free list if possible
 	ep_thr_mutex_lock(&ReqFreeListMutex);
 	if ((req = LIST_FIRST(&ReqFreeList)) != NULL)
