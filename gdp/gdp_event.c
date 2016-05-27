@@ -333,7 +333,9 @@ gdp_event_print(gdp_event_t *gev, FILE *fp, int detail)
 	char ebuf[100];
 
 	if (detail > GDP_PR_BASIC + 1)
-		fprintf(fp, "Event type %d, udata %p\n", gev->type, gev->udata);
+		fprintf(fp, "Event type %d, udata %p, stat %s\n    ",
+				gev->type, gev->udata,
+				ep_stat_tostr(gev->stat, ebuf, sizeof ebuf));
 
 	switch (gev->type)
 	{
