@@ -45,7 +45,7 @@
 
 // change these as necessary
 #define EP_VERSION_MAJOR	2
-#define EP_VERSION_MINOR	2
+#define EP_VERSION_MINOR	3
 #define EP_VERSION_PATCH	0
 
 #define __EP_STRING(x)		#x
