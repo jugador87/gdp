@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart', 'controls']});
+      //google.charts.setOnLoadCallback(drawChart);
+
+      function plot(form) {
+        var logname = form.logname.value;
+        var key = form.key.value;
+        var startRec = -1;
+        //var endRec = -1*parseInt(form.key.history,10);
+        var endRec = -1*form.history.value;
+        var step = (endRec)/1000;
+
+
+        if (typeof dashboard != 'undefined') {
+            pChart.visualization.clearChart();
+            pSlider.visualization.dispose();
+            dashboard.dispose();
+        }
+
+        drawChart(logname, startRec, endRec, step, key);
+      }
+
+      function drawChart(logname, startRec, endRec, step, key) {
+
+        var baseurl = "http://localhost:8888/datasource?";
+
+        var query_string = "";
+        query_string += "logname=" + String(logname) + "&"
+        query_string += "startRec=" + String(startRec) + "&"
+        query_string += "endRec=" + String(endRec) + "&"
+        query_string += "step=" + String(step) + "&"
+        query_string += "key=" + String(key)
+
+        var query = new google.visualization.Query(baseurl+query_string);
+        query.send(handleQueryResponse);
+      }
+
+      function handleQueryResponse(response) {
+
+        var data = response.getDataTable();
+        var options = {
+          title: 'Temperature data',
+          //curveType: 'function',
+          legend: { position: 'bottom' }
+        };
+
+        dashboard = new google.visualization.Dashboard(
+          document.getElementById('dashboard_div'));
+
+        pSlider =  new google.visualization.ControlWrapper({
+          'controlType': 'ChartRangeFilter',
+          'containerId': 'control_div',
+          'options': {
+            'filterColumnLabel': 'time',
+            //'ui': {'labelStacking': 'vertical'}
+          }
+        });
+
+        pChart = new google.visualization.ChartWrapper({
+        'chartType': 'LineChart',
+        'containerId': 'chart_div',
+        'options': {
+          //'title' : 'Temperature data',
+          //'curveType' : 'function',
+          //'legend': { 'position': 'bottom'}
+         }
+        });
+
+        dashboard.bind(pSlider, pChart);
+        dashboard.draw(data);
+      }
+
+
+    </script>
+  </head>
+  <body>
+  <table>
+    <tr><td>
+    <div id="form_div" style="width: 200px; height: 500px">
+        <form name="arg_picker" action="" method="GET">
+
+        Sensor name:
+        <select name="logname" size=15>
+          <option value="edu.berkeley.eecs.swarmlab.device.c098e5300003" selected>c098e5300003 BLEES</option>
+          <option value="edu.berkeley.eecs.swarmlab.device.c098e5700088">c098e5700088 PowerBlade</option>
+          <option value="edu.berkeley.eecs.swarmlab.device.c098e570008b">c098e570008b PowerBlade</option>
+          <option value="edu.berkeley.eecs.swarmlab.device.c098e570008e">c098e570008e PowerBlade</option>
+          <option value="edu.berkeley.eecs.swarmlab.device.c098e590000a">c098e590000a Blink</option>
+          
+          <option value="edu.berkeley.eecs.swarmlab.device.c098e530000a">c098e530000a BLEES</option>
+          <option value="edu.berkeley.eecs.swarmlab.device.c098e590000b">c098e590000b Blink</option>
+          <option value="edu.berkeley.eecs.swarmlab.device.c098e5900019">c098e5900019 Blink</option>
+          <option value="edu.berkeley.eecs.swarmlab.device.c098e5900091">c098e5900091 Blink</option>
+          
+          <option value="edu.berkeley.eecs.bwrc.device.c098e5300009">c098e5300009 BLEES</option>
+          <option value="edu.berkeley.eecs.bwrc.device.c098e5300036">c098e5300036 BLEES</option>
+          <option value="edu.berkeley.eecs.bwrc.device.c098e5300054">c098e5300054 BLEES</option>
+          <option value="edu.berkeley.eecs.bwrc.device.c098e530005d">c098e530005d BLEES</option>
+          <option value="edu.berkeley.eecs.bwrc.device.c098e570008f">c098e570008f PowerBlade</option>
+          <option value="edu.berkeley.eecs.bwrc.device.c098e590001e">c098e590001e Blink</option>
+        </select>
+
+        Parameter:
+        <select name="key" size=12>
+          <!--blees-->
+          <option value="pressure_pascals" selected>BLEES - pressure</option>
+          <option value="humidity_percent">BLEES - humidity</option>
+          <option value="temperature_celcius">BLEES - temperature</option>
+          <option value="light_lux">BLEES - light</option>
+          <!--Blink-->
+          <option value="current_motion">Blink - current</option>
+          <option value="motion_since_last_adv"> Blink - sinceLastAdv</option>
+          <option value="motion_last_minute"> Blink - lastMinute</option>
+          <!--PowerBlade-->
+          <option value="rms_voltage">PowerBlade - rms_voltage</option>
+          <option value="power">PowerBlade - power</option>
+          <option value="apparent_power">PowerBlade - apparent_power</option>
+          <option value="energy">PowerBlade - energy</option>
+          <option value="power_factor">PowerBlade - power_factor</option>
+        </select>
+
+        How far back?
+        <input type="text" name="history" value=100000>
+        <input type="button" name="button" value="plot" onClick="plot(this.form)">
+        </form>
+    </div>
+    </td>
+    <td>
+    <div id="dashboard_div">
+        <div id="chart_div" style="width: 1000px; height: 500px"></div>
+        <div id="control_div" style="width: 900px; height: 50px"></div>
+        <div id="instructions" style="width: 900px; height: 50px"></div>
+    </div>
+    </td></tr>
+    </table>
+  </body>
+</html>
+
