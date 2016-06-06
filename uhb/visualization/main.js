@@ -35,18 +35,16 @@ function makeForm() {
         devicePickerString += "<option value='" + log.logname + "'>" + log.logname + "</option>";
     }
     devicePickerString += "</select>";
-    devicePickerString += "&nbsp&nbsp How far back? <input type='range' name='history' min='2' max='6' step='0.1'>"
+    devicePickerString += "&nbsp&nbsp How far back? <input type='range' name='history' min='4.8' max='6.8' step='0.1'>"
     devicePickerString += "&nbsp&nbsp <input type='button' name='button' value='Plot' onClick='plot(this.form)'>"
     document.getElementById('devicePicker').innerHTML = devicePickerString;
 }
 
 function plot(form) {
     var logname = form.logname.value;
-    var startRec = -1;
-    //var endRec = -1*parseInt(form.key.history,10);
-    var endRec = -1*Math.round(Math.pow(10,form.history.value));
-    var step = Math.round((endRec)/1000);
-
+    var curTime = Date.now()/1000.0;
+    var startTime = curTime-Math.pow(10.0,form.history.value);
+    var endTime = curTime;
 
     if (typeof dashboard != 'undefined') {
         for (var i=0; i<pChartArray.length; i++) {
@@ -56,18 +54,17 @@ function plot(form) {
         dashboard.dispose();
     }
 
-    drawChart(logname, startRec, endRec, step);
+    drawChart(logname, startTime, endTime);
 }
 
-function drawChart(logname, startRec, endRec, step) {
+function drawChart(logname, startTime, endTime) {
 
     var baseurl = "/datasource?";
 
     var query_string = "";
     query_string += "logname=" + String(logname) + "&"
-    query_string += "startRec=" + String(startRec) + "&"
-    query_string += "endRec=" + String(endRec) + "&"
-    query_string += "step=" + String(step)
+    query_string += "startTime=" + String(startTime) + "&"
+    query_string += "endTime=" + String(endTime)
 
     var query = new google.visualization.Query(baseurl+query_string);
     query.send(handleQueryResponse);

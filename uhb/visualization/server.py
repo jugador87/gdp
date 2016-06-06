@@ -15,12 +15,97 @@ import gviz_api
 from datetime import datetime
 import time
 
+class GDPcache:
+    """ A caching + query-by-time layer for GDP. Time is in msec """
+
+    def __init__(self, logname, limit=1000):
+
+        self.logname = logname
+        self.lh = gdp.GDP_GCL(gdp.GDP_NAME(logname), gdp.GDP_MODE_RO)
+        self.cache = {}     # a recno => record cache   (limited size)
+
+        self.__read(1)
+        self.__read(-1)
+
+    
+    def __time(self, recno):        # cache for tMap
+        """ give us the time function. A way to switch between the log-server
+            timestamps and the timestamps in data """
+        datum = self.__read(recno)
+        return datum['ts']['tv_sec'] + (datum['ts']['tv_nsec']*1.0/10**9)
+
+
+    def __read(self, recno):        # cache for, of course, cache
+        """ read a single record by recno, but add to cache """
+        if recno in self.cache.keys():
+            return self.cache[recno]
+        datum = self.lh.read(recno)
+        pos_recno = datum['recno']
+        self.cache[pos_recno] = datum
+        return datum
+
+
+    def __multiread(self, start, num):
+        """ same as read, but efficient for a range. Use carefully, because
+        I don't check for already-cached entries """
+        self.lh.multiread(start, num)
+        ret = []
+        while True:
+            event = self.lh.get_next_event(None)
+            if event['type'] == gdp.GDP_EVENT_EOS: break
+            datum = event['datum']
+            recno = datum['recno']
+            self.cache[recno] = datum
+            ret.append(datum)
+        return ret
+
+
+    def __findRecNo(self, t):
+        """ find the most recent record num before t, i.e. a binary search"""
+
+        self.__read(-1)     # just to refresh the cache
+        _startR, _endR = min(self.cache.keys()), max(self.cache.keys())
+
+        # first check the obvious out of range condition
+        if t<self.__time(_startR): return _startR
+        if t>=self.__time(_endR): return _endR
+
+        # t lies in range [_startR, _endR)
+        while _startR < _endR-1:
+            p = (_startR + _endR)/2
+            if t<self.__time(p): _endR = p
+            else: _startR = p
+
+        return _startR
+
+
+    def get(self, tStart, tEnd, numPoints=1000):
+        """ return a list of records, *roughly* numPoints long """
+        _startR = self.__findRecNo(tStart)
+        _endR = self.__findRecNo(tEnd)
+
+        # can we use multiread?
+        if _endR+1-_startR<4*numPoints:
+            return self.__multiread(_startR, (_endR+1)-_startR)
+
+        # if not, let's read one by one
+        ret = []
+        step = max((_endR+1-_startR)/numPoints,1)
+        for r in xrange(_startR, _endR+1, step):
+            ret.append(self.__read(r))
+
+        return ret
+
+    def mostRecent(self):
+        return self.__read(-1)
+
 
 class DataResource(Resource):
 
     isLeaf = True
     def __init__(self):
         Resource.__init__(self)
+        self.GDPcaches = {}
 
 
     def __handleQuery(self, request):
@@ -29,9 +114,8 @@ class DataResource(Resource):
 
         # get query parameters
         logname = args['logname'][0]
-        startRec = int(args['startRec'][0])
-        endRec = int(args['endRec'][0])
-        step = int(args['step'][0])
+        startTime = float(args['startTime'][0])
+        endTime = float(args['endTime'][0])
 
         # reqId processing
         reqId = 0
@@ -42,11 +126,12 @@ class DataResource(Resource):
                 reqId = _t[1]
                 break
 
-        # open GDP log
-        lh = gdp.GDP_GCL(gdp.GDP_NAME(logname), gdp.GDP_MODE_RO)
+        gdpcache = self.GDPcaches.get(logname, None)
+        if gdpcache is None:
+            gdpcache = GDPcache(logname)
+            self.GDPcaches[logname] = gdpcache
 
-        sampleRecord = lh.read(-1)
-        mostrecent = sampleRecord['recno']
+        sampleRecord = gdpcache.mostRecent()
         sampleData = json.loads(sampleRecord['data'])
         if sampleData['device'] == "BLEES":
             keys = ['pressure_pascals', 'humidity_percent',
@@ -61,17 +146,9 @@ class DataResource(Resource):
             keys = []
 
         # create data
-        reclist = range(startRec, endRec, step)
         data = []
-        for t in reclist:
+        for datum in gdpcache.get(startTime, endTime):
 
-            # make sure we are in the right range
-            if (t>=0 and (t<1 or t>mostrecent)) or \
-                    (t<0 and (t*(-1)>=mostrecent)):
-                break
-
-            # go read the data
-            datum = lh.read(t)
             _time = datetime.fromtimestamp(datum['ts']['tv_sec'] + \
                                 (datum['ts']['tv_nsec']*1.0/10**9))
             __xxx = [_time]
@@ -91,8 +168,6 @@ class DataResource(Resource):
             desc.append((key, 'number'))
         data_table = gviz_api.DataTable(desc)
         data_table.LoadData(data)
-
-        del lh
 
         response = data_table.ToJSonResponse(order_by='time', req_id = reqId)
 
