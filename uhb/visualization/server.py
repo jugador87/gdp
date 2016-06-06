@@ -32,7 +32,6 @@ class DataResource(Resource):
         startRec = int(args['startRec'][0])
         endRec = int(args['endRec'][0])
         step = int(args['step'][0])
-        key = args['key'][0]
 
         # reqId processing
         reqId = 0
@@ -46,7 +45,20 @@ class DataResource(Resource):
         # open GDP log
         lh = gdp.GDP_GCL(gdp.GDP_NAME(logname), gdp.GDP_MODE_RO)
 
-        mostrecent = lh.read(-1)['recno']
+        sampleRecord = lh.read(-1)
+        mostrecent = sampleRecord['recno']
+        sampleData = json.loads(sampleRecord['data'])
+        if sampleData['device'] == "BLEES":
+            keys = ['pressure_pascals', 'humidity_percent',
+                    'temperature_celcius', 'light_lux']
+        elif sampleData['device'] == "Blink":
+            keys = ['current_motion', 'motion_since_last_adv',
+                    'motion_last_minute']
+        elif sampleData['device'] == 'PowerBlade':
+            keys = ['rms_voltage', 'power', 'apparent_power', 'energy',
+                    'power_factor']
+        else:
+            keys = []
 
         # create data
         reclist = range(startRec, endRec, step)
@@ -62,24 +74,27 @@ class DataResource(Resource):
             datum = lh.read(t)
             _time = datetime.fromtimestamp(datum['ts']['tv_sec'] + \
                                 (datum['ts']['tv_nsec']*1.0/10**9))
-            _raw_data = json.loads(datum['data'])[key]
-            if _raw_data == "true":
-                _data = 1.0
-            elif _raw_data == "false":
-                _data = 0.0
-            else:
-                _data = float(_raw_data)
-            data.append((_time,_data))
+            __xxx = [_time]
+            for key in keys:
+                _raw_data = json.loads(datum['data'])[key]
+                if _raw_data == "true":
+                    _data = 1.0
+                elif _raw_data == "false":
+                    _data = 0.0
+                else:
+                    _data = float(_raw_data)
+                __xxx.append(_data)
+            data.append(tuple(__xxx))
 
-        desc = [('time', 'datetime'), ('key', 'number')]
+        desc = [('time', 'datetime')]
+        for key in keys:
+            desc.append((key, 'number'))
         data_table = gviz_api.DataTable(desc)
         data_table.LoadData(data)
 
         del lh
 
-        response = data_table.ToJSonResponse(
-                        columns_order=('time', 'key'), order_by='time',
-                        req_id = reqId)
+        response = data_table.ToJSonResponse(order_by='time', req_id = reqId)
 
         return response
 
@@ -91,14 +106,19 @@ class DataResource(Resource):
         respCode = 200
         if request.path == "/":
             # serve the main HTML file
-            fh = open("index.html", "r")
-            resp = fh.read()
+            with open("index.html", "r") as fh:
+                resp = fh.read()
+
+        elif request.path == "/main.js":
+            with open("main.js", "r") as fh:
+                resp = fh.read()
 
         elif request.path == "/datasource":
             # for querying GDP
             try:
                 resp = self.__handleQuery(request)
             except Exception as e:
+                print e
                 request.setResponseCode(500)
                 respCode = 500
                 resp = "500: internal server error"
