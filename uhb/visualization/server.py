@@ -7,6 +7,7 @@ A visualization tool for time-series data stored in GDP logs
 from twisted.internet import reactor
 from twisted.web.resource import Resource
 from twisted.web.server import Site
+from threading import Lock
 
 import gdp
 import argparse
@@ -16,7 +17,8 @@ from datetime import datetime
 import time
 
 class GDPcache:
-    """ A caching + query-by-time layer for GDP. Time is in msec """
+    """ A caching + query-by-time layer for GDP. We don't need a lock here,
+        since all our opreations are atomic (at least for now)"""
 
     def __init__(self, logname, limit=1000):
 
@@ -106,6 +108,7 @@ class DataResource(Resource):
     def __init__(self):
         Resource.__init__(self)
         self.GDPcaches = {}
+        self.lock = Lock()
 
 
     def __handleQuery(self, request):
@@ -126,10 +129,12 @@ class DataResource(Resource):
                 reqId = _t[1]
                 break
 
+        self.lock.acquire()
         gdpcache = self.GDPcaches.get(logname, None)
         if gdpcache is None:
             gdpcache = GDPcache(logname)
             self.GDPcaches[logname] = gdpcache
+        self.lock.release()
 
         sampleRecord = gdpcache.mostRecent()
         sampleData = json.loads(sampleRecord['data'])
