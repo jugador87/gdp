@@ -561,7 +561,7 @@ _gdp_gcl_append_async(
 	gdp_req_t *req = NULL;
 	int i;
 
-	reqflags |= GDP_REQ_ASYNCIO;
+	reqflags |= GDP_REQ_ASYNCIO | GDP_REQ_PERSIST | GDP_REQ_ALLOC_RID;
 	estat = append_common(gcl, datum, chan, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
 
@@ -737,7 +737,7 @@ _gdp_gcl_fwd_append(
 		EP_ASSERT_FAILURE("_gdp_gcl_fwd_append: forwarding to myself");
 	}
 
-	reqflags |= GDP_REQ_ASYNCIO;
+	reqflags |= GDP_REQ_ASYNCIO | GDP_REQ_PERSIST | GDP_REQ_ALLOC_RID;
 
 	estat = _gdp_req_new(GDP_CMD_FWD_APPEND, gcl, chan, NULL, reqflags, &req);
 	EP_STAT_CHECK(estat, goto fail0);
