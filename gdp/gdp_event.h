@@ -49,12 +49,6 @@ struct gdp_event
 	EP_STAT					stat;		// detailed status code
 };
 
-// allocate an event
-extern EP_STAT			_gdp_event_new(gdp_event_t **gevp);
-
-// add an event to the active queue
-extern void				_gdp_event_trigger(gdp_event_t *gev);
-
 // set up request to deliver events or callbacks
 extern void				_gdp_event_setcb(
 								gdp_req_t *req,

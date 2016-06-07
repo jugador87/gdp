@@ -61,7 +61,12 @@ static struct ev_head	CallbackList		= STAILQ_HEAD_INITIALIZER(CallbackList);
 static pthread_t		CallbackThread;
 static bool				CallbackThreadStarted	= false;
 
-EP_STAT
+
+/*
+**  Create a new event.
+*/
+
+static EP_STAT
 _gdp_event_new(gdp_event_t **gevp)
 {
 	gdp_event_t *gev = NULL;
@@ -80,6 +85,13 @@ _gdp_event_new(gdp_event_t **gevp)
 }
 
 
+/*
+**  Free an event.
+**		The client using the event interface must call this.
+**		Clients using callbacks do not need this and MUST NOT
+**			attempt to do so.
+*/
+
 EP_STAT
 gdp_event_free(gdp_event_t *gev)
 {
@@ -97,6 +109,12 @@ gdp_event_free(gdp_event_t *gev)
 	return EP_STAT_OK;
 }
 
+
+/*
+**  Return next event.
+**		Optionally, specify a GCL that must match and/or a timeout.
+**		If the timeout is zero this acts like a poll.
+*/
 
 gdp_event_t *
 gdp_event_next(gdp_gcl_t *gcl, EP_TIME_SPEC *timeout)
@@ -149,11 +167,19 @@ gdp_event_next(gdp_gcl_t *gcl, EP_TIME_SPEC *timeout)
 		STAILQ_REMOVE(&ActiveList, gev, gdp_event, queue);
 fail0:
 	ep_thr_mutex_unlock(&ActiveListMutex);
+
+	// the callback must call gdp_event_free(gev)
 	return gev;
 }
 
 
-void
+/*
+**  Trigger an event (i.e., add to event queue)
+**		There are two lists, depending on whether a callback was
+**			specified.
+*/
+
+static void
 _gdp_event_trigger(gdp_event_t *gev)
 {
 	EP_ASSERT_POINTER_VALID(gev);
@@ -180,6 +206,12 @@ _gdp_event_trigger(gdp_event_t *gev)
 	}
 }
 
+
+/*
+**  This is the thread that processes callbacks.
+**		The event is freed, so the callback should NOT call
+**			gdp_event_free.
+*/
 
 static void *
 _gdp_event_thread(void *ctx)
@@ -317,8 +349,6 @@ _gdp_event_add_from_req(gdp_req_t *req)
 	// schedule the event for delivery
 	_gdp_event_trigger(gev);
 
-	// the callback must call gdp_event_free(gev)
-
 	return estat;
 }
 
@@ -372,6 +402,10 @@ gdp_event_print(gdp_event_t *gev, FILE *fp, int detail)
 	}
 }
 
+
+/*
+**  Getter functions for various event fields.
+*/
 
 int
 gdp_event_gettype(gdp_event_t *gev)
