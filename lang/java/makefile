@@ -29,13 +29,16 @@
 # 						COPYRIGHTENDKEY
 ##########################################################################
 
-GDP_JAR=gdp-0.3-1.jar
+# To update the GDP version, see ../../gdp/gdp_version.h
+# If you change the GDP version, then also update $PTII/configure.in and
+# https://www.terraswarm.org/swarmos/wiki/Main/GDPJavaInterface
+GDP_JAR=gdp-0.6-1.jar
 all: jclass
 install: all
 	jar cf $(GDP_JAR) org/terraswarm/gdp/*.class
 
 ##############################
-JNA_JAR = jna-4.1.0.jar
+JNA_JAR = jna-4.2.2.jar
 JNAERATOR_VERSION = 0.12
 JNAERATOR_JAR = jnaerator-$(JNAERATOR_VERSION)-shaded.jar
 JNAERATOR_RUNTIME_JAR = jnaerator-runtime-$(JNAERATOR_VERSION).jar
@@ -44,7 +47,7 @@ JNAERATOR_RUNTIME_JAR = jnaerator-runtime-$(JNAERATOR_VERSION).jar
 ### to be manually updated.
 
 $(JNA_JAR):
-	wget 'https://maven.java.net/content/repositories/releases/net/java/dev/jna/jna/4.1.0/$(JNA_JAR)' -O $@
+	wget 'https://maven.java.net/content/repositories/releases/net/java/dev/jna/jna/4.2.2/$(JNA_JAR)' -O $@
 
 $(JNAERATOR_JAR):
 	wget 'https://search.maven.org/remotecontent?filepath=com/nativelibs4java/jnaerator/$(JNAERATOR_VERSION)/$(JNAERATOR_JAR)' -O $@
