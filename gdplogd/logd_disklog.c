@@ -867,6 +867,9 @@ disk_create(gdp_gcl_t *gcl, gdp_gclmd_t *gmd)
 
 	// success!
 	phys->index.fp = index_fp;
+	phys->index.max_offset = phys->index.header_size = SIZEOF_INDEX_HEADER;
+	phys->index.min_recno = phys->min_recno = 1;
+	phys->max_recno = 0;
 	ep_dbg_cprintf(Dbg, 10, "Created new GCL %s\n", gcl->pname);
 	return estat;
 
