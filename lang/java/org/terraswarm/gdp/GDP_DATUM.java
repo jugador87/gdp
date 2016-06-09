@@ -25,9 +25,7 @@ import org.terraswarm.gdp.NativeSize; // Fixed by cxh in makefile.
  * @author nitesh mor
  *
  */
-
 class GDP_DATUM {
-
         
     // The associated C data structure.
     public PointerByReference gdp_datum_ptr = null;
@@ -36,7 +34,7 @@ class GDP_DATUM {
     private boolean did_i_create_it = false;
     
     /**
-     * Simply allocates some memory by calling C function
+     * Create a new dataum.
      */
     public GDP_DATUM() {
         this.gdp_datum_ptr = Gdp02Library.INSTANCE.gdp_datum_new();
@@ -45,7 +43,7 @@ class GDP_DATUM {
     }
     
     /**
-     * Use an already allocated C data-structure
+     * Use an already allocated C data structure.
      * @param p Pointer to existing C memory of type gdp_datum_t
      */    
     public GDP_DATUM(PointerByReference d) {
@@ -57,14 +55,14 @@ class GDP_DATUM {
     /**
      * If we allocated memory ourselves, free it.
      */
-    public void finalize(){ 
+    public void finalize() { 
         if (did_i_create_it == true) {
             Gdp02Library.INSTANCE.gdp_datum_free(this.gdp_datum_ptr);
         }
     }
     
     /**
-     * Get the associated record number
+     * Get the associated record number.
      * @return Record number
      */
     public long getrecno() {
@@ -74,7 +72,7 @@ class GDP_DATUM {
     }
     
     /**
-     * Get the timestamp
+     * Get the timestamp.
      * @return timestamp associated with the C data structure
      */
     public EP_TIME_SPEC getts() {
@@ -84,7 +82,7 @@ class GDP_DATUM {
     }
     
     /**
-     * Get the length of data in the bufffer
+     * Get the length of data in the bufffer.
      * @return Length of buffer
      */
     public NativeSize getdlen() {
@@ -96,24 +94,26 @@ class GDP_DATUM {
     
     /**
      * Get the data in the buffer. Internally, queries the buffer and
-     * effectively drains it as well
-     * @return the bytes in the buffer
+     * effectively drains it as well.
+     * @return the bytes in the buffer or null if the pointer to the
+     * buffer is null.
      */
-    
     public byte[] getbuf(){
         PointerByReference buf = Gdp02Library.INSTANCE.gdp_datum_getbuf(
                 this.gdp_datum_ptr);
         NativeSize len = Gdp02Library.INSTANCE.gdp_buf_getlength(buf);
         Pointer bufptr = Gdp02Library.INSTANCE.gdp_buf_getptr(buf, len);
-        
+        if (bufptr == null) {
+            return null;
+        }
         byte[] bytes = bufptr.getByteArray(0, len.intValue());
         return bytes;
     }
     
     
     /**
-     * Set the buffer to specified bytes
-     * @param data
+     * Set the buffer to specified bytes.
+     * @param data The data
      */
     public void setbuf(byte[] data){
         
@@ -134,5 +134,4 @@ class GDP_DATUM {
         Gdp02Library.INSTANCE.gdp_buf_write(dbuf, pointer, 
                                 new NativeSize(data.length));
     }
-    
 }

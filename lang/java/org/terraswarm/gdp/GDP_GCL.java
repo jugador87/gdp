@@ -112,7 +112,6 @@ public class GDP_GCL {
      * @param name   Name of the log.
      * @param iomode Should this be opened read only, read-append, append-only
      */
-      
     public GDP_GCL(GDP_NAME name, GDP_MODE iomode) {
 
         EP_STAT estat;
@@ -145,15 +144,44 @@ public class GDP_GCL {
         
     }
 
+    /** 
+     * Create a new GCL.
+     * This method is a convenience method used to create a GCL
+     * when the GDP_MODE enum is not available, such as when
+     * creating a GCL from JavaScript.
+     *
+     * @param name   Name of the log.
+     * @param iomode Opening mode (0: for internal use only, 1: read-only, 2: read-append, 3: append-only)
+     */
+    public static GDP_GCL newGCL(GDP_NAME name, int iomode) {
+        // The GDP Accessor uses this method
+        GDP_MODE gdp_mode = GDP_MODE.ANY;
+        switch (iomode) {
+        case 0:
+            gdp_mode = GDP_MODE.ANY;
+            break;
+        case 1:
+            gdp_mode = GDP_MODE.RO;
+            break;
+        case 2:
+            gdp_mode = GDP_MODE.AO;
+            break;
+        case 3:
+            gdp_mode = GDP_MODE.RA;
+            break;
+        default:
+            throw new IllegalArgumentException("Mode must be 0-3, instead it was: " + iomode);
+        }
+        return new GDP_GCL(name, gdp_mode);
+    }
+
     /**
-     * Read a record by record number
+     * Read a record by record number.
      * 
      * @param recno Record number to be read
      * @return A hashmap containing the data just read
      */
-    
     public HashMap<String, Object> read(long recno) {
-
         EP_STAT estat;
         GDP_DATUM datum = new GDP_DATUM();
                 
@@ -163,14 +191,21 @@ public class GDP_GCL {
         GDP.check_EP_STAT(estat);
 
         HashMap<String, Object> datum_dict = new HashMap<String, Object>();
-        datum_dict.put("recno", datum.getrecno());
-        datum_dict.put("ts", datum.getts());
-        datum_dict.put("data", datum.getbuf());
-        // TODO: Add signature routines.
-        
+        if (datum != null) {
+            try {
+                datum_dict.put("recno", datum.getrecno());
+                datum_dict.put("ts", datum.getts());
+                datum_dict.put("data", datum.getbuf());
+                // TODO: Add signature routines.
+            } catch (Throwable throwable) {
+                // In Nashorn, this exception sometimes is hidden, so
+                // we print it here
+                throwable.printStackTrace();
+                throw throwable;
+            }
+        }
         return datum_dict;
     }
-
 
     /**
      * Append data to a log. This will create a new record in the log.
@@ -245,7 +280,7 @@ public class GDP_GCL {
 
 
     /** 
-     * Start a subscription to a log
+     * Start a subscription to a log.
      * See the documentation in C library for examples.
      * 
      * @param firstrec  The record num to start the subscription from
@@ -291,20 +326,23 @@ public class GDP_GCL {
      * 
      * @param timeout_msec  Time (in ms) for which to block. Can be used 
      *                      to block eternally as well.
-     */ /*
-    public String get_next_data(int timeout_msec) {
-        // returns next data item from subcription or multiread
-        // returns null if end of subscription
+     */
+    // public String get_next_data(int timeout_msec) {
+    //     // This method is used by the Ptolemy interface to the GDP.
+    //     EP_TIME_SPEC time_spec = new EP_TIME_SPEC(timeout_msec/1000,
+    //             0, /* nanoseconds */
+    //             0.001f /* accuracy in seconds */);
 
-        GDP_EVENT ev = get_next_event(timeout_msec);
-        if (ev.type == Gdp02Library.INSTANCE.GDP_EVENT_DATA) {
-            return ev.datum.data;
-        } else {
-            return null;
-        }
+    //     // Returns next data item from subcription or multiread.
+    //     // Returns null if the subscription has ended.
+    //     GDP_EVENT ev = get_next_event(timeout_msec, time_spec);;
+    //     if (ev.type == Gdp02Library.INSTANCE.GDP_EVENT_DATA) {
+    //         return ev.datum.data;
+    //     } else {
+    //         return null;
+    //     }
 
-    } */
-
+    // }
     
     public static HashMap<String, Object> _helper_get_next_event(
                             Pointer gclh, EP_TIME_SPEC timeout) {
@@ -344,18 +382,36 @@ public class GDP_GCL {
         return gdp_event;
     }
     
+    /** 
+     * Get the next event.
+     * 
+     * @param timeout_msec  Time (in ms) for which to block. Can be used 
+     *                      to block eternally as well.
+     */
+    public static HashMap<String, Object> get_next_event(
+                        GDP_GCL obj, int timeout_msec) {
+        // This method is used by the Ptolemy interface to the GDP.
+        EP_TIME_SPEC timeout_spec = new EP_TIME_SPEC(timeout_msec/1000,
+                0, /* nanoseconds */
+                0.001f /* accuracy in seconds */);
+        return get_next_event(obj, timeout_spec);
+    }
+
+    /** 
+     * Get data from next record for a subscription or multiread
+     * This is a wrapper around 'get_next_event', and works only 
+     * for subscriptions, multireads.
+     * 
+     * @param timeout_msec  Time (in ms) for which to block. Can be used 
+     *                      to block eternally as well.
+     */
     public static HashMap<String, Object> get_next_event(
                         GDP_GCL obj, EP_TIME_SPEC timeout) {
-
-        if (obj==null) {
-        
+        if (obj == null) {
             return _helper_get_next_event(null, timeout);
-        
         } else {
-            
             HashMap<String, Object> tmp = _helper_get_next_event(
                     obj.gclh, timeout);
-
             assert tmp.get("gcl_handle") == obj;
 
             return tmp;
@@ -368,41 +424,41 @@ public class GDP_GCL {
      * an asynchronous operation.
      * 
      * @param timeout_msec  Time (in ms) for which to block.
-     */ /*
-    public GDP_EVENT get_next_event(int timeout_msec) {
-        // timeout in ms. Probably not very precise
-        // 0 means block forever
+     */
+    // public GDP_EVENT get_next_event(int timeout_msec) {
+    //     // timeout in ms. Probably not very precise
+    //     // 0 means block forever
 
-        EP_TIME_SPEC timeout = null;
+    //     EP_TIME_SPEC timeout = null;
 
-        if (timeout_msec != 0) {
+    //     if (timeout_msec != 0) {
 
-            // Get current time
-            Date d = new Date();
-            long current_msec = d.getTime();
+    //         // Get current time
+    //         Date d = new Date();
+    //         long current_msec = d.getTime();
 
-            // Get values to create a C timeout structure
-            long tv_sec = (current_msec + timeout_msec)/1000;
-            int tv_nsec = (int) ((current_msec + timeout_msec)%1000);
-            float tv_accuracy = (float) 0.0;
+    //         // Get values to create a C timeout structure
+    //         long tv_sec = (current_msec + timeout_msec)/1000;
+    //         int tv_nsec = (int) ((current_msec + timeout_msec)%1000);
+    //         float tv_accuracy = (float) 0.0;
 
-            timeout = new EP_TIME_SPEC(tv_sec, tv_nsec, tv_accuracy);
-        }
+    //         timeout = new EP_TIME_SPEC(tv_sec, tv_nsec, tv_accuracy);
+    //     }
 
-        // Get the C pointer to next event. This blocks till timeout
-        PointerByReference gev = Gdp02Library.INSTANCE
-                                    .gdp_event_next(this.gclh, timeout);
+    //     // Get the C pointer to next event. This blocks till timeout
+    //     PointerByReference gev = Gdp02Library.INSTANCE
+    //                                 .gdp_event_next(this.gclh, timeout);
 
-        // Get the data associated with this event
-        int type = Gdp02Library.INSTANCE.gdp_event_gettype(gev);
-        PointerByReference datum = Gdp02Library.INSTANCE.gdp_event_getdatum(gev);
+    //     // Get the data associated with this event
+    //     int type = Gdp02Library.INSTANCE.gdp_event_gettype(gev);
+    //     PointerByReference datum = Gdp02Library.INSTANCE.gdp_event_getdatum(gev);
 
-        // Create an object of type GDP_EVENT that we'll return
-        GDP_EVENT ev = new GDP_EVENT(this.gclh, datum, type);
+    //     // Create an object of type GDP_EVENT that we'll return
+    //     GDP_EVENT ev = new GDP_EVENT(this.gclh, datum, type);
 
-        // Free the C data-structure
-        Gdp02Library.INSTANCE.gdp_event_free(gev);
+    //     // Free the C data-structure
+    //     Gdp02Library.INSTANCE.gdp_event_free(gev);
 
-        return ev;
-    } */
+    //     return ev;
+    // }
 }
