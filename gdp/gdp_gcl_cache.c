@@ -395,6 +395,13 @@ _gdp_gcl_cache_reclaim(time_t maxage)
 			return;
 
 		// try again, shortening timeout
+		if (maxage < 4)
+		{
+			ep_log(EP_STAT_WARN,
+					"_gdp_gcl_cache_reclaim: cannot reach headroom %d, nfds %d",
+					headroom, nfds);
+			return;
+		}
 		maxage -= maxage / 4;
 	}
 }
