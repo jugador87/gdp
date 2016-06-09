@@ -115,14 +115,14 @@ _gdp_gcl_freehandle(gdp_gcl_t *gcl)
 	ep_dbg_cprintf(Dbg, 28, "_gdp_gcl_freehandle(%p)\n", gcl);
 	GDP_ASSERT_GOOD_GCL(gcl);
 
+	// release any remaining requests
+	_gdp_req_freeall(&gcl->reqs, NULL);
+
 	// drop it from the name -> handle cache
 	_gdp_gcl_cache_drop(gcl);
 
 	// should still be in use, but now no other way to reach the GCL
 	EP_ASSERT_INSIST(EP_UT_BITSET(GCLF_INUSE, gcl->flags));
-
-	// release any remaining requests
-	_gdp_req_freeall(&gcl->reqs, NULL);
 
 	// free any additional per-GCL resources
 	if (gcl->freefunc != NULL)
