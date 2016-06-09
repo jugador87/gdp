@@ -104,7 +104,8 @@ def main(logname, inputDevicePrefix=None):
 
     except gdp.MISC.EP_STAT_SEV_ERROR as e:
         # in case first record does not exist, let's write it
-        if e.msg.startswith("ERROR: 404 "):
+        if e.msg.startswith("ERROR: 404 ") or \
+                        e.msg.startswith('ERROR: 4.04 '):
             mic_id, audioParams = getDeviceParams(inputDevicePrefix)
             lh.append( {"data": json.dumps(audioParams)} )
         else:
