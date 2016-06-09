@@ -108,6 +108,7 @@ class DataResource(Resource):
     def __init__(self):
         Resource.__init__(self)
         self.GDPcaches = {}
+        self.req_num = 0
         self.lock = Lock()
 
 
@@ -181,6 +182,14 @@ class DataResource(Resource):
 
     def render_GET(self, request):
 
+        # Get a request number for this particular request
+        self.lock.acquire()
+        req_num = self.req_num
+        self.req_num += 1
+        self.lock.release()
+
+        print "%s]](%d) %s GET: %s" % (time.strftime("%x %X"), req_num,
+                                         request.getClientIP(), request.uri)
         start = time.time()
         resp = ""
         respCode = 200
@@ -210,8 +219,8 @@ class DataResource(Resource):
             resp = "404: not found"
 
         end = time.time()
-        print "%s]] GET: <<%s>>\t%d\t%d\t%f" % (time.strftime("%x %X"),
-                                request.uri, respCode, len(resp), end-start) 
+        print "%s]](%d) RESP: %d\t%d\t%f" % (time.strftime("%x %X"), req_num,
+                                    respCode, len(resp), end-start)
         return resp
 
 
@@ -230,7 +239,5 @@ if __name__ == '__main__':
     reactor.listenTCP(args.port, site)
 
     print "Starting web-server on port", args.port
-    print "Log format is: (date)]] (method): <<(requestPath))>> "\
-                "(responseCode) (responseLength) (timeTaken)"
     reactor.run()
 
