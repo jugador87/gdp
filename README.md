@@ -276,7 +276,7 @@ scale as well as Version 2.
 > debugging the GDP itself, please move on to Version 2.
 
 Version 1 of the router is in it's own separate repository at:
-`https://repo.eecs.berkeley.edu:git/projects/swarmlab/gdp_router.git`.
+`https://repo.eecs.berkeley.edu/git/projects/swarmlab/gdp_router.git`.
 You can get this the same way as the GDP base code, but use
 "`gdp_router`" instead of "`gdp`".
 
