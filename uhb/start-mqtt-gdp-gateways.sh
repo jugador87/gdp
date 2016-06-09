@@ -30,14 +30,19 @@ START="sh $GDP_ROOT/adm/start-mqtt-gdp-gateway.sh"
 #	c098e570008b  \
 #	c098e570008e  \
 #	c098e590000a
+#	&
 #$START uhkbbb002.eecs.berkeley.edu edu.berkeley.eecs.swarmlab \
 #	c098e530000a  \
 #	c098e590000b  \
 #	c098e5900019  \
 #	c098e5900091
+#	&
 #$START uhkbbb004.eecs.berkeley.edu edu.berkeley.eecs.bwrc \
 #	c098e5300009  \
 #	c098e5300054  \
 #	c098e530005d  \
 #	c098e570008f  \
 #	c098e590001e
+#	&
+
+wait
