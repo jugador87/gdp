@@ -133,6 +133,13 @@ sigterm(int sig)
 **		SIGUSR1 instead.
 */
 
+static void
+dump_state(void)
+{
+	_gdp_gcl_cache_dump(stderr);
+	ep_app_dumpfds(stderr);
+}
+
 #ifndef SIGINFO
 # define SIGINFO	SIGUSR1
 #endif
@@ -140,8 +147,7 @@ sigterm(int sig)
 void
 siginfo(int sig, short what, void *arg)
 {
-	_gdp_gcl_cache_dump(stderr);
-	ep_app_dumpfds(stderr);
+	dump_state();
 }
 
 
@@ -332,6 +338,9 @@ main(int argc, char **argv)
 	// do cleanup on termination
 	signal(SIGINT, sigterm);
 	signal(SIGTERM, sigterm);
+
+	// dump state on assertion failure
+	EpAbortFunc = dump_state;
 
 	// arrange to clean up resources periodically
 	{
