@@ -94,8 +94,7 @@ extern void	ep_assert_failure(
 			...)
 			EP_ATTR_NORETURN;
 
-// called if ep_assert_failure was rude enough to return
-extern void	ep_assert_abort(const char *msg)
-			EP_ATTR_NORETURN;
+// can optionally be called before exit
+extern void	(*EpAbortFunc)(void);
 
 #endif /*_EP_ASSERT_H_*/
