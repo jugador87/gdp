@@ -23,13 +23,50 @@ access.
 
 ## Getting Started
 
-These are a "quick start" guide to running the GDP.  Details are
-all included below.  These instructions are assuming you are
-installing your own infrastructure.  For example, if you are using
-a previously existing router, you can skip the steps for installing,
-configuring, and starting the router.  If you are using a Debian
-package and existing routers and log daemons you can [skip this
-section entirely][Using the GDP].
+### Quick start: setting up only a client
+
+These are a "quick start" guide to setup a GDP client and be able to
+write applications. Details are all included below. These instructions
+do not tell you how to setup your own log daemon (or router). For that,
+see below. This should work on all supported platforms. If you really
+care only about writing application on Debian based systems and you
+are okay with slightly older code, you can probably use the packaged
+versions (see elsewhere).
+
+   1.	Install the prerequisite packages described below.  For the base
+	system all you'll need are `libevent2-dev` and `libssl-dev`, but the
+	others are needed for full functionality.  The script
+	`adm/gdp-setup.sh` should install everything you need.
+
+   2.	Compile the code as described below.
+
+   3.	Adjust any administrative parameters (see below).  In particular,
+	you may want to update `swarm.gdp.routers` if you are using an
+	existing router (which you probably are, because you wouldn't be
+	reading this section). It defaults to `localhost`, which you would
+	like to change to the router you are using. If you want, you can
+	also setup the name of the log daemons explicitly.
+
+   4.	Create your first GCL using `apps/gcl-create`.  Use -s
+    followed by the name of the log daemon on which to create the
+	GCL (as displayed in the previous step) and the name of the new
+	log.  If no log name is specified, an internal name is used.
+
+   5.	Run `apps/gdp-writer` giving it the name of the log you just
+	created to add data to the log.  It will ask for lines of input
+	that are appended ot the log.  There is no need to give the
+	name of the log daemon; gdp_router will find it for you.
+
+   6.	Check success by running `apps/gdp-reader` giving it the
+	same name as you used in the previous step.
+
+### Elaborate setup: setting up client and your own log-server
+
+These instructions are assuming you are installing your own infrastructure.
+For example, if you are using a previously existing router, you can
+skip the steps for installing, configuring, and starting the router.
+If you are using a Debian package and existing routers and log daemons
+you can [skip this section entirely][Using the GDP].
 
    1.	Install the prerequisite packages described below.  For the base
 	system all you'll need are `libevent2-dev` and `libssl-dev`, but the
