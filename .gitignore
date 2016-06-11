@@ -29,6 +29,7 @@ tags
 *.a
 *.so.*
 *.pyc
+*.log
 *.dSYM
 !libs/*.a
 !libs/*.so*

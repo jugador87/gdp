@@ -5,8 +5,9 @@ A visualization tool for time-series data stored in GDP logs
 """
 
 from twisted.internet import reactor
-from twisted.web.resource import Resource
+from twisted.web.resource import Resource, NoResource
 from twisted.web.server import Site
+from twisted.web import static
 from threading import Lock
 
 import gdp
@@ -108,7 +109,6 @@ class DataResource(Resource):
     def __init__(self):
         Resource.__init__(self)
         self.GDPcaches = {}
-        self.req_num = 0
         self.lock = Lock()
 
 
@@ -182,60 +182,50 @@ class DataResource(Resource):
 
     def render_GET(self, request):
 
-        # Get a request number for this particular request
-        self.lock.acquire()
-        req_num = self.req_num
-        self.req_num += 1
-        self.lock.release()
-
-        print "%s]](%d) %s GET: %s" % (time.strftime("%x %X"), req_num,
-                                         request.getClientIP(), request.uri)
-        start = time.time()
         resp = ""
         respCode = 200
-        if request.path == "/":
-            # serve the main HTML file
-            with open("index.html", "r") as fh:
-                resp = fh.read()
 
-        elif request.path == "/main.js":
-            with open("main.js", "r") as fh:
-                resp = fh.read()
+        try:
+            resp = self.__handleQuery(request)
+        except Exception as e:
+            print e
+            request.setResponseCode(500)
+            respCode = 500
+            resp = "500: internal server error"
 
-        elif request.path == "/datasource":
-            # for querying GDP
-            try:
-                resp = self.__handleQuery(request)
-            except Exception as e:
-                print e
-                request.setResponseCode(500)
-                respCode = 500
-                resp = "500: internal server error"
-
-        else:
-            # default to 404 not found
-            request.setResponseCode(404)
-            respCode = 404
-            resp = "404: not found"
-
-        end = time.time()
-        print "%s]](%d) RESP: %d\t%d\t%f" % (time.strftime("%x %X"), req_num,
-                                    respCode, len(resp), end-start)
         return resp
 
 
+class MainResource(Resource):
+
+    def __init__(self):
+        Resource.__init__(self)
+        self.staticresource = static.File("./static")
+        self.dataresource = DataResource()
+        self.putChild('static', self.staticresource)
+        self.putChild('datasource', self.dataresource)
+
+    def getChild(self, name, request):
+        if name == "":
+            return self
+        else:
+            return NoResource()
+
+    def render_GET(self, request):
+        with open('index.html') as fh:
+            return fh.read()
 
 if __name__ == '__main__': 
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--port", type=int, default=8888,
                         help="TCP port to serve requests on")
+    parser.add_argument("-l", "--logfile", default="visServer.log",
+                        help="Logfile to log requests to")
 
     args = parser.parse_args()
-
     gdp.gdp_init()
-
-    site = Site(DataResource())
+    site = Site(MainResource(), logPath=args.logfile)
     reactor.listenTCP(args.port, site)
 
     print "Starting web-server on port", args.port
