@@ -53,9 +53,7 @@
 **		never
 */
 
-static int	EpAssertNesting = 0;	// XXX-NOT-THREAD-SAFE
-					//  (should be thread-private)
-static void	(*EpAbortFunc)(void) = 0;
+void	(*EpAbortFunc)(void) = NULL;
 
 void
 ep_assert_failure(
@@ -66,9 +64,6 @@ ep_assert_failure(
 	...)
 {
 	va_list av;
-
-	if (EpAssertNesting++ > 0)
-		ep_assert_abort("Nested assertion failure");
 
 	// log something here?
 
@@ -82,45 +77,14 @@ ep_assert_failure(
 	fprintf(stderr, "%s\n", EpVid->vidnorm);
 	funlockfile(stderr);
 
-	abort();
-	/*NOTREACHED*/
-}
-
-/*
-**  EP_ASSERT_ABORT --- force an abort
-**
-**	XXX should be in unix-dependent file (probably posix_io.c)
-*/
-
-void
-ep_assert_abort(const char *msg)
-{
-	const char *msg0 = "!!!ABORT: ";
-	char msg1[40];
-	const char *msg2 = ": ";
-
 	// give the application an opportunity to do something else
 	if (EpAbortFunc != NULL)
-		(*EpAbortFunc)();
-
-	// no?  OK then, let's bail out near line 1
-	strerror_r(errno, msg1, sizeof msg1);
-	if (write(2, msg0, strlen(msg0)) <= 0 ||
-		write(2, msg1, strlen(msg1)) <= 0 ||
-		write(2, msg2, strlen(msg2)) <= 0 ||
-		write(2, msg, strlen(msg)) <= 0 ||
-		write(2, "\n", 1) <= 0)
 	{
-		// um, not much to do here; we just did this to make GCC happy
-		abort();
+		void (*abortfunc)(void) = EpAbortFunc;
+		EpAbortFunc = NULL;
+		(*abortfunc)();
 	}
+
 	abort();
-
-	// if abort fails, what to do, what to do?
-	// :XXX: UNIX specific
-	for (;;)
-	{
-		exit(255);
-		_exit(255);
-	}
+	/*NOTREACHED*/
 }
