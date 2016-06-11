@@ -1,6 +1,5 @@
 // All javascript functions go here...
 google.charts.load('current', {'packages':['corechart', 'controls']});
-//google.charts.setOnLoadCallback(drawChart);
 
 deviceData = {
         "logs": [
@@ -28,23 +27,21 @@ deviceData = {
 
 function makeForm() {
     // Code for picking up a device
-    //var devicePickerString = "<select name='logname' id='logname' size=" + String(deviceData.logs.length)+">";
-    var devicePickerString = "Sensor: <select name='logname' id='logname'>";
+    var devicePickerString = "";
     for (var i=0; i<deviceData.logs.length; i++) {
         var log = deviceData.logs[i];
         devicePickerString += "<option value='" + log.logname + "'>" + log.logname + "</option>";
     }
-    devicePickerString += "</select>";
-    devicePickerString += "&nbsp&nbsp How far back? <input type='range' name='history' min='4.8' max='6.8' step='0.1'>"
-    devicePickerString += "&nbsp&nbsp <input type='button' name='button' value='Plot' onClick='plot(this.form)'>"
-    document.getElementById('devicePicker').innerHTML = devicePickerString;
+    document.getElementById('logname').innerHTML = devicePickerString;
+    var timeNow = Date.now()
+    document.getElementById('startTime').value = new Date(timeNow-3600000).toLocaleString();
+    document.getElementById('endTime').value = new Date(timeNow).toLocaleString();
 }
 
 function plot(form) {
     var logname = form.logname.value;
-    var curTime = Date.now()/1000.0;
-    var startTime = curTime-Math.pow(10.0,form.history.value);
-    var endTime = curTime;
+    startTime = Date.parse(form.startTime.value)/1000.0;
+    endTime = Date.parse(form.endTime.value)/1000.0;
 
     if (typeof dashboard != 'undefined') {
         for (var i=0; i<pChartArray.length; i++) {
@@ -76,7 +73,6 @@ function handleQueryResponse(response) {
     document.getElementById('request_status').innerHTML = "The first graph is an overview graph with controllable sliders to zoom in/out, followed by individual parameters plotted separately.";
 
     data = response.getDataTable();
-    //var view = new google.visualization.DataView(data);
 
     dashboard = new google.visualization.Dashboard(
         document.getElementById('dashboard_div'));
@@ -88,10 +84,10 @@ function handleQueryResponse(response) {
             'filterColumnLabel': 'time',
             //'ui': {'labelStacking': 'vertical'}
         },
-        //'state': {
-        //    'range': {'start': new Date(Date.now()-36000000),
-        //              'end': new Date(Date.now())},
-        //}
+        'state': {
+            'range': {'start': new Date(((startTime+endTime)/2)*1000),
+                      'end': new Date(endTime*1000)},
+        }
     });
 
     pChartArray = [];
@@ -104,6 +100,7 @@ function handleQueryResponse(response) {
         'options': {
             'colors': [colors[(i-1)%colors.length]],
             'title' : data.getColumnLabel(i),
+            'pointSize': 3,
             //'curveType' : 'function',
             //'legend': { 'position': 'bottom'}
             }
