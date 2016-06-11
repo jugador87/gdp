@@ -53,10 +53,13 @@ section entirely][Using the GDP].
 	end of this document.
 
    5.	Adjust any administrative parameters (see below).  In particular,
-	you may want to update `swarm.gdplogd.gdpname` so that the log
-	daemon has the same name every time it starts up (otherwise it
-	will choose a random name).  In any case, it will print its own
-	name when it starts up.
+	you may want to update `swarm.gdp.routers` if you are using an
+	existing router, otherwise it defaults to your local instance of
+	the router. In the case you are running your own log daemon, you
+	may want to update `swarm.gdplogd.gdpname` so that the log daemon
+	has the same name every time it starts up (otherwise it will choose
+	a random name).  In any case, it will print its own name when it
+	starts up.
 
    6.	Start the GDP routing daemon (see router README files).
 
