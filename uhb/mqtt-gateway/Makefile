@@ -31,7 +31,7 @@ BINALL=		mqtt-gdp-gateway \
 SBINALL=	
 
 SCRIPTS=	start-mqtt-gdp-gateway.sh \
-		../adm/common-support.sh \
+		../../adm/common-support.sh \
 
 MAN1ALL=	mqtt-gdp-gateway.1 \
 
@@ -113,7 +113,7 @@ mqtt-gdp-gateway:	mqtt-gdp-gateway.o
 ${ALL}:		${LIBROOT}/gdp/libgdp.a ${LIBROOT}/ep/libep.a
 
 clean:
-	-rm -f ${ALL} *.o *.core
+	-rm -f ${CLEANALL} *.o *.core
 
 install:	${BINDIR} ${SBINDIR} ${GDPROOT}/adm ${ALL} \
 		${SCRIPTS} ${MANALL} FORCE
