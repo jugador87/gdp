@@ -71,7 +71,7 @@ INSTALL=	install
 
 LOCAL1=		/usr/local
 LOCAL2=		/opt/local
-INCROOT=	..
+INCROOT=	../..
 INCSEARCH=	-I${LOCAL1}/include -I${LOCAL2}/include
 LIBROOT=	${INCROOT}
 LIBSEARCH=	-L${CRYPTOROOT}/lib \
@@ -130,7 +130,7 @@ install:	${BINDIR} ${SBINDIR} ${GDPROOT}/adm ${ALL} \
 ${BINDIR} ${SBINDIR} ${GDPROOT}/adm:
 	${MKDIR} $@
 
-ADM=		../adm
+ADM=		../../adm
 UPDATE_LICENSE=	${ADM}/update-license.sh
 
 update-license:

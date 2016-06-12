@@ -14,7 +14,7 @@ ep/decode-epstat
 examples/machine-mon
 gdplogd/gdplogd
 test-net/gdp_router
-uhb/mqtt-gdp-gateway
+uhb/mqtt-gateway/mqtt-gdp-gateway
 test/t_fwd_append
 test/t_multimultiread
 KEYS
