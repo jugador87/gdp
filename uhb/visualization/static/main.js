@@ -4,6 +4,7 @@ google.charts.load('current', {'packages':['corechart', 'controls']});
 deviceData = {
         "logs": [
             { "logname": "edu.berkeley.eecs.swarmlab.device.c098e5300003", "type": "BLEES", "humanName": 'xyz'},
+            { "logname": "edu.berkeley.eecs.swarmlab.device.c098e570002b", "type": "PowerBlade", "humanName": 'xyz'},
             { "logname": "edu.berkeley.eecs.swarmlab.device.c098e5700088", "type": "PowerBlade", "humanName": 'xyz'},
             { "logname": "edu.berkeley.eecs.swarmlab.device.c098e570008b", "type": "PowerBlade", "humanName": 'xyz'},
             { "logname": "edu.berkeley.eecs.swarmlab.device.c098e570008e", "type": "PowerBlade", "humanName": 'xyz'},
