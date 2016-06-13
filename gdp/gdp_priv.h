@@ -207,6 +207,7 @@ struct gdp_gcl
 EP_STAT			_gdp_gcl_cache_init(void);	// initialize cache
 
 void			_gdp_gcl_cache_dump(		// print cache (for debugging)
+						int plev,
 						FILE *fp);
 
 gdp_gcl_t		*_gdp_gcl_cache_get(		// get entry from cache

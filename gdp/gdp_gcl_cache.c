@@ -487,21 +487,28 @@ _gdp_gcl_decref(gdp_gcl_t **gclp)
 */
 
 void
-_gdp_gcl_cache_dump(FILE *fp)
+_gdp_gcl_cache_dump(int plev, FILE *fp)
 {
 	gdp_gcl_t *gcl;
 
 	fprintf(fp, "\n<<< Showing cached GCLs by usage >>>\n");
 	LIST_FOREACH(gcl, &GclsByUse, ulist)
 	{
-		struct tm *tm;
-		char tbuf[40];
-
-		if ((tm = localtime(&gcl->utime)) != NULL)
-			strftime(tbuf, sizeof tbuf, "%Y%m%d-%H%M%S", tm);
+		if (plev > GDP_PR_PRETTY)
+		{
+			_gdp_gcl_dump(gcl, fp, plev, 0);
+		}
 		else
-			snprintf(tbuf, sizeof tbuf, "%"PRIu64, (int64_t) gcl->utime);
-		fprintf(fp, "%s %p %s %d\n", tbuf, gcl, gcl->pname, gcl->refcnt);
+		{
+			struct tm *tm;
+			char tbuf[40];
+
+			if ((tm = localtime(&gcl->utime)) != NULL)
+				strftime(tbuf, sizeof tbuf, "%Y%m%d-%H%M%S", tm);
+			else
+				snprintf(tbuf, sizeof tbuf, "%"PRIu64, (int64_t) gcl->utime);
+			fprintf(fp, "%s %p %s %d\n", tbuf, gcl, gcl->pname, gcl->refcnt);
+		}
 	}
-	fprintf(fp, "<<< End of list >>>\n");
+	fprintf(fp, "\n<<< End of cached GCL list >>>\n");
 }

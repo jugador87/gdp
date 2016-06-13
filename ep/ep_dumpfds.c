@@ -46,7 +46,6 @@ ep_app_dumpfds(FILE *fp)
 	int i;
 	int j;
 
-	fprintf(fp, "\n*** Open File Descriptors:\n");
 	for (i = j = 0; i < maxfds; i++)
 	{
 		struct stat sbuf;

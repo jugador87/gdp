@@ -134,9 +134,10 @@ sigterm(int sig)
 */
 
 static void
-dump_state(void)
+dump_state(int plev)
 {
-	_gdp_gcl_cache_dump(stderr);
+	_gdp_gcl_cache_dump(plev, stderr);
+	fprintf(stderr, "\n<<< Open file descriptors >>>\n");
 	ep_app_dumpfds(stderr);
 }
 
@@ -144,10 +145,21 @@ dump_state(void)
 # define SIGINFO	SIGUSR1
 #endif
 
-void
+static void
 siginfo(int sig, short what, void *arg)
 {
-	dump_state();
+	dump_state(GDP_PR_PRETTY);
+}
+
+
+/*
+**  Similar, but when aborting due to an assertion failure.
+*/
+
+static void
+assertion_dump(void)
+{
+	dump_state(GDP_PR_DETAILED);
 }
 
 
@@ -340,7 +352,7 @@ main(int argc, char **argv)
 	signal(SIGTERM, sigterm);
 
 	// dump state on assertion failure
-	EpAbortFunc = dump_state;
+	EpAbortFunc = assertion_dump;
 
 	// arrange to clean up resources periodically
 	{
