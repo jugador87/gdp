@@ -188,8 +188,14 @@ _gdp_gcl_dump(
 					gcl->nrecs);
 			if (detail >= GDP_PR_DETAILED)
 			{
+				char tbuf[40];
+				struct tm tm;
+
 				fprintf(fp, "\tfreefunc = %p, gclmd = %p, digest = %p, x = %p\n",
 						gcl->freefunc, gcl->gclmd, gcl->digest, gcl->x);
+				gmtime_r(&gcl->utime, &tm);
+				strftime(tbuf, sizeof tbuf, "%Y-%m-%dT%H:%M:%S", &tm);
+				fprintf(fp, "\tutime = %s\n", tbuf);
 			}
 		}
 	}

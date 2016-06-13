@@ -486,6 +486,26 @@ _gdp_gcl_decref(gdp_gcl_t **gclp)
 **  Show contents of LRU cache (for debugging)
 */
 
+static void
+check_cache(size_t klen, const void *key, void *val, va_list av)
+{
+	const gdp_gcl_t *gcl;
+	const gdp_gcl_t *g2;
+
+	if (val == NULL)
+		return;
+
+	gcl = val;
+	LIST_FOREACH(g2, &GclsByUse, ulist)
+	{
+		if (g2 == gcl)
+			return;
+	}
+
+	FILE *fp = va_arg(av, FILE *);
+	fprintf(fp, "    ===> WARNING: %s not in usage list\n", gcl->pname);
+}
+
 void
 _gdp_gcl_cache_dump(int plev, FILE *fp)
 {
@@ -509,6 +529,11 @@ _gdp_gcl_cache_dump(int plev, FILE *fp)
 				snprintf(tbuf, sizeof tbuf, "%"PRIu64, (int64_t) gcl->utime);
 			fprintf(fp, "%s %p %s %d\n", tbuf, gcl, gcl->pname, gcl->refcnt);
 		}
+		if (ep_hash_search(OpenGCLCache, sizeof gcl->name, (void *) gcl->name) == NULL)
+			fprintf(fp, "    ===> WARNING: %s not in primary cache\n",
+					gcl->pname);
 	}
+
+	ep_hash_forall(OpenGCLCache, check_cache);
 	fprintf(fp, "\n<<< End of cached GCL list >>>\n");
 }

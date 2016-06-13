@@ -148,7 +148,10 @@ dump_state(int plev)
 static void
 siginfo(int sig, short what, void *arg)
 {
-	dump_state(GDP_PR_PRETTY);
+	if (ep_dbg_test(Dbg, 1))
+		dump_state(GDP_PR_DETAILED);
+	else
+		dump_state(GDP_PR_PRETTY);
 }
 
 
