@@ -113,19 +113,6 @@ logd_shutdown(void)
 
 
 /*
-**  SIGTERM --- called on interrupt or kill to do clean shutdown
-*/
-
-void
-sigterm(int sig)
-{
-	ep_log(EP_STAT_OK, "Terminating on signal %d", sig);
-	signal(sig, SIG_DFL);
-	exit(EX_UNAVAILABLE);		// this will do cleanup
-}
-
-
-/*
 **  SIGINFO --- called to print out internal state (for debugging)
 **
 **		On BSD and MacOS this is implemented as a SIGINFO (^T from
@@ -156,13 +143,39 @@ siginfo(int sig, short what, void *arg)
 
 
 /*
-**  Similar, but when aborting due to an assertion failure.
+**  SIGTERM --- called on interrupt or kill to do clean shutdown
+*/
+
+void
+sigterm(int sig)
+{
+	ep_log(EP_STAT_OK, "Terminating on signal %d", sig);
+	signal(sig, SIG_DFL);
+	exit(EX_UNAVAILABLE);		// this will do cleanup
+}
+
+
+/*
+**  SIGABORT --- called on quit or abort to dump state
+*/
+
+void
+sigabort(int sig)
+{
+	signal(sig, SIG_DFL);
+	dump_state(GDP_PR_DETAILED);
+	kill(getpid(), sig);
+}
+
+
+/*
+**  Dump state when an assertion fails.
 */
 
 static void
 assertion_dump(void)
 {
-	dump_state(GDP_PR_DETAILED);
+	sigabort(SIGABRT);
 }
 
 
@@ -353,6 +366,8 @@ main(int argc, char **argv)
 	// do cleanup on termination
 	signal(SIGINT, sigterm);
 	signal(SIGTERM, sigterm);
+	signal(SIGQUIT, sigabort);
+	signal(SIGABRT, sigabort);
 
 	// dump state on assertion failure
 	EpAbortFunc = assertion_dump;
