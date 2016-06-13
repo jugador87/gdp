@@ -85,6 +85,16 @@ tags: .FORCE
 .FORCE:
 
 
+# Build the Java interface to the GDP. Optional for the GDP per se.
+all_Java:
+	(cd lang/java; make clean all)
+
+install_Java:
+	(cd lang/java; make clean install)
+
+clean_Java:
+	(cd lang/java; make clean)
+
 # Build the Node.js/JavaScript GDP accessing apps and the Node.js/JS
 # RESTful GDP interface.  Optional for the GDP per se.
 all_JavaScript:
