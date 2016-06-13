@@ -301,6 +301,7 @@ _gdp_event_add_from_req(gdp_req_t *req)
 	  case GDP_ACK_DELETED:
 		// end of subscription
 		evtype = GDP_EVENT_EOS;
+		req->flags &= ~GDP_REQ_PERSIST;
 		break;
 
 	  case GDP_ACK_CREATED:
@@ -310,6 +311,7 @@ _gdp_event_add_from_req(gdp_req_t *req)
 
 	  case GDP_NAK_S_LOSTSUB:
 		evtype = GDP_EVENT_SHUTDOWN;
+		req->flags &= ~GDP_REQ_PERSIST;
 		break;
 
 	  default:
