@@ -208,6 +208,7 @@ cmd_create(gdp_req_t *req)
 	EP_STAT_CHECK(estat, goto fail0);
 	req->gcl = gcl;			// for debugging
 
+
 	// assume both read and write modes
 	gcl->iomode = GDP_MODE_RA;
 
@@ -564,6 +565,13 @@ cmd_append(gdp_req_t *req)
 	// create the message
 	estat = req->gcl->x->physimpl->append(req->gcl, req->pdu->datum);
 	req->gcl->nrecs = req->pdu->datum->recno;
+
+    //replication service start here.--->
+    if (req->fwdflag != 1)
+    {
+        estat = _rpl_fwd_append(req);
+    }
+    //<---
 
 	// send the new data to any subscribers
 	if (EP_STAT_ISOK(estat))
@@ -1013,7 +1021,7 @@ cmd_fwd_append(gdp_req_t *req)
 		ep_dbg_cprintf(Dbg, 14, "cmd_fwd_append: %s\n",
 				gdp_printable_name(req->pdu->dst, pbuf));
 	}
-
+    req->fwdflag = 1; //to distinguish this req is forwarded
 	// actually do the append
 	estat = cmd_append(req);
 

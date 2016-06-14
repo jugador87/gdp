@@ -183,12 +183,17 @@ gdp_pdu_proc_cmd(void *pdu_)
 	// send response PDU if appropriate
 	if (GDP_CMD_NEEDS_ACK(cmd))
 	{
-		ep_dbg_cprintf(Dbg, 41,
-				"gdp_pdu_proc_cmd: sending %zd bytes\n",
-				evbuffer_get_length(req->pdu->datum->dbuf));
-		req->pdu->cmd = resp;
-		req->stat = _gdp_pdu_out(req->pdu, req->chan, NULL);
-		//XXX anything to do with estat here?
+        if (cmd == GDP_CMD_APPEND && (req->ackcnt > 0) ) {
+            //Ack is not replied here.
+        }
+        else {
+            ep_dbg_cprintf(Dbg, 41,
+			    	"gdp_pdu_proc_cmd: sending %zd bytes\n",
+				    evbuffer_get_length(req->pdu->datum->dbuf));
+            req->pdu->cmd = resp;
+            req->stat = _gdp_pdu_out(req->pdu, req->chan, NULL);
+            //XXX anything to do with estat here?
+        }
 	}
 
 	// do command post processing
@@ -230,6 +235,7 @@ gdp_pdu_proc_resp(void *pdu_)
 {
 	gdp_pdu_t *pdu = pdu_;
 	int cmd = pdu->cmd;
+    int fwdcmd;
 	EP_STAT estat;
 	gdp_gcl_t *gcl;
 	gdp_req_t *req = NULL;
@@ -244,6 +250,7 @@ gdp_pdu_proc_resp(void *pdu_)
 	if (gcl != NULL)
 	{
 		req = _gdp_req_find(gcl, pdu->rid);
+        fwdcmd = req->pdu->cmd;
 	}
 	else if (ep_dbg_test(Dbg, 1))
 	{
@@ -329,7 +336,12 @@ gdp_pdu_proc_resp(void *pdu_)
 	}
 	else
 	{
-		_gdp_req_unlock(req);
+        if ( (fwdcmd == GDP_CMD_FWD_APPEND)
+            && (EP_UT_BITSET(GDP_REQ_PERSIST, req->flags)) )
+            _gdp_req_free(&req); // free up even if it is GDP_REQ_PERSISTENT
+
+        else
+            _gdp_req_unlock(req);
 	}
 
 	ep_dbg_cprintf(Dbg, 40, "gdp_pdu_proc_resp <<< done\n");
