@@ -471,7 +471,7 @@ main(int argc, char **argv)
 				(fp = fdopen(fd, "w")) == NULL)
 		{
 			ep_app_error("Cannot create %s", localkeyfile);
-			exit(EX_CANTCREAT);
+			exit(EX_IOERR);
 		}
 
 		estat = ep_crypto_key_write_fp(key, fp, EP_CRYPTO_KEYFORM_PEM,

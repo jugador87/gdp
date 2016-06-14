@@ -151,10 +151,12 @@ flag or set that administrative parameter.
 .El
 .Sh EXIT STATUS
 .Bl -tag
-.It Li EX_CANTCREATE
-It was not possible to create a secret key file.
+.It Li EX_CANTCREAT
+The log already exists.
 .It Li EX_DATAERR
 A command-line key file could not be parsed.
+.It Li EX_IOERR
+A secret key file could not be created.
 .It Li EX_NOINPUT
 A command-line key file could not be opened.
 .It Li EX_SOFTWARE
