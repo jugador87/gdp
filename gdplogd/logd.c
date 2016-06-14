@@ -163,6 +163,7 @@ void
 sigabort(int sig)
 {
 	signal(sig, SIG_DFL);
+	ep_log(EP_STAT_ABORT, "Aborting on signal %d", sig);
 	dump_state(GDP_PR_DETAILED);
 	kill(getpid(), sig);
 }
